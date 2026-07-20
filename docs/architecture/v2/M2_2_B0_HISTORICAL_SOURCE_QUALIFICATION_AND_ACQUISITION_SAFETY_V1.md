@@ -23,12 +23,16 @@ M2.2-B0 解决“数据能下载”和“数据有资格成为研究证据”被
 
 ## 2. 已实现合同
 
-- `historical-source-qualification.ts`：严格区分人工权利审查、技术可达性、历史合约身份、knowledge time 和逐 Detector 数据覆盖。
+- `historical-source-qualification.ts`：严格区分人工权利审查、技术可达性、历史合约身份、knowledge time 和逐 Detector 数据覆盖；B0.2-A 已将 qualification/assessment 升级到 v2。
+- `historical-rights-review.ts`：用外部人工、条款留存、有效期、账户/司法范围、attestation 和撤销处置替代旧内联审查字段。
+- `historical-instrument-identity.ts`：用 identity epoch、状态区间、knowledge time 和完整分母 coverage artifact 替代旧完整性布尔值。
 - `historical-acquisition-contract.ts`：精确 HTTPS host allowlist、逐对象 URL/checksum/大小、磁盘保留量、工作区外路径和 source identity 绑定。
 - `historical-acquisition-pilot.ts`：限制为单对象技术验证，支持受校验的断点续传、重定向 allowlist、大小上限、官方 SHA-256、原子临时文件和验证后强制删除原始字节。
 - `m2-historical-source-pilot.ts`：只提供 `preflight` 与 `verify` 两个本地入口，不提供 bulk 下载旁路。
 
 所有 artifact 都有稳定内容哈希；证据、计划、preflight 和执行时间禁止倒置。
+
+B0.2-A 的新合同见 `M2_2_B0_2_RIGHTS_AND_HISTORICAL_INSTRUMENT_EVIDENCE_GATE_V1.md`。本文件保留 B0 技术试点事实，不再授权旧布尔字段通过来源资格。
 
 ## 3. 来源核验
 

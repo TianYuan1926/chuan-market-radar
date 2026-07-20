@@ -12,11 +12,18 @@ import {
   NonNegativeIntegerSchema,
   ReasonCodesSchema,
 } from "../runtime-schema/primitives";
+import {
+  M2HistoricalInstrumentCoverageArtifactSchema,
+} from "./historical-instrument-identity";
+import {
+  M2HistoricalRightsReviewArtifactSchema,
+  assessM2HistoricalRightsReview,
+} from "./historical-rights-review";
 
 export const M2_HISTORICAL_SOURCE_QUALIFICATION_VERSION =
-  "v2-m2-historical-source-qualification.v1" as const;
+  "v2-m2-historical-source-qualification.v2" as const;
 export const M2_HISTORICAL_SOURCE_ASSESSMENT_VERSION =
-  "v2-m2-historical-source-assessment.v1" as const;
+  "v2-m2-historical-source-assessment.v2" as const;
 
 const DigestSchema = z.string().regex(/^sha256:[0-9a-f]{64}$/u);
 const HttpsUrlSchema = z.string().url().superRefine((value, context) => {
@@ -52,75 +59,6 @@ const EvidenceReferenceSchema = z.strictObject({
       code: "custom",
       message: "evidence capture status and content digest disagree",
       path: ["contentDigest"],
-    });
-  }
-});
-
-const RightsReviewSchema = z.strictObject({
-  intendedUse: z.literal("PRIVATE_NON_COMMERCIAL_MARKET_RESEARCH"),
-  decision: z.enum(["APPROVED", "REJECTED", "PENDING_HUMAN_REVIEW"]),
-  retentionRight: z.enum(["GRANTED", "DENIED", "UNKNOWN"]),
-  replayRight: z.enum(["GRANTED", "DENIED", "UNKNOWN"]),
-  redistributionRight: z.enum([
-    "NOT_REQUIRED_PRIVATE_RESEARCH",
-    "GRANTED",
-    "DENIED",
-    "UNKNOWN",
-  ]),
-  reviewerType: z.enum([
-    "ACCOUNT_OWNER",
-    "QUALIFIED_LEGAL_COUNSEL",
-    "UNASSIGNED",
-  ]),
-  reviewerIdentity: NonEmptyStringSchema.nullable(),
-  reviewedAt: IsoDateTimeSchema.nullable(),
-  evidenceIds: z.array(NonEmptyStringSchema).min(1),
-  limitations: ReasonCodesSchema,
-}).superRefine((review, context) => {
-  const approved = review.decision === "APPROVED";
-  if (approved && (
-    review.retentionRight !== "GRANTED" ||
-    review.replayRight !== "GRANTED" ||
-    review.reviewerType === "UNASSIGNED" ||
-    review.reviewerIdentity === null ||
-    review.reviewedAt === null
-  )) {
-    context.addIssue({
-      code: "custom",
-      message: "approved source rights require granted rights and a human review",
-      path: ["decision"],
-    });
-  }
-  if (
-    review.decision === "PENDING_HUMAN_REVIEW" &&
-    (review.retentionRight !== "UNKNOWN" ||
-      review.replayRight !== "UNKNOWN" ||
-      review.reviewerType !== "UNASSIGNED" ||
-      review.reviewerIdentity !== null ||
-      review.reviewedAt !== null)
-  ) {
-    context.addIssue({
-      code: "custom",
-      message: "pending source rights cannot imply a completed review",
-      path: ["decision"],
-    });
-  }
-  if (
-    review.decision === "REJECTED" &&
-    review.retentionRight !== "DENIED" &&
-    review.replayRight !== "DENIED"
-  ) {
-    context.addIssue({
-      code: "custom",
-      message: "rejected source rights must identify a denied required right",
-      path: ["decision"],
-    });
-  }
-  if (new Set(review.evidenceIds).size !== review.evidenceIds.length) {
-    context.addIssue({
-      code: "custom",
-      message: "source rights evidence references must be unique",
-      path: ["evidenceIds"],
     });
   }
 });
@@ -187,23 +125,6 @@ const TechnicalQualificationSchema = z.strictObject({
       });
     }
   }
-});
-
-const InstrumentHistorySchema = z.strictObject({
-  evidenceMode: z.enum([
-    "POINT_IN_TIME_INSTRUMENT_SNAPSHOTS",
-    "CURRENT_SNAPSHOT_ONLY",
-    "ARCHIVE_PRESENCE_ONLY",
-    "UNAVAILABLE",
-  ]),
-  onboardAtComplete: z.boolean(),
-  delistAtComplete: z.boolean(),
-  contractTypeComplete: z.boolean(),
-  settlementAssetComplete: z.boolean(),
-  underlyingClassComplete: z.boolean(),
-  tradingStatusComplete: z.boolean(),
-  evidenceDigest: DigestSchema.nullable(),
-  reasonCodes: ReasonCodesSchema,
 });
 
 const SourceClockSchema = z.strictObject({
@@ -329,9 +250,9 @@ const SourceQualificationCoreSchema = z.strictObject({
   sourceType: z.literal("VENUE_PUBLIC_ARCHIVE"),
   qualifiedAt: IsoDateTimeSchema,
   evidence: z.array(EvidenceReferenceSchema).min(1),
-  rightsReview: RightsReviewSchema,
+  rightsReview: M2HistoricalRightsReviewArtifactSchema,
   technical: TechnicalQualificationSchema,
-  instrumentHistory: InstrumentHistorySchema,
+  instrumentHistory: M2HistoricalInstrumentCoverageArtifactSchema,
   sourceClock: SourceClockSchema,
   detectorCoverage: z.array(DetectorCoverageSchema).min(1),
 });
@@ -360,6 +281,16 @@ export const M2HistoricalSourceQualificationSchema =
       }
     }
     if (
+      qualification.rightsReview.sourceRegistryId !==
+        qualification.sourceRegistryId
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "rights review source binding mismatch",
+        path: ["rightsReview", "sourceRegistryId"],
+      });
+    }
+    if (
       qualification.rightsReview.reviewedAt !== null &&
       Date.parse(qualification.rightsReview.reviewedAt) >
         Date.parse(qualification.qualifiedAt)
@@ -368,6 +299,26 @@ export const M2HistoricalSourceQualificationSchema =
         code: "custom",
         message: "source rights review cannot occur after qualification freeze",
         path: ["rightsReview", "reviewedAt"],
+      });
+    }
+    if (
+      Date.parse(qualification.instrumentHistory.generatedAt) >
+        Date.parse(qualification.qualifiedAt)
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "instrument history coverage cannot postdate qualification",
+        path: ["instrumentHistory", "generatedAt"],
+      });
+    }
+    if (
+      qualification.instrumentHistory.sourceProviderId !==
+        qualification.providerId
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "instrument history provider binding mismatch",
+        path: ["instrumentHistory", "sourceProviderId"],
       });
     }
     if (
@@ -380,15 +331,6 @@ export const M2HistoricalSourceQualificationSchema =
         message: "source technical probe cannot occur after qualification freeze",
         path: ["technical", "lastProbeAt"],
       });
-    }
-    for (const evidenceId of qualification.rightsReview.evidenceIds) {
-      if (!evidenceIdSet.has(evidenceId)) {
-        context.addIssue({
-          code: "custom",
-          message: "rights review references unknown evidence",
-          path: ["rightsReview", "evidenceIds"],
-        });
-      }
     }
     for (const evidenceId of qualification.technical.probeEvidenceIds) {
       if (!evidenceIdSet.has(evidenceId)) {
@@ -490,6 +432,16 @@ export const M2HistoricalSourceAssessmentSchema =
         path: ["assessmentStatus"],
       });
     }
+    if (
+      assessment.assessmentStatus !== "READY" &&
+      (assessment.bulkAcquisitionAllowed || assessment.cohortFreezeAllowed)
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "non-ready source assessment cannot grant bulk or cohort authority",
+        path: ["assessmentStatus"],
+      });
+    }
     const { assessmentDigest, ...core } = assessment;
     if (assessmentDigest !== stableContentHash(core)) {
       context.addIssue({
@@ -513,59 +465,32 @@ export function assessM2HistoricalSource(
   const blockers = new Set<string>();
   const warnings = new Set<string>();
   const rights = qualification.rightsReview;
-  if (rights.decision === "REJECTED") {
-    blockers.add("source_rights_rejected");
-  } else if (rights.decision !== "APPROVED") {
-    blockers.add("source_rights_human_review_pending");
+  const rightsAssessment = assessM2HistoricalRightsReview(
+    rights,
+    qualification.qualifiedAt,
+  );
+  for (const blocker of rightsAssessment.blockerReasonCodes) {
+    blockers.add(blocker);
   }
-  if (rights.retentionRight !== "GRANTED") {
-    blockers.add("source_retention_right_not_granted");
-  }
-  if (rights.replayRight !== "GRANTED") {
-    blockers.add("source_replay_right_not_granted");
-  }
-  const rightsEvidence = new Map(
+  const evidenceById = new Map(
     qualification.evidence.map((item) => [item.evidenceId, item]),
   );
-  if (rights.evidenceIds.some((id) => {
-    const evidenceType = rightsEvidence.get(id)?.evidenceType;
-    return evidenceType !== "OFFICIAL_LICENSE" &&
-      evidenceType !== "OFFICIAL_TERMS";
-  })) {
-    blockers.add("source_rights_evidence_is_not_official_terms_or_license");
-  }
-  if (rights.evidenceIds.some((id) =>
-    rightsEvidence.get(id)?.captureStatus !== "HASHED_CONTENT_CAPTURED")) {
-    blockers.add("source_rights_evidence_not_immutably_captured");
-  }
   if (qualification.technical.probeStatus !== "PASS") {
     blockers.add("source_technical_probe_not_passed");
   }
   if (qualification.technical.probeEvidenceIds.some((id) => {
-    const evidence = rightsEvidence.get(id);
+    const evidence = evidenceById.get(id);
     return evidence?.evidenceType !== "TECHNICAL_PROBE" ||
       evidence.captureStatus !== "HASHED_CONTENT_CAPTURED";
   })) {
     blockers.add("source_technical_probe_evidence_not_immutably_captured");
   }
   const history = qualification.instrumentHistory;
-  if (history.evidenceMode !== "POINT_IN_TIME_INSTRUMENT_SNAPSHOTS") {
+  if (!history.readyForCohortFreeze || history.coverageStatus !== "READY") {
     blockers.add("point_in_time_instrument_history_missing");
   }
-  for (const [field, complete] of [
-    ["onboard_at", history.onboardAtComplete],
-    ["delist_at", history.delistAtComplete],
-    ["contract_type", history.contractTypeComplete],
-    ["settlement_asset", history.settlementAssetComplete],
-    ["underlying_class", history.underlyingClassComplete],
-    ["trading_status", history.tradingStatusComplete],
-  ] as const) {
-    if (!complete) {
-      blockers.add(`instrument_history_${field}_incomplete`);
-    }
-  }
-  if (history.evidenceDigest === null) {
-    blockers.add("instrument_history_evidence_digest_missing");
+  for (const blocker of history.blockerReasonCodes) {
+    blockers.add(blocker);
   }
   if (qualification.sourceClock.availabilityTimeMode === "UNKNOWN") {
     blockers.add("source_knowledge_time_policy_unknown");
@@ -592,23 +517,22 @@ export function assessM2HistoricalSource(
   const metadataProbeAllowed =
     qualification.technical.authClass === "PUBLIC_NO_CREDENTIAL" &&
     qualification.technical.transport === "HTTPS_GET_HEAD_ONLY";
+  const instrumentHistoryReady =
+    history.coverageStatus === "READY" && history.readyForCohortFreeze;
+  const sourceGatesReady = blockers.size === 0;
   const bulkAcquisitionAllowed =
-    rights.decision === "APPROVED" &&
-    rights.retentionRight === "GRANTED" &&
-    rights.replayRight === "GRANTED" &&
-    ![...blockers].some((reason) =>
-      reason.startsWith("source_rights_") ||
-      reason === "source_retention_right_not_granted" ||
-      reason === "source_replay_right_not_granted" ||
-      reason.startsWith("source_technical_"));
-  const cohortFreezeAllowed = bulkAcquisitionAllowed &&
-    [...blockers].length === 0;
+    rightsAssessment.status === "READY" &&
+    rightsAssessment.bulkRetentionAllowed &&
+    rightsAssessment.replayAllowed &&
+    instrumentHistoryReady &&
+    sourceGatesReady;
+  const cohortFreezeAllowed = bulkAcquisitionAllowed;
   const blockerReasonCodes = [...blockers].sort();
   const core = SourceAssessmentCoreSchema.parse({
     schemaVersion: M2_HISTORICAL_SOURCE_ASSESSMENT_VERSION,
     qualificationId: qualification.qualificationId,
     qualificationDigest: qualification.qualificationDigest,
-    assessmentStatus: rights.decision === "REJECTED"
+    assessmentStatus: rightsAssessment.status === "REJECTED"
       ? "REJECTED"
       : cohortFreezeAllowed
         ? "READY"

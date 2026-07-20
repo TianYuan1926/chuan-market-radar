@@ -11,6 +11,13 @@ import {
   assessM2HistoricalSource,
   buildM2HistoricalSourceQualification,
 } from "./historical-source-qualification";
+import {
+  M2_BINANCE_VISION_TECHNICAL_PILOT_INSTRUMENT_COVERAGE,
+} from "./historical-instrument-source-registry";
+import {
+  M2_HISTORICAL_RIGHTS_REVIEW_VERSION,
+  buildM2HistoricalRightsReviewArtifact,
+} from "./historical-rights-review";
 
 export const M2_BINANCE_ARCHIVE_CLOCK_POLICY = Object.freeze({
   policyId: "v2-m2-binance-closed-candle-modeled-availability.v1",
@@ -23,6 +30,69 @@ export const M2_BINANCE_ARCHIVE_CLOCK_POLICY = Object.freeze({
 export const M2_BINANCE_ARCHIVE_CLOCK_POLICY_DIGEST = stableContentHash(
   M2_BINANCE_ARCHIVE_CLOCK_POLICY,
 );
+
+export const M2_BINANCE_VISION_RIGHTS_REVIEW =
+  buildM2HistoricalRightsReviewArtifact({
+    schemaVersion: M2_HISTORICAL_RIGHTS_REVIEW_VERSION,
+    sourceRegistryId: "binance-vision-usds-futures-public-archive.v1",
+    sourceOperator: "Binance",
+    intendedUse: "PRIVATE_NON_COMMERCIAL_MARKET_RESEARCH",
+    deploymentAudience: "SINGLE_ACCOUNT_OWNER_PRIVATE_ACCESS",
+    decision: "PENDING_HUMAN_REVIEW",
+    decisionOrigin: "PENDING_HUMAN_REVIEW",
+    evidenceEnvironment: "EXTERNAL_REVIEW_EVIDENCE",
+    retentionRight: "UNKNOWN",
+    replayRight: "UNKNOWN",
+    redistributionRight: "NOT_REQUIRED_PRIVATE_RESEARCH",
+    reviewerType: "UNASSIGNED",
+    reviewerIdentity: null,
+    reviewedAt: null,
+    reviewValidUntil: null,
+    jurisdictionScope: null,
+    accountScope: null,
+    reviewerAttestationDigest: null,
+    evidence: [
+      {
+        evidenceId: "binance-public-data-repository-license",
+        evidenceType: "OFFICIAL_LICENSE",
+        sourceOperator: "Binance",
+        url: "https://github.com/binance/binance-public-data/blob/master/LICENSE",
+        capturedAt: "2026-07-20T07:30:00.000Z",
+        termsEffectiveAt: null,
+        contentDigest: null,
+        contentBytes: null,
+        captureStatus: "REFERENCE_ONLY_UNHASHED",
+        retentionClass: "REFERENCE_ONLY",
+        appliesToDataClasses: ["HISTORICAL_MARKET_DATA"],
+      },
+      {
+        evidenceId: "binance-terms-reference",
+        evidenceType: "OFFICIAL_TERMS",
+        sourceOperator: "Binance",
+        url: "https://www.binance.com/en/terms",
+        capturedAt: "2026-07-20T07:30:00.000Z",
+        termsEffectiveAt: null,
+        contentDigest: null,
+        contentBytes: null,
+        captureStatus: "REFERENCE_ONLY_UNHASHED",
+        retentionClass: "REFERENCE_ONLY",
+        appliesToDataClasses: [
+          "HISTORICAL_MARKET_DATA",
+          "CURRENT_MARKET_DATA",
+          "INSTRUMENT_REFERENCE_DATA",
+        ],
+      },
+    ],
+    rawTermsStoredInRepository: false,
+    rawMarketDataRedistributionAllowed: false,
+    revocationDisposition:
+      "DELETE_RETAINED_RAW_DATA_AND_REVOKE_DERIVED_ACCESS",
+    limitations: [
+      "repository_license_must_not_be_assumed_to_license_market_data",
+      "account_owner_or_qualified_counsel_decision_required",
+      "official_terms_content_capture_still_required",
+    ],
+  });
 
 export const M2_BINANCE_VISION_SOURCE_QUALIFICATION =
   buildM2HistoricalSourceQualification({
@@ -42,14 +112,6 @@ export const M2_BINANCE_VISION_SOURCE_QUALIFICATION =
         captureStatus: "REFERENCE_ONLY_UNHASHED",
       },
       {
-        evidenceId: "binance-public-data-repository-license",
-        evidenceType: "OFFICIAL_LICENSE",
-        url: "https://github.com/binance/binance-public-data/blob/master/LICENSE",
-        capturedAt: "2026-07-20T07:30:00.000Z",
-        contentDigest: null,
-        captureStatus: "REFERENCE_ONLY_UNHASHED",
-      },
-      {
         evidenceId: "binance-vision-known-object-probe-2026-07-20",
         evidenceType: "TECHNICAL_PROBE",
         url: "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/1m/BTCUSDT-1m-2026-06.zip",
@@ -59,23 +121,7 @@ export const M2_BINANCE_VISION_SOURCE_QUALIFICATION =
         captureStatus: "HASHED_CONTENT_CAPTURED",
       },
     ],
-    rightsReview: {
-      intendedUse: "PRIVATE_NON_COMMERCIAL_MARKET_RESEARCH",
-      decision: "PENDING_HUMAN_REVIEW",
-      retentionRight: "UNKNOWN",
-      replayRight: "UNKNOWN",
-      redistributionRight: "NOT_REQUIRED_PRIVATE_RESEARCH",
-      reviewerType: "UNASSIGNED",
-      reviewerIdentity: null,
-      reviewedAt: null,
-      evidenceIds: [
-        "binance-public-data-repository-readme",
-        "binance-public-data-repository-license",
-      ],
-      limitations: [
-        "repository_license_must_not_be_assumed_to_license_market_data_without_human_review",
-      ],
-    },
+    rightsReview: M2_BINANCE_VISION_RIGHTS_REVIEW,
     technical: {
       archiveHostAllowlist: [
         "data.binance.vision",
@@ -95,20 +141,8 @@ export const M2_BINANCE_VISION_SOURCE_QUALIFICATION =
       knownObjectBytes: 1_838_455,
       reasonCodes: [],
     },
-    instrumentHistory: {
-      evidenceMode: "ARCHIVE_PRESENCE_ONLY",
-      onboardAtComplete: false,
-      delistAtComplete: false,
-      contractTypeComplete: false,
-      settlementAssetComplete: false,
-      underlyingClassComplete: false,
-      tradingStatusComplete: false,
-      evidenceDigest: null,
-      reasonCodes: [
-        "archive_presence_does_not_prove_historical_instrument_eligibility",
-        "archive_contains_settled_and_non_crypto_contract_symbols",
-      ],
-    },
+    instrumentHistory:
+      M2_BINANCE_VISION_TECHNICAL_PILOT_INSTRUMENT_COVERAGE,
     sourceClock: {
       eventTimeBasis: M2_BINANCE_ARCHIVE_CLOCK_POLICY.eventTimeBasis,
       availabilityTimeMode:

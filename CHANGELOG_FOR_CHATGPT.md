@@ -2,6 +2,44 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-20 / V2 M2.2-B0.2-A Rights and Historical Instrument Evidence Gate
+
+### 本轮目标
+
+把来源权利和历史 instrument identity 从可自报布尔值升级为可审计、会过期、可核算完整分母且默认关闭的机器 Gate，并如实判断现有候选是否能解锁真实 cohort。
+
+### 修改范围
+
+- 新增内容寻址权利审查：仅账户所有者或合格法律审查者可作外部决定，绑定条款、账户/法域、用途、保留/回放权利、有效期、attestation 和撤销处置。
+- 新增历史 instrument capability/record/coverage：绑定 onboard/delist、合约与结算属性、状态区间、knowledge time、identity epoch、symbol reuse 和完整 point-in-time 分母。
+- 升级 source qualification 到 v2；历史身份未 READY 时，即使技术链和权利通过也不得 bulk acquisition 或 cohort freeze。
+- 登记 Binance/OKX/Bybit 当前接口与 Tardis/Kaiko 候选；当前全部为 `RESEARCH_ONLY`，未把厂商宣传、当前 snapshot 或 archive presence 当成历史证明。
+
+### 核心链路影响
+
+加固 `全市场发现 -> 候选筛选 -> 复盘进化/Research Governance` 的历史 Universe 真值，防止幸存者偏差、错误合约、晚到知识和无权数据污染 Detector 验收。未新增真实发现能力，未生成 Candidate、Signal、等级或计划。
+
+### 测试结果
+
+- B0.2-A 定向：35/35 PASS，覆盖 Agent 自批、exact operator/双数据范围、过期权利、当前快照倒推、provider 漂移、状态缺口、晚到知识、symbol reuse、下架矛盾、unknown knowledge-time bulk 阻断和防篡改。
+- 完整 `ci:production` PASS（exit 0）：Legacy 965/0/4 skip、Worker 23/23、Historical 4/4、V2 242 total / 237 pass / 0 fail / 5 explicit skip、M0 10/10、Next build、Golden 16/16、禁文件/secret/security 全部通过。
+- 第一次全 V2 回归因 Research 注册表持有 OKX provider host 而 1 fail；未加白名单，改用官方 SDK 非运行证据引用后复跑通过。
+- `backtest:formal`、production smoke、live、Shadow、holdout 未运行；本轮不是能力或部署验收。
+
+### 是否部署
+
+未部署。未连接生产，未修改 DB、Redis、Worker、migration、env、Feature Flag、前端、API 或 secret。
+
+### 风险与遗留问题
+
+- 人工作源权利仍 `PENDING`，合格 point-in-time 历史来源数量仍为 0；exact operator、历史行情 + instrument reference 双范围、provider 和 knowledge-time 任一不明时，bulk/cohort 正确保持 blocked。
+- 当前接口只能从捕获日起积累未来历史，不能回填过去；Tardis/Kaiko 仍需精确合同/SLA、技术抽样与权利审查。
+- L2 Liquidity Shift 的历史能力仍未解决，五个 Detector 仍 DRAFT，Candidate emission=false。
+
+### 下一轮建议
+
+本地只执行 `V2-M2.2-B0.2-C-FIRST-PARTY-FORWARD-INSTRUMENT-CAPTURE`；外部并行解决 `B0.2-B` 的精确权利和合格历史来源，二者都不得伪装成已解锁 B1。
+
 ## 2026-07-20 / V2 M2.2-B0.1 Target-Blind Diagnostic Strength and Construction Policy Freeze
 
 ### 本轮目标
@@ -152,43 +190,3 @@
 ### 下一轮建议
 
 只执行 `V2-M2.2-HISTORICAL-REPLAY-AND-DETECTOR-LIFECYCLE-GATE`；真实 replay 未过线前保持 DRAFT 和 Candidate 禁发。
-
-## 2026-07-20 / V2 M2.0 Discovery Contracts and Golden Fixtures Local Exit
-
-### 本轮目标
-
-冻结六类机会、Detector point-in-time 输入、`DiscoveryCandidate -> CandidateEpisode -> OpportunityThesis` 生命周期、去重/资源优先级、三层运行漏斗和禁止未来数据的黄金样本。
-
-### 修改范围
-
-- 冻结 Pre-Move、Breakout/Retest、Trend Continuation、Reversal/Range、Relative Strength、Derivatives Flow 六族十四模式，以及每族合法方向。
-- Candidate/Episode/Thesis 升为 strict v2 schema；增加 Detector emission authority、event/knowledge 双 cutoff、五类 artifact lineage、UTC Episode key、状态转换、幂等/outbox 和 Bundle 一致性。
-- 建立 eligible/evaluated/unavailable 与 discovered/deep-validated/actionable 三层运行漏斗，明确不替代 early-detection 研究三分母。
-- 新增 19 个 test-only point-in-time fixture，六族各含 LONG、SHORT 和反例，另含方向未决、late、noise、fakeout、unavailable；递归拒绝 Outcome/MFE/MAE 等未来材料。
-- 未修改 Legacy、M1 runtime、前端、API、DB、Redis、Worker、Deep、Analysis、Strategy、Backtest 或生产。
-
-### 核心链路影响
-
-建立 `多机会发现 -> Candidate Episode + Opportunity Thesis` 的可回放、可追溯合同地基。它不提高已证明的真实发现率，不产生等级、Signal、READY 或交易计划。
-
-### 测试结果
-
-- `test:v2-foundation`：162 tests / 157 pass / 0 fail / 5 explicit external-dependency skips。
-- M2.0 定向 16/16；`typecheck`、`lint` PASS，lint 0 error / 0 warning。
-- 完整 `ci:production`：PASS，`exit_code=0`；Legacy market 965/0/4 skip、Worker 23/23、历史回测 4/4、全 V2 157/0/5 skip、M0 10/10、build、golden 16/16 和安全门禁全部通过。
-- 首次黄金样本定向为 13/14，因为 `futureMfe` 未被专用 future-key 规则分类；已扩展递归规则，没有删除测试或降低 schema。
-- 首轮完整 CI 后继续反审计并封闭 `future_outcome`/`quality_hit` 字符串绕过、Thesis emission-scope 缺口和重复/重叠理由污染；加固后完整 CI 再次 PASS。
-- `backtest:formal`、production smoke、live provider、Docker 和 migration 未运行；生产零变更。
-
-### 是否部署
-
-未部署。没有读取 M1 authority、写 Candidate Store、执行生产命令或改变生产权威。
-
-### 风险与遗留问题
-
-- fixture 只证明合同和反未来泄漏，不证明真实 precision、recall、lead time 或盈利。
-- M1.5-B1/M1.7 未通过，所有 Detector runtime、M1 authority 读取和 live Candidate 仍被阻断。
-
-### 下一轮建议
-
-只执行 `V2-M2.1-PRE-MOVE-BREAKOUT-REPLAY-KERNELS`，以 test-only fixture 实现纯函数/纯回放内核，不接 runtime、存储、页面、等级或计划。

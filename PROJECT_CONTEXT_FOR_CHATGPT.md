@@ -65,8 +65,8 @@ Runtime / Security / Release Control 贯穿全链。
 
 当前唯一设计权威：
 
-- `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`，内容版本 v1.3。
-- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.5。
+- `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`，内容版本 v1.4。
+- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.6。
 - `docs/blueprints/README.md`，权威解析入口。
 - `market-radar-v2-build-sequence.md`，当前正确施工依赖与减数规则。
 
@@ -89,6 +89,7 @@ M2.1_DRAFT_REPLAY_KERNELS_LOCAL_PASS
 M2.2A_HISTORICAL_REPLAY_GATE_HARNESS_LOCAL_PASS
 M2.2B0_HISTORICAL_SOURCE_GATE_AND_TECHNICAL_PILOT_LOCAL_PASS
 M2.2B0.1_TARGET_BLIND_STRENGTH_AND_CONSTRUCTION_POLICY_LOCAL_PASS
+M2.2B0.2A_RIGHTS_AND_HISTORICAL_IDENTITY_MACHINE_GATE_LOCAL_PASS
 M2.2_REAL_COHORT_GATE_INSUFFICIENT
 detectorLifecycle=DRAFT
 candidateEmissionAllowed=false
@@ -142,6 +143,7 @@ automaticTradingAllowed=false
 - M2.2-A 已建立真实历史数据接纳、完整 Candidate 背景窗口、candidate/event/matched-non-event 三业务分母、固定 Detector 分母、purge/embargo、holdout group isolation 与独立 custody、target-blind 首次发现、Wilson CI/lead-time 秩区间和四态 lifecycle proposal Gate。独立 custody 下 research Bundle 物理禁止 inline holdout，Gate 只打开 commitment 匹配的 sealed artifact；lead time 使用数据实际可知的 knowledge cutoff。当前仓库 accepted real cohort=0，Top20 ranking、threshold sensitivity 和真实 untouched holdout 均缺失，因此 Gate=`INSUFFICIENT`；五个 Detector 保持 DRAFT、Candidate 禁发。
 - M2.2-B0 已把来源权利、point-in-time instrument history、knowledge-time、逐 Detector 数据覆盖、精确对象/checksum、磁盘预算、Git 外原始区和单对象技术验证做成 fail-closed 合同。真实 BTCUSDT 1m 月文件 1,838,455 bytes 与官方 SHA-256 一致，验证后原始字节强制删除；但权利审查、历史合约身份和 L2 不足，故 bulk acquisition=false、cohort freeze=false。
 - M2.2-B0.1 已为五个 DRAFT Detector 增加 target-blind relative-rule-margin diagnostic strength，明确不是概率、等级或交易结论；固定 Detector 分母 Top20、TRAIN-only 六维事件阈值、matched/background、pre-cutoff regime/liquidity、observed/modeled knowledge-time、purge/embargo 和 1+4 trial registry 已由 version/digest 绑定到 dataset/experiment/holdout v2。定向 45/45 PASS；真实 cohort 仍为 0、Gate=`INSUFFICIENT`、Detector 仍 DRAFT、Candidate 禁发。
+- M2.2-B0.2-A 已把来源权利升级为内容寻址、限定账户/法域、带有效期且只能由账户所有者或合格法律审查者作出的外部结论；把历史 instrument identity、onboard/delist、状态区间、knowledge time、symbol reuse epoch 和全分母覆盖核算做成 fail-closed Gate。当前五个来源候选全部为 `RESEARCH_ONLY`，合格历史来源仍为 0；Agent、当前快照和 archive presence 均不能自证通过。
 - 本机 live no-authority probe 已执行两轮；Binance、OKX、Bybit 三家公开 HTTPS endpoint 均连接/请求超时，结果诚实保持 0 observed / 0 eligible / `DEGRADED`。因此当前仍没有 live 全市场规模、Shadow/SLO、生产 migration、API、页面或生产 authority 证据。
 
 ## 6. Docker 服务清单
@@ -274,7 +276,7 @@ npm run security:check
 系统等级：R1
 工程描述：可运行但不完整
 实战描述：不能支撑实战
-V2：M0、M1.1-M1.6、M2.0、M2.1、M2.2-A、M2.2-B0 与 B0.1 本地出口通过；target-blind 排序和构造政策已冻结，但 bulk acquisition 与 cohort freeze 因权利/历史合约身份不足保持 blocked；真实 cohort Gate=INSUFFICIENT，五个 Detector 仍为未校准 DRAFT 且 Candidate 禁发；下一入口 B0.2 受外部证据阻断，Detector runtime 禁止启动
+V2：M0、M1.1-M1.6、M2.0、M2.1、M2.2-A、M2.2-B0、B0.1 与 B0.2-A 本地出口通过；权利和 point-in-time instrument identity 机器 Gate 已建立，但五个来源候选均为 RESEARCH_ONLY，bulk acquisition/cohort freeze 仍 blocked；真实 cohort Gate=INSUFFICIENT，五个 Detector 仍为未校准 DRAFT 且 Candidate 禁发；本地下一入口 B0.2-C 前向 capture，外部门 B0.2-B 仍待人工作源权利与合格历史来源
 本轮生产变更：0
 当前生产终态：UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION
 ```
@@ -299,11 +301,11 @@ Cycle final
 
 ## 14. 最近三次关键事件
 
-### 2026-07-20 / V2 M2.2-B0.1 Target-Blind Strength and Construction Policy Local Exit
+### 2026-07-20 / V2 M2.2-B0.2-A Rights and Historical Instrument Evidence Gate Local Exit
 
-- 五个 DRAFT Detector 的命中诊断增加 relative-rule-margin strength；组件、质量、方向、veto/unavailable、固定 Detector 分母、Top20 和稳定 tie-break 均由 strict schema 与 digest 验证，未来 Outcome 物理不在排序输入。
-- 冻结 TRAIN-only 六维事件阈值、matched control、300 秒完整背景、pre-cutoff regime/liquidity、observed/modeled knowledge-time、purge/embargo 与五项试验 registry，并绑定 dataset/experiment/holdout v2；任意阈值、策略或 trial 漂移拒绝。
-- 定向 45/45 PASS；只证明本地 Research 合同。真实 cohort=0、Gate=`INSUFFICIENT`、Detector=DRAFT、Candidate 禁发、生产零变更。
+- 权利审查改为外部人工作源、条款内容摘要、账户/法域范围、有效期和撤销处置；Agent 或合成证据无法伪装为批准。
+- 历史 instrument capability/record/coverage 逐项核算 onboard、delist、contract、settlement、underlying、状态区间、knowledge time、symbol reuse 与完整分母；当前快照和 archive presence 禁止回填历史。
+- 定向 35/35、全 V2 237/0/5 explicit skip、M0 10/10 与完整 `ci:production` PASS；exact operator/双数据范围、provider binding 和 unknown knowledge-time bulk 阻断均已覆盖。五个候选仍全部 `RESEARCH_ONLY`，权利仍 PENDING、合格历史来源=0、bulk/cohort blocked、生产零变更。
 
 ### 2026-07-20 / V2 M2.2-B0 Historical Source Qualification Local Exit
 
@@ -311,11 +313,11 @@ Cycle final
 - 真实验证 BTCUSDT 2026-06 1m 月文件：1,838,455 bytes，官方/实际 SHA-256 一致；仅保留 digest 与技术元数据，生产零变更。
 - Binance 来源仍因 retention/replay 权利未人工批准、point-in-time instrument history 缺失和 L2 不足而 blocked；B0.1 已排除 ranking policy 阻断，但仍不能批量下载或宣称 cohort 完成。
 
-### 2026-07-20 / V2 M2.2-A Historical Replay Gate Harness Local Exit
+### 2026-07-20 / V2 M2.2-B0.1 Target-Blind Strength and Construction Policy Local Exit
 
-- 冻结真实来源权利、完整背景窗口、真实 split/purge/embargo、固定 Detector 分母、物理分离 holdout custody、三业务分母和 target-blind 首次发现合同；合成样本无法成为 lifecycle 证据，事件时间也不能冒充真实可知时间抬高提前量。
-- 输出 overall/family/detector/direction/regime/liquidity 的 precision、recall、control activation、unavailable、late/noise 与 lead-time 分布；实际出现的 stratum 不能省略且必须逐层过线，Gate 只可给四态结果和晋级提案，不能改 lifecycle 或发 Candidate。
-- 仓库盘点没有 accepted real cohort，Top20/sensitivity/untouched holdout 也未形成，故当前真实状态为 `INSUFFICIENT`，生产零变更。
+- 五个 DRAFT Detector 的命中诊断增加 relative-rule-margin strength；组件、质量、方向、veto/unavailable、固定 Detector 分母、Top20 和稳定 tie-break 均由 strict schema 与 digest 验证，未来 Outcome 物理不在排序输入。
+- 冻结 TRAIN-only 六维事件阈值、matched control、300 秒完整背景、pre-cutoff regime/liquidity、observed/modeled knowledge-time、purge/embargo 与五项试验 registry，并绑定 dataset/experiment/holdout v2；任意阈值、策略或 trial 漂移拒绝。
+- 定向 45/45 PASS；只证明本地 Research 合同。真实 cohort=0、Gate=`INSUFFICIENT`、Detector=DRAFT、Candidate 禁发、生产零变更。
 
 ## 15. 当前风险
 
@@ -333,8 +335,8 @@ Cycle final
 - V2 M1.1-M1.6 已有本地数据、Worker、checkpoint、SLO、Shadow 安全和分区/恢复证据；但三家 provider egress、Docker image、Compose merge、生产 migration、真实容量、Shadow 与 SLO PASS 均未证明。
 - M1.6 migration 前旧 V2 Fact 保持兼容但不自动清理；生产 preflight 必须证明旧 Fact 为零，非零时另做受控 backfill/retirement，不能进入长期 Shadow。
 - M2.0 的 19 个 test-only fixture 只证明合同和反未来泄漏，不能作为 Detector precision/recall/lead-time 或生命周期晋级证据。
-- M2.2-A/B0.1 已能拒绝 future leak、病例对照 precision 膨胀、任意排序/构造政策和伪 holdout，但 accepted real historical cohort=0；真实来源权利、完整背景实际构造、真实 Top20/sensitivity、独立 holdout custody/result 和审计都未完成，Gate 必须保持 INSUFFICIENT，禁止发 Candidate 或宣称 Detector 有效。
-- M2.2-B0 证明官方归档技术链可用，但公开下载不等于 retention/replay 获批；归档 presence 不能识别当时合格加密永续，Kline 也不支持 L2 Liquidity Shift。B0.1 已收口 target-blind 排序合同，但权利和历史身份仍禁止 bulk/cohort。
+- M2.2-A/B0.1/B0.2-A 已能拒绝 future leak、病例对照 precision 膨胀、任意排序/构造政策、伪 holdout、Agent 自批权利和当前快照倒推历史，但 accepted real historical cohort=0；真实来源权利、完整背景实际构造、真实 Top20/sensitivity、独立 holdout custody/result 和审计都未完成，Gate 必须保持 INSUFFICIENT，禁止发 Candidate 或宣称 Detector 有效。
+- M2.2-B0 证明官方归档技术链可用；B0.2-A 进一步证明公开下载、当前 snapshot 和 archive presence 都不能给出历史 eligibility。五个候选全部 `RESEARCH_ONLY`，Kline 也不支持 L2 Liquidity Shift，故 bulk/cohort 继续 blocked。
 
 ### P2
 
@@ -345,7 +347,7 @@ Cycle final
 
 下一轮审计优先检查：
 
-1. M2.2-B0.2 是否由账户所有者/合格审查者绑定来源 retention/replay 权利证据，并取得真实 point-in-time onboard/delist/contract/settlement/underlying/status；公开下载、当前 snapshot、归档 presence 和 Agent 推断都不得通过。
+1. M2.2-B0.2-B 是否取得账户所有者/合格法律审查者绑定的 retention/replay 权利证据与真实 point-in-time onboard/delist/contract/settlement/underlying/status；B0.2-C 前向 capture 必须明确只改善捕获日起的未来覆盖，不能伪装成历史回填。
 2. M1.5-B1 是否先在可达网络得到三家 live provider 原始 observed/accounted/eligible/collected/fresh，而不是把 fixture、官方文档或超时写成全市场证据。
 3. M1.6 production Gate 是否绑定旧 Fact=0、migration checksum、预建窗口、容量阈值、备份恢复和 Audit/Retention 分权。
 4. Candidate/Evidence/Setup/Action/User Fit 是否越层。
@@ -367,13 +369,13 @@ Cycle final
 - 不创建自动审批 Agent 代替用户或平台授权。
 - 污染清理分三类：确定无引用且已有 replacement 的删除；用途不明的隔离；仍有消费者的登记到 Legacy Capability Atlas 后受控替换。
 
-## 18. 唯一下一入口
+## 18. 当前本地入口与关键外部门
 
 ```text
-V2-M2.2-B0.2-RIGHTS-AND-POINT-IN-TIME-INSTRUMENT-METADATA-RESOLUTION
+V2-M2.2-B0.2-C-FIRST-PARTY-FORWARD-INSTRUMENT-CAPTURE
 ```
 
-目标是取得可审计的人工作源权利结论和历史合约身份。该入口当前受外部证据阻断：Agent 不能代表账户接受条款或作法律批准，也不能从当前 instrument snapshot 推断历史 eligibility。未解决前 bulk acquisition、真实 cohort、holdout、Detector lifecycle 和 runtime 一律保持关闭；可并行等待 M1.5-B1 可信 egress/runner 外部门禁。
+本地可自动继续建设三 Venue 第一方 point-in-time instrument snapshot/event ledger，只从真实捕获时刻向未来积累，禁止回填过去。关键外部门 `V2-M2.2-B0.2-B-EXACT-SOURCE-RIGHTS-AND-CAPABILITY-RESOLUTION` 仍需账户所有者/合格法律审查者和可验证历史来源；未解决前 bulk acquisition、真实 cohort、holdout、Detector lifecycle 和 runtime 一律保持关闭，并可并行等待 M1.5-B1 可信 egress/runner 外部门禁。
 
 ## 19. 活跃记忆维护规则
 

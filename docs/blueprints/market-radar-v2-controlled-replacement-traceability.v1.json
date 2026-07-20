@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.5",
-  "status": "m2_2_b0_1_target_blind_strength_and_construction_policy_local_pass_bulk_and_cohort_blocked_detectors_draft_external_gates_pending",
-  "generatedAt": "2026-07-20T18:08:17+08:00",
+  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.6",
+  "status": "m2_2_b0_2_a_evidence_gate_local_pass_external_rights_and_historical_source_blocked_bulk_and_cohort_blocked_detectors_draft",
+  "generatedAt": "2026-07-20T19:07:27+08:00",
   "implementationAuthorized": true,
   "productionMutationAuthorized": false,
   "authority": {
@@ -10,7 +10,7 @@
     "index": "docs/blueprints/README.md",
     "currentFacts": "PROJECT_CONTEXT_FOR_CHATGPT.md",
     "recentChanges": "CHANGELOG_FOR_CHATGPT.md",
-    "deliveryReport": "docs/blueprints/V2_M2_2_B0_1_TARGET_BLIND_DIAGNOSTIC_STRENGTH_DELIVERY_REPORT.md",
+    "deliveryReport": "docs/blueprints/V2_M2_2_B0_2_A_RIGHTS_AND_HISTORICAL_INSTRUMENT_EVIDENCE_GATE_DELIVERY_REPORT.md",
     "buildSequence": "market-radar-v2-build-sequence.md",
     "baseManifest": "docs/architecture/v2/V2_BASE_MANIFEST.v1.json",
     "baselineDecision": "docs/architecture/v2/ADR-0001-CLEAN-BASELINE-AND-V2-ISOLATION.md",
@@ -33,6 +33,7 @@
     "m2HistoricalReplayGateContract": "docs/architecture/v2/M2_2_HISTORICAL_REPLAY_AND_LIFECYCLE_GATE_CONTRACT_V1.md",
     "m2HistoricalSourceQualificationContract": "docs/architecture/v2/M2_2_B0_HISTORICAL_SOURCE_QUALIFICATION_AND_ACQUISITION_SAFETY_V1.md",
     "m2TargetBlindDiagnosticStrengthContract": "docs/architecture/v2/M2_2_B0_1_TARGET_BLIND_DIAGNOSTIC_STRENGTH_AND_CONSTRUCTION_POLICY_V1.md",
+    "m2RightsAndHistoricalInstrumentEvidenceGate": "docs/architecture/v2/M2_2_B0_2_RIGHTS_AND_HISTORICAL_INSTRUMENT_EVIDENCE_GATE_V1.md",
     "legacyEngineeringReference": "docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md",
     "legacyRuntimeReference": "docs/blueprints/MARKET_RADAR_PRODUCTION_RUNTIME_BLUEPRINT_V1.md",
     "legacyReadinessReference": "docs/superpowers/plans/2026-07-10-market-radar-practical-readiness-master-plan-v3.md"
@@ -51,7 +52,7 @@
   "currentBoundary": {
     "readiness": "R1",
     "status": "runnable_but_incomplete_not_practical_ready",
-    "v2ImplementationStatus": "m2_2_b0_1_target_blind_strength_ranking_and_construction_policy_local_pass_bulk_and_cohort_blocked_on_rights_and_instrument_history_gate_insufficient_detectors_draft_candidate_emission_false_m1_runtime_live_and_slo_unproven",
+    "v2ImplementationStatus": "m2_2_b0_2_a_machine_evidence_gate_local_pass_all_five_source_candidates_research_only_external_rights_and_historical_source_blocked_bulk_and_cohort_false_gate_insufficient_detectors_draft_candidate_emission_false_m1_runtime_live_and_slo_unproven",
     "v2ImplementationBranch": "codex/market-radar-v2-implementation",
     "v2ImplementationBaseCommit": "e5eb90026d8bfcd52b060359446515de5a5c32d6",
     "latestProductionFinalStatus": "unknown_until_fresh_read_only_verification",
@@ -697,7 +698,7 @@
       "dependsOn": [
         "M1"
       ],
-      "status": "m2_2_b0_1_local_contract_pass_bulk_and_cohort_blocked_real_replay_gate_insufficient_runtime_blocked_until_m1_exit",
+      "status": "m2_2_b0_2_a_local_evidence_gate_pass_external_resolution_bulk_and_cohort_blocked_real_replay_gate_insufficient_runtime_blocked_until_m1_exit",
       "workPackages": [
         {
           "id": "M2.0",
@@ -717,7 +718,7 @@
         {
           "id": "M2.2-B",
           "name": "real_historical_cohort_acquisition_and_freeze",
-          "status": "in_progress_b0_and_b0_1_local_pass_bulk_and_cohort_blocked"
+          "status": "in_progress_b0_b0_1_and_b0_2_a_local_pass_external_resolution_bulk_and_cohort_blocked"
         },
         {
           "id": "M2.2-B0",
@@ -730,9 +731,19 @@
           "status": "local_contract_pass_no_real_cohort_detectors_draft_production_unchanged"
         },
         {
-          "id": "M2.2-B0.2",
-          "name": "rights_and_point_in_time_instrument_metadata_resolution",
-          "status": "blocked_on_human_rights_review_and_historical_instrument_source"
+          "id": "M2.2-B0.2-A",
+          "name": "rights_and_historical_instrument_machine_evidence_gate",
+          "status": "local_evidence_gate_pass_no_external_rights_or_historical_source_approval_production_unchanged"
+        },
+        {
+          "id": "M2.2-B0.2-B",
+          "name": "exact_source_rights_and_capability_resolution",
+          "status": "blocked_on_external_human_rights_review_and_qualified_historical_instrument_source"
+        },
+        {
+          "id": "M2.2-B0.2-C",
+          "name": "first_party_forward_instrument_capture",
+          "status": "pending_local_forward_only_does_not_backfill_history"
         },
         {
           "id": "M2.2-B1",
@@ -842,24 +853,24 @@
     "legacyDeletionAllowed": false
   },
   "lastCompletedImplementationEntry": {
-    "id": "V2-M2.2-B0.1-TARGET-BLIND-DIAGNOSTIC-STRENGTH-AND-CONSTRUCTION-POLICY-FREEZE",
-    "name": "target_blind_detector_strength_ranking_train_only_labels_controls_background_and_trial_registry",
-    "status": "local_contract_pass_real_cohort_zero_detectors_draft_candidate_emission_false_production_unchanged",
+    "id": "V2-M2.2-B0.2-A-RIGHTS-AND-HISTORICAL-INSTRUMENT-EVIDENCE-GATE",
+    "name": "external_human_rights_and_point_in_time_instrument_evidence_machine_gate",
+    "status": "local_evidence_gate_pass_external_resolution_blocked_bulk_and_cohort_false_production_unchanged",
     "productionMutationPerformed": false,
     "migrationPerformed": false,
     "legacyDeletionPerformed": false
   },
   "currentImplementationEntry": {
-    "id": "V2-M2.2-B0.2-RIGHTS-AND-POINT-IN-TIME-INSTRUMENT-METADATA-RESOLUTION",
-    "name": "human_source_rights_review_and_historical_instrument_eligibility_evidence",
-    "status": "blocked_on_external_rights_decision_and_point_in_time_instrument_source",
+    "id": "V2-M2.2-B0.2-C-FIRST-PARTY-FORWARD-INSTRUMENT-CAPTURE",
+    "name": "three_venue_forward_only_instrument_snapshot_and_transition_capture",
+    "status": "pending_local_implementation_does_not_resolve_past_historical_window",
     "productionMutationAllowed": false,
     "migrationAllowed": false,
     "legacyDeletionAllowed": false
   },
   "pendingHistoricalDataGate": {
-    "id": "V2-M2.2-B0.2-RIGHTS-AND-POINT-IN-TIME-INSTRUMENT-METADATA-RESOLUTION",
-    "status": "blocked_on_human_rights_review_and_historical_instrument_source",
+    "id": "V2-M2.2-B0.2-B-EXACT-SOURCE-RIGHTS-AND-CAPABILITY-RESOLUTION",
+    "status": "blocked_on_external_human_rights_review_and_qualified_historical_instrument_source",
     "bulkAcquisitionAllowed": false,
     "cohortFreezeAllowed": false,
     "productionMutationAllowed": false

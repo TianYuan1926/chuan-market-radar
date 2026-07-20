@@ -21,12 +21,26 @@ import {
   assessM2HistoricalSource,
   buildM2HistoricalSourceQualification,
 } from "./historical-source-qualification";
+import {
+  M2_HISTORICAL_INSTRUMENT_CAPABILITY_VERSION,
+  M2_HISTORICAL_INSTRUMENT_COVERAGE_VERSION,
+  M2_HISTORICAL_INSTRUMENT_RECORD_VERSION,
+  buildM2HistoricalInstrumentCapabilityArtifact,
+  buildM2HistoricalInstrumentCoverageArtifact,
+  buildM2HistoricalInstrumentRecord,
+} from "./historical-instrument-identity";
+import {
+  M2_HISTORICAL_RIGHTS_REVIEW_VERSION,
+  buildM2HistoricalRightsReviewArtifact,
+} from "./historical-rights-review";
 
 const NOW = "2026-07-20T08:00:00.000Z";
 const HASH_A =
   "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const HASH_B =
   "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+const HASH_C =
+  "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
 
 function approvedQualification() {
   const clockPolicy = {
@@ -36,6 +50,139 @@ function approvedQualification() {
     conservativeLatencySeconds: 10,
     archiveRetrievalTimeUsedAsMarketKnowledgeTime: false,
   } as const;
+  const rightsReview = buildM2HistoricalRightsReviewArtifact({
+    schemaVersion: M2_HISTORICAL_RIGHTS_REVIEW_VERSION,
+    sourceRegistryId: "test-approved-source",
+    sourceOperator: "Test Source",
+    intendedUse: "PRIVATE_NON_COMMERCIAL_MARKET_RESEARCH",
+    deploymentAudience: "SINGLE_ACCOUNT_OWNER_PRIVATE_ACCESS",
+    decision: "APPROVED",
+    decisionOrigin: "EXTERNAL_HUMAN_REVIEW_RECORD",
+    evidenceEnvironment: "EXTERNAL_REVIEW_EVIDENCE",
+    retentionRight: "GRANTED",
+    replayRight: "GRANTED",
+    redistributionRight: "NOT_REQUIRED_PRIVATE_RESEARCH",
+    reviewerType: "ACCOUNT_OWNER",
+    reviewerIdentity: "test-account-owner-review-record",
+    reviewedAt: NOW,
+    reviewValidUntil: "2027-01-20T08:00:00.000Z",
+    jurisdictionScope: "test-jurisdiction",
+    accountScope: "test-private-account",
+    reviewerAttestationDigest: HASH_C,
+    evidence: [{
+      evidenceId: "rights-evidence",
+      evidenceType: "OFFICIAL_TERMS",
+      sourceOperator: "Test Source",
+      url: "https://example.com/official-terms",
+      capturedAt: NOW,
+      termsEffectiveAt: NOW,
+      contentDigest: HASH_A,
+      contentBytes: 1_000,
+      captureStatus: "HASHED_CONTENT_CAPTURED",
+      retentionClass: "EXTERNAL_CONTENT_ADDRESSED_EVIDENCE_STORE",
+      appliesToDataClasses: [
+        "HISTORICAL_MARKET_DATA",
+        "INSTRUMENT_REFERENCE_DATA",
+      ],
+    }],
+    rawTermsStoredInRepository: false,
+    rawMarketDataRedistributionAllowed: false,
+    revocationDisposition:
+      "DELETE_RETAINED_RAW_DATA_AND_REVOKE_DERIVED_ACCESS",
+    limitations: [],
+  });
+  const instrumentCapability =
+    buildM2HistoricalInstrumentCapabilityArtifact({
+      schemaVersion: M2_HISTORICAL_INSTRUMENT_CAPABILITY_VERSION,
+      capabilityRegistryId: "test-point-in-time-instrument-source",
+      providerId: "TEST_PROVIDER",
+      sourceOperator: "Test Source",
+      sourceClass: "VENUE_OFFICIAL",
+      evidenceMode: "OFFICIAL_POINT_IN_TIME_SNAPSHOT_ARCHIVE",
+      assessedAt: NOW,
+      captureStartedAt: null,
+      coverage: {
+        startedAt: "2026-06-01T00:00:00.000Z",
+        endedAt: "2026-07-01T00:00:00.000Z",
+      },
+      documentation: [{
+        evidenceId: "instrument-history-evidence",
+        evidenceType: "OFFICIAL_DOCUMENTATION",
+        url: "https://example.com/point-in-time-instruments",
+        capturedAt: NOW,
+        contentDigest: HASH_A,
+        contentBytes: 1_000,
+        captureStatus: "HASHED_CONTENT_CAPTURED",
+        retentionClass: "EXTERNAL_CONTENT_ADDRESSED_EVIDENCE_STORE",
+        claimScope: "HISTORICAL_INSTRUMENT_COVERAGE",
+      }],
+      guarantees: {
+        fullUniverseDenominator: true,
+        includesDelistedInstruments: true,
+        onboardAt: true,
+        delistAt: true,
+        contractType: true,
+        settlementAsset: true,
+        underlyingClass: true,
+        tradingStatusIntervals: true,
+        symbolReuseDisambiguation: true,
+      },
+      declaredLimitations: [],
+    });
+  const instrumentRecord = buildM2HistoricalInstrumentRecord({
+    schemaVersion: M2_HISTORICAL_INSTRUMENT_RECORD_VERSION,
+    sourceCapabilityId: instrumentCapability.capabilityArtifactId,
+    sourceCapabilityDigest: instrumentCapability.capabilityDigest,
+    providerId: "TEST_PROVIDER",
+    venue: "BINANCE_FUTURES",
+    providerInstrumentKey: "TEST_PROVIDER:BTCUSDT:2026-06",
+    providerSymbol: "BTCUSDT",
+    historicalInstrumentId: "TEST_PROVIDER:BTCUSDT:BTC:2026-06",
+    runtimeCanonicalInstrumentId:
+      "BINANCE_FUTURES:BTCUSDT:LINEAR_PERPETUAL:USDT",
+    identityEpoch: "BTCUSDT-BTC-2026-06",
+    baseAsset: "BTC",
+    quoteAsset: "USDT",
+    settlementAsset: "USDT",
+    settlementClass: "STABLECOIN",
+    contractClass: "LINEAR_STABLECOIN_SETTLED_PERPETUAL",
+    contractSize: "1",
+    underlyingClass: "CRYPTO_ASSET",
+    onboardAt: "2026-05-01T00:00:00.000Z",
+    delistState: "NOT_DELISTED_AS_OF_COVERAGE_END",
+    delistAt: null,
+    identityKnownAt: "2026-05-01T00:00:00.000Z",
+    recordCoverageEndAt: "2026-07-01T00:00:00.000Z",
+    sourceRecordIds: ["instrument-source-record"],
+    identityEvidenceDigests: [HASH_A],
+    statusIntervals: [{
+      status: "TRADING",
+      effectiveFrom: "2026-05-01T00:00:00.000Z",
+      effectiveTo: null,
+      knowledgeAt: "2026-05-01T00:00:00.000Z",
+      sourceRecordId: "instrument-status-record",
+      evidenceDigest: HASH_B,
+    }],
+    reasonCodes: [],
+  });
+  const instrumentHistory = buildM2HistoricalInstrumentCoverageArtifact({
+    schemaVersion: M2_HISTORICAL_INSTRUMENT_COVERAGE_VERSION,
+    generatedAt: NOW,
+    requestedWindow: {
+      startedAt: "2026-06-01T00:00:00.000Z",
+      endedAt: "2026-07-01T00:00:00.000Z",
+    },
+    denominator: {
+      mode: "FULL_POINT_IN_TIME_INSTRUMENT_MANIFEST",
+      manifestDigest: HASH_C,
+      expectedInstruments: [{
+        providerInstrumentKey: "TEST_PROVIDER:BTCUSDT:2026-06",
+        providerSymbol: "BTCUSDT",
+      }],
+    },
+    capability: instrumentCapability,
+    records: [instrumentRecord],
+  });
   return buildM2HistoricalSourceQualification({
     schemaVersion: M2_HISTORICAL_SOURCE_QUALIFICATION_VERSION,
     sourceRegistryId: "test-approved-source",
@@ -45,14 +192,6 @@ function approvedQualification() {
     qualifiedAt: NOW,
     evidence: [
       {
-        evidenceId: "rights-evidence",
-        evidenceType: "OFFICIAL_TERMS",
-        url: "https://example.com/official-terms",
-        capturedAt: NOW,
-        contentDigest: HASH_A,
-        captureStatus: "HASHED_CONTENT_CAPTURED",
-      },
-      {
         evidenceId: "probe-evidence",
         evidenceType: "TECHNICAL_PROBE",
         url: "https://archive.example.com/object.zip",
@@ -61,18 +200,7 @@ function approvedQualification() {
         captureStatus: "HASHED_CONTENT_CAPTURED",
       },
     ],
-    rightsReview: {
-      intendedUse: "PRIVATE_NON_COMMERCIAL_MARKET_RESEARCH",
-      decision: "APPROVED",
-      retentionRight: "GRANTED",
-      replayRight: "GRANTED",
-      redistributionRight: "NOT_REQUIRED_PRIVATE_RESEARCH",
-      reviewerType: "ACCOUNT_OWNER",
-      reviewerIdentity: "test-account-owner",
-      reviewedAt: NOW,
-      evidenceIds: ["rights-evidence"],
-      limitations: [],
-    },
+    rightsReview,
     technical: {
       archiveHostAllowlist: ["archive.example.com"],
       authClass: "PUBLIC_NO_CREDENTIAL",
@@ -87,17 +215,7 @@ function approvedQualification() {
       knownObjectBytes: 1_000,
       reasonCodes: [],
     },
-    instrumentHistory: {
-      evidenceMode: "POINT_IN_TIME_INSTRUMENT_SNAPSHOTS",
-      onboardAtComplete: true,
-      delistAtComplete: true,
-      contractTypeComplete: true,
-      settlementAssetComplete: true,
-      underlyingClassComplete: true,
-      tradingStatusComplete: true,
-      evidenceDigest: HASH_A,
-      reasonCodes: [],
-    },
+    instrumentHistory,
     sourceClock: {
       ...clockPolicy,
       policyDigest: stableContentHash(clockPolicy),
@@ -154,6 +272,113 @@ test("a source becomes cohort-ready only with hashed rights evidence and complet
   ]);
 });
 
+test("approved rights cannot open bulk acquisition before historical identity passes", () => {
+  const approved = approvedQualification();
+  const { qualificationDigest, qualificationId, ...core } = approved;
+  assert.ok(qualificationDigest);
+  assert.ok(qualificationId);
+  const currentOnlyCapability =
+    buildM2HistoricalInstrumentCapabilityArtifact({
+      schemaVersion: M2_HISTORICAL_INSTRUMENT_CAPABILITY_VERSION,
+      capabilityRegistryId: "test-current-only-instrument-source",
+      providerId: "TEST_PROVIDER",
+      sourceOperator: "Test Source",
+      sourceClass: "VENUE_OFFICIAL",
+      evidenceMode: "CURRENT_SNAPSHOT_ONLY",
+      assessedAt: NOW,
+      captureStartedAt: null,
+      coverage: { startedAt: null, endedAt: null },
+      documentation: [{
+        evidenceId: "current-only-instrument-doc",
+        evidenceType: "OFFICIAL_DOCUMENTATION",
+        url: "https://example.com/current-instruments",
+        capturedAt: NOW,
+        contentDigest: HASH_A,
+        contentBytes: 1_000,
+        captureStatus: "HASHED_CONTENT_CAPTURED",
+        retentionClass: "EXTERNAL_CONTENT_ADDRESSED_EVIDENCE_STORE",
+        claimScope: "CURRENT_INSTRUMENT_FIELDS",
+      }],
+      guarantees: {
+        fullUniverseDenominator: true,
+        includesDelistedInstruments: false,
+        onboardAt: true,
+        delistAt: false,
+        contractType: true,
+        settlementAsset: true,
+        underlyingClass: true,
+        tradingStatusIntervals: false,
+        symbolReuseDisambiguation: false,
+      },
+      declaredLimitations: ["current_snapshot_cannot_backfill_history"],
+    });
+  const blockedHistory = buildM2HistoricalInstrumentCoverageArtifact({
+    schemaVersion: M2_HISTORICAL_INSTRUMENT_COVERAGE_VERSION,
+    generatedAt: NOW,
+    requestedWindow: {
+      startedAt: "2026-06-01T00:00:00.000Z",
+      endedAt: "2026-07-01T00:00:00.000Z",
+    },
+    denominator: {
+      mode: "FULL_POINT_IN_TIME_INSTRUMENT_MANIFEST",
+      manifestDigest: HASH_C,
+      expectedInstruments: [{
+        providerInstrumentKey: "TEST_PROVIDER:BTCUSDT:2026-06",
+        providerSymbol: "BTCUSDT",
+      }],
+    },
+    capability: currentOnlyCapability,
+    records: [],
+  });
+  const qualification = buildM2HistoricalSourceQualification({
+    ...core,
+    instrumentHistory: blockedHistory,
+  });
+  const assessment = assessM2HistoricalSource(qualification);
+  assert.equal(assessment.bulkAcquisitionAllowed, false);
+  assert.equal(assessment.cohortFreezeAllowed, false);
+  assert.ok(assessment.blockerReasonCodes.includes(
+    "point_in_time_instrument_history_missing",
+  ));
+});
+
+test("provider drift and unknown knowledge time cannot open source authority", () => {
+  const approved = approvedQualification();
+  const { qualificationDigest, qualificationId, ...core } = approved;
+  assert.ok(qualificationDigest);
+  assert.ok(qualificationId);
+  assert.throws(
+    () => buildM2HistoricalSourceQualification({
+      ...core,
+      providerId: "DIFFERENT_PROVIDER",
+    }),
+    /instrument history provider binding mismatch/u,
+  );
+
+  const unknownClockPolicy = {
+    policyId: "test-unknown-clock.v1",
+    eventTimeBasis: "CLOSED_CANDLE_CLOSE_TIME",
+    availabilityTimeMode: "UNKNOWN",
+    conservativeLatencySeconds: null,
+    archiveRetrievalTimeUsedAsMarketKnowledgeTime: false,
+  } as const;
+  const qualification = buildM2HistoricalSourceQualification({
+    ...core,
+    sourceClock: {
+      ...unknownClockPolicy,
+      policyDigest: stableContentHash(unknownClockPolicy),
+      reasonCodes: ["source_knowledge_time_policy_unknown"],
+    },
+  });
+  const assessment = assessM2HistoricalSource(qualification);
+  assert.equal(assessment.assessmentStatus, "BLOCKED");
+  assert.equal(assessment.bulkAcquisitionAllowed, false);
+  assert.equal(assessment.cohortFreezeAllowed, false);
+  assert.ok(assessment.blockerReasonCodes.includes(
+    "source_knowledge_time_policy_unknown",
+  ));
+});
+
 test("an agent-shaped pending review cannot be disguised as approved source rights", () => {
   const qualification = approvedQualification();
   const forged = structuredClone(qualification);
@@ -162,7 +387,7 @@ test("an agent-shaped pending review cannot be disguised as approved source righ
   forged.rightsReview.reviewedAt = null;
   assert.throws(
     () => M2HistoricalSourceQualificationSchema.parse(forged),
-    /approved source rights require granted rights and a human review/u,
+    /completed source rights require external human evidence/u,
   );
 });
 

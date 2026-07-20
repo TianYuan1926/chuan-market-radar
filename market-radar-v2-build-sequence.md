@@ -22,10 +22,12 @@
 - [x] **M2.0 发现合同与黄金样本（可并行本地）**：已冻结六族十四模式、Detector event/knowledge 双 cutoff 输入、Candidate/Episode/Thesis v2 生命周期、UTC 去重、三层运行漏斗和 19 个 point-in-time fixture。状态：`LOCAL_CONTRACT_PASS / M1_RUNTIME_BLOCKED / PRODUCTION_UNCHANGED`；Candidate 仍无等级/计划，fixture 无 Outcome/future material。
 - [x] **M2.1 Pre-Move + Breakout/Retest DRAFT Replay Kernels（可并行本地）**：已建立三个 Pre-Move 与两个 Breakout/Retest 独立纯函数内核、显式多空/UNKNOWN、late/noise/fakeout veto、缺失诚实降级、确定性 digest 和注册身份防篡改。状态：`LOCAL_DRAFT_KERNEL_PASS / UNCALIBRATED / NO_CANDIDATE_EMISSION / M1_RUNTIME_BLOCKED`；合成样本不能把生命周期升级为 REPLAY_VALIDATED。
 - [x] **M2.2-A Historical Replay Contract + Lifecycle Gate Harness（可并行本地）**：已冻结真实数据接纳、固定 Detector 分母、完整背景窗口、candidate/event/matched-non-event 三业务分母、purge/embargo、holdout group isolation、主 Bundle 与 sealed holdout 物理分离、target-blind 首次发现、knowledge-time lead、分层指标/CI 和四态 Gate。状态：`LOCAL_HARNESS_PASS / REAL_COHORT_MISSING / GATE_INSUFFICIENT / DETECTORS_DRAFT / NO_CANDIDATE_EMISSION`；test-only 合成 cohort 永远不能晋级。
-- [ ] **M2.2-B Real Historical Cohort Acquisition + Freeze**：B0 与 B0.1 已本地通过，B0.2 外部证据仍 blocked；任何子 Gate 不通过都不得用下载量或代码量冒充总包完成。
+- [ ] **M2.2-B Real Historical Cohort Acquisition + Freeze**：B0、B0.1 与 B0.2-A 已本地通过，B0.2-B 外部证据仍 blocked；任何子 Gate 不通过都不得用下载量或代码量冒充总包完成。
 - [x] **M2.2-B0 Source Qualification + Acquisition Safety**：已建立人工权利审查、历史合约身份、knowledge-time、逐 Detector 数据覆盖、精确对象/checksum、工作区外路径、容量预算和单对象验证后强制删原始字节的 fail-closed Gate。真实 BTCUSDT 1m 月文件 1,838,455 bytes 与官方 SHA-256 一致；状态：`LOCAL_SOURCE_GATE_PASS / TECHNICAL_PILOT_PASS / BULK_BLOCKED / COHORT_BLOCKED / PRODUCTION_UNCHANGED`。
 - [x] **M2.2-B0.1 Target-Blind Diagnostic Strength + Construction Policy Freeze**：已为五个 DRAFT Kernel 增加只读 relative-rule-margin strength，冻结固定 Detector 分母 Top20、TRAIN-only 六维事件阈值、matched control、300 秒完整背景、pre-cutoff regime/liquidity、observed/modeled knowledge-time、purge/embargo 和 1+4 trial registry，并把全部 id/digest 绑定到 dataset/experiment/holdout v2。定向 45/45 PASS；真实 cohort=0、Gate=INSUFFICIENT、Detector=DRAFT、Candidate 禁发、生产零变更。
-- [ ] **M2.2-B0.2 Rights + Point-in-Time Instrument Metadata Resolution**：由账户所有者或合格法律审查者绑定不可变官方条款证据，并取得历史 onboard/delist/contract type/settlement/underlying class/status；归档 presence、当前 snapshot 或 Agent 推断都不能通过。可与 B0.1 并行，二者都通过才开放 B1。
+- [x] **M2.2-B0.2-A Rights + Historical Instrument Evidence Gate**：已把外部人工、exact operator/双数据范围、条款 hash/bytes/留存、有效期、provider binding、identity epoch、状态区间、knowledge time、完整 point-in-time 分母和 unresolved 核算做成 fail-closed Gate。定向 35/35；五个来源候选均 `RESEARCH_ONLY`，这只证明错误证据过不了。
+- [ ] **M2.2-B0.2-B Exact Source Rights + Capability Resolution**：由账户所有者或合格法律审查者绑定 exact source、账户、司法范围和有期限条款证据；来源还须逐字段证明完整历史分母、已退市、onboard/delist、contract/settlement/underlying/status interval 与 symbol reuse。该外部门通过前 B1 保持 blocked。
+- [ ] **M2.2-B0.2-C First-Party Forward Instrument Capture**：在不读取 M1 authority、不写 Candidate 的独立 Research 边界内，从真实 capture start 起连续保留三 Venue current snapshot/transition、原始 digest 和 coverage gap。它可与 B0.2-B 并行，只改善未来，永久禁止冒充过去回填。
 - [ ] **M2.2-B1 Immutable Raw Archive Acquisition**：仅按冻结精确对象清单批量下载，逐文件官方 checksum、断点续传、容量水位和 Git 外不可变索引；L2 不足的 Detector 保持 unsupported。
 - [ ] **M2.2-B2 Cohort Construction**：只在 TRAIN 拟合标签阈值，生成 point-in-time observations、Event、Matched non-event 与 Candidate Universe 完整背景；同一冻结 Detector 分母逐窗口运行，任何缺失进入 unavailable 分母。
 - [ ] **M2.2-B3 Split + Sealed Holdout Freeze**：冻结 train/validation、purge/embargo、symbol/regime assignment 和独立 holdout commitment；本包仍不得打开 holdout，也不得挑选表现最好的 trial。
@@ -54,10 +56,11 @@ M5 的 Outcome 采集从 M2 开始并行，额外 Detector、UI fixture、Runtim
 
 ```text
 M0 engineering exit: LOCAL_PASS / PRODUCTION_UNCHANGED
-Last completed package: V2-M2.2-B0.1 Target-Blind Diagnostic Strength and Construction Policy Freeze
-Current blocked entry: V2-M2.2-B0.2-RIGHTS-AND-POINT-IN-TIME-INSTRUMENT-METADATA-RESOLUTION
+Last completed package: V2-M2.2-B0.2-A Rights and Historical Instrument Evidence Gate
+Current local entry: V2-M2.2-B0.2-C-FIRST-PARTY-FORWARD-INSTRUMENT-CAPTURE
+Current blocked external entry: V2-M2.2-B0.2-B-EXACT-SOURCE-RIGHTS-AND-CAPABILITY-RESOLUTION
 Pending external gate: V2-M1.5-B1-EGRESS-EARLY-SHADOW-GATE
-Current status: M2.2_B0_AND_B0.1_LOCAL_PASS / TARGET_BLIND_RANKING_AND_CONSTRUCTION_POLICY_FROZEN / BULK_AND_COHORT_BLOCKED_ON_RIGHTS_AND_POINT_IN_TIME_INSTRUMENT_HISTORY / M2.2_GATE_INSUFFICIENT / DETECTORS_STILL_DRAFT / M1.5-B1_AND_M1.7_PENDING / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED / PRODUCTION_UNCHANGED
+Current status: M2.2_B0_B0.1_B0.2-A_LOCAL_PASS / RIGHTS_AND_HISTORICAL_IDENTITY_MACHINE_GATE_FROZEN / FIVE_SOURCE_CANDIDATES_RESEARCH_ONLY / BULK_AND_COHORT_BLOCKED_ON_EXTERNAL_RIGHTS_AND_QUALIFIED_HISTORICAL_SOURCE / M2.2_GATE_INSUFFICIENT / DETECTORS_STILL_DRAFT / M1.5-B1_AND_M1.7_PENDING / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED / PRODUCTION_UNCHANGED
 ```
 
 M0 的减数只代表合同、运行时输入边界、Legacy 消费者地图和隔离门禁已经形成闭环；它不代表真实 Provider、全市场扫描、Detector、交易计划、页面或生产能力已经完成。
