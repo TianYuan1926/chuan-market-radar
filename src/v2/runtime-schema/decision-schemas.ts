@@ -22,15 +22,24 @@ import type {
   StructuralLevel,
   TargetLevel,
 } from "../domain/contracts";
-import { CONSTITUTIONAL_INVARIANTS, OPPORTUNITY_FAMILIES } from "../domain/product-constitution";
+import {
+  CONSTITUTIONAL_INVARIANTS,
+  isOpportunityPatternForFamily,
+  OPPORTUNITY_DIRECTIONS_BY_FAMILY,
+  OPPORTUNITY_FAMILIES,
+  OPPORTUNITY_PATTERNS,
+} from "../domain/product-constitution";
 import {
   ACTION_STATES,
+  canDetectorEmit,
   CANDIDATE_LIFECYCLE_STATES,
   CANDIDATE_PRIORITIES,
+  DETECTOR_EMISSION_SCOPES,
   DETECTOR_LIFECYCLE_STATES,
   EVIDENCE_GRADES,
   SETUP_GRADES,
   USER_FITS,
+  isCandidateLifecycleTransitionAllowed,
   type UserFit,
 } from "../domain/states";
 import {
@@ -57,6 +66,50 @@ const DirectionHypothesisSchema = z.enum([
   "NEUTRAL",
   "UNKNOWN",
 ]);
+const CandidateDirectionHypothesisSchema = DirectionHypothesisSchema.refine(
+  (direction) => direction !== "NEUTRAL",
+  "a discovery hypothesis must be directional or explicitly UNKNOWN",
+);
+const OpportunityPatternSchema = z.enum(OPPORTUNITY_PATTERNS);
+
+const CandidateInputLineageSchema = z.strictObject({
+  universeSnapshotId: NonEmptyStringSchema,
+  universeSourceCutoff: IsoDateTimeSchema,
+  universeAvailableAt: IsoDateTimeSchema,
+  featureSetSnapshotId: NonEmptyStringSchema,
+  featureQualitySnapshotId: NonEmptyStringSchema,
+  featureSourceCutoff: IsoDateTimeSchema,
+  featureAvailableAt: IsoDateTimeSchema,
+  featureQualitySourceCutoff: IsoDateTimeSchema,
+  featureQualityAvailableAt: IsoDateTimeSchema,
+  marketContextSnapshotId: NonEmptyStringSchema,
+  contextSourceCutoff: IsoDateTimeSchema,
+  contextAvailableAt: IsoDateTimeSchema,
+  observedPriceSourceCutoff: IsoDateTimeSchema,
+  observedPriceAvailableAt: IsoDateTimeSchema,
+  knowledgeCutoff: IsoDateTimeSchema,
+  featureIds: z.array(NonEmptyStringSchema).min(1),
+});
+
+const CandidatePriorityBasisSchema = z.strictObject({
+  policyVersion: NonEmptyStringSchema,
+  urgency: z.enum(["IMMEDIATE", "SOON", "NORMAL", "LOW", "UNKNOWN"]),
+  potentialValue: z.enum(["HIGH", "MEDIUM", "LOW", "UNKNOWN"]),
+  expiryRisk: z.enum(["HIGH", "MEDIUM", "LOW", "UNKNOWN"]),
+  resourceCost: z.enum(["HIGH", "MEDIUM", "LOW", "UNKNOWN"]),
+  reasonCodes: ReasonCodesSchema.min(1),
+});
+
+const DetectorCandidateSourceSchema = z.strictObject({
+  candidateId: NonEmptyStringSchema,
+  detectorId: NonEmptyStringSchema,
+  detectorVersion: NonEmptyStringSchema,
+  detectorLifecycle: z.enum(DETECTOR_LIFECYCLE_STATES),
+  emissionScope: z.enum(DETECTOR_EMISSION_SCOPES),
+  opportunityPattern: OpportunityPatternSchema,
+  firstDetectedAt: IsoDateTimeSchema,
+  candidateSourceCutoff: IsoDateTimeSchema,
+});
 
 export const UserFitSchema = z.enum(USER_FITS) satisfies z.ZodType<UserFit>;
 
@@ -67,18 +120,169 @@ export const DiscoveryCandidateSchema = z.strictObject({
   ),
   candidateId: NonEmptyStringSchema,
   canonicalInstrumentId: NonEmptyStringSchema,
+  underlyingGroupId: NonEmptyStringSchema,
   opportunityFamily: z.enum(OPPORTUNITY_FAMILIES),
-  directionHypothesis: DirectionHypothesisSchema,
+  opportunityPattern: OpportunityPatternSchema,
+  directionHypothesis: CandidateDirectionHypothesisSchema,
   detectorId: NonEmptyStringSchema,
   detectorVersion: NonEmptyStringSchema,
   detectorLifecycle: z.enum(DETECTOR_LIFECYCLE_STATES),
+  emissionScope: z.enum(DETECTOR_EMISSION_SCOPES),
   firstDetectedAt: IsoDateTimeSchema,
   observedPrice: PositiveDecimalStringSchema,
-  featureSetSnapshotId: NonEmptyStringSchema,
-  marketContextSnapshotId: NonEmptyStringSchema,
+  observedPriceFactId: NonEmptyStringSchema,
+  expiresAt: IsoDateTimeSchema,
+  inputLineage: CandidateInputLineageSchema,
+  inputQuality: QualityAssessmentSchema,
   reasonCodes: ReasonCodesSchema.min(1),
   counterHints: ReasonCodesSchema,
   priority: z.enum(CANDIDATE_PRIORITIES),
+  priorityBasis: CandidatePriorityBasisSchema,
+}).superRefine((candidate, context) => {
+  if (!isOpportunityPatternForFamily(
+    candidate.opportunityFamily,
+    candidate.opportunityPattern,
+  )) {
+    context.addIssue({
+      code: "custom",
+      message: "opportunity pattern does not belong to its family",
+      path: ["opportunityPattern"],
+    });
+  }
+  if (!(OPPORTUNITY_DIRECTIONS_BY_FAMILY[candidate.opportunityFamily] as
+    readonly string[]).includes(candidate.directionHypothesis)) {
+    context.addIssue({
+      code: "custom",
+      message: "direction hypothesis is not allowed by the opportunity family",
+      path: ["directionHypothesis"],
+    });
+  }
+  if (!canDetectorEmit(candidate.detectorLifecycle, candidate.emissionScope)) {
+    context.addIssue({
+      code: "custom",
+      message: "detector lifecycle cannot emit in the declared scope",
+      path: ["emissionScope"],
+    });
+  }
+  if (!(["FRESH", "PARTIAL"] as const).includes(
+    candidate.inputQuality.status as "FRESH" | "PARTIAL",
+  )) {
+    context.addIssue({
+      code: "custom",
+      message: "candidate input quality must be FRESH or explicitly PARTIAL",
+      path: ["inputQuality", "status"],
+    });
+  }
+  const sourceCutoff = Date.parse(candidate.sourceCutoff);
+  const knowledgeCutoff = Date.parse(candidate.inputLineage.knowledgeCutoff);
+  for (const [sourceField, availableField, cutoff, availableAt] of [
+    [
+      "universeSourceCutoff",
+      "universeAvailableAt",
+      candidate.inputLineage.universeSourceCutoff,
+      candidate.inputLineage.universeAvailableAt,
+    ],
+    [
+      "featureSourceCutoff",
+      "featureAvailableAt",
+      candidate.inputLineage.featureSourceCutoff,
+      candidate.inputLineage.featureAvailableAt,
+    ],
+    [
+      "contextSourceCutoff",
+      "contextAvailableAt",
+      candidate.inputLineage.contextSourceCutoff,
+      candidate.inputLineage.contextAvailableAt,
+    ],
+    [
+      "featureQualitySourceCutoff",
+      "featureQualityAvailableAt",
+      candidate.inputLineage.featureQualitySourceCutoff,
+      candidate.inputLineage.featureQualityAvailableAt,
+    ],
+    [
+      "observedPriceSourceCutoff",
+      "observedPriceAvailableAt",
+      candidate.inputLineage.observedPriceSourceCutoff,
+      candidate.inputLineage.observedPriceAvailableAt,
+    ],
+  ] as const) {
+    if (Date.parse(cutoff) > sourceCutoff) {
+      context.addIssue({
+        code: "custom",
+        message: "detector input cannot be later than the candidate cutoff",
+        path: ["inputLineage", sourceField],
+      });
+    }
+    if (
+      Date.parse(cutoff) > Date.parse(availableAt) ||
+      Date.parse(availableAt) > knowledgeCutoff
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "detector knowledge availability is not point-in-time valid",
+        path: ["inputLineage", availableField],
+      });
+    }
+  }
+  const firstDetectedAt = Date.parse(candidate.firstDetectedAt);
+  if (sourceCutoff > knowledgeCutoff || knowledgeCutoff > firstDetectedAt) {
+    context.addIssue({
+      code: "custom",
+      message: "candidate cannot precede its event or knowledge cutoff",
+      path: ["inputLineage", "knowledgeCutoff"],
+    });
+  }
+  if (firstDetectedAt > Date.parse(candidate.generatedAt)) {
+    context.addIssue({
+      code: "custom",
+      message: "candidate detection cannot be later than generation",
+      path: ["generatedAt"],
+    });
+  }
+  if (firstDetectedAt >= Date.parse(candidate.expiresAt)) {
+    context.addIssue({
+      code: "custom",
+      message: "candidate expiry must be later than first detection",
+      path: ["expiresAt"],
+    });
+  }
+  if (Date.parse(candidate.generatedAt) >= Date.parse(candidate.expiresAt)) {
+    context.addIssue({
+      code: "custom",
+      message: "candidate cannot be generated after its opportunity expired",
+      path: ["expiresAt"],
+    });
+  }
+  if (new Set(candidate.inputLineage.featureIds).size !==
+    candidate.inputLineage.featureIds.length) {
+    context.addIssue({
+      code: "custom",
+      message: "detector feature lineage must be unique",
+      path: ["inputLineage", "featureIds"],
+    });
+  }
+  const discoveryReasons = new Set(candidate.reasonCodes);
+  const counterHints = new Set(candidate.counterHints);
+  if (
+    discoveryReasons.size !== candidate.reasonCodes.length ||
+    counterHints.size !== candidate.counterHints.length ||
+    [...discoveryReasons].some((reason) => counterHints.has(reason))
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "candidate discovery and counter reasons must be unique and disjoint",
+      path: ["reasonCodes"],
+    });
+  }
+  if (new Set(candidate.priorityBasis.reasonCodes).size !==
+    candidate.priorityBasis.reasonCodes.length) {
+    context.addIssue({
+      code: "custom",
+      message: "candidate priority reasons must be unique",
+      path: ["priorityBasis", "reasonCodes"],
+    });
+  }
 }) satisfies z.ZodType<DiscoveryCandidate>;
 
 export const OpportunityThesisSchema = z.strictObject({
@@ -88,15 +292,153 @@ export const OpportunityThesisSchema = z.strictObject({
   ),
   thesisId: NonEmptyStringSchema,
   episodeId: NonEmptyStringSchema,
+  thesisVersion: z.number().int().positive(),
+  thesisAuthority: z.literal("VALIDATION_HYPOTHESIS_ONLY"),
   canonicalInstrumentId: NonEmptyStringSchema,
+  underlyingGroupId: NonEmptyStringSchema,
   opportunityFamily: z.enum(OPPORTUNITY_FAMILIES),
-  directionHypothesis: DirectionHypothesisSchema,
-  detectorCandidateIds: z.array(NonEmptyStringSchema).min(1),
+  opportunityPatterns: z.array(OpportunityPatternSchema).min(1),
+  directionHypothesis: CandidateDirectionHypothesisSchema,
+  detectorSources: z.array(DetectorCandidateSourceSchema).min(1),
   firstDetectedAt: IsoDateTimeSchema,
-  supportingReasons: ReasonCodesSchema,
+  updatedAt: IsoDateTimeSchema,
+  supportingReasons: ReasonCodesSchema.min(1),
   conflictingReasons: ReasonCodesSchema,
   knownUnknowns: ReasonCodesSchema,
   uncertainty: UncertaintyVectorSchema,
+}).superRefine((thesis, context) => {
+  const uniquePatterns = new Set(thesis.opportunityPatterns);
+  if (uniquePatterns.size !== thesis.opportunityPatterns.length) {
+    context.addIssue({
+      code: "custom",
+      message: "thesis opportunity patterns must be unique",
+      path: ["opportunityPatterns"],
+    });
+  }
+  for (const [index, pattern] of thesis.opportunityPatterns.entries()) {
+    if (!isOpportunityPatternForFamily(thesis.opportunityFamily, pattern)) {
+      context.addIssue({
+        code: "custom",
+        message: "thesis pattern does not belong to its family",
+        path: ["opportunityPatterns", index],
+      });
+    }
+  }
+  if (!(OPPORTUNITY_DIRECTIONS_BY_FAMILY[thesis.opportunityFamily] as
+    readonly string[]).includes(thesis.directionHypothesis)) {
+    context.addIssue({
+      code: "custom",
+      message: "thesis direction is not allowed by the opportunity family",
+      path: ["directionHypothesis"],
+    });
+  }
+  const candidateIds = thesis.detectorSources.map((source) => source.candidateId);
+  if (new Set(candidateIds).size !== candidateIds.length) {
+    context.addIssue({
+      code: "custom",
+      message: "thesis detector candidate sources must be unique",
+      path: ["detectorSources"],
+    });
+  }
+  const detectorSourceKeys = thesis.detectorSources.map((source) =>
+    `${source.detectorId}:${source.detectorVersion}:${source.opportunityPattern}`
+  );
+  if (new Set(detectorSourceKeys).size !== detectorSourceKeys.length) {
+    context.addIssue({
+      code: "custom",
+      message: "thesis cannot overweight repeated detector sources",
+      path: ["detectorSources"],
+    });
+  }
+  const sourcePatterns = new Set(thesis.detectorSources.map(
+    (source) => source.opportunityPattern,
+  ));
+  if (
+    sourcePatterns.size !== uniquePatterns.size ||
+    [...sourcePatterns].some((pattern) => !uniquePatterns.has(pattern))
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "thesis patterns must exactly match detector sources",
+      path: ["opportunityPatterns"],
+    });
+  }
+  const firstDetectedAt = Math.min(
+    ...thesis.detectorSources.map((source) => Date.parse(source.firstDetectedAt)),
+  );
+  if (Date.parse(thesis.firstDetectedAt) !== firstDetectedAt) {
+    context.addIssue({
+      code: "custom",
+      message: "thesis first detection must equal its earliest candidate source",
+      path: ["firstDetectedAt"],
+    });
+  }
+  for (const [index, source] of thesis.detectorSources.entries()) {
+    if (!uniquePatterns.has(source.opportunityPattern)) {
+      context.addIssue({
+        code: "custom",
+        message: "detector source pattern must be retained by the thesis",
+        path: ["detectorSources", index, "opportunityPattern"],
+      });
+    }
+    if (!canDetectorEmit(source.detectorLifecycle, source.emissionScope)) {
+      context.addIssue({
+        code: "custom",
+        message: "thesis cannot cite a detector outside its emission authority",
+        path: ["detectorSources", index, "emissionScope"],
+      });
+    }
+    if (Date.parse(source.candidateSourceCutoff) > Date.parse(source.firstDetectedAt)) {
+      context.addIssue({
+        code: "custom",
+        message: "detector source cannot be detected before its source cutoff",
+        path: ["detectorSources", index, "firstDetectedAt"],
+      });
+    }
+    if (Date.parse(source.candidateSourceCutoff) > Date.parse(thesis.sourceCutoff)) {
+      context.addIssue({
+        code: "custom",
+        message: "candidate source cutoff cannot exceed thesis cutoff",
+        path: ["detectorSources", index, "candidateSourceCutoff"],
+      });
+    }
+    if (Date.parse(source.firstDetectedAt) > Date.parse(thesis.updatedAt)) {
+      context.addIssue({
+        code: "custom",
+        message: "thesis cannot include a candidate detected after its update",
+        path: ["detectorSources", index, "firstDetectedAt"],
+      });
+    }
+  }
+  if (
+    Date.parse(thesis.firstDetectedAt) > Date.parse(thesis.updatedAt) ||
+    Date.parse(thesis.sourceCutoff) > Date.parse(thesis.updatedAt) ||
+    Date.parse(thesis.updatedAt) > Date.parse(thesis.generatedAt)
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "thesis timestamps must be monotonic",
+      path: ["updatedAt"],
+    });
+  }
+  const supportReasons = new Set(thesis.supportingReasons);
+  const conflictReasons = new Set(thesis.conflictingReasons);
+  const unknownReasons = new Set(thesis.knownUnknowns);
+  if (
+    supportReasons.size !== thesis.supportingReasons.length ||
+    conflictReasons.size !== thesis.conflictingReasons.length ||
+    unknownReasons.size !== thesis.knownUnknowns.length ||
+    [...supportReasons].some((reason) =>
+      conflictReasons.has(reason) || unknownReasons.has(reason)
+    ) ||
+    [...conflictReasons].some((reason) => unknownReasons.has(reason))
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "thesis reason classes must be unique and non-overlapping",
+      path: ["supportingReasons"],
+    });
+  }
 }) satisfies z.ZodType<OpportunityThesis>;
 
 export const CandidateEpisodeSchema = z.strictObject({
@@ -105,19 +447,86 @@ export const CandidateEpisodeSchema = z.strictObject({
     RUNTIME_OBJECT_SCHEMA_VERSIONS.CandidateEpisode,
   ),
   episodeId: NonEmptyStringSchema,
+  episodeKey: NonEmptyStringSchema,
   canonicalInstrumentId: NonEmptyStringSchema,
+  underlyingGroupId: NonEmptyStringSchema,
   opportunityFamily: z.enum(OPPORTUNITY_FAMILIES),
-  directionHypothesis: DirectionHypothesisSchema,
-  episodeWindowVersion: NonEmptyStringSchema,
+  opportunityPatterns: z.array(OpportunityPatternSchema).min(1),
+  directionHypothesis: CandidateDirectionHypothesisSchema,
+  episodeWindow: z.strictObject({
+    policyVersion: NonEmptyStringSchema,
+    windowStart: IsoDateTimeSchema,
+    windowEnd: IsoDateTimeSchema,
+  }),
   lifecycle: z.enum(CANDIDATE_LIFECYCLE_STATES),
+  previousLifecycle: z.enum(CANDIDATE_LIFECYCLE_STATES).nullable(),
+  transitionKind: z.enum([
+    "CREATED",
+    "STATE_TRANSITION",
+    "CANDIDATE_MERGE",
+    "PRIORITY_CHANGE",
+  ]),
   priority: z.enum(CANDIDATE_PRIORITIES),
+  priorityPolicyVersion: NonEmptyStringSchema,
   thesisId: NonEmptyStringSchema,
+  candidateIds: z.array(NonEmptyStringSchema).min(1),
   firstSeenAt: IsoDateTimeSchema,
   lastSeenAt: IsoDateTimeSchema,
   expiresAt: IsoDateTimeSchema,
+  transitionedAt: IsoDateTimeSchema,
+  transitionReasonCodes: ReasonCodesSchema.min(1),
   rowVersion: z.number().int().positive(),
   idempotencyKey: NonEmptyStringSchema,
+  outboxEventId: NonEmptyStringSchema,
 }).superRefine((episode, context) => {
+  const patterns = new Set(episode.opportunityPatterns);
+  if (patterns.size !== episode.opportunityPatterns.length) {
+    context.addIssue({
+      code: "custom",
+      message: "episode opportunity patterns must be unique",
+      path: ["opportunityPatterns"],
+    });
+  }
+  for (const [index, pattern] of episode.opportunityPatterns.entries()) {
+    if (!isOpportunityPatternForFamily(episode.opportunityFamily, pattern)) {
+      context.addIssue({
+        code: "custom",
+        message: "episode pattern does not belong to its family",
+        path: ["opportunityPatterns", index],
+      });
+    }
+  }
+  if (!(OPPORTUNITY_DIRECTIONS_BY_FAMILY[episode.opportunityFamily] as
+    readonly string[]).includes(episode.directionHypothesis)) {
+    context.addIssue({
+      code: "custom",
+      message: "episode direction is not allowed by the opportunity family",
+      path: ["directionHypothesis"],
+    });
+  }
+  if (new Set(episode.candidateIds).size !== episode.candidateIds.length) {
+    context.addIssue({
+      code: "custom",
+      message: "episode candidate ids must be unique",
+      path: ["candidateIds"],
+    });
+  }
+  const windowStart = Date.parse(episode.episodeWindow.windowStart);
+  const windowEnd = Date.parse(episode.episodeWindow.windowEnd);
+  if (windowStart >= windowEnd) {
+    context.addIssue({
+      code: "custom",
+      message: "episode window must have positive duration",
+      path: ["episodeWindow", "windowEnd"],
+    });
+  }
+  if (Date.parse(episode.expiresAt) !== windowEnd) {
+    context.addIssue({
+      code: "custom",
+      message: "episode expiry must equal the frozen window end",
+      path: ["expiresAt"],
+    });
+  }
   if (Date.parse(episode.firstSeenAt) > Date.parse(episode.lastSeenAt)) {
     context.addIssue({
       code: "custom",
@@ -125,12 +534,101 @@ export const CandidateEpisodeSchema = z.strictObject({
       path: ["firstSeenAt"],
     });
   }
-  if (Date.parse(episode.lastSeenAt) > Date.parse(episode.expiresAt)) {
+  if (Date.parse(episode.lastSeenAt) >= Date.parse(episode.expiresAt)) {
     context.addIssue({
       code: "custom",
-      message: "lastSeenAt cannot exceed expiresAt",
+      message: "lastSeenAt must be earlier than expiresAt",
       path: ["expiresAt"],
     });
+  }
+  if (Date.parse(episode.firstSeenAt) < windowStart) {
+    context.addIssue({
+      code: "custom",
+      message: "episode first sighting cannot precede its frozen window",
+      path: ["firstSeenAt"],
+    });
+  }
+  const transitionedAt = Date.parse(episode.transitionedAt);
+  if (
+    Date.parse(episode.lastSeenAt) > transitionedAt ||
+    transitionedAt > Date.parse(episode.generatedAt) ||
+    Date.parse(episode.sourceCutoff) > transitionedAt
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "episode transition timestamps must be point-in-time monotonic",
+      path: ["transitionedAt"],
+    });
+  }
+  if (episode.lifecycle === "EXPIRED") {
+    if (transitionedAt < windowEnd) {
+      context.addIssue({
+        code: "custom",
+        message: "EXPIRED cannot occur before the frozen window ends",
+        path: ["transitionedAt"],
+      });
+    }
+  } else if (transitionedAt >= windowEnd) {
+    context.addIssue({
+      code: "custom",
+      message: "non-expiry transitions cannot occur after episode expiry",
+      path: ["transitionedAt"],
+    });
+  }
+  if (new Set(episode.transitionReasonCodes).size !==
+    episode.transitionReasonCodes.length) {
+    context.addIssue({
+      code: "custom",
+      message: "episode transition reasons must be unique",
+      path: ["transitionReasonCodes"],
+    });
+  }
+  const activeLifecycle = ![
+    "PROMOTED",
+    "REJECTED",
+    "EXPIRED",
+    "DATA_UNAVAILABLE",
+  ].includes(episode.lifecycle);
+  if (episode.transitionKind === "CREATED") {
+    if (
+      episode.rowVersion !== 1 ||
+      episode.previousLifecycle !== null ||
+      episode.lifecycle !== "DISCOVERED"
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "CREATED must be row version one in DISCOVERED",
+        path: ["transitionKind"],
+      });
+    }
+  } else {
+    if (episode.rowVersion < 2 || episode.previousLifecycle === null) {
+      context.addIssue({
+        code: "custom",
+        message: "episode revisions require a previous lifecycle and row version",
+        path: ["rowVersion"],
+      });
+    } else if (episode.transitionKind === "STATE_TRANSITION") {
+      if (!isCandidateLifecycleTransitionAllowed(
+        episode.previousLifecycle,
+        episode.lifecycle,
+      )) {
+        context.addIssue({
+          code: "custom",
+          message: "candidate lifecycle transition is forbidden",
+          path: ["lifecycle"],
+        });
+      }
+    } else if (
+      episode.previousLifecycle !== episode.lifecycle ||
+      !activeLifecycle
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "merge and priority revisions require the same active lifecycle",
+        path: ["transitionKind"],
+      });
+    }
   }
 }) satisfies z.ZodType<CandidateEpisode>;
 

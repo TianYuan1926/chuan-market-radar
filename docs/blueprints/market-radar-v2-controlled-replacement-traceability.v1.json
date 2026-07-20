@@ -1,7 +1,7 @@
 {
   "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.2",
-  "status": "m1_6_partitioned_fact_storage_local_pg16_pass_external_shadow_pending",
-  "generatedAt": "2026-07-20T09:56:24+08:00",
+  "status": "m2_0_discovery_contracts_local_pass_m1_runtime_and_external_shadow_pending",
+  "generatedAt": "2026-07-20T11:42:08+08:00",
   "implementationAuthorized": true,
   "productionMutationAuthorized": false,
   "authority": {
@@ -10,7 +10,7 @@
     "index": "docs/blueprints/README.md",
     "currentFacts": "PROJECT_CONTEXT_FOR_CHATGPT.md",
     "recentChanges": "CHANGELOG_FOR_CHATGPT.md",
-    "deliveryReport": "docs/blueprints/V2_M1_6_PARTITIONED_FACT_STORAGE_DELIVERY_REPORT.md",
+    "deliveryReport": "docs/blueprints/V2_M2_0_DISCOVERY_CONTRACTS_DELIVERY_REPORT.md",
     "buildSequence": "market-radar-v2-build-sequence.md",
     "baseManifest": "docs/architecture/v2/V2_BASE_MANIFEST.v1.json",
     "baselineDecision": "docs/architecture/v2/ADR-0001-CLEAN-BASELINE-AND-V2-ISOLATION.md",
@@ -28,6 +28,7 @@
     "m1LiveNoAuthorityCollectorContract": "docs/architecture/v2/M1_5_LIVE_NO_AUTHORITY_COLLECTOR_CONTRACT_V1.md",
     "m1ShadowReleaseSafetyContract": "docs/architecture/v2/M1_5_B0_SHADOW_RELEASE_SAFETY_CONTRACT_V1.md",
     "m1PartitionedFactStorageContract": "docs/architecture/v2/M1_6_PARTITIONED_FACT_STORAGE_CONTRACT_V1.md",
+    "m2DiscoveryContractsAndGoldenFixtures": "docs/architecture/v2/M2_0_DISCOVERY_CONTRACTS_AND_GOLDEN_FIXTURES_V1.md",
     "legacyEngineeringReference": "docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md",
     "legacyRuntimeReference": "docs/blueprints/MARKET_RADAR_PRODUCTION_RUNTIME_BLUEPRINT_V1.md",
     "legacyReadinessReference": "docs/superpowers/plans/2026-07-10-market-radar-practical-readiness-master-plan-v3.md"
@@ -46,7 +47,7 @@
   "currentBoundary": {
     "readiness": "R1",
     "status": "runnable_but_incomplete_not_practical_ready",
-    "v2ImplementationStatus": "m1_6_local_partition_retention_and_restore_pass_production_migration_live_and_slo_unproven",
+    "v2ImplementationStatus": "m2_0_local_discovery_contract_pass_m1_runtime_live_and_slo_unproven",
     "v2ImplementationBranch": "codex/market-radar-v2-implementation",
     "v2ImplementationBaseCommit": "e5eb90026d8bfcd52b060359446515de5a5c32d6",
     "latestProductionFinalStatus": "unknown_until_fresh_read_only_verification",
@@ -385,6 +386,12 @@
       "id": "pre_move",
       "priority": "primary",
       "independentLongShort": true,
+      "allowedDirections": ["LONG", "SHORT", "UNKNOWN"],
+      "patterns": [
+        "PRE_MOVE_COMPRESSION",
+        "PRE_MOVE_FLOW_DIVERGENCE",
+        "PRE_MOVE_LIQUIDITY_SHIFT"
+      ],
       "minimumProof": [
         "point_in_time_candidate",
         "event_recall",
@@ -397,27 +404,44 @@
       "id": "breakout_retest",
       "priority": "core",
       "independentLongShort": true,
+      "allowedDirections": ["LONG", "SHORT"],
+      "patterns": ["BREAKOUT_EDGE", "ROLE_FLIP_RETEST"],
       "includesUserStructuralMethod": true
     },
     {
       "id": "trend_continuation",
       "priority": "core",
-      "independentLongShort": true
+      "independentLongShort": true,
+      "allowedDirections": ["LONG", "SHORT"],
+      "patterns": [
+        "TREND_COMPRESSION",
+        "STRUCTURAL_PULLBACK_RESUMPTION"
+      ]
     },
     {
       "id": "reversal_range",
       "priority": "core",
-      "independentLongShort": true
+      "independentLongShort": true,
+      "allowedDirections": ["LONG", "SHORT"],
+      "patterns": ["KEY_LEVEL_REVERSAL", "RANGE_EDGE"]
     },
     {
       "id": "relative_strength",
       "priority": "core",
-      "independentLongShort": true
+      "independentLongShort": true,
+      "allowedDirections": ["LONG", "SHORT"],
+      "patterns": ["RELATIVE_STRENGTH", "RELATIVE_WEAKNESS"]
     },
     {
       "id": "derivatives_flow",
       "priority": "core",
-      "independentLongShort": true
+      "independentLongShort": true,
+      "allowedDirections": ["LONG", "SHORT", "UNKNOWN"],
+      "patterns": [
+        "PRICE_OI_DIVERGENCE",
+        "CROWDING_RELEASE",
+        "FUNDING_BASIS_DISLOCATION"
+      ]
     }
   ],
   "detectorLifecycle": [
@@ -429,6 +453,28 @@
     "SUSPENDED",
     "RETIRED"
   ],
+  "detectorEmissionAuthority": {
+    "DRAFT": [],
+    "REPLAY_VALIDATED": ["REPLAY"],
+    "SHADOW": ["REPLAY", "SHADOW"],
+    "LIMITED": ["REPLAY", "SHADOW", "LIMITED"],
+    "ACTIVE": ["REPLAY", "SHADOW", "LIMITED", "PRODUCTION"],
+    "SUSPENDED": [],
+    "RETIRED": []
+  },
+  "candidateLifecycle": {
+    "DISCOVERED": ["QUEUED", "REJECTED", "EXPIRED", "DATA_UNAVAILABLE"],
+    "QUEUED": ["VALIDATING", "REJECTED", "EXPIRED", "DATA_UNAVAILABLE"],
+    "VALIDATING": ["EVIDENCE_READY", "REJECTED", "EXPIRED", "DATA_UNAVAILABLE"],
+    "EVIDENCE_READY": ["PROMOTED", "REJECTED", "EXPIRED", "DATA_UNAVAILABLE"],
+    "terminalStates": ["PROMOTED", "REJECTED", "EXPIRED", "DATA_UNAVAILABLE"]
+  },
+  "discoveryFunnel": {
+    "operationalPopulations": ["discovered", "deep_validated", "actionable"],
+    "subsetRule": "actionable_subset_deep_validated_subset_discovered",
+    "unavailableMayDisappearFromDenominator": false,
+    "mayReplaceEarlyDetectionResearchDenominators": false
+  },
   "dataAuthority": {
     "postgres": [
       "universe",
@@ -599,6 +645,19 @@
       "name": "detection_candidate_thesis_deep_validation",
       "dependsOn": [
         "M1"
+      ],
+      "status": "m2_0_local_contract_pass_runtime_blocked_until_m1_exit",
+      "workPackages": [
+        {
+          "id": "M2.0",
+          "name": "discovery_contracts_candidate_lifecycle_and_point_in_time_golden_fixtures",
+          "status": "local_contract_pass_production_unchanged"
+        },
+        {
+          "id": "M2.1",
+          "name": "pre_move_and_breakout_retest_replay_kernels",
+          "status": "replay_only_local_work_allowed_runtime_blocked"
+        }
       ]
     },
     {
@@ -682,17 +741,17 @@
     "legacyDeletionAllowed": false
   },
   "lastCompletedImplementationEntry": {
-    "id": "V2-M1.6-PARTITIONED-FACT-STORAGE-LOCAL",
-    "name": "partitioned_fact_storage_retention_capacity_and_restore_foundation",
-    "status": "local_engineering_and_postgres16_rehearsal_pass_production_unchanged",
+    "id": "V2-M2.0-DISCOVERY-CONTRACTS-AND-GOLDEN-FIXTURES",
+    "name": "opportunity_taxonomy_candidate_lifecycle_contracts_and_point_in_time_golden_fixtures",
+    "status": "local_contract_pass_m1_runtime_blocked_production_unchanged",
     "productionMutationPerformed": false,
     "migrationPerformed": false,
     "legacyDeletionPerformed": false
   },
   "currentImplementationEntry": {
-    "id": "V2-M2.0-DISCOVERY-CONTRACTS-AND-GOLDEN-FIXTURES",
-    "name": "opportunity_taxonomy_candidate_lifecycle_contracts_and_point_in_time_golden_fixtures",
-    "status": "local_contract_work_allowed_m2_runtime_blocked_until_m1_exit",
+    "id": "V2-M2.1-PRE-MOVE-BREAKOUT-REPLAY-KERNELS",
+    "name": "pre_move_and_breakout_retest_point_in_time_replay_only_detector_kernels",
+    "status": "replay_only_local_work_allowed_m2_runtime_blocked_until_m1_exit",
     "productionMutationAllowed": false,
     "migrationAllowed": false,
     "legacyDeletionAllowed": false

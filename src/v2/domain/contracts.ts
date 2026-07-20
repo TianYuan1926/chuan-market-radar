@@ -1,10 +1,15 @@
 import type { ModuleId } from "./module-registry";
-import type { OpportunityFamily, TargetVenue } from "./product-constitution";
+import type {
+  OpportunityFamily,
+  OpportunityPattern,
+  TargetVenue,
+} from "./product-constitution";
 import type {
   ActionState,
   CandidateLifecycleState,
   CandidatePriority,
   DataQualityState,
+  DetectorEmissionScope,
   DetectorLifecycleState,
   EvidenceGrade,
   SetupGrade,
@@ -187,29 +192,75 @@ export type DiscoveryCandidate = TraceEnvelope & {
   producerModule: "multi_opportunity_detection";
   candidateId: string;
   canonicalInstrumentId: string;
+  underlyingGroupId: string;
   opportunityFamily: OpportunityFamily;
+  opportunityPattern: OpportunityPattern;
   directionHypothesis: DirectionHypothesis;
   detectorId: string;
   detectorVersion: string;
   detectorLifecycle: DetectorLifecycleState;
+  emissionScope: DetectorEmissionScope;
   firstDetectedAt: string;
   observedPrice: string;
-  featureSetSnapshotId: string;
-  marketContextSnapshotId: string;
+  observedPriceFactId: string;
+  expiresAt: string;
+  inputLineage: {
+    universeSnapshotId: string;
+    universeSourceCutoff: string;
+    universeAvailableAt: string;
+    featureSetSnapshotId: string;
+    featureQualitySnapshotId: string;
+    featureSourceCutoff: string;
+    featureAvailableAt: string;
+    featureQualitySourceCutoff: string;
+    featureQualityAvailableAt: string;
+    marketContextSnapshotId: string;
+    contextSourceCutoff: string;
+    contextAvailableAt: string;
+    observedPriceSourceCutoff: string;
+    observedPriceAvailableAt: string;
+    knowledgeCutoff: string;
+    featureIds: readonly string[];
+  };
+  inputQuality: QualityAssessment;
   reasonCodes: readonly string[];
   counterHints: readonly string[];
   priority: CandidatePriority;
+  priorityBasis: {
+    policyVersion: string;
+    urgency: "IMMEDIATE" | "SOON" | "NORMAL" | "LOW" | "UNKNOWN";
+    potentialValue: "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
+    expiryRisk: "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
+    resourceCost: "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
+    reasonCodes: readonly string[];
+  };
+};
+
+export type DetectorCandidateSource = {
+  candidateId: string;
+  detectorId: string;
+  detectorVersion: string;
+  detectorLifecycle: DetectorLifecycleState;
+  emissionScope: DetectorEmissionScope;
+  opportunityPattern: OpportunityPattern;
+  firstDetectedAt: string;
+  candidateSourceCutoff: string;
 };
 
 export type OpportunityThesis = TraceEnvelope & {
   producerModule: "candidate_lifecycle_opportunity_thesis";
   thesisId: string;
   episodeId: string;
+  thesisVersion: number;
+  thesisAuthority: "VALIDATION_HYPOTHESIS_ONLY";
   canonicalInstrumentId: string;
+  underlyingGroupId: string;
   opportunityFamily: OpportunityFamily;
+  opportunityPatterns: readonly OpportunityPattern[];
   directionHypothesis: DirectionHypothesis;
-  detectorCandidateIds: readonly string[];
+  detectorSources: readonly DetectorCandidateSource[];
   firstDetectedAt: string;
+  updatedAt: string;
   supportingReasons: readonly string[];
   conflictingReasons: readonly string[];
   knownUnknowns: readonly string[];
@@ -219,18 +270,36 @@ export type OpportunityThesis = TraceEnvelope & {
 export type CandidateEpisode = TraceEnvelope & {
   producerModule: "candidate_lifecycle_opportunity_thesis";
   episodeId: string;
+  episodeKey: string;
   canonicalInstrumentId: string;
+  underlyingGroupId: string;
   opportunityFamily: OpportunityFamily;
+  opportunityPatterns: readonly OpportunityPattern[];
   directionHypothesis: DirectionHypothesis;
-  episodeWindowVersion: string;
+  episodeWindow: {
+    policyVersion: string;
+    windowStart: string;
+    windowEnd: string;
+  };
   lifecycle: CandidateLifecycleState;
+  previousLifecycle: CandidateLifecycleState | null;
+  transitionKind:
+    | "CREATED"
+    | "STATE_TRANSITION"
+    | "CANDIDATE_MERGE"
+    | "PRIORITY_CHANGE";
   priority: CandidatePriority;
+  priorityPolicyVersion: string;
   thesisId: string;
+  candidateIds: readonly string[];
   firstSeenAt: string;
   lastSeenAt: string;
   expiresAt: string;
+  transitionedAt: string;
+  transitionReasonCodes: readonly string[];
   rowVersion: number;
   idempotencyKey: string;
+  outboxEventId: string;
 };
 
 export type EvidenceItem = {

@@ -54,6 +54,51 @@ export const DETECTOR_LIFECYCLE_STATES = [
 export type DetectorLifecycleState =
   (typeof DETECTOR_LIFECYCLE_STATES)[number];
 
+export const DETECTOR_EMISSION_SCOPES = [
+  "REPLAY",
+  "SHADOW",
+  "LIMITED",
+  "PRODUCTION",
+] as const;
+export type DetectorEmissionScope = (typeof DETECTOR_EMISSION_SCOPES)[number];
+
+export const DETECTOR_ALLOWED_EMISSION_SCOPES = Object.freeze({
+  DRAFT: [],
+  REPLAY_VALIDATED: ["REPLAY"],
+  SHADOW: ["REPLAY", "SHADOW"],
+  LIMITED: ["REPLAY", "SHADOW", "LIMITED"],
+  ACTIVE: ["REPLAY", "SHADOW", "LIMITED", "PRODUCTION"],
+  SUSPENDED: [],
+  RETIRED: [],
+} as const satisfies Record<DetectorLifecycleState, readonly DetectorEmissionScope[]>);
+
+export function canDetectorEmit(
+  lifecycle: DetectorLifecycleState,
+  scope: DetectorEmissionScope,
+): boolean {
+  return (DETECTOR_ALLOWED_EMISSION_SCOPES[lifecycle] as readonly DetectorEmissionScope[])
+    .includes(scope);
+}
+
+export const CANDIDATE_LIFECYCLE_TRANSITIONS = Object.freeze({
+  DISCOVERED: ["QUEUED", "REJECTED", "EXPIRED", "DATA_UNAVAILABLE"],
+  QUEUED: ["VALIDATING", "REJECTED", "EXPIRED", "DATA_UNAVAILABLE"],
+  VALIDATING: ["EVIDENCE_READY", "REJECTED", "EXPIRED", "DATA_UNAVAILABLE"],
+  EVIDENCE_READY: ["PROMOTED", "REJECTED", "EXPIRED", "DATA_UNAVAILABLE"],
+  PROMOTED: [],
+  REJECTED: [],
+  EXPIRED: [],
+  DATA_UNAVAILABLE: [],
+} as const satisfies Record<CandidateLifecycleState, readonly CandidateLifecycleState[]>);
+
+export function isCandidateLifecycleTransitionAllowed(
+  previous: CandidateLifecycleState,
+  next: CandidateLifecycleState,
+): boolean {
+  return (CANDIDATE_LIFECYCLE_TRANSITIONS[previous] as readonly CandidateLifecycleState[])
+    .includes(next);
+}
+
 export const DATA_QUALITY_STATES = [
   "FRESH",
   "PARTIAL",

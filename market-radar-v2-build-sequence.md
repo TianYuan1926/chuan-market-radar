@@ -19,7 +19,8 @@
 - [x] **M1.6 Partitioned Fact Storage + Retention Governance 本地出口**：已建立专用 UTC 日分区、无 DEFAULT fail-closed 路由、有界活动身份注册表、旧账本新 Fact 禁写、容量水位、独立 Audit/Retention 身份、restore-verified DROP 与不可变事件。定向 5/5、隔离 PG16 1/1，真实 `pg_dump -> pg_restore` 后 replay parity PASS/deterministic true；迁移前旧 Fact 可读，2 个分区跨日读取，保留中/活跃 replay 均阻断清理，到期后原子删除 1 分区/2 Fact 且拒绝重灌；全 V2 141/0/5 explicit skips 与完整 `ci:production` PASS。状态：`LOCAL_ENGINEERING_AND_POSTGRES16_PASS / PRODUCTION_MIGRATION_NOT_RUN`。
 - [ ] **M1.7 Sustained 24h Shadow/SLO**：等待 M1.5-B1 与 M1.6 同时通过后，以同一 release/config 连续运行至少 24 小时并满足固定 SLO、重启恢复、成本与容量门槛，才允许 M1 减数并向 M2 runtime 开放读取许可。
 - [ ] **M2 发现与深验纵向切片**：先做 Pre-Move 和 Breakout/Retest，贯通 `DiscoveryCandidate -> CandidateEpisode + OpportunityThesis -> EvidencePackage`；稳定后再并行增加其余四个机会族。验证：Candidate 不带等级/计划，point-in-time replay 可复现，三分母、队列 SLA、冷启动和漂移成立。
-- [ ] **M2.0 发现合同与黄金样本（可并行本地）**：等待 M1.5-B1/M1.7 时，只冻结六类机会 taxonomy、Detector 输入、Candidate/Episode/Thesis 生命周期、三分母和 point-in-time fixture；禁止启动读取 M1 authority 的 Detector runtime，禁止等级、方向、计划或 Outcome 输入。
+- [x] **M2.0 发现合同与黄金样本（可并行本地）**：已冻结六族十四模式、Detector event/knowledge 双 cutoff 输入、Candidate/Episode/Thesis v2 生命周期、UTC 去重、三层运行漏斗和 19 个 point-in-time fixture。状态：`LOCAL_CONTRACT_PASS / M1_RUNTIME_BLOCKED / PRODUCTION_UNCHANGED`；Candidate 仍无等级/计划，fixture 无 Outcome/future material。
+- [ ] **M2.1 Pre-Move + Breakout/Retest Replay Kernels（可并行本地）**：只在冻结 fixture 和显式 point-in-time 输入上实现多空/UNKNOWN 纯函数检测内核、reason/counter-hint 和确定性重放；不得读取 M1 Store/runtime、不得写 Candidate DB、不得接 Worker/API/UI，不得生成等级、READY 或交易计划。状态目标：`REPLAY_ONLY_LOCAL_PASS / M1_RUNTIME_BLOCKED`。
 - [ ] **M3 唯一决策纵向切片**：完成 family-specific Analysis、Evidence/Setup 双评级、StrategyDraft、Execution Feasibility 唯一终审、Personal/Portfolio Risk。验证：只有 Final Decision 能产生 READY，false READY=0，结构与净 RR 均不低于 3，所有关键缺失 fail closed。
 - [ ] **M4 单一读模型与专业工作台**：先建立 DecisionSnapshot 和站内 Alert，再重建 Inbox、Token Workbench、Review、System。验证：页面零 provider/decision 调用，同一 snapshot 在所有视图一致，E2E、a11y、visual、performance 和注意力预算通过。
 - [ ] **M5 结果与研究治理**：从 M2 首个 Episode 起并行采集 Outcome，但只有冻结数据成熟后才评估；Research 与 Evaluation 物理分离。验证：future leak=0、Missed Movers/对照组完整、全部试验登记、Challenger 不能自批或自动晋级。
@@ -43,10 +44,10 @@ M5 的 Outcome 采集从 M2 开始并行，额外 Detector、UI fixture、Runtim
 
 ```text
 M0 engineering exit: LOCAL_PASS / PRODUCTION_UNCHANGED
-Last completed package: V2-M1.6 Partitioned Fact Storage Local Exit
-Current local engineering package: V2-M2.0-DISCOVERY-CONTRACTS-AND-GOLDEN-FIXTURES
+Last completed package: V2-M2.0 Discovery Contracts and Golden Fixtures Local Exit
+Current local engineering package: V2-M2.1-PRE-MOVE-BREAKOUT-REPLAY-KERNELS
 Pending external gate: V2-M1.5-B1-EGRESS-EARLY-SHADOW-GATE
-Current status: M1.6_LOCAL_PG16_PASS / M1.5-B1_AND_M1.7_PENDING / M1_NOT_COMPLETE / PRODUCTION_UNCHANGED
+Current status: M2.0_LOCAL_CONTRACT_PASS / M2.1_REPLAY_ONLY_ALLOWED / M1.5-B1_AND_M1.7_PENDING / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED / PRODUCTION_UNCHANGED
 ```
 
 M0 的减数只代表合同、运行时输入边界、Legacy 消费者地图和隔离门禁已经形成闭环；它不代表真实 Provider、全市场扫描、Detector、交易计划、页面或生产能力已经完成。

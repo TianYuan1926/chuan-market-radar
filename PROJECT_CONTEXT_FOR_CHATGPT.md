@@ -84,7 +84,8 @@ M1.5B0_SHADOW_RELEASE_SAFETY_LOCAL_PASS
 M1.5_LIVE_EGRESS_UNAVAILABLE
 M1.5B1_EARLY_SHADOW_EXTERNAL_GATE_PENDING
 M1.6_PARTITIONED_FACT_STORAGE_LOCAL_POSTGRES16_PASS
-M2.0_DISCOVERY_CONTRACTS_LOCAL_READY_RUNTIME_BLOCKED
+M2.0_DISCOVERY_CONTRACTS_LOCAL_PASS
+M2.1_REPLAY_KERNELS_LOCAL_READY_RUNTIME_BLOCKED
 liveIngestionProven=false
 localV2ImplementationAuthorized=true
 productionMutationAuthorized=false
@@ -130,6 +131,7 @@ automaticTradingAllowed=false
 - M1.5-A 已建立独立 additive checkpoint migration、artifact 引用与 digest 防线、精确 release/config/sequence/schedule 恢复、固定节拍 skip-missed Worker、优雅停止、强制 telemetry sink、分离 reader/writer 身份的 NO_AUTHORITY 进程入口和三态 SLO evaluator。隔离 PG16 已证明关闭连接后的精确增量恢复、append-only、幂等、越权拒绝和 checkpoint 不领先 artifact。
 - M1.5-B0 已补齐显式 reader/writer role assumption 与会话身份核验、两个 secret-file database URL、完整 strict observation JSONL、固定 30 分钟/24 小时有限 Shadow profile，以及无 Legacy secret、非 root、只读 filesystem、无端口的专用容器边界。定向 41/41、全 V2 136 pass / 0 fail / 4 explicit external-dependency skips、三项隔离 PG16 回归与完整 `ci:production` 均通过；本机无 Docker CLI，真实 image build/Compose merge 未证明。
 - M1.6 已建立专用 UTC 日分区、无 DEFAULT fail-closed 路由、有界活动身份注册表、旧账本新 Fact 禁写、容量水位、Audit/Retention 分权、restore-verified DROP 与不可变 CREATED/DROPPED/run evidence。隔离 PG16 真实证明旧读兼容、两日跨分区、`pg_dump -> pg_restore -> replay parity`、保留/replay 阻断、原子清理与防重灌；全 V2 141/0/5 explicit skips 与完整 `ci:production` PASS，生产 migration 和真实容量未证明。
+- M2.0 已冻结六个机会族、十四种模式、family-specific direction、Detector event/knowledge 双 cutoff、Candidate/Episode/Thesis strict v2 schema、Detector emission authority、UTC Episode 去重、生命周期、三层运行漏斗和 19 个 test-only point-in-time fixture。全 V2 当前 157 pass / 0 fail / 5 explicit external-dependency skips；fixture 递归拒绝 Outcome/MFE/MAE 等未来材料。该结论只证明本地合同，不证明 Detector、Deep Validation、真实市场发现率或生产能力。
 - 本机 live no-authority probe 已执行两轮；Binance、OKX、Bybit 三家公开 HTTPS endpoint 均连接/请求超时，结果诚实保持 0 observed / 0 eligible / `DEGRADED`。因此当前仍没有 live 全市场规模、Shadow/SLO、生产 migration、API、页面或生产 authority 证据。
 
 ## 6. Docker 服务清单
@@ -220,6 +222,7 @@ npm run typecheck
 npm run lint
 npm run test:market
 npm run test:v2-foundation
+npm run test:v2-m2-discovery-contracts
 npm run test:v2-m1-store-replay
 npm run v2:m1:store-replay:pg16-rehearsal
 npm run test:v2-m1-collector
@@ -260,7 +263,7 @@ npm run security:check
 系统等级：R1
 工程描述：可运行但不完整
 实战描述：不能支撑实战
-V2：M0、M1.1-M1.6 本地出口通过；分区/retention 已在隔离 PG16 证明，但 Docker/live/生产 migration/真实容量未证明，M1.5-B1 与 M1.7 仍待外部证据；当前本地入口仅为 M2.0 合同/黄金样本，Detector runtime 禁止启动
+V2：M0、M1.1-M1.6 与 M2.0 本地出口通过；分区/retention 已在隔离 PG16 证明，但 Docker/live/生产 migration/真实容量未证明，M1.5-B1 与 M1.7 仍待外部证据；当前只允许 M2.1 test-only 纯函数回放内核，Detector runtime 禁止启动
 本轮生产变更：0
 当前生产终态：UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION
 ```
@@ -285,6 +288,12 @@ Cycle final
 
 ## 14. 最近三次关键事件
 
+### 2026-07-20 / V2 M2.0 Discovery Contracts Local Exit
+
+- 冻结六族十四模式、Detector event/knowledge 双 cutoff、Candidate/Episode/Thesis strict v2 schema、UTC Episode key、生命周期/去重和三层运行漏斗；Candidate 仍没有等级、行动状态或交易计划。
+- 19 个 test-only point-in-time fixture 覆盖每族 LONG、SHORT 和反例，并明确包含 direction unresolved、late、noise、fakeout 与 unavailable；递归 future-material 防线拒绝 Outcome/MFE/MAE 等未来数据。
+- M2.0 定向 16/16、全 V2 157 pass / 0 fail / 5 explicit skips、完整 `ci:production` PASS；M1 runtime、Deep Validation、API、页面和生产均未改变。
+
 ### 2026-07-20 / V2 M1.6 Partitioned Fact Storage Local Exit
 
 - 新 Fact 只能进入无 DEFAULT 的 UTC 日分区，旧账本拒绝旁路；活动身份唯一性随 retention 原子收缩，DROPPED 事件永久封闭旧 source day。
@@ -296,12 +305,6 @@ Cycle final
 - 修复生产入口未显式假设 capability role 的缺口，增加 session/current role 核验、secret-file URL、固定 host/database 和不同登录身份门禁。
 - observation 改为完整 strict cycle envelope，并冻结 30 分钟/24 小时 SLO profile；专用容器无 Legacy secret、非 root、只读、无 capabilities/端口且有限周期。
 - 定向 41/41、全 V2 136 pass / 0 fail / 4 explicit external-dependency skips、三项隔离 PG16 回归与完整 `ci:production` 均通过。首次全 V2 门禁暴露 `deploy/v2/**` 被误纳 Legacy 图，已统一 V2 graph root 边界且基线保持 539；本机无 Docker CLI，image/Compose 仍未证明。Edge OrcaTerm 为 0 会话，生产零命令、零变更。
-
-### 2026-07-20 / V2 M1.5-A Durable Worker, Checkpoint and SLO Local Exit
-
-- 建立独立 checksum 的 append-only checkpoint ledger、精确 release/config/sequence/schedule 恢复、固定节拍 Worker、强制 telemetry、NO_AUTHORITY 进程入口和三态 SLO evaluator。
-- 定向 30/30、全 V2 130 pass / 0 fail / 4 explicit skip；checkpoint PG16 进程边界演练 1/1 PASS，证明 artifact 引用、最小权限、append-only、幂等和重启后 ticker-only 恢复。
-- 本机 live probe 两轮均因三家 provider endpoint 连接/请求超时而 `DEGRADED`，0 observed / 0 eligible；该项明确 FAIL/UNAVAILABLE，生产零变更。
 
 ## 15. 当前风险
 
@@ -318,6 +321,7 @@ Cycle final
 - 预览 mock seed 入口仅在本地删除，尚未部署；若生产旧 env 曾错误启用，必须以现场证据确认影响。
 - V2 M1.1-M1.6 已有本地数据、Worker、checkpoint、SLO、Shadow 安全和分区/恢复证据；但三家 provider egress、Docker image、Compose merge、生产 migration、真实容量、Shadow 与 SLO PASS 均未证明。
 - M1.6 migration 前旧 V2 Fact 保持兼容但不自动清理；生产 preflight 必须证明旧 Fact 为零，非零时另做受控 backfill/retirement，不能进入长期 Shadow。
+- M2.0 只冻结合同和 test-only fixture；Detector kernel、真实 replay 指标、Deep Validation、队列/配额、Candidate Store 与 live runtime 均未实现，禁止把 19 个样本当作市场能力证据。
 
 ### P2
 
@@ -328,7 +332,7 @@ Cycle final
 
 下一轮审计优先检查：
 
-1. M2.0 是否只冻结机会 taxonomy、Candidate/Episode/Thesis 合同和 point-in-time fixture，不绕过 M1.7 启动 Detector runtime。
+1. M2.1 是否只实现 Pre-Move 与 Breakout/Retest 的 test-only 纯函数回放内核，不绕过 M1.7 读取 M1 authority、写 Candidate Store 或启动 Detector runtime。
 2. M1.5-B1 是否先在可达网络得到三家 live provider 原始 observed/accounted/eligible/collected/fresh，而不是把 fixture、官方文档或超时写成全市场证据。
 3. M1.6 production Gate 是否绑定旧 Fact=0、migration checksum、预建窗口、容量阈值、备份恢复和 Audit/Retention 分权。
 4. Candidate/Evidence/Setup/Action/User Fit 是否越层。
@@ -353,10 +357,10 @@ Cycle final
 ## 18. 唯一下一入口
 
 ```text
-V2-M2.0-DISCOVERY-CONTRACTS-AND-GOLDEN-FIXTURES
+V2-M2.1-PRE-MOVE-BREAKOUT-REPLAY-KERNELS
 ```
 
-目标只冻结六类机会 taxonomy、Detector 输入、`DiscoveryCandidate -> CandidateEpisode -> OpportunityThesis` 生命周期、三分母和 point-in-time 黄金样本。外部 M1.5-B1 固定 31 周期 early Shadow 在可信通道恢复后并行，随后进入 M1.7；在 M1 工程出口前不得启动 Detector runtime、读取 M1 authority、接入页面、生成 Signal/Plan 或使用 Outcome。
+目标只在冻结的 `M2DetectorReadInput` 和 19 个 test-only fixture 上实现 Pre-Move 与 Breakout/Retest 的多空/UNKNOWN 纯函数内核、reason/counter-hint 与确定性重放。外部 M1.5-B1 固定 31 周期 early Shadow 在可信通道恢复后并行，随后进入 M1.7；在 M1 工程出口前不得启动 Detector runtime、读取 M1 authority、写 Candidate Store、接入页面、生成等级/Signal/Plan 或使用 Outcome。
 
 ## 19. 活跃记忆维护规则
 

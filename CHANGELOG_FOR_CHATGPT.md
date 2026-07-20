@@ -2,6 +2,46 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-20 / V2 M2.0 Discovery Contracts and Golden Fixtures Local Exit
+
+### 本轮目标
+
+冻结六类机会、Detector point-in-time 输入、`DiscoveryCandidate -> CandidateEpisode -> OpportunityThesis` 生命周期、去重/资源优先级、三层运行漏斗和禁止未来数据的黄金样本。
+
+### 修改范围
+
+- 冻结 Pre-Move、Breakout/Retest、Trend Continuation、Reversal/Range、Relative Strength、Derivatives Flow 六族十四模式，以及每族合法方向。
+- Candidate/Episode/Thesis 升为 strict v2 schema；增加 Detector emission authority、event/knowledge 双 cutoff、五类 artifact lineage、UTC Episode key、状态转换、幂等/outbox 和 Bundle 一致性。
+- 建立 eligible/evaluated/unavailable 与 discovered/deep-validated/actionable 三层运行漏斗，明确不替代 early-detection 研究三分母。
+- 新增 19 个 test-only point-in-time fixture，六族各含 LONG、SHORT 和反例，另含方向未决、late、noise、fakeout、unavailable；递归拒绝 Outcome/MFE/MAE 等未来材料。
+- 未修改 Legacy、M1 runtime、前端、API、DB、Redis、Worker、Deep、Analysis、Strategy、Backtest 或生产。
+
+### 核心链路影响
+
+建立 `多机会发现 -> Candidate Episode + Opportunity Thesis` 的可回放、可追溯合同地基。它不提高已证明的真实发现率，不产生等级、Signal、READY 或交易计划。
+
+### 测试结果
+
+- `test:v2-foundation`：162 tests / 157 pass / 0 fail / 5 explicit external-dependency skips。
+- M2.0 定向 16/16；`typecheck`、`lint` PASS，lint 0 error / 0 warning。
+- 完整 `ci:production`：PASS，`exit_code=0`；Legacy market 965/0/4 skip、Worker 23/23、历史回测 4/4、全 V2 157/0/5 skip、M0 10/10、build、golden 16/16 和安全门禁全部通过。
+- 首次黄金样本定向为 13/14，因为 `futureMfe` 未被专用 future-key 规则分类；已扩展递归规则，没有删除测试或降低 schema。
+- 首轮完整 CI 后继续反审计并封闭 `future_outcome`/`quality_hit` 字符串绕过、Thesis emission-scope 缺口和重复/重叠理由污染；加固后完整 CI 再次 PASS。
+- `backtest:formal`、production smoke、live provider、Docker 和 migration 未运行；生产零变更。
+
+### 是否部署
+
+未部署。没有读取 M1 authority、写 Candidate Store、执行生产命令或改变生产权威。
+
+### 风险与遗留问题
+
+- fixture 只证明合同和反未来泄漏，不证明真实 precision、recall、lead time 或盈利。
+- M1.5-B1/M1.7 未通过，所有 Detector runtime、M1 authority 读取和 live Candidate 仍被阻断。
+
+### 下一轮建议
+
+只执行 `V2-M2.1-PRE-MOVE-BREAKOUT-REPLAY-KERNELS`，以 test-only fixture 实现纯函数/纯回放内核，不接 runtime、存储、页面、等级或计划。
+
 ## 2026-07-20 / V2 M1.6 Partitioned Fact Storage Local Exit
 
 ### 本轮目标
@@ -161,43 +201,3 @@
 ### 下一轮建议
 
 只执行 `V2-M1.5 Live No-Authority Collector Rehearsal and Shadow/SLO Entry`，先证明 live provider、连续 coverage/freshness、资源、恢复和成本，不进入 Detector。
-
-## 2026-07-20 / V2 M1.3 Store, Replay Manifest and Runtime Truth Rehearsal
-
-### 本轮目标
-
-把冻结 M1 authority artifact 真实写入隔离 PostgreSQL 16 append-only 账本，按 event/knowledge 双 cutoff 从账本重放，并用独立证据区分进程、依赖、业务、数据和发布真值。
-
-### 修改范围
-
-- 新增六类 M1 artifact 的原子 Store、strict STORAGE decoder、semantic hash/full payload digest、幂等冲突、retention metadata 和无 memory fallback 连接合同。
-- 新增 `v2-m1-artifact-store.v1` PostgreSQL schema、迁移 checksum guard、UPDATE/DELETE trigger 和 migration/writer/reader/replay/audit 五类 NOLOGIN capability role。
-- 新增 `v2-m1-replay-manifest.v1`，同时冻结 event cutoff 与 knowledge cutoff，从账本执行两次独立 replay 并生成 parity/determinism 证据。
-- Runtime Truth 升为 v2；固定 M1 required-check profile，Rehearsal 即使全部技术检查通过也只能 `businessReadiness=PARTIAL`。
-- 新增隔离 PG16 演练脚本和当前合同/报告；未修改 Legacy 或生产。
-
-### 核心链路影响
-
-完成 `Universe/Fact/Feature artifact -> durable store -> cutoff-safe replay -> parity evidence -> Runtime Truth` 本地闭环，为全市场 Collector 和 Detector 提供不会静默回退内存的事实地基。本轮没有增加 Candidate、信号、方向或交易计划能力。
-
-### 测试结果
-
-- `test:v2-m1-store-replay`：12/12 PASS。
-- 隔离 PostgreSQL 16 integration：1/1 PASS；8 artifact、原子写入、幂等冲突、权限、append-only、强制污染检测、双 replay 和 Runtime Truth 通过。
-- `test:v2-foundation`：96 pass / 0 fail / 1 explicit PG integration skip；独立 PG16 演练 1/1 PASS。
-- Legacy 核心 965 pass / 0 fail / 4 skip；workers 23/23；historical 4/4；M0 10/10；build、golden 16/16、forbidden/secret/security PASS。
-- 最终单实例 `ci:production`：`exit_code=0`。
-- `backtest:formal` 与 production smoke 未运行；生产零变更。
-
-### 是否部署
-
-未部署。临时 PostgreSQL 16 cluster 退出后已销毁；未连接腾讯云、生产数据库、Redis、Worker、Compose、env、secret 或 GitHub main。
-
-### 风险与遗留问题
-
-- 当前只证明冻结 BTC 三 Venue artifact，不证明 live ingestion、全 eligible Universe、连续采集、容量、备份、恢复、retention purge 或生产 SLO。
-- 生产 migration、生产 runtime identity 和 authority 切换均未发生；Runtime Truth 明确为 `REHEARSAL/PARTIAL`。
-
-### 下一轮建议
-
-只执行 `V2-M1.4 Full Eligible Universe and Collector Runtime`，先扩大覆盖与采集运行地基，不越过 M1 做 Detector。
