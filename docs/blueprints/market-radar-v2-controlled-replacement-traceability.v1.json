@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.11",
-  "status": "m1_5_b1b2_mark_price_semantics_local_engineering_exit_pass_b1b1_execution_invalid_not_counted_b1b3_retest_pending_business_slo_unproven_m2_2_c1_forward_only_ready_external_rights_and_historical_source_blocked_m1_not_complete",
-  "generatedAt": "2026-07-21T04:47:13+08:00",
+  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.12",
+  "status": "m1_5_b1_early_shadow_business_gate_pass_b1b1_execution_invalid_not_counted_b1b3_pass_m1_6_p0_current_m2_2_c1_forward_only_ready_external_rights_and_historical_source_blocked_m1_not_complete",
+  "generatedAt": "2026-07-21T05:49:35+08:00",
   "implementationAuthorized": true,
   "productionMutationAuthorized": false,
   "authority": {
@@ -10,7 +10,7 @@
     "index": "docs/blueprints/README.md",
     "currentFacts": "PROJECT_CONTEXT_FOR_CHATGPT.md",
     "recentChanges": "CHANGELOG_FOR_CHATGPT.md",
-    "deliveryReport": "docs/blueprints/V2_M1_5_B1_B2_MARK_PRICE_SEMANTICS_REMEDIATION_DELIVERY_REPORT.md",
+    "deliveryReport": "docs/blueprints/V2_M1_5_B1_B3_MARK_PRICE_SAME_GATE_RETEST_DELIVERY_REPORT.md",
     "buildSequence": "market-radar-v2-build-sequence.md",
     "baseManifest": "docs/architecture/v2/V2_BASE_MANIFEST.v1.json",
     "baselineDecision": "docs/architecture/v2/ADR-0001-CLEAN-BASELINE-AND-V2-ISOLATION.md",
@@ -694,7 +694,7 @@
       "dependsOn": [
         "M0"
       ],
-      "status": "b1b2_mark_price_semantics_local_engineering_exit_pass_b1b1_execution_invalid_not_counted_b1b3_retest_pending_business_slo_unproven_m1_not_complete",
+      "status": "b1b3_early_shadow_business_gate_pass_m1_5_b1_complete_m1_6_p0_current_m1_not_complete",
       "workPackages": [
         {
           "id": "M1.5-B1-A",
@@ -719,12 +719,12 @@
         {
           "id": "M1.5-B1-B3",
           "name": "mark_price_same_policy_atomic_31_cycle_retest",
-          "status": "current_execution_entry_pending_exact_release"
+          "status": "pass_early_shadow_business_gate_host_restored"
         },
         {
           "id": "M1.6-P",
           "name": "production_storage_staged_enablement",
-          "status": "blocked_until_b1_b_pass"
+          "status": "p0_read_only_preflight_current"
         },
         {
           "id": "M1.7",
@@ -900,17 +900,17 @@
     "legacyDeletionAllowed": false
   },
   "lastCompletedImplementationEntry": {
-    "id": "V2-M1.5-B1-B2-MARK-PRICE-SNAPSHOT-SEMANTICS-REMEDIATION",
-    "name": "uniform_mark_price_snapshot_semantics_and_price_usability_truth",
-    "status": "local_engineering_exit_pass_business_slo_unproven_production_unchanged",
+    "id": "V2-M1.5-B1-B3-MARK-PRICE-SAME-GATE-31-CYCLE-RETEST",
+    "name": "mark_price_same_policy_atomic_31_cycle_retest",
+    "status": "pass_early_shadow_business_gate_m1_5_b1_complete_production_unchanged",
     "productionMutationPerformed": false,
     "migrationPerformed": false,
     "legacyDeletionPerformed": false
   },
   "currentImplementationEntry": {
-    "id": "V2-M1.5-B1-B3-MARK-PRICE-SAME-GATE-31-CYCLE-RETEST",
-    "name": "mark_price_same_policy_atomic_31_cycle_retest",
-    "status": "pending_exact_release_and_external_execution",
+    "id": "V2-M1.6-P0-PRODUCTION-STORAGE-READ-ONLY-PREFLIGHT-CONTRACT",
+    "name": "production_storage_fresh_read_only_preflight_contract_and_evidence",
+    "status": "current_local_engineering_entry_production_read_only_execution_pending",
     "productionMutationAllowed": false,
     "migrationAllowed": false,
     "legacyDeletionAllowed": false
@@ -993,6 +993,36 @@
     "productionMutationPerformed": false,
     "candidateEmissionAllowed": false
   },
+  "completedMarkPriceSameGateRetest": {
+    "id": "V2-M1.5-B1-B3-MARK-PRICE-SAME-GATE-31-CYCLE-RETEST",
+    "status": "PASS_EARLY_SHADOW_BUSINESS_GATE",
+    "sourceCommit": "33f08d3fb72912a2617ed3a21f58cb4c347aefcb",
+    "runnerEvidenceDigest": "sha256:58b5d118503def8287642b78e12eb895a26130ac0ecb12b52bbf06e82ce51860",
+    "domainEvidenceDigest": "sha256:2304b66dd2ee0a14b8cdab2079f2bf4d97d49c96e98fc6608c5ca6a0bcb65563",
+    "observationDigest": "sha256:e1bacf6dbe8c159902855aaa94a56cd0be78204a4054903130b0f56daf21c113",
+    "processOutputDigest": "sha256:5e4d6bfcd6436e47c6288f3c0e4ccea495a0bd6444a07cd6e42b46aee2b2a502",
+    "cycleCount": 31,
+    "operationalReadyCycleCount": 31,
+    "notReadyCycleCount": 0,
+    "minimumEligibleCount": 1444,
+    "minimumCollectedCount": 1444,
+    "minimumUsablePriceCount": 1444,
+    "minimumFreshCount": 1444,
+    "minimumCollectionCoverageRatio": 1,
+    "minimumPriceUsabilityCoverageRatio": 1,
+    "minimumFreshCoverageRatio": 1,
+    "operationalReadyRatio": 1,
+    "providerFailureCycleCount": 0,
+    "missedScheduleStarts": 0,
+    "observationMs": 1805547,
+    "p95CycleDurationMs": 5997,
+    "maxScheduleLagMs": 45,
+    "hostBaselineDigest": "sha256:ec3a6a0dc1705399fd8dd76926d8ed20f4421b802617852f27a5b4cc6fc3659c",
+    "exactDockerStateRestored": true,
+    "independentVerificationPassed": true,
+    "productionMutationPerformed": false,
+    "candidateEmissionAllowed": false
+  },
   "pendingHistoricalDataGate": {
     "id": "V2-M2.2-B0.2-B-EXACT-SOURCE-RIGHTS-AND-CAPABILITY-RESOLUTION",
     "status": "blocked_on_external_human_rights_review_and_qualified_historical_instrument_source",
@@ -1016,9 +1046,9 @@
     "candidateEmissionAllowed": false,
     "productionMutationPerformed": false
   },
-  "pendingExternalGate": {
+  "completedEarlyShadowBusinessGate": {
     "id": "V2-M1.5-B1-B-31-CYCLE-EARLY-SHADOW",
-    "status": "pending_b1_b3_mark_price_same_gate_retest",
+    "status": "pass_via_b1_b3_mark_price_same_gate_retest",
     "maximumCycles": 31,
     "minimumCycles": 31,
     "atomicSingleProcessRequired": true,
@@ -1027,6 +1057,15 @@
     "freshCoverageRatioRequired": 1,
     "operationalReadyRatioRequired": 1,
     "authorityMode": "NO_AUTHORITY",
-    "productionMutationAllowed": false
+    "productionMutationAllowed": false,
+    "evidenceDigest": "sha256:58b5d118503def8287642b78e12eb895a26130ac0ecb12b52bbf06e82ce51860"
+  },
+  "currentProductionStorageGate": {
+    "id": "V2-M1.6-P0-PRODUCTION-STORAGE-READ-ONLY-PREFLIGHT-CONTRACT",
+    "status": "current_local_engineering_entry_production_read_only_execution_pending",
+    "productionMutationAllowed": false,
+    "migrationAllowed": false,
+    "legacyDeletionAllowed": false,
+    "candidateEmissionAllowed": false
   }
 }
