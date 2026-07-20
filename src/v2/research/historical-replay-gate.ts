@@ -985,6 +985,22 @@ function experimentConsistencyReasons(
   if (experiment.datasetSnapshotId !== dataset.datasetSnapshotId) {
     reasons.add("experiment_dataset_identity_mismatch");
   }
+  if (
+    experiment.constructionPolicyDigest !==
+      dataset.manifest.constructionPolicyDigest ||
+    experiment.rankingPolicyDigest !==
+      dataset.manifest.diagnosticRankingPolicyDigest
+  ) {
+    reasons.add("experiment_construction_policy_mismatch");
+  }
+  if (
+    experiment.eventThresholdRegistryId !==
+      dataset.manifest.eventThresholdRegistry.registryId ||
+    experiment.eventThresholdRegistryDigest !==
+      dataset.manifest.eventThresholdRegistry.registryDigest
+  ) {
+    reasons.add("experiment_event_threshold_registry_mismatch");
+  }
   const manifestTrials = [...dataset.manifest.registeredTrialIds].sort();
   const experimentTrials = experiment.trials.map((trial) => trial.trialId).sort();
   if (JSON.stringify(manifestTrials) !== JSON.stringify(experimentTrials)) {
@@ -1037,6 +1053,14 @@ function experimentConsistencyReasons(
           dataset.manifest.detectorRuleSetVersion ||
         holdoutArtifact.detectorRuleSetDigest !==
           dataset.manifest.detectorRuleSetDigest ||
+        holdoutArtifact.constructionPolicyDigest !==
+          dataset.manifest.constructionPolicyDigest ||
+        holdoutArtifact.diagnosticRankingPolicyDigest !==
+          dataset.manifest.diagnosticRankingPolicyDigest ||
+        holdoutArtifact.eventThresholdRegistry.registryId !==
+          dataset.manifest.eventThresholdRegistry.registryId ||
+        holdoutArtifact.eventThresholdRegistry.registryDigest !==
+          dataset.manifest.eventThresholdRegistry.registryDigest ||
         JSON.stringify([...holdoutArtifact.evaluatedDetectorIds].sort()) !==
           JSON.stringify([...dataset.manifest.evaluatedDetectorIds].sort())
       ) {

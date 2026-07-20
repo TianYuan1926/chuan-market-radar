@@ -16,43 +16,46 @@ import {
   deepFreezeArtifact,
   stableContentHash,
 } from "../universe/stable-artifact";
+import {
+  M2DraftDiagnosticStrengthSchema,
+} from "./draft-diagnostic-strength-contract";
 import { M2DetectorReadInputSchema } from "./discovery-contract";
 
 export const M2_DRAFT_REPLAY_INPUT_VERSION =
   "v2-m2-draft-replay-input.v1" as const;
 export const M2_DRAFT_REPLAY_EVALUATION_VERSION =
-  "v2-m2-draft-replay-evaluation.v1" as const;
+  "v2-m2-draft-replay-evaluation.v2" as const;
 export const M2_DRAFT_REPLAY_RULE_SET_VERSION =
-  "v2-m2-draft-replay-rules.v1" as const;
+  "v2-m2-draft-replay-rules.v2" as const;
 
 export const M2_DRAFT_DETECTORS = Object.freeze({
   PRE_MOVE_COMPRESSION: {
     detectorId: "v2.pre-move.compression",
-    detectorVersion: "draft-replay.v1",
+    detectorVersion: "draft-replay.v2",
     opportunityFamily: "PRE_MOVE",
     opportunityPattern: "PRE_MOVE_COMPRESSION",
   },
   PRE_MOVE_FLOW_DIVERGENCE: {
     detectorId: "v2.pre-move.flow-divergence",
-    detectorVersion: "draft-replay.v1",
+    detectorVersion: "draft-replay.v2",
     opportunityFamily: "PRE_MOVE",
     opportunityPattern: "PRE_MOVE_FLOW_DIVERGENCE",
   },
   PRE_MOVE_LIQUIDITY_SHIFT: {
     detectorId: "v2.pre-move.liquidity-shift",
-    detectorVersion: "draft-replay.v1",
+    detectorVersion: "draft-replay.v2",
     opportunityFamily: "PRE_MOVE",
     opportunityPattern: "PRE_MOVE_LIQUIDITY_SHIFT",
   },
   BREAKOUT_EDGE: {
     detectorId: "v2.breakout-retest.breakout-edge",
-    detectorVersion: "draft-replay.v1",
+    detectorVersion: "draft-replay.v2",
     opportunityFamily: "BREAKOUT_RETEST",
     opportunityPattern: "BREAKOUT_EDGE",
   },
   ROLE_FLIP_RETEST: {
     detectorId: "v2.breakout-retest.role-flip-retest",
-    detectorVersion: "draft-replay.v1",
+    detectorVersion: "draft-replay.v2",
     opportunityFamily: "BREAKOUT_RETEST",
     opportunityPattern: "ROLE_FLIP_RETEST",
   },
@@ -173,6 +176,18 @@ export type M2DraftReplayKernelInput = z.infer<
   typeof M2DraftReplayKernelInputSchema
 >;
 
+export function buildM2DraftReplayInputDigest(
+  rawInput: M2DraftReplayKernelInput,
+): string {
+  const input = M2DraftReplayKernelInputSchema.parse(rawInput);
+  return stableContentHash({
+    detectorInput: input.detectorInput,
+    observations: [...input.observations].sort((left, right) =>
+      left.semanticKey.localeCompare(right.semanticKey)),
+    schemaVersion: input.schemaVersion,
+  });
+}
+
 const DraftHypothesisSchema = z.strictObject({
   opportunityPattern: z.enum(OPPORTUNITY_PATTERNS),
   directionHypothesis: z.enum(["LONG", "SHORT", "UNKNOWN"]),
@@ -203,6 +218,7 @@ export const M2DraftReplayEvaluationSchema = z.strictObject({
   missingSemanticKeys: z.array(NonEmptyStringSchema),
   reasonCodes: ReasonCodesSchema.min(1),
   counterHints: ReasonCodesSchema,
+  diagnosticStrength: M2DraftDiagnosticStrengthSchema,
 }).superRefine((evaluation, context) => {
   const matched = evaluation.evaluationStatus === "MATCHED_DRAFT_HYPOTHESIS";
   if (matched !== (evaluation.hypothesis !== null)) {
@@ -264,6 +280,51 @@ export const M2DraftReplayEvaluationSchema = z.strictObject({
       message: "unavailable draft evaluation requires missing semantic keys",
       path: ["missingSemanticKeys"],
     });
+  }
+  const rankable = evaluation.diagnosticStrength.status === "RANKABLE_MATCH";
+  if (matched !== rankable) {
+    context.addIssue({
+      code: "custom",
+      message: "only a matched draft evaluation may carry rankable strength",
+      path: ["diagnosticStrength", "status"],
+    });
+  }
+  if (evaluation.diagnosticStrength.status === "NOT_RANKABLE") {
+    const expectedExclusion = evaluation.evaluationStatus === "DATA_UNAVAILABLE"
+      ? "DATA_UNAVAILABLE"
+      : evaluation.reasonCodes.some((reason) => reason.endsWith("_veto"))
+        ? "VETOED"
+        : "NO_MATCH";
+    if (evaluation.diagnosticStrength.exclusionReason !== expectedExclusion) {
+      context.addIssue({
+        code: "custom",
+        message: "diagnostic exclusion reason disagrees with evaluation status",
+        path: ["diagnosticStrength", "exclusionReason"],
+      });
+    }
+  } else {
+    const usedObservationIds = new Set(evaluation.usedObservationIds);
+    if (evaluation.diagnosticStrength.components.some(
+      (component) => !usedObservationIds.has(component.observationId),
+    )) {
+      context.addIssue({
+        code: "custom",
+        message: "diagnostic strength may use only declared evaluation observations",
+        path: ["diagnosticStrength", "components"],
+      });
+    }
+    const expectedDirectionMultiplier =
+      evaluation.hypothesis?.directionHypothesis === "UNKNOWN" ? 0.75 : 1;
+    if (
+      evaluation.diagnosticStrength.directionMultiplier !==
+        expectedDirectionMultiplier
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "diagnostic direction multiplier disagrees with hypothesis",
+        path: ["diagnosticStrength", "directionMultiplier"],
+      });
+    }
   }
   for (const [field, values] of [
     ["usedObservationIds", evaluation.usedObservationIds],

@@ -6,7 +6,12 @@ import {
   M2_DRAFT_REPLAY_RULE_SET_DIGEST,
   type M2DraftReplayKernelInput,
 } from "../modules/detection/draft-replay-contract";
+import {
+  M2_DRAFT_DIAGNOSTIC_RANKING_POLICY_DIGEST,
+  M2_DRAFT_DIAGNOSTIC_RANKING_POLICY_VERSION,
+} from "../modules/detection/draft-diagnostic-ranking";
 import { M2_DISCOVERY_GOLDEN_FIXTURES } from "../testing/m2-discovery-golden-fixtures";
+import { stableContentHash } from "../modules/universe/stable-artifact";
 import {
   M2_HISTORICAL_REPLAY_DATASET_VERSION,
   M2_HISTORICAL_REPLAY_EXPERIMENT_VERSION,
@@ -22,6 +27,18 @@ import {
   type M2HistoricalReplayExperiment,
   type M2HistoricalReplayHoldoutArtifact,
 } from "./historical-replay-contract";
+import {
+  M2_HISTORICAL_BACKGROUND_POLICY,
+  M2_HISTORICAL_COHORT_CONSTRUCTION_POLICY_DIGEST,
+  M2_HISTORICAL_COHORT_CONSTRUCTION_POLICY_VERSION,
+  M2_HISTORICAL_LIQUIDITY_ASSIGNMENT_POLICY,
+  M2_HISTORICAL_KNOWLEDGE_TIME_POLICY,
+  M2_HISTORICAL_MATCHING_POLICY,
+  M2_HISTORICAL_REGIME_ASSIGNMENT_POLICY,
+  M2_HISTORICAL_SPLIT_POLICY,
+  M2_HISTORICAL_TRIAL_REGISTRY,
+  buildM2HistoricalEventThresholdRegistry,
+} from "./historical-cohort-construction-policy";
 import {
   M2HistoricalReplayGateReportSchema,
   evaluateM2ReplayThresholds,
@@ -42,6 +59,29 @@ const SPLIT_CUTOFFS = {
   VALIDATION: "2026-01-10T00:01:00.000Z",
   HOLDOUT: "2026-01-15T00:01:00.000Z",
 } as const;
+
+const SYNTHETIC_THRESHOLD_REGISTRY =
+  buildM2HistoricalEventThresholdRegistry({
+    registryName: "m2.2-test-only-thresholds",
+    frozenAt: "2026-01-07T00:00:00.000Z",
+    distributions: (["60M", "4H", "24H"] as const).flatMap((horizon) =>
+      (["LONG", "SHORT"] as const).map((direction) => ({
+        split: "TRAIN" as const,
+        horizon,
+        direction,
+        excursionPercents: Array.from({ length: 1_000 }, () => 1),
+        sourceDigest: SYNTHETIC_SOURCE_DIGEST,
+      }))),
+  });
+
+function thresholdEntry(horizon: "60M" | "4H" | "24H", direction: "LONG" | "SHORT") {
+  const entry = SYNTHETIC_THRESHOLD_REGISTRY.entries.find(
+    (candidate) =>
+      candidate.horizon === horizon && candidate.direction === direction,
+  );
+  assert.ok(entry);
+  return entry;
+}
 
 function kernelInputForCase(
   fixtureCase: GoldenCase,
@@ -128,11 +168,23 @@ function replayRecord(input: Readonly<{
     underlyingGroupId: preparedInput.detectorInput.underlyingGroupId,
     marketRegime: "RANGE" as const,
     liquidityBucket: "HIGH" as const,
+    preCutoffAssignmentProof: {
+      assignmentCutoff: preparedInput.detectorInput.eventCutoff,
+      regimePolicyId: M2_HISTORICAL_REGIME_ASSIGNMENT_POLICY.policyId,
+      regimePolicyDigest:
+        M2_HISTORICAL_REGIME_ASSIGNMENT_POLICY.policyDigest,
+      regimeEvidenceFactIds: [`regime-fact:${input.recordId}`],
+      liquidityPolicyId: M2_HISTORICAL_LIQUIDITY_ASSIGNMENT_POLICY.policyId,
+      liquidityPolicyDigest:
+        M2_HISTORICAL_LIQUIDITY_ASSIGNMENT_POLICY.policyDigest,
+      liquidityEvidenceFactIds: [`liquidity-fact:${input.recordId}`],
+    },
     detectorIds: [M2_DRAFT_DETECTORS.PRE_MOVE_COMPRESSION.detectorId],
     replaySteps: [replayStep(stepId, preparedInput, input.unavailable)],
     sourceRecordIds: [`source-record:${input.recordId}`],
   };
   if (input.target === "EVENT") {
+    const eventThreshold = thresholdEntry("60M", "LONG");
     return {
       ...common,
       target: {
@@ -142,7 +194,9 @@ function replayRecord(input: Readonly<{
         direction: "LONG" as const,
         eventStartAt: new Date(cutoff + 19 * 60_000).toISOString(),
         publicBreakoutAt: new Date(cutoff + 30 * 60_000).toISOString(),
-        thresholdPercent: 5,
+        thresholdEntryId: eventThreshold.thresholdEntryId,
+        thresholdRegistryDigest: SYNTHETIC_THRESHOLD_REGISTRY.registryDigest,
+        thresholdPercent: eventThreshold.effectiveThresholdPercent,
         stepOutcomeLabels: [{
           stepId,
           moveConsumedFractionAtCutoff: 0.08,
@@ -162,7 +216,8 @@ function replayRecord(input: Readonly<{
         noExpansionConfirmedThrough: new Date(
           cutoff + 24 * 60 * 60_000,
         ).toISOString(),
-        matchingPolicyId: "test-only-matched-control.v1",
+        matchingPolicyId: M2_HISTORICAL_MATCHING_POLICY.policyId,
+        matchingPolicyDigest: M2_HISTORICAL_MATCHING_POLICY.policyDigest,
         sourceFactIds: [`control-fact:${input.split}`],
       },
     };
@@ -175,7 +230,8 @@ function replayRecord(input: Readonly<{
       noExpansionConfirmedThrough: new Date(
         cutoff + 24 * 60 * 60_000,
       ).toISOString(),
-      samplingPolicyId: "test-only-complete-background.v1",
+      samplingPolicyId: M2_HISTORICAL_BACKGROUND_POLICY.policyId,
+      samplingPolicyDigest: M2_HISTORICAL_BACKGROUND_POLICY.policyDigest,
       sourceFactIds: [`background-fact:${input.split}`],
     },
   };
@@ -218,11 +274,20 @@ function syntheticDataset(options: Readonly<{
       datasetName: "m2.2-test-only-synthetic-cohort",
       frozenAt: "2026-01-17T00:00:00.000Z",
       eventLabelVersion: "significant-expansion-event.v1",
-      detectorRuleSetVersion: "v2-m2-draft-replay-rules.v1",
+      constructionPolicyVersion:
+        M2_HISTORICAL_COHORT_CONSTRUCTION_POLICY_VERSION,
+      constructionPolicyDigest:
+        M2_HISTORICAL_COHORT_CONSTRUCTION_POLICY_DIGEST,
+      detectorRuleSetVersion: "v2-m2-draft-replay-rules.v2",
       detectorRuleSetDigest: M2_DRAFT_REPLAY_RULE_SET_DIGEST,
+      diagnosticRankingPolicyVersion:
+        M2_DRAFT_DIAGNOSTIC_RANKING_POLICY_VERSION,
+      diagnosticRankingPolicyDigest:
+        M2_DRAFT_DIAGNOSTIC_RANKING_POLICY_DIGEST,
       evaluatedDetectorIds: [
         M2_DRAFT_DETECTORS.PRE_MOVE_COMPRESSION.detectorId,
       ],
+      eventThresholdRegistry: SYNTHETIC_THRESHOLD_REGISTRY,
       sourceRights: [{
         sourceRegistryId: "test-only-source",
         providerId: "test-only-provider",
@@ -237,17 +302,23 @@ function syntheticDataset(options: Readonly<{
       }],
       pointInTimeProof: {
         eventTimeComplete: true,
-        receivedAtComplete: true,
         knowledgeCutoffComplete: true,
         lineageComplete: true,
         candidateUniverseCoverageComplete: true,
         immutableSourcePayloadDigest: SYNTHETIC_SOURCE_DIGEST,
-        sourceClockPolicyId: "test-only-clock.v1",
+        knowledgeTime: {
+          mode: "OBSERVED_RECEIVED_AT",
+          receivedAtComplete: true,
+          sourceClockPolicyId: "test-only-clock.v1",
+          sourceClockPolicyDigest: SYNTHETIC_SOURCE_DIGEST,
+        },
       },
       splitPolicy: {
+        policyId: M2_HISTORICAL_SPLIT_POLICY.policyId,
+        policyDigest: M2_HISTORICAL_SPLIT_POLICY.policyDigest,
         strategy: "PURGED_TIME_SYMBOL_REGIME_HOLDOUT",
-        purgeSeconds: 3_600,
-        embargoSeconds: 3_600,
+        purgeSeconds: 86_400,
+        embargoSeconds: 86_400,
         assignmentFrozenAt: "2026-01-03T00:00:00.000Z",
         windows: [
           {
@@ -292,7 +363,9 @@ function syntheticDataset(options: Readonly<{
         marketRegime: "RANGE",
         liquidityBucket: "HIGH",
       }],
-      registeredTrialIds: ["trial:baseline"],
+      registeredTrialIds: M2_HISTORICAL_TRIAL_REGISTRY.trials.map(
+        (registeredTrial) => registeredTrial.trialId,
+      ),
       holdoutCustody: {
         custodyMode: "INLINE_TEST_ONLY",
         reasonCodes: ["synthetic_fixture_is_not_lifecycle_evidence"],
@@ -313,8 +386,13 @@ function separatelyCustodiedSyntheticDataset(): Readonly<{
     datasetName: inline.manifest.datasetName,
     frozenAt: inline.manifest.frozenAt,
     eventLabelVersion: inline.manifest.eventLabelVersion,
+    constructionPolicyVersion: inline.manifest.constructionPolicyVersion,
+    constructionPolicyDigest: inline.manifest.constructionPolicyDigest,
     detectorRuleSetVersion: inline.manifest.detectorRuleSetVersion,
     detectorRuleSetDigest: inline.manifest.detectorRuleSetDigest,
+    diagnosticRankingPolicyDigest:
+      inline.manifest.diagnosticRankingPolicyDigest,
+    eventThresholdRegistry: inline.manifest.eventThresholdRegistry,
     evaluatedDetectorIds: inline.manifest.evaluatedDetectorIds,
     splitWindow: {
       startedAt: holdoutWindow.startedAt,
@@ -357,21 +435,32 @@ function contractExperiment(
     datasetSnapshotId: dataset.datasetSnapshotId,
     gatePolicyVersion: M2_HISTORICAL_REPLAY_GATE_POLICY_VERSION,
     gatePolicyDigest: M2_HISTORICAL_REPLAY_GATE_POLICY_DIGEST,
+    constructionPolicyDigest:
+      M2_HISTORICAL_COHORT_CONSTRUCTION_POLICY_DIGEST,
     detectorRuleSetDigest: M2_DRAFT_REPLAY_RULE_SET_DIGEST,
+    rankingPolicyDigest: M2_DRAFT_DIAGNOSTIC_RANKING_POLICY_DIGEST,
+    eventThresholdRegistryId: dataset.manifest.eventThresholdRegistry.registryId,
+    eventThresholdRegistryDigest:
+      dataset.manifest.eventThresholdRegistry.registryDigest,
+    trialRegistryId: M2_HISTORICAL_TRIAL_REGISTRY.registryId,
+    trialRegistryDigest: M2_HISTORICAL_TRIAL_REGISTRY.registryDigest,
     evaluationMode: "CONTRACT_TEST_ONLY",
     registeredAt: "2026-01-17T00:01:00.000Z",
     thresholdFrozenAt: "2026-01-17T00:02:00.000Z",
     holdoutOpenedAt: null,
     holdoutAccessCount: 0,
     holdoutAccessEvidence: null,
-    trials: [{
-      trialId: "trial:baseline",
-      role: "BASELINE",
+    trials: M2_HISTORICAL_TRIAL_REGISTRY.trials.map((registeredTrial) => ({
+      trialId: registeredTrial.trialId,
+      role: registeredTrial.role,
       registeredAt: "2026-01-17T00:01:00.000Z",
-      parameterSetDigest: M2_DRAFT_REPLAY_RULE_SET_DIGEST,
-    }],
-    selectedBaselineTrialId: "trial:baseline",
-    allTrialsReported: true,
+      parameterSet: registeredTrial.parameterSet,
+      parameterSetDigest: registeredTrial.parameterSetDigest,
+    })),
+    selectedBaselineTrialId: M2_HISTORICAL_TRIAL_REGISTRY.trials.find(
+      (registeredTrial) => registeredTrial.role === "BASELINE",
+    )!.trialId,
+    allTrialsReported: false,
     sensitivityEvidence: {
       status: "NOT_RUN",
       reasonCodes: ["test_only_sensitivity_not_run"],
@@ -549,6 +638,137 @@ test("verifies purge/embargo windows and holdout group isolation from records", 
   );
 });
 
+test("binds every event to the frozen TRAIN-only threshold registry", () => {
+  const dataset = syntheticDataset();
+  const arbitraryThreshold = {
+    schemaVersion: dataset.schemaVersion,
+    manifest: structuredClone(dataset.manifest),
+    records: structuredClone(dataset.records),
+  };
+  const event = arbitraryThreshold.records.find(
+    (record) => record.target.targetKind === "EVENT",
+  )!;
+  assert.equal(event.target.targetKind, "EVENT");
+  event.target.thresholdPercent += 0.01;
+  assert.throws(
+    () => buildM2HistoricalReplayDataset(arbitraryThreshold),
+    /frozen TRAIN-only threshold/u,
+  );
+
+  const arbitraryEntry = {
+    schemaVersion: dataset.schemaVersion,
+    manifest: structuredClone(dataset.manifest),
+    records: structuredClone(dataset.records),
+  };
+  const otherEvent = arbitraryEntry.records.find(
+    (record) => record.target.targetKind === "EVENT",
+  )!;
+  assert.equal(otherEvent.target.targetKind, "EVENT");
+  otherEvent.target.thresholdEntryId = "threshold:arbitrary";
+  assert.throws(
+    () => buildM2HistoricalReplayDataset(arbitraryEntry),
+    /frozen TRAIN-only threshold/u,
+  );
+});
+
+test("rejects matched, background, regime and liquidity policy drift", () => {
+  const dataset = syntheticDataset();
+  for (const drift of [
+    {
+      targetKind: "MATCHED_NON_EVENT",
+      field: "matchingPolicyId",
+      value: "arbitrary-matching-policy",
+    },
+    {
+      targetKind: "BACKGROUND_NON_EVENT",
+      field: "samplingPolicyDigest",
+      value: SYNTHETIC_SOURCE_DIGEST,
+    },
+  ] as const) {
+    const raw = {
+      schemaVersion: dataset.schemaVersion,
+      manifest: structuredClone(dataset.manifest),
+      records: structuredClone(dataset.records),
+    };
+    const record = raw.records.find(
+      (candidate) => candidate.target.targetKind === drift.targetKind,
+    )!;
+    Reflect.set(record.target, drift.field, drift.value);
+    assert.throws(() => buildM2HistoricalReplayDataset(raw), /Invalid input/u);
+  }
+
+  for (const field of ["regimePolicyDigest", "liquidityPolicyDigest"] as const) {
+    const raw = {
+      schemaVersion: dataset.schemaVersion,
+      manifest: structuredClone(dataset.manifest),
+      records: structuredClone(dataset.records),
+    };
+    Reflect.set(
+      raw.records[0]!.preCutoffAssignmentProof,
+      field,
+      SYNTHETIC_SOURCE_DIGEST,
+    );
+    assert.throws(() => buildM2HistoricalReplayDataset(raw), /Invalid input/u);
+  }
+});
+
+test("discloses modeled knowledge time and rejects a false receivedAt claim", () => {
+  const observed = syntheticDataset();
+  const modeledCore = {
+    schemaVersion: observed.schemaVersion,
+    manifest: structuredClone(observed.manifest),
+    records: structuredClone(observed.records),
+  };
+  modeledCore.manifest.pointInTimeProof.knowledgeTime = {
+    mode: "MODELED_CONSERVATIVE_AVAILABILITY",
+    receivedAtComplete: false,
+    modelPolicyId: M2_HISTORICAL_KNOWLEDGE_TIME_POLICY.policyId,
+    modelPolicyDigest: M2_HISTORICAL_KNOWLEDGE_TIME_POLICY.policyDigest,
+    baseLatencySeconds: 5,
+    latencyScale: 1,
+    disclosure: "MODELED_NOT_OBSERVED",
+  };
+  const modeled = buildM2HistoricalReplayDataset(modeledCore);
+  assert.equal(
+    modeled.manifest.pointInTimeProof.knowledgeTime.mode,
+    "MODELED_CONSERVATIVE_AVAILABILITY",
+  );
+
+  const dishonest = structuredClone(modeledCore);
+  Reflect.set(
+    dishonest.manifest.pointInTimeProof.knowledgeTime,
+    "receivedAtComplete",
+    true,
+  );
+  assert.throws(
+    () => buildM2HistoricalReplayDataset(dishonest),
+    /Invalid input/u,
+  );
+});
+
+test("rejects trial omission even when a drifted parameter digest is self-consistent", () => {
+  const dataset = syntheticDataset();
+  const omitted = structuredClone(contractExperiment(dataset));
+  omitted.trials.pop();
+  assert.throws(
+    () => M2HistoricalReplayExperimentSchema.parse(omitted),
+    /every pre-registered trial/u,
+  );
+
+  const drifted = structuredClone(contractExperiment(dataset));
+  drifted.trials[0]!.parameterSet = {
+    ...drifted.trials[0]!.parameterSet,
+    unregisteredAdvantage: true,
+  };
+  drifted.trials[0]!.parameterSetDigest = stableContentHash(
+    drifted.trials[0]!.parameterSet,
+  );
+  assert.throws(
+    () => M2HistoricalReplayExperimentSchema.parse(drifted),
+    /drifted from the pre-registered parameters/u,
+  );
+});
+
 test("runs target-blind first detection and reports all three required denominators", () => {
   const dataset = syntheticDataset();
   const report = runM2HistoricalReplayGate({
@@ -722,10 +942,15 @@ test("separates policy PASS logic from lifecycle mutation authority", () => {
       resultSealedAt: "2026-01-17T00:04:00.000Z",
       accessLedgerDigest: SYNTHETIC_RIGHTS_DIGEST,
     },
+    allTrialsReported: true,
     sensitivityEvidence: {
       status: "PASS",
-      registeredTrialIds: ["trial:baseline"],
-      reportedTrialIds: ["trial:baseline"],
+      registeredTrialIds: M2_HISTORICAL_TRIAL_REGISTRY.trials.map(
+        (registeredTrial) => registeredTrial.trialId,
+      ),
+      reportedTrialIds: M2_HISTORICAL_TRIAL_REGISTRY.trials.map(
+        (registeredTrial) => registeredTrial.trialId,
+      ),
       failedTrialIds: [],
       evidenceDigest: SYNTHETIC_SOURCE_DIGEST,
       reasonCodes: [],
@@ -736,7 +961,7 @@ test("separates policy PASS logic from lifecycle mutation authority", () => {
       candidateCount: 20,
       lateNoiseCount: 2,
       lateNoiseRate: 0.1,
-      rankingPolicyDigest: SYNTHETIC_RIGHTS_DIGEST,
+      rankingPolicyDigest: M2_DRAFT_DIAGNOSTIC_RANKING_POLICY_DIGEST,
       evidenceDigest: SYNTHETIC_SOURCE_DIGEST,
     },
   };

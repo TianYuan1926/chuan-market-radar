@@ -29,7 +29,7 @@ export type M0ExitReport = Readonly<{
   legacySourceFiles: number;
   productionMutationPerformed: false;
   productionStatus: "UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION";
-  nextEntry: "V2-M2.2-B0.1-TARGET-BLIND-DIAGNOSTIC-STRENGTH-AND-CONSTRUCTION-POLICY-FREEZE DETECTORS_DRAFT";
+  nextEntry: "V2-M2.2-B0.2-RIGHTS-AND-POINT-IN-TIME-INSTRUMENT-METADATA-RESOLUTION BLOCKED_ON_EXTERNAL_EVIDENCE DETECTORS_DRAFT";
 }>;
 
 type CheckRunner = () => string;
@@ -346,7 +346,7 @@ export function buildM0ExitReport(repositoryRoot: string): M0ExitReport {
     legacySourceFiles: currentMap.totals.sourceFiles,
     productionMutationPerformed: false,
     productionStatus: "UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION",
-    nextEntry: "V2-M2.2-B0.1-TARGET-BLIND-DIAGNOSTIC-STRENGTH-AND-CONSTRUCTION-POLICY-FREEZE DETECTORS_DRAFT",
+    nextEntry: "V2-M2.2-B0.2-RIGHTS-AND-POINT-IN-TIME-INSTRUMENT-METADATA-RESOLUTION BLOCKED_ON_EXTERNAL_EVIDENCE DETECTORS_DRAFT",
   };
 }
 

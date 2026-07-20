@@ -6,6 +6,10 @@ import {
   M2DraftReplayKernelInputSchema,
 } from "../modules/detection/draft-replay-contract";
 import {
+  M2_DRAFT_DIAGNOSTIC_RANKING_POLICY_DIGEST,
+  M2_DRAFT_DIAGNOSTIC_RANKING_POLICY_VERSION,
+} from "../modules/detection/draft-diagnostic-ranking";
+import {
   deepFreezeArtifact,
   stableContentHash,
 } from "../modules/universe/stable-artifact";
@@ -20,13 +24,25 @@ import {
   EXPANSION_EVENT_LABEL_VERSION,
   EXPANSION_HORIZONS,
 } from "./event-label-contract";
+import {
+  M2_HISTORICAL_BACKGROUND_POLICY,
+  M2_HISTORICAL_COHORT_CONSTRUCTION_POLICY_DIGEST,
+  M2_HISTORICAL_COHORT_CONSTRUCTION_POLICY_VERSION,
+  M2_HISTORICAL_KNOWLEDGE_TIME_POLICY,
+  M2_HISTORICAL_LIQUIDITY_ASSIGNMENT_POLICY,
+  M2_HISTORICAL_MATCHING_POLICY,
+  M2_HISTORICAL_REGIME_ASSIGNMENT_POLICY,
+  M2_HISTORICAL_SPLIT_POLICY,
+  M2_HISTORICAL_TRIAL_REGISTRY,
+  M2HistoricalEventThresholdRegistrySchema,
+} from "./historical-cohort-construction-policy";
 
 export const M2_HISTORICAL_REPLAY_DATASET_VERSION =
-  "v2-m2-historical-replay-dataset.v1" as const;
+  "v2-m2-historical-replay-dataset.v2" as const;
 export const M2_HISTORICAL_REPLAY_EXPERIMENT_VERSION =
-  "v2-m2-historical-replay-experiment.v1" as const;
+  "v2-m2-historical-replay-experiment.v2" as const;
 export const M2_HISTORICAL_REPLAY_HOLDOUT_ARTIFACT_VERSION =
-  "v2-m2-historical-replay-holdout-artifact.v1" as const;
+  "v2-m2-historical-replay-holdout-artifact.v2" as const;
 export const M2_HISTORICAL_REPLAY_GATE_VERSION =
   "v2-m2-historical-replay-gate.v1" as const;
 export const M2_HISTORICAL_REPLAY_GATE_POLICY_VERSION =
@@ -133,6 +149,26 @@ const SourceRightsSchema = z.strictObject({
   evidenceDigest: DigestSchema.nullable(),
 });
 
+const KnowledgeTimeProofSchema = z.discriminatedUnion("mode", [
+  z.strictObject({
+    mode: z.literal("OBSERVED_RECEIVED_AT"),
+    receivedAtComplete: z.literal(true),
+    sourceClockPolicyId: NonEmptyStringSchema,
+    sourceClockPolicyDigest: DigestSchema,
+  }),
+  z.strictObject({
+    mode: z.literal("MODELED_CONSERVATIVE_AVAILABILITY"),
+    receivedAtComplete: z.literal(false),
+    modelPolicyId: z.literal(M2_HISTORICAL_KNOWLEDGE_TIME_POLICY.policyId),
+    modelPolicyDigest: z.literal(
+      M2_HISTORICAL_KNOWLEDGE_TIME_POLICY.policyDigest,
+    ),
+    baseLatencySeconds: NonNegativeIntegerSchema,
+    latencyScale: z.number().finite().positive(),
+    disclosure: z.literal("MODELED_NOT_OBSERVED"),
+  }),
+]);
+
 const RequiredStratumSchema = z.strictObject({
   opportunityFamily: z.enum(["PRE_MOVE", "BREAKOUT_RETEST"]),
   direction: DirectionSchema,
@@ -191,23 +227,41 @@ export const M2HistoricalReplayDatasetManifestSchema = z.strictObject({
   datasetName: NonEmptyStringSchema,
   frozenAt: IsoDateTimeSchema,
   eventLabelVersion: z.literal(EXPANSION_EVENT_LABEL_VERSION),
+  constructionPolicyVersion: z.literal(
+    M2_HISTORICAL_COHORT_CONSTRUCTION_POLICY_VERSION,
+  ),
+  constructionPolicyDigest: z.literal(
+    M2_HISTORICAL_COHORT_CONSTRUCTION_POLICY_DIGEST,
+  ),
   detectorRuleSetVersion: z.literal(M2_DRAFT_REPLAY_RULE_SET_VERSION),
   detectorRuleSetDigest: z.literal(M2_DRAFT_REPLAY_RULE_SET_DIGEST),
+  diagnosticRankingPolicyVersion: z.literal(
+    M2_DRAFT_DIAGNOSTIC_RANKING_POLICY_VERSION,
+  ),
+  diagnosticRankingPolicyDigest: z.literal(
+    M2_DRAFT_DIAGNOSTIC_RANKING_POLICY_DIGEST,
+  ),
   evaluatedDetectorIds: z.array(DetectorIdSchema).min(1),
+  eventThresholdRegistry: M2HistoricalEventThresholdRegistrySchema,
   sourceRights: z.array(SourceRightsSchema).min(1),
   pointInTimeProof: z.strictObject({
     eventTimeComplete: z.boolean(),
-    receivedAtComplete: z.boolean(),
     knowledgeCutoffComplete: z.boolean(),
     lineageComplete: z.boolean(),
     candidateUniverseCoverageComplete: z.boolean(),
     immutableSourcePayloadDigest: DigestSchema,
-    sourceClockPolicyId: NonEmptyStringSchema,
+    knowledgeTime: KnowledgeTimeProofSchema,
   }),
   splitPolicy: z.strictObject({
+    policyId: z.literal(M2_HISTORICAL_SPLIT_POLICY.policyId),
+    policyDigest: z.literal(M2_HISTORICAL_SPLIT_POLICY.policyDigest),
     strategy: z.literal("PURGED_TIME_SYMBOL_REGIME_HOLDOUT"),
-    purgeSeconds: PositiveIntegerSchema,
-    embargoSeconds: PositiveIntegerSchema,
+    purgeSeconds: PositiveIntegerSchema.min(
+      M2_HISTORICAL_SPLIT_POLICY.minimumPurgeSeconds,
+    ),
+    embargoSeconds: PositiveIntegerSchema.min(
+      M2_HISTORICAL_SPLIT_POLICY.minimumEmbargoSeconds,
+    ),
     assignmentFrozenAt: IsoDateTimeSchema,
     windows: z.tuple([
       z.strictObject({
@@ -248,7 +302,9 @@ export const M2HistoricalReplayDatasetManifestSchema = z.strictObject({
     backgroundNonEvent: NonNegativeIntegerSchema,
   }),
   requiredStrata: z.array(RequiredStratumSchema).min(1),
-  registeredTrialIds: z.array(NonEmptyStringSchema).min(1),
+  registeredTrialIds: z.array(NonEmptyStringSchema).length(
+    M2_HISTORICAL_TRIAL_REGISTRY.trials.length,
+  ),
   holdoutCustody: HoldoutCustodySchema,
 }).superRefine((manifest, context) => {
   if (Date.parse(manifest.coverage.startedAt) >=
@@ -307,6 +363,34 @@ export const M2HistoricalReplayDatasetManifestSchema = z.strictObject({
       code: "custom",
       message: "split windows must remain inside dataset coverage",
       path: ["splitPolicy", "windows"],
+    });
+  }
+  const thresholdFrozenAt = Date.parse(
+    manifest.eventThresholdRegistry.frozenAt,
+  );
+  if (
+    thresholdFrozenAt < Date.parse(train.endedAt) ||
+    thresholdFrozenAt >= Date.parse(validation.startedAt) ||
+    thresholdFrozenAt > Date.parse(manifest.frozenAt)
+  ) {
+    context.addIssue({
+      code: "custom",
+      message:
+        "event thresholds must freeze after TRAIN and before VALIDATION",
+      path: ["eventThresholdRegistry", "frozenAt"],
+    });
+  }
+  const expectedTrialIds = M2_HISTORICAL_TRIAL_REGISTRY.trials
+    .map((registeredTrial) => registeredTrial.trialId)
+    .sort();
+  if (
+    JSON.stringify([...manifest.registeredTrialIds].sort()) !==
+      JSON.stringify(expectedTrialIds)
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "dataset must bind the complete frozen trial registry",
+      path: ["registeredTrialIds"],
     });
   }
   if (
@@ -398,6 +482,8 @@ const ExpansionEventTargetSchema = z.strictObject({
   direction: DirectionSchema,
   eventStartAt: IsoDateTimeSchema,
   publicBreakoutAt: IsoDateTimeSchema,
+  thresholdEntryId: NonEmptyStringSchema,
+  thresholdRegistryDigest: DigestSchema,
   thresholdPercent: z.number().finite().positive(),
   stepOutcomeLabels: z.array(z.strictObject({
     stepId: NonEmptyStringSchema,
@@ -432,7 +518,8 @@ const MatchedNonEventTargetSchema = z.strictObject({
   matchedEventId: NonEmptyStringSchema,
   matchedDirection: DirectionSchema,
   noExpansionConfirmedThrough: IsoDateTimeSchema,
-  matchingPolicyId: NonEmptyStringSchema,
+  matchingPolicyId: z.literal(M2_HISTORICAL_MATCHING_POLICY.policyId),
+  matchingPolicyDigest: z.literal(M2_HISTORICAL_MATCHING_POLICY.policyDigest),
   sourceFactIds: z.array(NonEmptyStringSchema).min(1),
 }).superRefine((target, context) => {
   if (new Set(target.sourceFactIds).size !== target.sourceFactIds.length) {
@@ -448,7 +535,8 @@ const BackgroundNonEventTargetSchema = z.strictObject({
   targetKind: z.literal("BACKGROUND_NON_EVENT"),
   backgroundWindowId: NonEmptyStringSchema,
   noExpansionConfirmedThrough: IsoDateTimeSchema,
-  samplingPolicyId: NonEmptyStringSchema,
+  samplingPolicyId: z.literal(M2_HISTORICAL_BACKGROUND_POLICY.policyId),
+  samplingPolicyDigest: z.literal(M2_HISTORICAL_BACKGROUND_POLICY.policyDigest),
   sourceFactIds: z.array(NonEmptyStringSchema).min(1),
 }).superRefine((target, context) => {
   if (new Set(target.sourceFactIds).size !== target.sourceFactIds.length) {
@@ -460,6 +548,35 @@ const BackgroundNonEventTargetSchema = z.strictObject({
   }
 });
 
+const PreCutoffAssignmentProofSchema = z.strictObject({
+  assignmentCutoff: IsoDateTimeSchema,
+  regimePolicyId: z.literal(M2_HISTORICAL_REGIME_ASSIGNMENT_POLICY.policyId),
+  regimePolicyDigest: z.literal(
+    M2_HISTORICAL_REGIME_ASSIGNMENT_POLICY.policyDigest,
+  ),
+  regimeEvidenceFactIds: z.array(NonEmptyStringSchema).min(1),
+  liquidityPolicyId: z.literal(
+    M2_HISTORICAL_LIQUIDITY_ASSIGNMENT_POLICY.policyId,
+  ),
+  liquidityPolicyDigest: z.literal(
+    M2_HISTORICAL_LIQUIDITY_ASSIGNMENT_POLICY.policyDigest,
+  ),
+  liquidityEvidenceFactIds: z.array(NonEmptyStringSchema).min(1),
+}).superRefine((proof, context) => {
+  for (const [field, values] of [
+    ["regimeEvidenceFactIds", proof.regimeEvidenceFactIds],
+    ["liquidityEvidenceFactIds", proof.liquidityEvidenceFactIds],
+  ] as const) {
+    if (new Set(values).size !== values.length) {
+      context.addIssue({
+        code: "custom",
+        message: `pre-cutoff ${field} must be unique`,
+        path: [field],
+      });
+    }
+  }
+});
+
 export const M2HistoricalReplayRecordSchema = z.strictObject({
   recordId: NonEmptyStringSchema,
   split: DatasetSplitSchema,
@@ -467,6 +584,7 @@ export const M2HistoricalReplayRecordSchema = z.strictObject({
   underlyingGroupId: NonEmptyStringSchema,
   marketRegime: MarketRegimeSchema,
   liquidityBucket: LiquidityBucketSchema,
+  preCutoffAssignmentProof: PreCutoffAssignmentProofSchema,
   detectorIds: z.array(DetectorIdSchema).min(1),
   replaySteps: z.array(M2HistoricalReplayStepSchema).min(1),
   target: z.discriminatedUnion("targetKind", [
@@ -524,6 +642,16 @@ export const M2HistoricalReplayRecordSchema = z.strictObject({
         path: ["replaySteps", index, "detectorInput", "detectorInput"],
       });
     }
+  }
+  if (
+    Date.parse(record.preCutoffAssignmentProof.assignmentCutoff) !==
+      Date.parse(record.replaySteps[0]!.eventCutoff)
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "regime and liquidity assignments must bind the first cutoff",
+      path: ["preCutoffAssignmentProof", "assignmentCutoff"],
+    });
   }
   if (record.target.targetKind === "EVENT") {
     const stepIds = new Set(record.replaySteps.map((step) => step.stepId));
@@ -622,8 +750,18 @@ const HoldoutArtifactCoreSchema = z.strictObject({
   datasetName: NonEmptyStringSchema,
   frozenAt: IsoDateTimeSchema,
   eventLabelVersion: z.literal(EXPANSION_EVENT_LABEL_VERSION),
+  constructionPolicyVersion: z.literal(
+    M2_HISTORICAL_COHORT_CONSTRUCTION_POLICY_VERSION,
+  ),
+  constructionPolicyDigest: z.literal(
+    M2_HISTORICAL_COHORT_CONSTRUCTION_POLICY_DIGEST,
+  ),
   detectorRuleSetVersion: z.literal(M2_DRAFT_REPLAY_RULE_SET_VERSION),
   detectorRuleSetDigest: z.literal(M2_DRAFT_REPLAY_RULE_SET_DIGEST),
+  diagnosticRankingPolicyDigest: z.literal(
+    M2_DRAFT_DIAGNOSTIC_RANKING_POLICY_DIGEST,
+  ),
+  eventThresholdRegistry: M2HistoricalEventThresholdRegistrySchema,
   evaluatedDetectorIds: z.array(DetectorIdSchema).min(1),
   splitWindow: z.strictObject({
     startedAt: IsoDateTimeSchema,
@@ -688,15 +826,37 @@ const HoldoutArtifactCoreSchema = z.strictObject({
       });
     }
     if (record.target.targetKind === "EVENT") {
-      if (eventIds.has(record.target.eventId)) {
+      const eventTarget = record.target;
+      if (eventIds.has(eventTarget.eventId)) {
         context.addIssue({
           code: "custom",
           message: "sealed holdout event identities must be unique",
           path: ["records", recordIndex, "target", "eventId"],
         });
       }
-      eventIds.add(record.target.eventId);
-      eventIdsBySplit.add(record.target.eventId);
+      eventIds.add(eventTarget.eventId);
+      eventIdsBySplit.add(eventTarget.eventId);
+      const thresholdEntry = artifact.eventThresholdRegistry.entries.find(
+        (entry) =>
+          entry.horizon === eventTarget.horizon &&
+          entry.direction === eventTarget.direction,
+      );
+      if (
+        thresholdEntry === undefined ||
+        eventTarget.thresholdEntryId !== thresholdEntry.thresholdEntryId ||
+        eventTarget.thresholdRegistryDigest !==
+          artifact.eventThresholdRegistry.registryDigest ||
+        Math.abs(
+          eventTarget.thresholdPercent -
+            thresholdEntry.effectiveThresholdPercent,
+        ) > 1e-12
+      ) {
+        context.addIssue({
+          code: "custom",
+          message: "sealed event must bind its frozen TRAIN-only threshold",
+          path: ["records", recordIndex, "target", "thresholdPercent"],
+        });
+      }
     }
     if (record.target.targetKind === "MATCHED_NON_EVENT") {
       if (controlIds.has(record.target.controlId)) {
@@ -766,8 +926,12 @@ function holdoutArtifactContent(
     datasetName: input.datasetName,
     frozenAt: input.frozenAt,
     eventLabelVersion: input.eventLabelVersion,
+    constructionPolicyVersion: input.constructionPolicyVersion,
+    constructionPolicyDigest: input.constructionPolicyDigest,
     detectorRuleSetVersion: input.detectorRuleSetVersion,
     detectorRuleSetDigest: input.detectorRuleSetDigest,
+    diagnosticRankingPolicyDigest: input.diagnosticRankingPolicyDigest,
+    eventThresholdRegistry: input.eventThresholdRegistry,
     evaluatedDetectorIds: [...input.evaluatedDetectorIds].sort(),
     splitWindow: input.splitWindow,
     records: canonicalRecords(input.records),
@@ -891,6 +1055,35 @@ export const M2HistoricalReplayDatasetBundleSchema = DatasetBundleCoreSchema
         message: "historical replay event identities must be unique",
         path: ["records"],
       });
+    }
+    const thresholdEntries = new Map(
+      dataset.manifest.eventThresholdRegistry.entries.map((entry) => [
+        `${entry.horizon}:${entry.direction}`,
+        entry,
+      ]),
+    );
+    for (const [recordIndex, record] of eventRecords.entries()) {
+      if (record.target.targetKind !== "EVENT") {
+        continue;
+      }
+      const entry = thresholdEntries.get(
+        `${record.target.horizon}:${record.target.direction}`,
+      );
+      if (
+        entry === undefined ||
+        record.target.thresholdEntryId !== entry.thresholdEntryId ||
+        record.target.thresholdRegistryDigest !==
+          dataset.manifest.eventThresholdRegistry.registryDigest ||
+        Math.abs(
+          record.target.thresholdPercent - entry.effectiveThresholdPercent,
+        ) > 1e-12
+      ) {
+        context.addIssue({
+          code: "custom",
+          message: "event target must bind its frozen TRAIN-only threshold",
+          path: ["records", recordIndex, "target", "thresholdPercent"],
+        });
+      }
     }
     const controls = dataset.records.filter(
       (record) => record.target.targetKind === "MATCHED_NON_EVENT",
@@ -1132,7 +1325,18 @@ const TrialSchema = z.strictObject({
   trialId: NonEmptyStringSchema,
   role: z.enum(["BASELINE", "SENSITIVITY"]),
   registeredAt: IsoDateTimeSchema,
+  parameterSet: z.record(z.string(), z.unknown()),
   parameterSetDigest: DigestSchema,
+}).superRefine((trialValue, context) => {
+  if (
+    trialValue.parameterSetDigest !== stableContentHash(trialValue.parameterSet)
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "experiment trial parameter digest mismatch",
+      path: ["parameterSetDigest"],
+    });
+  }
 });
 
 const TopKReplayEvidenceSchema = z.discriminatedUnion("status", [
@@ -1203,7 +1407,17 @@ export const M2HistoricalReplayExperimentSchema = z.strictObject({
   datasetSnapshotId: NonEmptyStringSchema,
   gatePolicyVersion: z.literal(M2_HISTORICAL_REPLAY_GATE_POLICY_VERSION),
   gatePolicyDigest: z.literal(M2_HISTORICAL_REPLAY_GATE_POLICY_DIGEST),
+  constructionPolicyDigest: z.literal(
+    M2_HISTORICAL_COHORT_CONSTRUCTION_POLICY_DIGEST,
+  ),
   detectorRuleSetDigest: z.literal(M2_DRAFT_REPLAY_RULE_SET_DIGEST),
+  rankingPolicyDigest: z.literal(
+    M2_DRAFT_DIAGNOSTIC_RANKING_POLICY_DIGEST,
+  ),
+  eventThresholdRegistryId: NonEmptyStringSchema,
+  eventThresholdRegistryDigest: DigestSchema,
+  trialRegistryId: z.literal(M2_HISTORICAL_TRIAL_REGISTRY.registryId),
+  trialRegistryDigest: z.literal(M2_HISTORICAL_TRIAL_REGISTRY.registryDigest),
   evaluationMode: z.enum([
     "CONTRACT_TEST_ONLY",
     "VALIDATION_REPLAY",
@@ -1244,6 +1458,19 @@ export const M2HistoricalReplayExperimentSchema = z.strictObject({
       path: ["trials"],
     });
   }
+  const expectedTrials = new Map(M2_HISTORICAL_TRIAL_REGISTRY.trials.map(
+    (registeredTrial) => [registeredTrial.trialId, registeredTrial],
+  ));
+  if (
+    trialIds.length !== expectedTrials.size ||
+    trialIds.some((trialId) => !expectedTrials.has(trialId))
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "experiment must include every pre-registered trial exactly once",
+      path: ["trials"],
+    });
+  }
   for (const [index, trial] of experiment.trials.entries()) {
     if (
       Date.parse(trial.registeredAt) < Date.parse(experiment.registeredAt) ||
@@ -1255,17 +1482,33 @@ export const M2HistoricalReplayExperimentSchema = z.strictObject({
         path: ["trials", index, "registeredAt"],
       });
     }
+    const expectedTrial = expectedTrials.get(trial.trialId);
+    if (
+      expectedTrial === undefined ||
+      trial.role !== expectedTrial.role ||
+      trial.parameterSetDigest !== expectedTrial.parameterSetDigest ||
+      stableContentHash(trial.parameterSet) !==
+        stableContentHash(expectedTrial.parameterSet)
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "experiment trial drifted from the pre-registered parameters",
+        path: ["trials", index],
+      });
+    }
   }
   const baseline = experiment.trials.find(
     (trial) => trial.trialId === experiment.selectedBaselineTrialId,
   );
   if (
     baseline?.role !== "BASELINE" ||
-    baseline.parameterSetDigest !== M2_DRAFT_REPLAY_RULE_SET_DIGEST
+    baseline.trialId !== M2_HISTORICAL_TRIAL_REGISTRY.trials.find(
+      (registeredTrial) => registeredTrial.role === "BASELINE",
+    )?.trialId
   ) {
     context.addIssue({
       code: "custom",
-      message: "selected baseline must bind the frozen M2.1 rule set",
+      message: "selected baseline must bind the pre-registered baseline trial",
       path: ["selectedBaselineTrialId"],
     });
   }
@@ -1327,6 +1570,24 @@ export const M2HistoricalReplayExperimentSchema = z.strictObject({
       }
     }
     const reported = new Set(experiment.sensitivityEvidence.reportedTrialIds);
+    const expectedTrialIds = [...expectedTrials.keys()].sort();
+    if (
+      JSON.stringify([
+        ...experiment.sensitivityEvidence.registeredTrialIds,
+      ].sort()) !== JSON.stringify(expectedTrialIds) ||
+      (
+        experiment.allTrialsReported &&
+        JSON.stringify([
+          ...experiment.sensitivityEvidence.reportedTrialIds,
+        ].sort()) !== JSON.stringify(expectedTrialIds)
+      )
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "sensitivity evidence must cover the frozen trial registry",
+        path: ["sensitivityEvidence", "registeredTrialIds"],
+      });
+    }
     if (experiment.sensitivityEvidence.failedTrialIds.some(
       (trialId) => !reported.has(trialId),
     )) {
@@ -1346,6 +1607,17 @@ export const M2HistoricalReplayExperimentSchema = z.strictObject({
         path: ["sensitivityEvidence", "failedTrialIds"],
       });
     }
+  }
+  if (
+    experiment.topKReplayEvidence.status === "VERIFIED" &&
+    experiment.topKReplayEvidence.rankingPolicyDigest !==
+      M2_DRAFT_DIAGNOSTIC_RANKING_POLICY_DIGEST
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "Top-K evidence must bind the frozen diagnostic ranking policy",
+      path: ["topKReplayEvidence", "rankingPolicyDigest"],
+    });
   }
 });
 

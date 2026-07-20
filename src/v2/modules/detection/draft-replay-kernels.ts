@@ -10,10 +10,18 @@ import {
   M2_DRAFT_REPLAY_RULE_SET_VERSION,
   M2DraftReplayEvaluationSchema,
   M2DraftReplayKernelInputSchema,
+  buildM2DraftReplayInputDigest,
   type M2DraftDetectorDefinition,
   type M2DraftReplayEvaluation,
   type M2DraftReplayKernelInput,
 } from "./draft-replay-contract";
+import {
+  M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS,
+  buildM2DiagnosticStrengthComponent,
+  buildM2NotRankableDiagnosticStrength,
+  buildM2RankableDiagnosticStrength,
+  type M2DraftDiagnosticStrengthComponent,
+} from "./draft-diagnostic-strength-contract";
 
 type Observation = M2DraftReplayKernelInput["observations"][number];
 type Direction = "LONG" | "SHORT" | "UNKNOWN";
@@ -37,6 +45,7 @@ type DirectionProbe = Readonly<{
   matched: boolean;
   usedKeys: readonly string[];
   missingKeys: readonly string[];
+  strengthComponents: readonly M2DraftDiagnosticStrengthComponent[];
 }>;
 
 type KernelConclusion = Readonly<{
@@ -46,6 +55,8 @@ type KernelConclusion = Readonly<{
   missingKeys: readonly string[];
   reasonCodes: readonly string[];
   counterHints: readonly string[];
+  strengthComponents: readonly M2DraftDiagnosticStrengthComponent[];
+  rankingExclusionReason: "NO_MATCH" | "VETOED" | "DATA_UNAVAILABLE" | null;
 }>;
 
 const DECIMAL_VALUE = /^-?(?:0|[1-9]\d*)(?:\.\d+)?$/u;
@@ -66,11 +77,7 @@ function prepareInput(rawInput: M2DraftReplayKernelInput): PreparedInput {
         observation,
       ]),
     ),
-    inputDigest: stableContentHash({
-      detectorInput: input.detectorInput,
-      observations: canonicalObservations,
-      schemaVersion: input.schemaVersion,
-    }),
+    inputDigest: buildM2DraftReplayInputDigest(input),
   };
 }
 
@@ -116,10 +123,59 @@ function readBoolean(input: PreparedInput, semanticKey: string): ReadValue<boole
   return { available: true, semanticKey, observation, value: observation.value };
 }
 
+type StrengthNormalizationId =
+  (typeof M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS)[keyof typeof M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS];
+
+function strengthNumberComponent(
+  read: ReadValue<number>,
+  normalizationId: StrengthNormalizationId,
+  directionRole: "LONG" | "SHORT" | "SHARED",
+): M2DraftDiagnosticStrengthComponent {
+  if (!read.available || read.observation === null || read.value === null) {
+    throw new Error("cannot score an unavailable numeric observation");
+  }
+  return buildM2DiagnosticStrengthComponent({
+    normalizationId,
+    observationId: read.observation.observationId,
+    directionRole,
+    observedValue: read.value,
+  });
+}
+
+function strengthBooleanComponent(
+  read: ReadValue<boolean>,
+  normalizationId: StrengthNormalizationId,
+  directionRole: "LONG" | "SHORT" | "SHARED",
+): M2DraftDiagnosticStrengthComponent {
+  if (!read.available || read.observation === null || read.value === null) {
+    throw new Error("cannot score an unavailable boolean observation");
+  }
+  return buildM2DiagnosticStrengthComponent({
+    normalizationId,
+    observationId: read.observation.observationId,
+    directionRole,
+    observedValue: read.value ? 1 : 0,
+  });
+}
+
+function uniqueStrengthComponents(
+  components: readonly M2DraftDiagnosticStrengthComponent[],
+): M2DraftDiagnosticStrengthComponent[] {
+  const unique = new Map<string, M2DraftDiagnosticStrengthComponent>();
+  for (const component of components) {
+    const key =
+      `${component.normalizationId}:${component.observationId}:${component.directionRole}`;
+    unique.set(key, component);
+  }
+  return [...unique.values()];
+}
+
 function probeNumbers(
   direction: "LONG" | "SHORT",
   reads: readonly ReadValue<number>[],
   predicate: (values: readonly number[]) => boolean,
+  strength: (reads: readonly ReadValue<number>[]) =>
+    readonly M2DraftDiagnosticStrengthComponent[],
 ): DirectionProbe {
   const missingKeys = reads
     .filter((read) => !read.available)
@@ -131,6 +187,7 @@ function probeNumbers(
     matched: available && predicate(reads.map((read) => read.value ?? Number.NaN)),
     usedKeys: available ? reads.map((read) => read.semanticKey) : [],
     missingKeys,
+    strengthComponents: available ? strength(reads) : [],
   };
 }
 
@@ -139,6 +196,10 @@ function probeBooleanAndNumbers(
   booleanRead: ReadValue<boolean>,
   numberReads: readonly ReadValue<number>[],
   predicate: (flag: boolean, values: readonly number[]) => boolean,
+  strength: (
+    booleanRead: ReadValue<boolean>,
+    numberReads: readonly ReadValue<number>[],
+  ) => readonly M2DraftDiagnosticStrengthComponent[],
 ): DirectionProbe {
   const reads = [booleanRead, ...numberReads];
   const missingKeys = reads
@@ -154,6 +215,7 @@ function probeBooleanAndNumbers(
     ),
     usedKeys: available ? reads.map((read) => read.semanticKey) : [],
     missingKeys,
+    strengthComponents: available ? strength(booleanRead, numberReads) : [],
   };
 }
 
@@ -183,6 +245,11 @@ function combineDirectionalProbes(input: {
         missingKeys: [],
         reasonCodes: [input.conflictReason],
         counterHints: ["direction_confirmation_pending"],
+        strengthComponents: uniqueStrengthComponents([
+          ...input.long.strengthComponents,
+          ...input.short.strengthComponents,
+        ]),
+        rankingExclusionReason: null,
       }
       : {
         status: "NO_MATCH",
@@ -194,6 +261,8 @@ function combineDirectionalProbes(input: {
         missingKeys: [],
         reasonCodes: ["conflicting_breakout_directions_blocked"],
         counterHints: ["direction_conflict"],
+        strengthComponents: [],
+        rankingExclusionReason: "NO_MATCH",
       };
   }
   if (matched.length === 1) {
@@ -209,6 +278,8 @@ function combineDirectionalProbes(input: {
       counterHints: missingKeys.length > 0
         ? ["opposite_direction_inputs_unavailable"]
         : [],
+      strengthComponents: selected.strengthComponents,
+      rankingExclusionReason: null,
     };
   }
   if (!input.long.available || !input.short.available) {
@@ -222,6 +293,8 @@ function combineDirectionalProbes(input: {
       missingKeys,
       reasonCodes: ["required_detector_observation_unavailable"],
       counterHints: [],
+      strengthComponents: [],
+      rankingExclusionReason: "DATA_UNAVAILABLE",
     };
   }
   return {
@@ -234,6 +307,8 @@ function combineDirectionalProbes(input: {
     missingKeys: [],
     reasonCodes: [input.noMatchReason],
     counterHints: [],
+    strengthComponents: [],
+    rankingExclusionReason: "NO_MATCH",
   };
 }
 
@@ -265,6 +340,8 @@ function preMoveVeto(input: PreparedInput): KernelConclusion | null {
       missingKeys: [],
       reasonCodes: ["pre_move_thin_liquidity_noise_veto"],
       counterHints: ["single_source_anomaly", "thin_liquidity_distortion"],
+      strengthComponents: [],
+      rankingExclusionReason: "VETOED",
     };
   }
   const moveConsumed = readNumber(input, "move_consumed_ratio");
@@ -279,6 +356,8 @@ function preMoveVeto(input: PreparedInput): KernelConclusion | null {
       missingKeys: [],
       reasonCodes: ["pre_move_already_consumed_veto"],
       counterHints: ["move_already_consumed"],
+      strengthComponents: [],
+      rankingExclusionReason: "VETOED",
     };
   }
   return null;
@@ -298,6 +377,8 @@ function breakoutVeto(input: PreparedInput): KernelConclusion | null {
       missingKeys: [],
       reasonCodes: ["breakout_structure_reentry_veto"],
       counterHints: ["fakeout_risk"],
+      strengthComponents: [],
+      rankingExclusionReason: "VETOED",
     };
   }
   const moveConsumed = readNumber(input, "move_consumed_ratio");
@@ -313,6 +394,8 @@ function breakoutVeto(input: PreparedInput): KernelConclusion | null {
       missingKeys: [],
       reasonCodes: ["breakout_retest_already_consumed_veto"],
       counterHints: ["move_already_consumed"],
+      strengthComponents: [],
+      rankingExclusionReason: "VETOED",
     };
   }
   return null;
@@ -331,6 +414,23 @@ function finalizeEvaluation(
     ...conclusion.counterHints,
     ...optionalPartialCounterHints(prepared),
   ]).filter((hint) => !conclusion.reasonCodes.includes(hint));
+  const inputQualityStatus = prepared.input.detectorInput.inputQuality.status;
+  if (inputQualityStatus !== "FRESH" && inputQualityStatus !== "PARTIAL") {
+    throw new Error("draft diagnostic strength requires rankable input quality");
+  }
+  const diagnosticStrength = conclusion.status ===
+      "MATCHED_DRAFT_HYPOTHESIS"
+    ? buildM2RankableDiagnosticStrength({
+      components: conclusion.strengthComponents,
+      inputQualityStatus,
+      direction: conclusion.direction ?? "UNKNOWN",
+    })
+    : buildM2NotRankableDiagnosticStrength(
+      conclusion.rankingExclusionReason ??
+        (conclusion.status === "DATA_UNAVAILABLE"
+          ? "DATA_UNAVAILABLE"
+          : "NO_MATCH"),
+    );
   const content = {
     evaluationAuthority: "DRAFT_REPLAY_DIAGNOSTIC_ONLY",
     detectorId: detector.detectorId,
@@ -354,6 +454,7 @@ function finalizeEvaluation(
     missingSemanticKeys: uniqueSorted(conclusion.missingKeys),
     reasonCodes: uniqueSorted(conclusion.reasonCodes),
     counterHints,
+    diagnosticStrength,
   } as const;
   const evaluationDigest = stableContentHash(content);
   return deepFreezeArtifact(M2DraftReplayEvaluationSchema.parse({
@@ -391,7 +492,24 @@ export function runPreMoveCompressionDraftReplay(
       ], ([compressionValue, acceleration, consumedValue]) =>
         compressionValue <= thresholds.compressionPercentileMaximum &&
         acceleration >= thresholds.longBuyAccelerationMinimum &&
-        consumedValue <= thresholds.earlyMoveConsumedRatioMaximum);
+        consumedValue <= thresholds.earlyMoveConsumedRatioMaximum,
+      ([compressionRead, accelerationRead, consumedRead]) => [
+        strengthNumberComponent(
+          compressionRead!,
+          M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS.VOLATILITY_COMPRESSION,
+          "SHARED",
+        ),
+        strengthNumberComponent(
+          accelerationRead!,
+          M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS.BUY_VOLUME_ACCELERATION,
+          "LONG",
+        ),
+        strengthNumberComponent(
+          consumedRead!,
+          M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS.MOVE_CONSUMED,
+          "SHARED",
+        ),
+      ]);
       const short = probeNumbers("SHORT", [
         compression,
         readNumber(input, "sell_volume_acceleration"),
@@ -399,7 +517,24 @@ export function runPreMoveCompressionDraftReplay(
       ], ([compressionValue, acceleration, consumedValue]) =>
         compressionValue <= thresholds.compressionPercentileMaximum &&
         acceleration >= thresholds.shortSellAccelerationMinimum &&
-        consumedValue <= thresholds.earlyMoveConsumedRatioMaximum);
+        consumedValue <= thresholds.earlyMoveConsumedRatioMaximum,
+      ([compressionRead, accelerationRead, consumedRead]) => [
+        strengthNumberComponent(
+          compressionRead!,
+          M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS.VOLATILITY_COMPRESSION,
+          "SHARED",
+        ),
+        strengthNumberComponent(
+          accelerationRead!,
+          M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS.SELL_VOLUME_ACCELERATION,
+          "SHORT",
+        ),
+        strengthNumberComponent(
+          consumedRead!,
+          M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS.MOVE_CONSUMED,
+          "SHARED",
+        ),
+      ]);
       return combineDirectionalProbes({
         long,
         short,
@@ -431,7 +566,24 @@ export function runPreMoveFlowDivergenceDraftReplay(
       ], ([flow, response, consumedValue]) =>
         flow >= thresholds.directionalFlowRatioMinimum &&
         Math.abs(response) <= thresholds.flatPriceResponseAbsoluteMaximum &&
-        consumedValue <= thresholds.earlyMoveConsumedRatioMaximum);
+        consumedValue <= thresholds.earlyMoveConsumedRatioMaximum,
+      ([flowRead, responseRead, consumedRead]) => [
+        strengthNumberComponent(
+          flowRead!,
+          M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS.AGGRESSIVE_BUY_FLOW,
+          "LONG",
+        ),
+        strengthNumberComponent(
+          responseRead!,
+          M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS.PRICE_RESPONSE_ABSOLUTE,
+          "SHARED",
+        ),
+        strengthNumberComponent(
+          consumedRead!,
+          M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS.MOVE_CONSUMED,
+          "SHARED",
+        ),
+      ]);
       const short = probeNumbers("SHORT", [
         readNumber(input, "aggressive_sell_flow_ratio"),
         priceResponse,
@@ -439,7 +591,24 @@ export function runPreMoveFlowDivergenceDraftReplay(
       ], ([flow, response, consumedValue]) =>
         flow >= thresholds.directionalFlowRatioMinimum &&
         Math.abs(response) <= thresholds.flatPriceResponseAbsoluteMaximum &&
-        consumedValue <= thresholds.earlyMoveConsumedRatioMaximum);
+        consumedValue <= thresholds.earlyMoveConsumedRatioMaximum,
+      ([flowRead, responseRead, consumedRead]) => [
+        strengthNumberComponent(
+          flowRead!,
+          M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS.AGGRESSIVE_SELL_FLOW,
+          "SHORT",
+        ),
+        strengthNumberComponent(
+          responseRead!,
+          M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS.PRICE_RESPONSE_ABSOLUTE,
+          "SHARED",
+        ),
+        strengthNumberComponent(
+          consumedRead!,
+          M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS.MOVE_CONSUMED,
+          "SHARED",
+        ),
+      ]);
       return combineDirectionalProbes({
         long,
         short,
@@ -476,6 +645,8 @@ export function runPreMoveLiquidityShiftDraftReplay(
           missingKeys,
           reasonCodes: ["required_detector_observation_unavailable"],
           counterHints: [],
+          strengthComponents: [],
+          rankingExclusionReason: "DATA_UNAVAILABLE",
         };
       }
       const usedKeys = [spread.semanticKey, depth.semanticKey, balance.semanticKey];
@@ -490,6 +661,8 @@ export function runPreMoveLiquidityShiftDraftReplay(
           missingKeys: [],
           reasonCodes: ["pre_move_liquidity_shift_thresholds_not_met"],
           counterHints: [],
+          strengthComponents: [],
+          rankingExclusionReason: "NO_MATCH",
         };
       }
       const direction: Direction = balance.value! >=
@@ -498,6 +671,11 @@ export function runPreMoveLiquidityShiftDraftReplay(
         : balance.value! <= thresholds.directionalBalanceShortMaximum
           ? "SHORT"
           : "UNKNOWN";
+      const balanceNormalization = direction === "LONG"
+        ? M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS.DIRECTIONAL_BALANCE_LONG
+        : direction === "SHORT"
+          ? M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS.DIRECTIONAL_BALANCE_SHORT
+          : M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS.DIRECTIONAL_BALANCE_CONTEXT;
       return {
         status: "MATCHED_DRAFT_HYPOTHESIS",
         direction,
@@ -511,6 +689,24 @@ export function runPreMoveLiquidityShiftDraftReplay(
         counterHints: direction === "UNKNOWN"
           ? ["direction_confirmation_pending"]
           : [],
+        strengthComponents: [
+          strengthNumberComponent(
+            spread,
+            M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS.SPREAD_CONTRACTION,
+            "SHARED",
+          ),
+          strengthNumberComponent(
+            depth,
+            M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS.DEPTH_EXPANSION,
+            "SHARED",
+          ),
+          strengthNumberComponent(
+            balance,
+            balanceNormalization,
+            direction === "UNKNOWN" ? "SHARED" : direction,
+          ),
+        ],
+        rankingExclusionReason: null,
       };
     },
     preMoveVeto,
@@ -536,6 +732,23 @@ export function runBreakoutEdgeDraftReplay(
         closedAbove === true &&
         participation! >= thresholds.breakoutParticipationMultipleMinimum &&
         distance! >= 0 && distance! <= thresholds.edgeDistanceBpsMaximum,
+        (closedAboveRead, [participationRead, distanceRead]) => [
+          strengthBooleanComponent(
+            closedAboveRead,
+            M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS.CLOSE_ABOVE_RESISTANCE,
+            "LONG",
+          ),
+          strengthNumberComponent(
+            participationRead!,
+            M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS.BREAKOUT_PARTICIPATION,
+            "LONG",
+          ),
+          strengthNumberComponent(
+            distanceRead!,
+            M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS.DISTANCE_ABOVE_LEVEL,
+            "LONG",
+          ),
+        ],
       );
       const short = probeBooleanAndNumbers(
         "SHORT",
@@ -548,6 +761,23 @@ export function runBreakoutEdgeDraftReplay(
         closedBelow === true &&
         participation! >= thresholds.breakdownParticipationMultipleMinimum &&
         distance! >= 0 && distance! <= thresholds.edgeDistanceBpsMaximum,
+        (closedBelowRead, [participationRead, distanceRead]) => [
+          strengthBooleanComponent(
+            closedBelowRead,
+            M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS.CLOSE_BELOW_SUPPORT,
+            "SHORT",
+          ),
+          strengthNumberComponent(
+            participationRead!,
+            M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS.BREAKDOWN_PARTICIPATION,
+            "SHORT",
+          ),
+          strengthNumberComponent(
+            distanceRead!,
+            M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS.DISTANCE_BELOW_LEVEL,
+            "SHORT",
+          ),
+        ],
       );
       return combineDirectionalProbes({
         long,
@@ -583,6 +813,23 @@ export function runRoleFlipRetestDraftReplay(
         closedAbove === true &&
         rejectionValue! >= thresholds.retestRejectionStrengthMinimum &&
         participation! >= thresholds.retestParticipationMultipleMinimum,
+        (closedAboveRead, [rejectionRead, participationRead]) => [
+          strengthBooleanComponent(
+            closedAboveRead,
+            M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS.CLOSE_ABOVE_RESISTANCE,
+            "LONG",
+          ),
+          strengthNumberComponent(
+            rejectionRead!,
+            M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS.RETEST_REJECTION,
+            "LONG",
+          ),
+          strengthNumberComponent(
+            participationRead!,
+            M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS.BUY_PARTICIPATION,
+            "LONG",
+          ),
+        ],
       );
       const short = probeBooleanAndNumbers(
         "SHORT",
@@ -595,6 +842,23 @@ export function runRoleFlipRetestDraftReplay(
         closedBelow === true &&
         rejectionValue! >= thresholds.retestRejectionStrengthMinimum &&
         participation! >= thresholds.retestParticipationMultipleMinimum,
+        (closedBelowRead, [rejectionRead, participationRead]) => [
+          strengthBooleanComponent(
+            closedBelowRead,
+            M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS.CLOSE_BELOW_SUPPORT,
+            "SHORT",
+          ),
+          strengthNumberComponent(
+            rejectionRead!,
+            M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS.RETEST_REJECTION,
+            "SHORT",
+          ),
+          strengthNumberComponent(
+            participationRead!,
+            M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS.SELL_PARTICIPATION,
+            "SHORT",
+          ),
+        ],
       );
       return combineDirectionalProbes({
         long,

@@ -82,9 +82,9 @@ result: VERIFIED_AND_RAW_DELETED
 
 Binance 归档中同时存在已结算、下架和非加密标的。归档出现过某个 symbol 不能证明当时它是合格线性稳定币永续合约。真实 cohort 必须有 point-in-time onboard、delist、contract type、settlement asset、underlying class 和 trading status；当前 archive-presence-only 全部不合格。
 
-### P1：Detector 排序强度合同缺失
+### 已收口：Detector 排序强度合同
 
-M2.1 当前只输出 `MATCHED / NO_MATCH / DATA_UNAVAILABLE`，没有 target-blind、可复现的候选强度。没有该合同就不能生成有业务意义的 Top20，也不能用 symbol 顺序、随机顺序或未来 Outcome 排名。
+M2.2-B0.1 已增加 target-blind、可复现的 relative-rule-margin diagnostic strength、固定 Detector 分母和稳定 Top20 排序合同。它仍不是胜率、等级或 Candidate 权威；真实 Top20 必须等待合格 cohort，不能用合成 fixture 代替。
 
 ### P1：L2 能力不完整
 
@@ -99,7 +99,7 @@ M2.1 当前只输出 `MATCHED / NO_MATCH / DATA_UNAVAILABLE`，没有 target-bli
 M2.2-B 原有范围不删除，显式拆成以下证据出口：
 
 1. `B0 Source Qualification + Acquisition Safety`：本包，已本地通过；bulk 与 cohort 仍 blocked。
-2. `B0.1 Target-Blind Diagnostic Strength + Construction Policy Freeze`：补 Detector 强度、ranking、训练专用标签阈值、匹配、完整背景、regime/liquidity 和 trial registry 身份。
+2. `B0.1 Target-Blind Diagnostic Strength + Construction Policy Freeze`：已本地通过，已冻结 Detector 强度、ranking、训练专用标签阈值、匹配、完整背景、regime/liquidity 和 trial registry 身份；未形成真实 cohort。
 3. `B0.2 Rights + Point-in-Time Instrument Metadata Resolution`：获得可审计人工权利结论和历史合约身份；未通过不得批量下载。
 4. `B1 Immutable Raw Archive Acquisition`：按精确对象清单、逐文件 checksum、断点续传和 Git 外不可变索引采集。
 5. `B2 Cohort Construction`：只用 train 拟合事件阈值，生成同一 Detector 分母上的 observations、event、matched non-event 和完整背景。

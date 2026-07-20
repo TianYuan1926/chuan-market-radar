@@ -2,6 +2,43 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-20 / V2 M2.2-B0.1 Target-Blind Diagnostic Strength and Construction Policy Freeze
+
+### 本轮目标
+
+为五个 DRAFT Detector 建立不读取 target/future 的可解释相对规则强度和固定分母 Top20，并把历史 cohort 的标签、匹配、背景、分层、knowledge-time、split 与全部试验锁成不可漂移政策。
+
+### 修改范围
+
+- DRAFT evaluation 新增 strict diagnostic strength：组件规则边际、质量/方向乘数、veto/unavailable 不可排名、内容摘要和防篡改；明确不是概率、置信度、等级或交易结论。
+- 新增 fixed-detector-denominator Top20：同 cutoff、同 identity、稳定 SHA-256 tie-break、完整分母计数，禁止 Outcome、随机数和 symbol 顺序。
+- 冻结 TRAIN-only 六维 nearest-rank P99 与绝对底线、matched control、300 秒完整背景、pre-cutoff regime/liquidity、observed/modeled knowledge-time、24h purge/embargo 和 1 baseline + 4 sensitivity trial registry。
+- 历史 dataset/experiment/holdout 升级到 v2，绑定全部 policy/version/digest；任意阈值、策略、trial 漏项和参数漂移 fail closed。
+
+### 核心链路影响
+
+加固 `全市场发现 -> 候选筛选` 的离线 Research 评价基础，防止未来信息、病例选择和临时改规则抬高 Detector 表现。未构造真实 cohort，未生成 Candidate、Signal、等级或计划。
+
+### 测试结果
+
+- DRAFT strength/ranking：23/23 PASS；historical construction/replay：22/22 PASS；定向合计 45/45。
+- 完整 `ci:production` PASS：Legacy 965/0/4 skip、Worker 23/23、Historical 4/4、V2 216/0/5 explicit skip、M0 10/10、Next build、Golden 16/16、禁文件/secret/security 全部通过。
+- `backtest:formal`、production smoke、live、Shadow、holdout 未运行；本轮不是能力或部署验收。
+
+### 是否部署
+
+未部署。未连接生产，未修改 DB、Redis、Worker、migration、env、Feature Flag、前端或 API。
+
+### 风险与遗留问题
+
+- 真实 cohort 仍为 0；本包只证明合同和防漂移，不证明 recall、precision、lead time、Top20 质量或盈利。
+- B0.2 仍缺人工 retention/replay 权利结论与 point-in-time instrument identity；B1 bulk acquisition 保持 blocked。
+- Kline 仍不能支持 L2 Liquidity Shift；五个 Detector 仍 DRAFT，Candidate emission=false，M2.2 Gate=`INSUFFICIENT`。
+
+### 下一轮建议
+
+只进入 `V2-M2.2-B0.2-RIGHTS-AND-POINT-IN-TIME-INSTRUMENT-METADATA-RESOLUTION`；该入口受外部权利与历史身份证据阻断，Agent 不得自批。
+
 ## 2026-07-20 / V2 M2.2-B0 Historical Source Qualification and Acquisition Safety
 
 ### 本轮目标
@@ -155,42 +192,3 @@
 ### 下一轮建议
 
 只执行 `V2-M2.1-PRE-MOVE-BREAKOUT-REPLAY-KERNELS`，以 test-only fixture 实现纯函数/纯回放内核，不接 runtime、存储、页面、等级或计划。
-
-## 2026-07-20 / V2 M1.6 Partitioned Fact Storage Local Exit
-
-### 本轮目标
-
-把高频 `PointInTimeMarketFact` 从不可长期清理的单表写入改为可证明的 UTC 日分区、容量水位、备份恢复与最小权限 retention 地基，不改变 Fact 语义或交易逻辑。
-
-### 修改范围
-
-- 新 Fact 只写无 DEFAULT 的 UTC 日分区；旧账本只兼容迁移前 Fact 读取和精确幂等重试，数据库同时拒绝新 Fact 回写旧账本与旧身份重复写入新分区。
-- 建立有界活动身份注册表、不可变 CREATED/DROPPED 事件、backup evidence 和 retention run；清理时身份与分区原子收缩，已清理日期永久拒绝重建和重灌。
-- Audit 只登记 restore-verified backup evidence，Retention 只调用受控 ensure/inspect/drop；Writer、Reader、Replay 均不能 DROP。
-- 新增容量合同、隔离 PG16 dump/restore/replay/retention 演练及 M1.3-M1.5 数据库回归；未修改 Legacy、前端、API、Detector、Analysis、Strategy、Backtest 或生产。
-
-### 核心链路影响
-
-加固 `Universe -> Market Fact + Quality -> Runtime Truth` 的长期数据地基。本轮不提高机会发现率，不产生 Candidate、方向、等级、Signal、READY 或交易计划。
-
-### 测试结果
-
-- M1.6 定向 5/5，隔离 PostgreSQL 16 1/1 PASS；真实完成两日跨分区、17 条新 Fact、`pg_dump -> pg_restore -> replay parity PASS`、deterministic replay、保留/replay 阻断和 1 分区/2 Fact 原子 DROP。
-- M1.3 Store/Replay、M1.4 Collector、M1.5 Checkpoint 三项 PG16 回归各 1/1 PASS。
-- 全 V2 141 pass / 0 fail / 5 explicit external-dependency skips。
-- 完整 `ci:production`：`exit_code=0`；Legacy market 965/0、Worker 23/23、历史回测 4/4、M0 10/10、生产 build、golden 16/16 与安全门禁全部通过。
-- `backtest:formal`、production smoke 和 live provider 未运行；本轮不属于 formal 验收且生产零变更。
-
-### 是否部署
-
-未部署。未连接生产、未执行 production migration、分区预建、backup、retention、Compose、env、secret、Redis、Worker 或 GitHub main 变更。
-
-### 风险与遗留问题
-
-- 生产旧 V2 Fact 数量、真实写入率、WAL/磁盘、备份窗口、RTO/RPO、Docker image、live egress 和 Shadow/SLO 均未证明。
-- 迁移前旧 Fact 非零时必须另做受控 backfill/retirement，不能把兼容读取当成长期迁移完成。
-- 施工中真实发现并修复 SQL 名称歧义、冲突码丢失、过期 fixture、清理后错误泛化、永久身份墓碑膨胀和旧账本 SQL 旁路，未用跳过或降低门槛掩盖。
-
-### 下一轮建议
-
-只执行 `V2-M2.0-DISCOVERY-CONTRACTS-AND-GOLDEN-FIXTURES` 本地合同包；M1.5-B1/M1.7 外部门禁未通过前，Detector runtime 继续封闭。

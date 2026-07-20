@@ -26,6 +26,12 @@ import {
   runRoleFlipRetestDraftReplay,
 } from "./draft-replay-kernels";
 import { stableContentHash } from "../universe/stable-artifact";
+import {
+  M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS,
+  M2_DRAFT_DIAGNOSTIC_STRENGTH_POLICY,
+  M2_DRAFT_DIAGNOSTIC_STRENGTH_POLICY_DIGEST,
+  diagnosticComponentScore,
+} from "./draft-diagnostic-strength-contract";
 
 type GoldenCase =
   (typeof M2_DISCOVERY_GOLDEN_FIXTURES.cases)[number];
@@ -133,6 +139,192 @@ test("keeps all five kernels DRAFT, uncalibrated and unable to emit candidates",
   assert.equal("priority" in evaluation, false);
   assert.equal("evidenceGrade" in evaluation, false);
   assert.equal("actionState" in evaluation, false);
+});
+
+test("freezes diagnostic strength as relative rule margin without authority", () => {
+  assert.equal(
+    M2_DRAFT_DIAGNOSTIC_STRENGTH_POLICY.authority,
+    "UNCALIBRATED_DRAFT_RELATIVE_RULE_MARGIN",
+  );
+  assert.equal(
+    M2_DRAFT_DIAGNOSTIC_STRENGTH_POLICY.scoreMeaning,
+    "RELATIVE_RULE_MARGIN_NOT_PROBABILITY_OR_TRADE_GRADE",
+  );
+  assert.equal(
+    M2_DRAFT_DIAGNOSTIC_STRENGTH_POLICY.candidateEmissionAllowed,
+    false,
+  );
+  assert.equal(
+    M2_DRAFT_DIAGNOSTIC_STRENGTH_POLICY.futureOutcomeReadAllowed,
+    false,
+  );
+  assert.match(
+    M2_DRAFT_DIAGNOSTIC_STRENGTH_POLICY_DIGEST,
+    /^sha256:[0-9a-f]{64}$/u,
+  );
+  assert.equal(
+    M2_DRAFT_DIAGNOSTIC_STRENGTH_POLICY.normalizations
+      .volatility_compression.boundary,
+    M2_DRAFT_REPLAY_RULE_SET.preMove.compressionPercentileMaximum,
+  );
+  assert.equal(
+    M2_DRAFT_DIAGNOSTIC_STRENGTH_POLICY.normalizations
+      .buy_volume_acceleration.boundary,
+    M2_DRAFT_REPLAY_RULE_SET.preMove.longBuyAccelerationMinimum,
+  );
+  assert.equal(
+    M2_DRAFT_DIAGNOSTIC_STRENGTH_POLICY.normalizations
+      .breakout_participation.boundary,
+    M2_DRAFT_REPLAY_RULE_SET.breakoutRetest
+      .breakoutParticipationMultipleMinimum,
+  );
+});
+
+test("diagnostic strength is monotonic above the same matched boundary", () => {
+  const boundary = runPreMoveCompressionDraftReplay(customKernelInput([
+    { semanticKey: "volatility_compression_percentile", value: 0.1 },
+    { semanticKey: "buy_volume_acceleration", value: 1.5 },
+    { semanticKey: "sell_volume_acceleration", value: 0 },
+    { semanticKey: "move_consumed_ratio", value: 0.2 },
+  ]));
+  const stronger = runPreMoveCompressionDraftReplay(customKernelInput([
+    { semanticKey: "volatility_compression_percentile", value: 0.02 },
+    { semanticKey: "buy_volume_acceleration", value: 2.8 },
+    { semanticKey: "sell_volume_acceleration", value: 0 },
+    { semanticKey: "move_consumed_ratio", value: 0.02 },
+  ]));
+  assert.equal(boundary.diagnosticStrength.status, "RANKABLE_MATCH");
+  assert.equal(stronger.diagnosticStrength.status, "RANKABLE_MATCH");
+  if (
+    boundary.diagnosticStrength.status !== "RANKABLE_MATCH" ||
+    stronger.diagnosticStrength.status !== "RANKABLE_MATCH"
+  ) {
+    assert.fail("matched diagnostic strength unexpectedly became unrankable");
+  }
+  assert.equal(boundary.diagnosticStrength.score, 0.5);
+  assert.equal(boundary.diagnosticStrength.minimumComponentScore, 0.5);
+  assert.ok(stronger.diagnosticStrength.score > boundary.diagnosticStrength.score);
+  assert.ok(stronger.diagnosticStrength.minimumComponentScore > 0.5);
+  assert.equal(Object.isFrozen(stronger.diagnosticStrength), true);
+  assert.equal(Object.isFrozen(stronger.diagnosticStrength.components), true);
+});
+
+test("partial quality and unresolved direction reduce ranking without changing match", () => {
+  const freshInput = customKernelInput([
+    { semanticKey: "volatility_compression_percentile", value: 0.05 },
+    { semanticKey: "buy_volume_acceleration", value: 2 },
+    { semanticKey: "sell_volume_acceleration", value: 0 },
+    { semanticKey: "move_consumed_ratio", value: 0.1 },
+  ]);
+  const partial = runPreMoveCompressionDraftReplay({
+    ...freshInput,
+    detectorInput: {
+      ...freshInput.detectorInput,
+      inputQuality: {
+        status: "PARTIAL",
+        ageMs: 0,
+        reasonCodes: ["test_only_partial_input"],
+      },
+    },
+  });
+  const fresh = runPreMoveCompressionDraftReplay(freshInput);
+  assert.equal(partial.diagnosticStrength.status, "RANKABLE_MATCH");
+  assert.equal(fresh.diagnosticStrength.status, "RANKABLE_MATCH");
+  if (
+    partial.diagnosticStrength.status !== "RANKABLE_MATCH" ||
+    fresh.diagnosticStrength.status !== "RANKABLE_MATCH"
+  ) {
+    assert.fail("matched diagnostic strength unexpectedly became unrankable");
+  }
+  assert.equal(partial.diagnosticStrength.qualityMultiplier, 0.85);
+  assert.equal(partial.diagnosticStrength.rawComponentMean,
+    fresh.diagnosticStrength.rawComponentMean);
+  assert.ok(partial.diagnosticStrength.score < fresh.diagnosticStrength.score);
+
+  const unresolved = runPreMoveCompressionDraftReplay(customKernelInput([
+    { semanticKey: "volatility_compression_percentile", value: 0.05 },
+    { semanticKey: "buy_volume_acceleration", value: 2 },
+    { semanticKey: "sell_volume_acceleration", value: 2 },
+    { semanticKey: "move_consumed_ratio", value: 0.1 },
+  ]));
+  assert.equal(unresolved.hypothesis?.directionHypothesis, "UNKNOWN");
+  assert.equal(unresolved.diagnosticStrength.status, "RANKABLE_MATCH");
+  if (unresolved.diagnosticStrength.status === "RANKABLE_MATCH") {
+    assert.equal(unresolved.diagnosticStrength.directionMultiplier, 0.75);
+    assert.equal(
+      unresolved.diagnosticStrength.score,
+      Number((unresolved.diagnosticStrength.rawComponentMean * 0.75).toFixed(6)),
+    );
+  }
+});
+
+test("veto and unavailable evaluations are never rankable", () => {
+  const vetoed = runPreMoveCompressionDraftReplay(customKernelInput([
+    { semanticKey: "volatility_compression_percentile", value: 0.01 },
+    { semanticKey: "buy_volume_acceleration", value: 3 },
+    { semanticKey: "sell_volume_acceleration", value: 0 },
+    { semanticKey: "move_consumed_ratio", value: 0.4 },
+  ]));
+  assert.deepEqual(vetoed.diagnosticStrength, {
+    status: "NOT_RANKABLE",
+    policyVersion: "v2-m2-draft-diagnostic-strength-policy.v1",
+    policyDigest: M2_DRAFT_DIAGNOSTIC_STRENGTH_POLICY_DIGEST,
+    scoreMeaning: "RELATIVE_RULE_MARGIN_NOT_PROBABILITY_OR_TRADE_GRADE",
+    score: null,
+    exclusionReason: "VETOED",
+    components: [],
+  });
+
+  const unavailable = runPreMoveCompressionDraftReplay(customKernelInput([
+    { semanticKey: "volatility_compression_percentile", value: 0.1 },
+    { semanticKey: "buy_volume_acceleration", value: 0.5 },
+    { semanticKey: "move_consumed_ratio", value: 0.2 },
+  ]));
+  assert.equal(unavailable.evaluationStatus, "DATA_UNAVAILABLE");
+  assert.equal(unavailable.diagnosticStrength.status, "NOT_RANKABLE");
+  if (unavailable.diagnosticStrength.status === "NOT_RANKABLE") {
+    assert.equal(unavailable.diagnosticStrength.exclusionReason,
+      "DATA_UNAVAILABLE");
+  }
+});
+
+test("diagnostic component and aggregate tampering fail closed", () => {
+  const evaluation = runBreakoutEdgeDraftReplay(customKernelInput([
+    { semanticKey: "close_above_resistance", value: true },
+    { semanticKey: "breakout_volume_multiple", value: 2 },
+    { semanticKey: "distance_above_level_bps", value: 10 },
+  ]));
+  assert.equal(evaluation.diagnosticStrength.status, "RANKABLE_MATCH");
+  if (evaluation.diagnosticStrength.status !== "RANKABLE_MATCH") {
+    assert.fail("breakout diagnostic should be rankable");
+  }
+  const components = structuredClone(evaluation.diagnosticStrength.components);
+  components[0]!.observedValue = 0;
+  assert.equal(M2DraftReplayEvaluationSchema.safeParse(rehashEvaluation(
+    evaluation,
+    {
+      diagnosticStrength: {
+        ...evaluation.diagnosticStrength,
+        components,
+      },
+    },
+  )).success, false);
+  assert.equal(M2DraftReplayEvaluationSchema.safeParse(rehashEvaluation(
+    evaluation,
+    {
+      diagnosticStrength: {
+        ...evaluation.diagnosticStrength,
+        score: 0.01,
+      },
+    },
+  )).success, false);
+  assert.equal(
+    diagnosticComponentScore(
+      M2_DRAFT_DIAGNOSTIC_STRENGTH_NORMALIZATIONS.DISTANCE_ABOVE_LEVEL,
+      0,
+    ),
+    1,
+  );
 });
 
 test("reproduces every M2.0 Pre-Move and Breakout/Retest golden disposition", () => {
