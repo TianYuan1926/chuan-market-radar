@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFile, mkdir, mkdtemp, rm, statfs, writeFile } from "node:fs/promises";
+import { lstat, readFile, mkdir, mkdtemp, rm, statfs, writeFile } from "node:fs/promises";
 import { homedir, arch, cpus, loadavg, platform } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   B1A_BRANCH,
+  B1A_BUILDX_IMAGE,
   B1A_NODE_BASE_IMAGE,
   B1A_POSTGRES_IMAGE,
   B1A_REPOSITORY,
@@ -32,6 +33,12 @@ const BUILD_MEMORY_BYTES = 2 * 1024 * 1024 * 1024;
 const BUILD_MEMORY_SWAP_BYTES = 3 * 1024 * 1024 * 1024;
 const COMMAND_BUFFER_BYTES = 64 * 1024 * 1024;
 const MAX_LIVE_TAP_BYTES = 5 * 1024 * 1024;
+const BUILDX_PLUGIN_PATH = join(
+  homedir(),
+  ".cache",
+  "market-radar-v2",
+  "docker-buildx",
+);
 
 class RunnerFailure extends Error {
   constructor(code, exitCode = 1) {
@@ -71,7 +78,22 @@ function command(file, arguments_, options = {}) {
 }
 
 function docker(arguments_, options = {}) {
-  return command("sudo", ["-n", "docker", ...arguments_], options);
+  return command(
+    "sudo",
+    ["-n", "env", `HOME=${homedir()}`, "docker", ...arguments_],
+    options,
+  );
+}
+
+async function assertNoDockerCredentialConfig() {
+  try {
+    await lstat(join(homedir(), ".docker", "config.json"));
+    assert.fail("Docker credential config is forbidden for this public-only runner");
+  } catch (error) {
+    if (error?.code !== "ENOENT") {
+      throw error;
+    }
+  }
 }
 
 function lines(value) {
@@ -224,7 +246,7 @@ function inspectJson(kind, reference, code) {
 }
 
 function removeDockerResources(names, imageState) {
-  for (const name of [names.worker, names.postgres]) {
+  for (const name of [names.worker, names.postgres, names.buildxProof]) {
     docker(["rm", "--force", name], { allowFailure: true });
   }
   docker(["buildx", "rm", "--force", names.builder], {
@@ -248,12 +270,17 @@ function removeDockerResources(names, imageState) {
   if (!imageState.postgresPresentBefore) {
     docker(["image", "rm", B1A_POSTGRES_IMAGE], { allowFailure: true });
   }
+  if (!imageState.buildxPresentBefore) {
+    docker(["image", "rm", B1A_BUILDX_IMAGE], { allowFailure: true });
+  }
 }
 
 function cleanupSnapshot(names, runId, imageState) {
   return {
     builderPresentAfter:
       containerPresent(names.builderContainer) || buildxPresent(names.builder),
+    buildxImagePresentAfter: imagePresent(B1A_BUILDX_IMAGE),
+    buildxImagePresentBefore: imageState.buildxPresentBefore,
     collectorImagePresentAfter: imagePresent(names.collectorImage),
     collectorImagePresentBefore: imageState.collectorPresentBefore,
     namespaceContainersAfter: namespaceResources("container", runId),
@@ -324,6 +351,7 @@ export function runnerNames(runId, sourceCommit) {
   return {
     builder,
     builderContainer: `buildx_buildkit_${builder}0`,
+    buildxProof: `v2-m1-b1a-buildx-proof-${runId}`,
     collectorImage: `market-radar-v2-m1-collector:b1a-${sourceCommit}`,
     egressNetwork: `v2-m1-b1a-egress-${runId}`,
     postgres: `v2-m1-b1a-postgres-${runId}`,
@@ -335,8 +363,14 @@ export function runnerNames(runId, sourceCommit) {
 async function run() {
   assert.deepEqual(process.argv.slice(2), ["run"], "only the run command is allowed");
   command("sudo", ["-n", "true"], { failureCode: "SUDO_PREFLIGHT_FAILED" });
+  await assertNoDockerCredentialConfig();
   docker(["info"], { failureCode: "DOCKER_PREFLIGHT_FAILED" });
-  docker(["buildx", "version"], { failureCode: "BUILDX_PREFLIGHT_FAILED" });
+  assert.match(
+    docker(["buildx", "version"], {
+      failureCode: "BUILDX_PREFLIGHT_FAILED",
+    }).stdout,
+    /\bv0\.31\.1\b/u,
+  );
 
   const sourceCommit = assertExactCheckout();
   const runId = String(Date.now());
@@ -353,11 +387,13 @@ async function run() {
   let hostSafetySummary;
   let runtimeEvidence;
   let runnerBinaryBytes;
+  let runnerPluginBytes;
   let liveTap = "";
   let liveExitCode = 0;
   let failure;
   const imageState = {
     collectorPresentBefore: imagePresent(names.collectorImage),
+    buildxPresentBefore: imagePresent(B1A_BUILDX_IMAGE),
     nodeBasePresentBefore: imagePresent(B1A_NODE_BASE_IMAGE),
     postgresPresentBefore: imagePresent(B1A_POSTGRES_IMAGE),
   };
@@ -376,6 +412,8 @@ async function run() {
       before,
       cleanup: {
         builderPresentAfter: false,
+        buildxImagePresentAfter: imageState.buildxPresentBefore,
+        buildxImagePresentBefore: imageState.buildxPresentBefore,
         collectorImagePresentAfter: false,
         collectorImagePresentBefore: false,
         namespaceContainersAfter: [],
@@ -402,6 +440,45 @@ async function run() {
     docker(["pull", B1A_POSTGRES_IMAGE], {
       failureCode: "POSTGRES_BASE_PULL_FAILED",
       timeout: 600_000,
+    });
+    docker(["pull", B1A_BUILDX_IMAGE], {
+      failureCode: "BUILDX_IMAGE_PULL_FAILED",
+      timeout: 600_000,
+    });
+
+    stage("PROVE_PINNED_BUILDX_PLUGIN");
+    runnerPluginBytes = await readFile(BUILDX_PLUGIN_PATH);
+    docker([
+      "create",
+      "--name",
+      names.buildxProof,
+      "--label",
+      `market-radar.v2.scope=${SCOPE_LABEL}`,
+      "--label",
+      `market-radar.v2.run-id=${runId}`,
+      B1A_BUILDX_IMAGE,
+      "/buildx",
+      "version",
+    ], { failureCode: "BUILDX_PROOF_CONTAINER_FAILED" });
+    const pinnedPluginPath = join(rawRoot, "pinned-buildx");
+    docker([
+      "cp",
+      `${names.buildxProof}:/buildx`,
+      pinnedPluginPath,
+    ], { failureCode: "BUILDX_PROOF_COPY_FAILED" });
+    command("sudo", [
+      "-n",
+      "chown",
+      `${process.getuid()}:${process.getgid()}`,
+      pinnedPluginPath,
+    ], { failureCode: "BUILDX_PROOF_OWNERSHIP_FAILED" });
+    const pinnedPluginBytes = await readFile(pinnedPluginPath);
+    assert.equal(
+      createHash("sha256").update(runnerPluginBytes).digest("hex"),
+      createHash("sha256").update(pinnedPluginBytes).digest("hex"),
+    );
+    docker(["rm", "--force", names.buildxProof], {
+      failureCode: "BUILDX_PROOF_CONTAINER_REMOVE_FAILED",
     });
 
     stage("PROVE_PINNED_RUNNER_BINARY");
@@ -489,6 +566,11 @@ async function run() {
       "image",
       B1A_POSTGRES_IMAGE,
       "POSTGRES_IMAGE_INSPECT_FAILED",
+    );
+    const buildxImageInspect = inspectJson(
+      "image",
+      B1A_BUILDX_IMAGE,
+      "BUILDX_IMAGE_INSPECT_FAILED",
     );
 
     stage("PROVE_MINIMAL_RUNTIME");
@@ -654,6 +736,7 @@ async function run() {
     });
     runtimeEvidence = {
       collectorImageInspect,
+      buildxImageInspect,
       networkInspect: inspectJson(
         "network",
         names.storageNetwork,
@@ -760,6 +843,7 @@ async function run() {
         runnerArch: "X64",
         runnerBinaryBytes,
         runnerContractBytes: await readFile(join(REPO_ROOT, RUNNER_PATH)),
+        runnerPluginBytes,
         runnerOs: "Linux",
         runnerProvider: B1A_TENCENT_RUNNER_PROVIDER,
         sourceCommit,

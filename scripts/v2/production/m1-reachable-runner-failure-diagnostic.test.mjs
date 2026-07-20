@@ -100,6 +100,8 @@ test("Tencent failure diagnostics require proven host restoration", () => {
     before: structuredClone(snapshot),
     cleanup: {
       builderPresentAfter: false,
+      buildxImagePresentAfter: false,
+      buildxImagePresentBefore: false,
       collectorImagePresentAfter: false,
       collectorImagePresentBefore: false,
       namespaceContainersAfter: [],

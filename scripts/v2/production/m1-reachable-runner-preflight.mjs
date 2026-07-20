@@ -11,6 +11,8 @@ export const B1A_NODE_BASE_IMAGE =
   "node:22-bookworm-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3";
 export const B1A_POSTGRES_IMAGE =
   "postgres:16-bookworm@sha256:92620daddcd947f8d5ab5ba66e848702fe443d87fed30c4cea8e389fd78dfc55";
+export const B1A_BUILDX_IMAGE =
+  "docker/buildx-bin:0.31.1@sha256:49141c168b609ef38f2b11bc231d48e2492ec1f979c2b9aa4ab691790cce115d";
 export const B1A_WORKFLOW_PATH =
   ".github/workflows/v2-m1-5-b1-reachable-runner-preflight.yml";
 export const B1A_GITHUB_RUNNER_PROVIDER = "GITHUB_HOSTED";
@@ -239,6 +241,8 @@ export function validateTencentHostSafety(hostSafety) {
     Object.keys(cleanup).sort(),
     [
       "builderPresentAfter",
+      "buildxImagePresentAfter",
+      "buildxImagePresentBefore",
       "collectorImagePresentAfter",
       "collectorImagePresentBefore",
       "namespaceContainersAfter",
@@ -252,6 +256,8 @@ export function validateTencentHostSafety(hostSafety) {
   );
   for (const name of [
     "builderPresentAfter",
+    "buildxImagePresentAfter",
+    "buildxImagePresentBefore",
     "collectorImagePresentAfter",
     "collectorImagePresentBefore",
     "nodeBaseImagePresentAfter",
@@ -262,6 +268,10 @@ export function validateTencentHostSafety(hostSafety) {
     assertBoolean(cleanup[name], `hostSafety.cleanup.${name}`);
   }
   assert.equal(cleanup.builderPresentAfter, false);
+  assert.equal(
+    cleanup.buildxImagePresentAfter,
+    cleanup.buildxImagePresentBefore,
+  );
   assert.equal(cleanup.collectorImagePresentBefore, false);
   assert.equal(cleanup.collectorImagePresentAfter, false);
   assert.equal(
@@ -339,7 +349,7 @@ function assertNoPublishedPorts(inspect, label) {
   }
 }
 
-function validateImageInspect(input) {
+function validateImageInspect(input, runnerProvider) {
   const collector = oneInspect(input.collectorImageInspect, "collector image inspect");
   assert.match(collector.Id, SHA256_PATTERN, "collector image ID must be content addressed");
   assert.equal(collector.Os, "linux", "collector image OS must be linux");
@@ -390,7 +400,23 @@ function validateImageInspect(input) {
     "Postgres image inspect must resolve the locked digest",
   );
 
+  let buildxImageId;
+  if (runnerProvider === B1A_TENCENT_RUNNER_PROVIDER) {
+    const buildx = oneInspect(input.buildxImageInspect, "Buildx image inspect");
+    assert.match(buildx.Id, SHA256_PATTERN, "Buildx image ID must be content addressed");
+    assert.equal(buildx.Os, "linux", "Buildx image OS must be linux");
+    assert.equal(buildx.Architecture, "amd64", "Buildx image architecture must be amd64");
+    assert.ok(
+      (buildx.RepoDigests ?? []).some((digest) =>
+        digest.endsWith(B1A_BUILDX_IMAGE.slice(B1A_BUILDX_IMAGE.indexOf("@")))
+      ),
+      "Buildx image inspect must resolve the locked digest",
+    );
+    buildxImageId = buildx.Id;
+  }
+
   return {
+    ...(buildxImageId === undefined ? {} : { buildxImageId }),
     collectorImageId: collector.Id,
     nodeBaseImageId: nodeBase.Id,
     postgresImageId: postgres.Id,
@@ -720,11 +746,16 @@ export function verifyReachableRunnerEvidence(report) {
     );
     assert.match(report.supplyChain.runnerContractDigest, SHA256_PATTERN);
     assert.match(report.supplyChain.runnerBinaryDigest, SHA256_PATTERN);
+    assert.match(report.supplyChain.runnerPluginDigest, SHA256_PATTERN);
+    assert.match(report.supplyChain.buildxImageId, SHA256_PATTERN);
+    assert.equal(report.supplyChain.buildxImageReference, B1A_BUILDX_IMAGE);
   } else {
     assert.equal(report.scope.productionHostUsed, false);
     assert.equal("hostSafety" in report, false);
     assert.equal("runnerContractDigest" in report.supplyChain, false);
     assert.equal("runnerBinaryDigest" in report.supplyChain, false);
+    assert.equal("runnerPluginDigest" in report.supplyChain, false);
+    assert.equal("buildxImageId" in report.supplyChain, false);
   }
   assert.equal(report.scope.automaticTradingAllowed, false);
   assert.equal(report.liveValidation.sloConclusion, "INSUFFICIENT_EVIDENCE");
@@ -755,7 +786,7 @@ export function buildReachableRunnerEvidence(input) {
   assert.equal(input.postgresImageReference, B1A_POSTGRES_IMAGE);
   assert.equal(new Date(input.generatedAt).toISOString(), input.generatedAt);
 
-  const imageIds = validateImageInspect(input);
+  const imageIds = validateImageInspect(input, runnerProvider);
   validateRuntimeProbe(input.runtimeProbe);
   const workerNetworks = validateWorkerContainer(input, runnerProvider);
   validatePostgresContainer(input, workerNetworks, runnerProvider);
@@ -775,6 +806,11 @@ export function buildReachableRunnerEvidence(input) {
       Buffer.isBuffer(input.runnerBinaryBytes) &&
         input.runnerBinaryBytes.length > 0,
       "Tencent runner binary bytes are required",
+    );
+    assert.ok(
+      Buffer.isBuffer(input.runnerPluginBytes) &&
+        input.runnerPluginBytes.length > 0,
+      "Tencent runner plugin bytes are required",
     );
   }
 
@@ -822,8 +858,11 @@ export function buildReachableRunnerEvidence(input) {
       workflowDigest: byteDigest(input.workflowBytes),
       ...(runnerProvider === B1A_TENCENT_RUNNER_PROVIDER
         ? {
+          buildxImageId: imageIds.buildxImageId,
+          buildxImageReference: B1A_BUILDX_IMAGE,
           runnerBinaryDigest: byteDigest(input.runnerBinaryBytes),
           runnerContractDigest: byteDigest(input.runnerContractBytes),
+          runnerPluginDigest: byteDigest(input.runnerPluginBytes),
         }
         : {}),
     },

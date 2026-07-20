@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   B1A_BRANCH,
+  B1A_BUILDX_IMAGE,
   B1A_NODE_BASE_IMAGE,
   B1A_POSTGRES_IMAGE,
   B1A_REPOSITORY,
@@ -134,6 +135,10 @@ function fixture() {
   postgresImageInspect[0].RepoDigests = [
     `postgres@${B1A_POSTGRES_IMAGE.split("@")[1]}`,
   ];
+  const buildxImageInspect = imageInspect({ idCharacter: "6" });
+  buildxImageInspect[0].RepoDigests = [
+    `docker/buildx-bin@${B1A_BUILDX_IMAGE.split("@")[1]}`,
+  ];
   const workerContainerInspect = [{
     Config: {
       Cmd: [
@@ -205,6 +210,7 @@ function fixture() {
     uid: 1000,
   };
   return {
+    buildxImageInspect,
     collectorImageInspect,
     collectorImageReference: COLLECTOR_IMAGE,
     dockerfileBytes: Buffer.from("FROM locked\n"),
@@ -257,6 +263,8 @@ function tencentHostSafety() {
     before: structuredClone(snapshot),
     cleanup: {
       builderPresentAfter: false,
+      buildxImagePresentAfter: false,
+      buildxImagePresentBefore: false,
       collectorImagePresentAfter: false,
       collectorImagePresentBefore: false,
       namespaceContainersAfter: [],
@@ -359,6 +367,7 @@ test("binds Tencent isolated execution to exact host restoration evidence", () =
   input.runnerProvider = B1A_TENCENT_RUNNER_PROVIDER;
   input.runnerBinaryBytes = Buffer.from("pinned node binary\n");
   input.runnerContractBytes = Buffer.from("isolated runner contract\n");
+  input.runnerPluginBytes = Buffer.from("pinned buildx plugin\n");
   input.hostSafety = tencentHostSafety();
   input.workerContainerInspect[0].Config.Labels = {
     "market-radar.v2.run-id": input.runId,
@@ -392,6 +401,8 @@ test("binds Tencent isolated execution to exact host restoration evidence", () =
   );
   assert.match(report.supplyChain.runnerContractDigest, /^sha256:[0-9a-f]{64}$/u);
   assert.match(report.supplyChain.runnerBinaryDigest, /^sha256:[0-9a-f]{64}$/u);
+  assert.equal(report.supplyChain.buildxImageReference, B1A_BUILDX_IMAGE);
+  assert.match(report.supplyChain.runnerPluginDigest, /^sha256:[0-9a-f]{64}$/u);
 });
 
 test("rejects Tencent host restart, residue, and weak resource claims", () => {
