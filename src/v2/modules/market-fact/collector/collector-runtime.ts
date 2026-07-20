@@ -9,8 +9,8 @@ import {
 } from "../../universe/reconcile-catalogs";
 import { deepFreezeArtifact } from "../../universe/stable-artifact";
 import type { VenueCatalogResult } from "../../universe/catalog-types";
-import { buildLastPriceFacts } from "../build-last-price-facts";
-import type { VenueTickerResult } from "../ticker-types";
+import { buildMarkPriceFacts } from "../build-mark-price-facts";
+import type { VenuePriceSnapshotResult } from "../price-snapshot-types";
 import { M1StoreError, type M1ArtifactName } from "../store/contracts";
 import type { M1ArtifactAppendRequest } from "../store/postgres-artifact-store";
 import { buildCollectorCoverage, collectorProviderFailures } from "./coverage";
@@ -69,7 +69,10 @@ function storeFailureReason(error: unknown): string {
     : "m1_store_append_failed";
 }
 
-function skippedTickerBatch(venue: TargetVenue, receivedAt: string): VenueTickerResult {
+function skippedPriceSnapshotBatch(
+  venue: TargetVenue,
+  receivedAt: string,
+): VenuePriceSnapshotResult {
   return {
     issues: [],
     observations: [],
@@ -231,7 +234,7 @@ export class M1CollectorRuntime {
       let universe: EligibleInstrumentSnapshot;
       let candidateCatalogAtMs = this.#lastCatalogAtMs;
 
-      if (trigger === "INCREMENTAL_TICKER") {
+      if (trigger === "INCREMENTAL_MARK_PRICE") {
         if (this.#lastUniverse === null) {
           throw new CollectorRuntimeError(
             "INVALID_RUNTIME_DEPENDENCY",
@@ -270,21 +273,24 @@ export class M1CollectorRuntime {
       const eligibleVenues = new Set(universe.accounting
         .filter((record) => record.eligible)
         .map((record) => record.venue));
-      const tickerStart = this.#nowAtOrAfter(universe.sourceCutoff);
-      const tickerBatches = await Promise.all(
+      const priceSnapshotStart = this.#nowAtOrAfter(universe.sourceCutoff);
+      const priceSnapshotBatches = await Promise.all(
         this.#adapterRuntime.adapters.map((adapter) =>
           eligibleVenues.has(adapter.venue)
-            ? adapter.fetchTickers()
-            : Promise.resolve(skippedTickerBatch(adapter.venue, tickerStart))),
+            ? adapter.fetchPriceSnapshots()
+            : Promise.resolve(skippedPriceSnapshotBatch(
+              adapter.venue,
+              priceSnapshotStart,
+            ))),
       );
       const factCutoff = maxIso([
         universe.sourceCutoff,
-        ...tickerBatches.map((batch) => batch.receivedAt),
+        ...priceSnapshotBatches.map((batch) => batch.receivedAt),
       ]);
       const normalizedAt = this.#nowAtOrAfter(factCutoff);
       const generatedAt = this.#nowAtOrAfter(normalizedAt);
-      const builtFacts = buildLastPriceFacts({
-        batches: tickerBatches,
+      const builtFacts = buildMarkPriceFacts({
+        batches: priceSnapshotBatches,
         generatedAt,
         maxAgeMs: this.#config.maxFactAgeMs,
         maxSequenceGapMs: this.#config.maxSequenceGapMs,
@@ -299,7 +305,7 @@ export class M1CollectorRuntime {
         catalogs: currentCatalogs,
         facts: builtFacts.facts,
         providerObservedByVenue,
-        tickerBatches,
+        priceSnapshotBatches,
         universe,
       });
       const artifacts: CollectorCycleArtifacts = deepFreezeArtifact({
@@ -343,7 +349,7 @@ export class M1CollectorRuntime {
 
       const providerFailures = collectorProviderFailures({
         catalogs: currentCatalogs,
-        tickerBatches,
+        priceSnapshotBatches,
       });
       const request = this.#adapterRuntime.requestControl.snapshot();
       const requestRejected = request.queueRejected > 0 ||
@@ -356,12 +362,17 @@ export class M1CollectorRuntime {
         ...(coverage.freshCount !== coverage.eligibleCount
           ? ["fresh_coverage_incomplete"]
           : []),
+        ...(coverage.usablePriceCount !== coverage.eligibleCount
+          ? ["price_usability_coverage_incomplete"]
+          : []),
         ...(persistenceFailureReason === null ? [] : [persistenceFailureReason]),
         ...(requestRejected ? ["collector_request_rejected"] : []),
       ]);
       const ready =
         persistence !== "FAILED" &&
         coverage.eligibleCount > 0 &&
+        coverage.collectedCount === coverage.eligibleCount &&
+        coverage.usablePriceCount === coverage.eligibleCount &&
         coverage.freshCount === coverage.eligibleCount &&
         universe.quality.status === "FRESH" &&
         builtFacts.qualitySnapshot.quality.status === "FRESH" &&
@@ -385,7 +396,7 @@ export class M1CollectorRuntime {
       if (persistence !== "FAILED") {
         this.#lastUniverse = universe;
         this.#previousSequences = durableSequences;
-        if (trigger !== "INCREMENTAL_TICKER") {
+        if (trigger !== "INCREMENTAL_MARK_PRICE") {
           this.#lastCatalogAtMs = candidateCatalogAtMs;
         }
       }
@@ -455,7 +466,7 @@ export class M1CollectorRuntime {
     ) {
       return "PERIODIC_RECONCILIATION";
     }
-    return "INCREMENTAL_TICKER";
+    return "INCREMENTAL_MARK_PRICE";
   }
 
   #retainUntil(generatedAt: string): string {

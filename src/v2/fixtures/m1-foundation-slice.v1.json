@@ -49,7 +49,7 @@
   "facts": [
     {
       "venue": "BINANCE_FUTURES",
-      "factType": "LAST_PRICE",
+      "factType": "MARK_PRICE",
       "value": "42000.00",
       "unit": "USDT",
       "eventTime": "2026-01-15T00:00:00.000Z",
@@ -60,7 +60,7 @@
     },
     {
       "venue": "OKX_SWAP",
-      "factType": "LAST_PRICE",
+      "factType": "MARK_PRICE",
       "value": "42001.00",
       "unit": "USDT",
       "eventTime": "2026-01-15T00:00:00.000Z",
@@ -71,7 +71,7 @@
     },
     {
       "venue": "BYBIT_LINEAR_PERPETUAL",
-      "factType": "LAST_PRICE",
+      "factType": "MARK_PRICE",
       "value": "41999.50",
       "unit": "USDT",
       "eventTime": "2026-01-15T00:00:00.000Z",
@@ -82,8 +82,8 @@
     }
   ],
   "feature": {
-    "featureId": "fixture-cross-venue-last-price-dispersion",
-    "featureDefinitionVersion": "cross-venue-last-price-dispersion.v1",
+    "featureId": "fixture-cross-venue-mark-price-dispersion",
+    "featureDefinitionVersion": "cross-venue-mark-price-dispersion.v1",
     "subjectType": "UNDERLYING_GROUP",
     "subjectId": "fixture:BTC:USDT_LINEAR_PERPETUAL",
     "sourceVenues": [

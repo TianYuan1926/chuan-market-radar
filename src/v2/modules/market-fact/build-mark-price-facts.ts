@@ -17,15 +17,17 @@ import {
   stableSha256,
 } from "../universe/stable-artifact";
 import type {
-  TickerObservation,
-  VenueTickerResult,
-} from "./ticker-types";
+  PriceSnapshotObservation,
+  VenuePriceSnapshotResult,
+} from "./price-snapshot-types";
 
 const SOURCE_IDS: Record<TargetVenue, string> = {
   BINANCE_FUTURES: "binance-public-rest",
   OKX_SWAP: "okx-public-rest",
   BYBIT_LINEAR_PERPETUAL: "bybit-public-rest",
 };
+const FACT_TYPE = "MARK_PRICE" as const;
+const SOURCE_CAPABILITY = "public_mark_price_snapshot" as const;
 
 export type MarketFactBuildResult = {
   facts: readonly PointInTimeMarketFact[];
@@ -57,9 +59,9 @@ function sequenceGap(left: string, right: string): bigint | null {
 }
 
 function factQuality(input: {
-  batch: VenueTickerResult;
+  batch: VenuePriceSnapshotResult;
   cutoffMs: number;
-  matches: readonly TickerObservation[];
+  matches: readonly PriceSnapshotObservation[];
   maxAgeMs: number;
   maxSequenceGapMs: number;
   previousSequence: string | undefined;
@@ -95,7 +97,7 @@ function factQuality(input: {
       quality: {
         status: "UNAVAILABLE",
         ageMs: null,
-        reasonCodes: ["ticker_missing_for_eligible_instrument"],
+        reasonCodes: ["mark_price_missing_for_eligible_instrument"],
       },
       sequence: null,
       sourceRecordIds: [],
@@ -110,7 +112,7 @@ function factQuality(input: {
       quality: {
         status: "INVALID",
         ageMs: null,
-        reasonCodes: ["duplicate_provider_ticker_record"],
+        reasonCodes: ["duplicate_provider_mark_price_record"],
       },
       sequence: null,
       sourceRecordIds: input.matches.map((match) => match.sourceRecordId),
@@ -132,18 +134,28 @@ function factQuality(input: {
   let nextSequence: string | null = null;
 
   if (
+    observation.factType !== "MARK_PRICE" ||
+    observation.eventTimeBasis !== "MARK_PRICE_SNAPSHOT"
+  ) {
+    reasons.push("mark_price_semantics_invalid");
+    eventTime = null;
+    sequence = null;
+    value = null;
+    ageMs = null;
+    status = "INVALID";
+  } else if (
     eventMs === null ||
     !Number.isFinite(receivedMs) ||
     eventMs > receivedMs
   ) {
-    reasons.push("ticker_event_time_after_receive_or_invalid");
+    reasons.push("mark_price_event_time_after_receive_or_invalid");
     eventTime = null;
     sequence = null;
     value = null;
     ageMs = null;
     status = "INVALID";
   } else if (eventMs > input.cutoffMs) {
-    reasons.push("ticker_event_after_source_cutoff");
+    reasons.push("mark_price_event_after_source_cutoff");
     eventTime = null;
     sequence = null;
     value = null;
@@ -155,35 +167,35 @@ function factQuality(input: {
   } else if (input.previousSequence !== undefined) {
     const comparison = compareSequence(sequence, input.previousSequence);
     if (comparison === null) {
-      reasons.push("ticker_sequence_invalid");
+      reasons.push("mark_price_snapshot_sequence_invalid");
       value = null;
       status = "INVALID";
     } else if (comparison === 0) {
-      reasons.push("duplicate_ticker_sequence");
+      reasons.push("duplicate_mark_price_snapshot_sequence");
       value = null;
       status = "INVALID";
     } else if (comparison < 0) {
-      reasons.push("out_of_order_ticker_sequence");
+      reasons.push("out_of_order_mark_price_snapshot_sequence");
       value = null;
       status = "INVALID";
     } else {
       const gap = sequenceGap(sequence, input.previousSequence);
       if (gap !== null && gap > BigInt(input.maxSequenceGapMs)) {
-        reasons.push("ticker_sequence_gap");
+        reasons.push("mark_price_snapshot_sequence_gap");
         status = "PARTIAL";
       }
     }
   }
 
   if (value !== null && ageMs !== null && ageMs > input.maxAgeMs) {
-    reasons.push("ticker_stale_at_cutoff");
+    reasons.push("mark_price_snapshot_stale_at_cutoff");
     status = "STALE";
   }
   if (value !== null && sequence !== null) {
     nextSequence = sequence;
   }
   if (status !== "FRESH" && reasons.length === 0) {
-    reasons.push("ticker_not_fresh");
+    reasons.push("mark_price_snapshot_not_fresh");
   }
 
   return {
@@ -202,7 +214,7 @@ function factQuality(input: {
 }
 
 function aggregateQuality(input: {
-  batches: readonly VenueTickerResult[];
+  batches: readonly VenuePriceSnapshotResult[];
   facts: readonly PointInTimeMarketFact[];
 }): QualityAssessment {
   const batchIssues = input.batches.flatMap((batch) => batch.issues);
@@ -249,8 +261,8 @@ function ratio(numerator: number, denominator: number): number {
   return denominator === 0 ? 0 : numerator / denominator;
 }
 
-export function buildLastPriceFacts(input: {
-  batches: readonly VenueTickerResult[];
+export function buildMarkPriceFacts(input: {
+  batches: readonly VenuePriceSnapshotResult[];
   generatedAt: string;
   maxAgeMs?: number;
   maxSequenceGapMs?: number;
@@ -291,14 +303,16 @@ export function buildLastPriceFacts(input: {
     byVenue.size !== TARGET_VENUES.length ||
     TARGET_VENUES.some((venue) => !byVenue.has(venue))
   ) {
-    throw new Error("one and only one ticker batch is required per target venue");
+    throw new Error(
+      "one and only one mark-price batch is required per target venue",
+    );
   }
   if (Date.parse(input.universe.sourceCutoff) > cutoffMs) {
     throw new Error("market facts cannot read a universe from a later cutoff");
   }
   const batches = TARGET_VENUES.map((venue) => byVenue.get(venue)!);
   if (batches.some((batch) => Date.parse(batch.receivedAt) > normalizedMs)) {
-    throw new Error("ticker normalization cannot precede receipt");
+    throw new Error("mark-price normalization cannot precede receipt");
   }
 
   const nextSequences: Record<string, string> = {
@@ -337,8 +351,10 @@ export function buildLastPriceFacts(input: {
       const content = {
         canonicalInstrumentId: record.canonicalInstrumentId,
         eventTime: evaluated.eventTime,
+        factType: FACT_TYPE,
         quality: evaluated.quality,
         sequence: evaluated.sequence,
+        sourceCapability: SOURCE_CAPABILITY,
         sourceCutoff: input.sourceCutoff,
         sourceRecordIds: evaluated.sourceRecordIds,
         value: evaluated.value,
@@ -352,16 +368,16 @@ export function buildLastPriceFacts(input: {
         generatedAt: input.generatedAt,
         sourceCutoff: input.sourceCutoff,
         contentHash: stableContentHash(content),
-        factId: `fact:last-price:${digest.slice(0, 24)}`,
+        factId: `fact:mark-price:${digest.slice(0, 24)}`,
         canonicalInstrumentId: record.canonicalInstrumentId,
         venueInstrumentId: record.venueInstrumentId,
-        factType: "LAST_PRICE",
+        factType: FACT_TYPE,
         value: evaluated.value,
         unit: record.settlementAsset,
         sequence: evaluated.sequence,
         lineage: {
           sourceId: SOURCE_IDS[record.venue],
-          sourceCapability: "public_last_price_ticker",
+          sourceCapability: SOURCE_CAPABILITY,
           sourceRecordIds: evaluated.sourceRecordIds,
           eventTime: evaluated.eventTime,
           receivedAt: batch.receivedAt,
@@ -399,7 +415,9 @@ export function buildLastPriceFacts(input: {
     ),
     gapRate: ratio(
       facts.filter((fact) =>
-        fact.quality.reasonCodes.includes("ticker_sequence_gap")).length,
+        fact.quality.reasonCodes.includes(
+          "mark_price_snapshot_sequence_gap",
+        )).length,
       facts.length,
     ),
     duplicateRate: ratio(
@@ -412,7 +430,9 @@ export function buildLastPriceFacts(input: {
       facts.filter(
         (fact) =>
           fact.quality.status === "STALE" ||
-          fact.quality.reasonCodes.includes("out_of_order_ticker_sequence"),
+          fact.quality.reasonCodes.includes(
+            "out_of_order_mark_price_snapshot_sequence",
+          ),
       ).length,
       facts.length,
     ),

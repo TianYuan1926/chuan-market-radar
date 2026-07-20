@@ -1,12 +1,14 @@
 # M1.1 三家交易所公开数据源合同 v1
 
+> 当前覆盖说明：catalog/identity 合同继续有效；原 `LAST_PRICE` 事实语义已由 `M1_5_B1_B2_MARK_PRICE_SNAPSHOT_SEMANTICS_CONTRACT_V1.md` 替代，当前实现只接受 `MARK_PRICE / MARK_PRICE_SNAPSHOT`。
+
 状态：`LOCAL_CONTRACT_IMPLEMENTED / FROZEN_PROVIDER_FIXTURES_PASS / LIVE_CONNECTIVITY_UNPROVEN / PRODUCTION_UNCHANGED`
 
 核对日期：2026-07-20
 
 ## 1. 本合同证明什么
 
-本合同只覆盖 M1.1：Binance USD-M Futures、OKX SWAP、Bybit Linear 的公开合约目录与 `LAST_PRICE` 快照。它证明 V2 已有独立、只读、失败关闭的 Adapter 和本地纵向切片，不证明公网当前可达、全市场覆盖已运行、数据库已持久化、Worker 已部署或生产已接管。
+本合同只覆盖 M1.1：Binance USD-M Futures、OKX SWAP、Bybit Linear 的公开合约目录与 `MARK_PRICE` 快照。它证明 V2 已有独立、只读、失败关闭的 Adapter 和本地纵向切片，不证明公网当前可达、全市场覆盖已运行、数据库已持久化、Worker 已部署或生产已接管。
 
 输出边界：
 
@@ -14,7 +16,7 @@
 公开 Venue catalog
 -> InstrumentAccountingRecord
 -> EligibleInstrumentSnapshot
--> 公开 ticker
+-> 公开 mark-price snapshot
 -> PointInTimeMarketFact
 -> FactQualitySnapshot
 ```
@@ -25,8 +27,8 @@
 
 | Venue | 官方资料 | M1.1 固定公开 GET |
 | --- | --- | --- |
-| Binance USD-M | [Binance Developer Catalog](https://developers.binance.com/en/docs/catalog)、[官方 Futures Connector market source](https://github.com/binance/binance-futures-connector-python/blob/main/binance/um_futures/market.py) | `/fapi/v1/exchangeInfo`、`/fapi/v2/ticker/price` |
-| OKX SWAP | [OKX API v5](https://www.okx.com/docs-v5/en/) | `/api/v5/public/instruments?instType=SWAP`、`/api/v5/market/tickers?instType=SWAP` |
+| Binance USD-M | [Binance Developer Catalog](https://developers.binance.com/en/docs/catalog)、[官方 Futures Connector market source](https://github.com/binance/binance-futures-connector-python/blob/main/binance/um_futures/market.py) | `/fapi/v1/exchangeInfo`、`/fapi/v1/premiumIndex` |
+| OKX SWAP | [OKX API v5](https://www.okx.com/docs-v5/en/) | `/api/v5/public/instruments?instType=SWAP`、`/api/v5/public/mark-price?instType=SWAP` |
 | Bybit Linear | [Instruments Info](https://bybit-exchange.github.io/docs/v5/market/instrument)、[Tickers](https://bybit-exchange.github.io/docs/v5/market/tickers) | `/v5/market/instruments-info?category=linear&limit=1000`、`/v5/market/tickers?category=linear` |
 
 所有端点固定为 HTTPS allowlist，Transport 只发无凭证 `GET`，不读取 secret，不接账户和下单 API。Bybit 目录必须持续翻页直到空 `nextPageCursor`；重复 cursor、后续页失败或达到页数上限时整家 Venue 不得保留 eligible 状态。
@@ -59,9 +61,9 @@ Underlying Group：
 
 | Venue | 价格 | event/sequence |
 | --- | --- | --- |
-| Binance | `price` | ticker `time` |
-| OKX | `last` | ticker `ts` |
-| Bybit | `lastPrice` | response `time` |
+| Binance | `markPrice` | row `time` |
+| OKX | `markPx` | row `ts` |
+| Bybit | row `markPrice` | response envelope `time` |
 
 每个 Fact 明确保存：
 
@@ -87,7 +89,7 @@ M1.1 不写数据库，所以 `persistedAt=null`。网络失败没有 exchange e
 | HTTP 401/403 | `AUTH_ERROR` |
 | 超时、连接或其他 HTTP 失败 | `TRANSPORT_ERROR` |
 | JSON、外层 schema、timestamp、price 或 sequence 非法 | `INVALID` |
-| 合格 instrument 没有对应 ticker | `UNAVAILABLE` |
+| 合格 instrument 没有对应 mark-price row | `UNAVAILABLE` |
 | 部分 Venue 或部分 Fact 失败 | 总体 `PARTIAL`，不写成“市场无机会” |
 
 Transport 有明确 timeout 和最大响应字节数，不把上游 body、原始价格或未知字段回显到错误对象。

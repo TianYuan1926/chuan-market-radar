@@ -13,7 +13,7 @@ import {
 
 const MAX_INPUT_BYTES = 5 * 1024 * 1024;
 const SCHEMA_VERSION =
-  "v2-m1-reachable-runner-failure-diagnostic.v2";
+  "v2-m1-reachable-runner-failure-diagnostic.v3";
 const COMMIT_PATTERN = /^[0-9a-f]{40}$/u;
 const SHA256_PATTERN = /^sha256:[0-9a-f]{64}$/u;
 const TARGET_VENUES = new Set([
@@ -32,7 +32,7 @@ const RUNTIME_STATES = new Set([
 ]);
 const CYCLE_TRIGGERS = new Set([
   "STARTUP_FULL",
-  "INCREMENTAL_TICKER",
+  "INCREMENTAL_MARK_PRICE",
   "PERIODIC_RECONCILIATION",
   "RECOVERY",
 ]);
@@ -110,7 +110,7 @@ function providerFailures(tap) {
         if (
           !isRecord(failure) ||
           !TARGET_VENUES.has(failure.venue) ||
-          !["CATALOG", "TICKER"].includes(failure.operation) ||
+          !["CATALOG", "MARK_PRICE"].includes(failure.operation) ||
           !/^[A-Z0-9_]{1,64}$/u.test(failure.kind) ||
           !/^[A-Za-z0-9_.:-]{1,128}$/u.test(failure.reasonCode)
         ) {
@@ -145,6 +145,7 @@ function coverageSummary(coverage) {
     "eligibleCount",
     "freshCount",
     "providerObservedCount",
+    "usablePriceCount",
   ];
   const normalize = (record) => {
     const normalized = Object.fromEntries(fields.map((field) => [

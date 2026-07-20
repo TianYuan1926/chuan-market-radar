@@ -15,11 +15,11 @@ import type { M1ArtifactAppendRequest } from "../modules/market-fact/store/postg
 import {
   FULL_SCOPE_ASSETS,
   fullScopeBinanceCatalog,
-  fullScopeBinanceTickers,
+  fullScopeBinanceMarkPrices,
   fullScopeBybitCatalogPages,
-  fullScopeBybitTickers,
+  fullScopeBybitMarkPrices,
   fullScopeOkxCatalog,
-  fullScopeOkxTickers,
+  fullScopeOkxMarkPrices,
 } from "./m1-full-scope-provider-fixtures";
 
 export class MutableCollectorClock implements CollectorClock {
@@ -54,7 +54,7 @@ export class FullScopeProviderHarness {
     venue: TargetVenue;
   }>> = [];
   readonly failures = new Map<FailureKey, ProviderFailure>();
-  readonly omittedTickers: Record<TargetVenue, Set<string>> = {
+  readonly omittedMarkPrices: Record<TargetVenue, Set<string>> = {
     BINANCE_FUTURES: new Set(),
     OKX_SWAP: new Set(),
     BYBIT_LINEAR_PERPETUAL: new Set(),
@@ -112,7 +112,9 @@ export class FullScopeProviderHarness {
     const url = new URL(request.url);
     if (url.hostname === "fapi.binance.com") {
       return {
-        operation: url.pathname.includes("exchangeInfo") ? "CATALOG" : "TICKER",
+        operation: url.pathname.includes("exchangeInfo")
+          ? "CATALOG"
+          : "MARK_PRICE",
         venue: "BINANCE_FUTURES",
       };
     }
@@ -120,7 +122,7 @@ export class FullScopeProviderHarness {
       return {
         operation: url.pathname.includes("public/instruments")
           ? "CATALOG"
-          : "TICKER",
+          : "MARK_PRICE",
         venue: "OKX_SWAP",
       };
     }
@@ -128,7 +130,7 @@ export class FullScopeProviderHarness {
       return {
         operation: url.pathname.includes("instruments-info")
           ? "CATALOG"
-          : "TICKER",
+          : "MARK_PRICE",
         venue: "BYBIT_LINEAR_PERPETUAL",
       };
     }
@@ -154,16 +156,16 @@ export class FullScopeProviderHarness {
         ? pages[1]
         : pages[0];
     }
-    const tickerAssets = assets.filter(
-      (asset) => !this.omittedTickers[venue].has(asset),
+    const markPriceAssets = assets.filter(
+      (asset) => !this.omittedMarkPrices[venue].has(asset),
     );
     if (venue === "BINANCE_FUTURES") {
-      return fullScopeBinanceTickers(eventTimeMs, tickerAssets);
+      return fullScopeBinanceMarkPrices(eventTimeMs, markPriceAssets);
     }
     if (venue === "OKX_SWAP") {
-      return fullScopeOkxTickers(eventTimeMs, tickerAssets);
+      return fullScopeOkxMarkPrices(eventTimeMs, markPriceAssets);
     }
-    return fullScopeBybitTickers(eventTimeMs, tickerAssets);
+    return fullScopeBybitMarkPrices(eventTimeMs, markPriceAssets);
   }
 }
 

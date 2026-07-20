@@ -141,6 +141,7 @@ test("M1 early-shadow package keeps capture truth separate from business truth",
     readFile(earlyShadowRunnerPath, "utf8"),
     readFile(earlyShadowValidatorPath, "utf8"),
   ]);
+  const packageSource = `${runner}\n${validator}`;
   for (const required of [
     "PASS_31_CYCLE_CAPTURE",
     "CAPTURE_COMPLETE_BUSINESS_FAIL",
@@ -160,6 +161,9 @@ test("M1 early-shadow package keeps capture truth separate from business truth",
     "m1-collector-early-shadow-report.js",
     "writeContentAddressedObject",
   ]) {
-    assert.ok(runner.includes(required), `missing early-shadow runner: ${required}`);
+    assert.ok(
+      packageSource.includes(required),
+      `missing early-shadow runner contract: ${required}`,
+    );
   }
 });

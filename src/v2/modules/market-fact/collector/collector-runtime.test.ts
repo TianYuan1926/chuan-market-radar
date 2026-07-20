@@ -51,7 +51,13 @@ test("collects the complete multi-instrument denominator and persists one atomic
   assert.equal(result.telemetry.coverage.accountedCount, 21);
   assert.equal(result.telemetry.coverage.eligibleCount, 15);
   assert.equal(result.telemetry.coverage.collectedCount, 15);
+  assert.equal(result.telemetry.coverage.usablePriceCount, 15);
   assert.equal(result.telemetry.coverage.freshCount, 15);
+  assert.deepEqual(result.telemetry.coverage.priceUsabilityCoverage, {
+    denominator: 15,
+    numerator: 15,
+    ratio: 1,
+  });
   assert.deepEqual(result.telemetry.coverage.freshCoverage, {
     denominator: 15,
     numerator: 15,
@@ -63,7 +69,10 @@ test("collects the complete multi-instrument denominator and persists one atomic
   assert.equal(store.calls.length, 1);
   assert.equal(store.calls[0]?.length, 17);
   assert.equal(provider.calls.filter((call) => call.operation === "CATALOG").length, 4);
-  assert.equal(provider.calls.filter((call) => call.operation === "TICKER").length, 3);
+  assert.equal(
+    provider.calls.filter((call) => call.operation === "MARK_PRICE").length,
+    3,
+  );
   assert.ok(result.telemetry.request.maxGlobalConcurrencyObserved <= 2);
   assert.ok(result.telemetry.request.maxQueueDepthObserved >= 1);
   assert.ok(result.telemetry.request.venues.every(
@@ -73,7 +82,7 @@ test("collects the complete multi-instrument denominator and persists one atomic
   assert.equal(Object.isFrozen(result.telemetry.coverage.venues), true);
 });
 
-test("runs ticker-only incrementally without pretending that catalog was observed again", async () => {
+test("runs mark-price-only incrementally without pretending that catalog was observed again", async () => {
   const { clock, provider, runtime } = setup();
   const first = await runtime.runNextCycle();
   const catalogCalls = provider.calls.filter(
@@ -83,7 +92,7 @@ test("runs ticker-only incrementally without pretending that catalog was observe
 
   const second = await runtime.runNextCycle();
 
-  assert.equal(second.telemetry.trigger, "INCREMENTAL_TICKER");
+  assert.equal(second.telemetry.trigger, "INCREMENTAL_MARK_PRICE");
   assert.equal(second.telemetry.state, "READY");
   assert.equal(second.telemetry.coverage.providerObservedCount, null);
   assert.equal(second.telemetry.persistence, "MIXED_INSERT_AND_IDEMPOTENT");
@@ -92,7 +101,10 @@ test("runs ticker-only incrementally without pretending that catalog was observe
     provider.calls.filter((call) => call.operation === "CATALOG").length,
     catalogCalls,
   );
-  assert.equal(provider.calls.filter((call) => call.operation === "TICKER").length, 6);
+  assert.equal(
+    provider.calls.filter((call) => call.operation === "MARK_PRICE").length,
+    6,
+  );
 });
 
 test("keeps a vanished instrument in the accounting denominator as a tombstone", async () => {
@@ -160,13 +172,13 @@ test("persists truthful null facts on provider failure and recovers through full
   const { clock, provider, runtime } = setup();
   await runtime.runNextCycle();
   clock.advance(1_000);
-  provider.setFailure("BINANCE_FUTURES:TICKER", {
+  provider.setFailure("BINANCE_FUTURES:MARK_PRICE", {
     kind: "RATE_LIMITED",
     reasonCode: "provider_http_429",
   });
 
   const failed = await runtime.runNextCycle();
-  assert.equal(failed.telemetry.trigger, "INCREMENTAL_TICKER");
+  assert.equal(failed.telemetry.trigger, "INCREMENTAL_MARK_PRICE");
   assert.equal(failed.telemetry.state, "BACKPRESSURED");
   assert.equal(failed.telemetry.persistence, "MIXED_INSERT_AND_IDEMPOTENT");
   assert.equal(failed.telemetry.coverage.eligibleCount, 15);
@@ -189,7 +201,11 @@ test("persists truthful null facts on provider failure and recovers through full
       "provider_http_429",
     ),
   );
-  assert.ok(gapDetected.telemetry.reasons.includes("ticker_sequence_gap"));
+  assert.ok(
+    gapDetected.telemetry.reasons.includes(
+      "mark_price_snapshot_sequence_gap",
+    ),
+  );
 
   clock.advance(1_000);
   const recovered = await runtime.runNextCycle();

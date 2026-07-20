@@ -203,6 +203,7 @@ test(
           minCollectionCoverageRatio: 1,
           minCycles: 30,
           minFreshCoverageRatio: 1,
+          minPriceUsabilityCoverageRatio: 1,
           minObservationMs: 30 * 60 * 1_000,
           minOperationalReadyRatio: 1,
         },

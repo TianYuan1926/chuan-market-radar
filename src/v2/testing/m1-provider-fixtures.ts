@@ -1,6 +1,6 @@
 export const CATALOG_RECEIVED_AT = "2026-01-14T23:59:59.900Z";
 export const SOURCE_CUTOFF = "2026-01-15T00:00:00.000Z";
-export const TICKER_RECEIVED_AT = "2026-01-15T00:00:00.100Z";
+export const PRICE_SNAPSHOT_RECEIVED_AT = "2026-01-15T00:00:00.100Z";
 export const NORMALIZED_AT = "2026-01-15T00:00:00.200Z";
 export const GENERATED_AT = "2026-01-15T00:00:00.300Z";
 export const EVENT_TIME_MS = "1768435200000";
@@ -55,21 +55,21 @@ export const BYBIT_CATALOG = {
   retCode: 0,
 };
 
-export const BINANCE_TICKERS = [
-  { price: "42000.00", symbol: "BTCUSDT", time: EVENT_TIME_MS },
+export const BINANCE_MARK_PRICES = [
+  { markPrice: "42000.00", symbol: "BTCUSDT", time: EVENT_TIME_MS },
 ];
 
-export const OKX_TICKERS = {
+export const OKX_MARK_PRICES = {
   code: "0",
   data: [
-    { instId: "BTC-USDT-SWAP", last: "42001.00", ts: EVENT_TIME_MS },
+    { instId: "BTC-USDT-SWAP", markPx: "42001.00", ts: EVENT_TIME_MS },
   ],
 };
 
-export const BYBIT_TICKERS = {
+export const BYBIT_MARK_PRICES = {
   result: {
     category: "linear",
-    list: [{ lastPrice: "41999.50", symbol: "BTCUSDT" }],
+    list: [{ markPrice: "41999.50", symbol: "BTCUSDT" }],
   },
   retCode: 0,
   time: EVENT_TIME_MS,

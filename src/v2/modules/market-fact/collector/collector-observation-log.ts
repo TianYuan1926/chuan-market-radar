@@ -6,7 +6,7 @@ import {
 } from "./collector-worker-contract";
 
 export const M1_COLLECTOR_OBSERVATION_LOG_SCHEMA_VERSION =
-  "v2-m1-collector-observation-log.v1" as const;
+  "v2-m1-collector-observation-log.v2" as const;
 
 export const M1CollectorObservationLogSchema = z.strictObject({
   cycle: M1CollectorWorkerCycleSchema,

@@ -132,7 +132,10 @@ test(
 
       clock.advance(1_000);
       const incremental = await runtime.runNextCycle();
-      assert.equal(incremental.telemetry.trigger, "INCREMENTAL_TICKER");
+      assert.equal(
+        incremental.telemetry.trigger,
+        "INCREMENTAL_MARK_PRICE",
+      );
       assert.equal(incremental.telemetry.state, "READY");
       assert.equal(
         incremental.telemetry.persistence,

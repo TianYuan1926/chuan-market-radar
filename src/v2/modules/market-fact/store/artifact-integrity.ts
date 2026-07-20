@@ -44,8 +44,10 @@ function expectedSelfContainedIdentity<Name extends M1ArtifactName>(
       const content = {
         canonicalInstrumentId: value.canonicalInstrumentId,
         eventTime: value.lineage.eventTime,
+        factType: value.factType,
         quality: value.quality,
         sequence: value.sequence,
+        sourceCapability: value.lineage.sourceCapability,
         sourceCutoff: value.sourceCutoff,
         sourceRecordIds: value.lineage.sourceRecordIds,
         value: value.value,
@@ -53,7 +55,7 @@ function expectedSelfContainedIdentity<Name extends M1ArtifactName>(
       };
       return {
         contentHash: stableContentHash(content),
-        artifactId: `fact:last-price:${stableSha256(content).slice(0, 24)}`,
+        artifactId: `fact:mark-price:${stableSha256(content).slice(0, 24)}`,
       };
     }
     case "FactQualitySnapshot":
@@ -182,12 +184,16 @@ export function validateFactQualityLineage(input: {
       (fact) => fact.value !== null && fact.quality.status === "FRESH",
     ).length),
     gapRate: ratio(facts.filter((fact) =>
-      fact.quality.reasonCodes.includes("ticker_sequence_gap")).length),
+      fact.quality.reasonCodes.includes(
+        "mark_price_snapshot_sequence_gap",
+      )).length),
     duplicateRate: ratio(facts.filter((fact) =>
       fact.quality.reasonCodes.some((reason) => reason.includes("duplicate"))).length),
     lateEventRate: ratio(facts.filter((fact) =>
       fact.quality.status === "STALE" ||
-      fact.quality.reasonCodes.includes("out_of_order_ticker_sequence")).length),
+      fact.quality.reasonCodes.includes(
+        "out_of_order_mark_price_snapshot_sequence",
+      )).length),
   };
   if (
     input.factQuality.completenessRatio !== expectedRatios.completenessRatio ||

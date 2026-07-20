@@ -151,7 +151,7 @@ const fixtures: RuntimeArtifactByName = {
     factId: "fact-fixture-1",
     canonicalInstrumentId: "BINANCE_FUTURES:BTCUSDT:LINEAR_PERPETUAL:USDT",
     venueInstrumentId: "BTCUSDT",
-    factType: "LAST_PRICE",
+    factType: "MARK_PRICE",
     value: "100",
     unit: "USDT",
     sequence: "1",

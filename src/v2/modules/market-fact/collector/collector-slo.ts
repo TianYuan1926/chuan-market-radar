@@ -5,7 +5,7 @@ import {
 } from "./collector-worker-contract";
 
 export const M1_COLLECTOR_SLO_REPORT_SCHEMA_VERSION =
-  "v2-m1-collector-slo-report.v2" as const;
+  "v2-m1-collector-slo-report.v3" as const;
 
 export type CollectorSloPolicy = Readonly<{
   maxMissedScheduleStarts: number;
@@ -17,6 +17,7 @@ export type CollectorSloPolicy = Readonly<{
   minCollectionCoverageRatio: number;
   minCycles: number;
   minFreshCoverageRatio: number;
+  minPriceUsabilityCoverageRatio: number;
   minObservationMs: number;
   minOperationalReadyRatio: number;
 }>;
@@ -35,6 +36,7 @@ export type M1CollectorSloReport = Readonly<{
     minCollectionCoverageRatio: number | null;
     minEligibleCount: number | null;
     minFreshCoverageRatio: number | null;
+    minPriceUsabilityCoverageRatio: number | null;
     missedScheduleStarts: number;
     observationMs: number;
     operationalReadyRatio: number | null;
@@ -75,6 +77,7 @@ function validatePolicy(policy: CollectorSloPolicy): void {
     policy.minCheckpointRatio,
     policy.minCollectionCoverageRatio,
     policy.minFreshCoverageRatio,
+    policy.minPriceUsabilityCoverageRatio,
     policy.minOperationalReadyRatio,
   ];
   if (
@@ -153,6 +156,9 @@ export function evaluateM1CollectorSlo(input: {
   const collectionRatios = cycles
     .map((cycle) => cycle.runtime.coverage.collectionCoverage.ratio)
     .filter((value): value is number => value !== null);
+  const priceUsabilityRatios = cycles
+    .map((cycle) => cycle.runtime.coverage.priceUsabilityCoverage.ratio)
+    .filter((value): value is number => value !== null);
   const reconciledObserved = cycles
     .map((cycle) => cycle.runtime.coverage.providerObservedCount)
     .filter((value): value is number => value !== null);
@@ -169,6 +175,7 @@ export function evaluateM1CollectorSlo(input: {
       (cycle) => cycle.runtime.coverage.eligibleCount,
     )),
     minFreshCoverageRatio: minimum(freshRatios),
+    minPriceUsabilityCoverageRatio: minimum(priceUsabilityRatios),
     missedScheduleStarts: cycles.reduce(
       (sum, cycle) => sum + cycle.missedScheduleStarts,
       0,
@@ -218,6 +225,11 @@ export function evaluateM1CollectorSlo(input: {
     ...(metrics.minFreshCoverageRatio !== null &&
       metrics.minFreshCoverageRatio < input.policy.minFreshCoverageRatio
       ? ["fresh_coverage_below_slo"]
+      : []),
+    ...(metrics.minPriceUsabilityCoverageRatio !== null &&
+      metrics.minPriceUsabilityCoverageRatio <
+        input.policy.minPriceUsabilityCoverageRatio
+      ? ["price_usability_coverage_below_slo"]
       : []),
     ...(metrics.operationalReadyRatio !== null &&
       metrics.operationalReadyRatio < input.policy.minOperationalReadyRatio

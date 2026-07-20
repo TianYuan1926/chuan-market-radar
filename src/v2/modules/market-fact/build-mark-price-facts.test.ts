@@ -2,17 +2,17 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   BINANCE_CATALOG,
-  BINANCE_TICKERS,
+  BINANCE_MARK_PRICES,
   BYBIT_CATALOG,
-  BYBIT_TICKERS,
+  BYBIT_MARK_PRICES,
   CATALOG_RECEIVED_AT,
   EVENT_TIME_MS,
   GENERATED_AT,
   NORMALIZED_AT,
   OKX_CATALOG,
-  OKX_TICKERS,
+  OKX_MARK_PRICES,
   SOURCE_CUTOFF,
-  TICKER_RECEIVED_AT,
+  PRICE_SNAPSHOT_RECEIVED_AT,
 } from "../../testing/m1-provider-fixtures";
 import type { EligibleInstrumentSnapshot } from "../../domain/contracts";
 import type { TargetVenue } from "../../domain/product-constitution";
@@ -21,11 +21,11 @@ import { fetchBybitCatalog } from "../universe/adapters/bybit-catalog";
 import { fetchOkxCatalog } from "../universe/adapters/okx-catalog";
 import { buildEligibleInstrumentSnapshot } from "../universe/build-eligible-snapshot";
 import type { PublicJsonTransport } from "../universe/public-json-transport";
-import { fetchBinanceTickers } from "./adapters/binance-ticker";
-import { fetchBybitTickers } from "./adapters/bybit-ticker";
-import { fetchOkxTickers } from "./adapters/okx-ticker";
-import { buildLastPriceFacts } from "./build-last-price-facts";
-import type { VenueTickerResult } from "./ticker-types";
+import { fetchBinanceMarkPrices } from "./adapters/binance-mark-price";
+import { fetchBybitMarkPrices } from "./adapters/bybit-mark-price";
+import { fetchOkxMarkPrices } from "./adapters/okx-mark-price";
+import { buildMarkPriceFacts } from "./build-mark-price-facts";
+import type { VenuePriceSnapshotResult } from "./price-snapshot-types";
 
 function transport(
   data: unknown,
@@ -54,24 +54,28 @@ async function validBatches(input: {
   bybit?: unknown;
   okx?: unknown;
   receivedAt?: string;
-} = {}): Promise<VenueTickerResult[]> {
-  const receivedAt = input.receivedAt ?? TICKER_RECEIVED_AT;
+} = {}): Promise<VenuePriceSnapshotResult[]> {
+  const receivedAt = input.receivedAt ?? PRICE_SNAPSHOT_RECEIVED_AT;
   return Promise.all([
-    fetchBinanceTickers(transport(input.binance ?? BINANCE_TICKERS, receivedAt)),
-    fetchOkxTickers(transport(input.okx ?? OKX_TICKERS, receivedAt)),
-    fetchBybitTickers(transport(input.bybit ?? BYBIT_TICKERS, receivedAt)),
+    fetchBinanceMarkPrices(
+      transport(input.binance ?? BINANCE_MARK_PRICES, receivedAt),
+    ),
+    fetchOkxMarkPrices(transport(input.okx ?? OKX_MARK_PRICES, receivedAt)),
+    fetchBybitMarkPrices(
+      transport(input.bybit ?? BYBIT_MARK_PRICES, receivedAt),
+    ),
   ]);
 }
 
 async function build(input: {
-  batches?: readonly VenueTickerResult[];
+  batches?: readonly VenuePriceSnapshotResult[];
   generatedAt?: string;
   maxAgeMs?: number;
   normalizedAt?: string;
   previousSequences?: Readonly<Record<string, string>>;
   sourceCutoff?: string;
 } = {}) {
-  return buildLastPriceFacts({
+  return buildMarkPriceFacts({
     batches: input.batches ?? await validBatches(),
     generatedAt: input.generatedAt ?? GENERATED_AT,
     maxAgeMs: input.maxAgeMs,
@@ -86,7 +90,7 @@ async function build(input: {
 function failureBatch(
   venue: TargetVenue,
   kind: "RATE_LIMITED" | "TRANSPORT_ERROR" = "TRANSPORT_ERROR",
-): VenueTickerResult {
+): VenuePriceSnapshotResult {
   return {
     failure: {
       kind,
@@ -97,7 +101,7 @@ function failureBatch(
     issues: [kind === "RATE_LIMITED" ? "provider_http_429" : "provider_request_failed"],
     observations: [],
     ok: false,
-    receivedAt: TICKER_RECEIVED_AT,
+    receivedAt: PRICE_SNAPSHOT_RECEIVED_AT,
     venue,
   };
 }
@@ -152,26 +156,53 @@ test("rejects duplicate, out-of-order and duplicate-provider observations", asyn
   const olderTime = String(BigInt(EVENT_TIME_MS) - BigInt(1_000));
   const outOfOrder = await build({
     batches: await validBatches({
-      binance: [{ price: "42000", symbol: "BTCUSDT", time: olderTime }],
+      binance: [{ markPrice: "42000", symbol: "BTCUSDT", time: olderTime }],
     }),
     previousSequences: { [binanceId]: EVENT_TIME_MS },
   });
   const duplicatedRows = await build({
     batches: await validBatches({
-      binance: [BINANCE_TICKERS[0], BINANCE_TICKERS[0]],
+      binance: [BINANCE_MARK_PRICES[0], BINANCE_MARK_PRICES[0]],
     }),
   });
 
   assert.equal(duplicate.facts[0]?.value, null);
-  assert.ok(duplicate.facts[0]?.quality.reasonCodes.includes("duplicate_ticker_sequence"));
+  assert.ok(duplicate.facts[0]?.quality.reasonCodes.includes(
+    "duplicate_mark_price_snapshot_sequence",
+  ));
   assert.equal(outOfOrder.facts[0]?.value, null);
   assert.ok(
     outOfOrder.facts[0]?.quality.reasonCodes.includes(
-      "out_of_order_ticker_sequence",
+      "out_of_order_mark_price_snapshot_sequence",
     ),
   );
   assert.equal(duplicatedRows.facts[0]?.value, null);
   assert.equal(duplicatedRows.qualitySnapshot.duplicateRate, 1 / 3);
+});
+
+test("accepts an unchanged mark price only when its snapshot time advances", async () => {
+  const targetUniverse = await universe();
+  const binanceId = targetUniverse.accounting.find(
+    (record) => record.venue === "BINANCE_FUTURES",
+  )!.canonicalInstrumentId!;
+  const newerTime = String(BigInt(EVENT_TIME_MS) + BigInt(1_000));
+  const result = await build({
+    batches: await validBatches({
+      binance: [{ markPrice: "42000.00", symbol: "BTCUSDT", time: newerTime }],
+      receivedAt: "2026-01-15T00:00:02.100Z",
+    }),
+    generatedAt: "2026-01-15T00:00:02.300Z",
+    normalizedAt: "2026-01-15T00:00:02.200Z",
+    previousSequences: { [binanceId]: EVENT_TIME_MS },
+    sourceCutoff: "2026-01-15T00:00:02.000Z",
+  });
+  const binance = result.facts.find(
+    (fact) => fact.canonicalInstrumentId === binanceId,
+  );
+
+  assert.equal(binance?.value, "42000.00");
+  assert.equal(binance?.quality.status, "FRESH");
+  assert.equal(result.nextSequences[binanceId], newerTime);
 });
 
 test("marks large sequence gaps partial and old events stale while retaining provenance", async () => {
@@ -226,7 +257,7 @@ test("blocks provider events that occur after the declared point-in-time cutoff"
   const futureMs = String(BigInt(EVENT_TIME_MS) + BigInt(1_000));
   const result = await build({
     batches: await validBatches({
-      binance: [{ price: "42000", symbol: "BTCUSDT", time: futureMs }],
+      binance: [{ markPrice: "42000", symbol: "BTCUSDT", time: futureMs }],
       receivedAt: "2026-01-15T00:00:02.000Z",
     }),
     generatedAt: "2026-01-15T00:00:02.200Z",
@@ -237,7 +268,7 @@ test("blocks provider events that occur after the declared point-in-time cutoff"
   assert.equal(result.facts[0]?.lineage.eventTime, null);
   assert.ok(
     result.facts[0]?.quality.reasonCodes.includes(
-      "ticker_event_after_source_cutoff",
+      "mark_price_event_after_source_cutoff",
     ),
   );
 });

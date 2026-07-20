@@ -93,7 +93,7 @@ test("rejects checkpoint sequence, digest and authority tampering", async () => 
   );
 });
 
-test("restores exact universe, sequence, schedule and ordinal for ticker-only continuation", async () => {
+test("restores exact universe, sequence, schedule and ordinal for mark-price-only continuation", async () => {
   const { clock, result, runtimeConfig } = await persistedCycle();
   assert.ok(result.artifacts);
   const checkpoint = buildM1CollectorCheckpoint({ result, runtimeConfig });
@@ -118,7 +118,7 @@ test("restores exact universe, sequence, schedule and ordinal for ticker-only co
 
   const continued = await restoredRuntime.runNextCycle();
 
-  assert.equal(continued.telemetry.trigger, "INCREMENTAL_TICKER");
+  assert.equal(continued.telemetry.trigger, "INCREMENTAL_MARK_PRICE");
   assert.equal(continued.telemetry.state, "READY");
   assert.ok(continued.telemetry.cycleId.endsWith(":1"));
   assert.equal(
@@ -126,7 +126,9 @@ test("restores exact universe, sequence, schedule and ordinal for ticker-only co
     0,
   );
   assert.equal(
-    providerAfterRestart.calls.filter((call) => call.operation === "TICKER").length,
+    providerAfterRestart.calls.filter(
+      (call) => call.operation === "MARK_PRICE",
+    ).length,
     3,
   );
 });

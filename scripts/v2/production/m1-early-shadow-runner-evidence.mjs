@@ -13,9 +13,37 @@ import {
 } from "./m1-reachable-runner-preflight.mjs";
 
 export const B1B_EVIDENCE_SCHEMA_VERSION =
-  "v2-m1-early-shadow-runner-evidence.v1";
+  "v2-m1-early-shadow-runner-evidence.v2";
 export const B1B_SCOPE_LABEL = "b1b-isolated-early-shadow";
 export const B1B_RELEASE_PREFIX = "m1-5-b1b";
+
+export function earlyShadowWorkerContractEnvironment(input) {
+  assert.match(input.sourceCommit, COMMIT_PATTERN);
+  assert.equal(
+    input.releaseId,
+    `${B1B_RELEASE_PREFIX}:${input.sourceCommit}`,
+    "early-shadow release must bind the exact source commit",
+  );
+  return Object.freeze([
+    "NODE_ENV=production",
+    "V2_M1_COLLECTOR_AUTHORITY_MODE=NO_AUTHORITY",
+    "V2_M1_COLLECTOR_AUTOMATIC_TRADING_ALLOWED=false",
+    `V2_M1_COLLECTOR_SOURCE_COMMIT=${input.sourceCommit}`,
+    `V2_M1_COLLECTOR_RELEASE_ID=${input.releaseId}`,
+    "V2_M1_COLLECTOR_POLICY_VERSION=m1-live-linear-usdt-perpetual.v1",
+    "V2_M1_COLLECTOR_RUN_PROFILE=EARLY_30_MINUTES",
+    "V2_M1_COLLECTOR_DATABASE_HOST=v2-m1-postgres",
+    "V2_M1_COLLECTOR_DATABASE_NAME=v2_m1_b1b",
+    "V2_M1_COLLECTOR_CYCLE_INTERVAL_MS=60000",
+    "V2_M1_COLLECTOR_MAX_CYCLES=31",
+    "V2_M1_COLLECTOR_MAX_FACT_AGE_MS=60000",
+    "V2_M1_COLLECTOR_MAX_SEQUENCE_GAP_MS=300000",
+    "V2_M1_COLLECTOR_RECONCILIATION_INTERVAL_MS=3600000",
+    "V2_M1_COLLECTOR_RETENTION_MS=604800000",
+    "V2_M1_COLLECTOR_WRITER_DATABASE_URL_FILE=/run/secrets/v2_m1_writer_database_url",
+    "V2_M1_COLLECTOR_READER_DATABASE_URL_FILE=/run/secrets/v2_m1_reader_database_url",
+  ]);
+}
 
 const SHA256_PATTERN = /^sha256:[0-9a-f]{64}$/u;
 const COMMIT_PATTERN = /^[0-9a-f]{40}$/u;
@@ -40,6 +68,36 @@ const FORBIDDEN_RUNTIME_PATHS = [
   "/app/scripts",
   "/app/src",
 ];
+const EVIDENCE_VALIDATION_CODES = new Set([
+  "COLLECTOR_IMAGE_EVIDENCE_VALIDATION_FAILED",
+  "DOMAIN_EVIDENCE_VALIDATION_FAILED",
+  "HOST_SAFETY_EVIDENCE_VALIDATION_FAILED",
+  "NETWORK_EVIDENCE_VALIDATION_FAILED",
+  "PINNED_SUPPLY_CHAIN_EVIDENCE_VALIDATION_FAILED",
+  "POSTGRES_RUNTIME_EVIDENCE_VALIDATION_FAILED",
+  "RAW_ARTIFACT_EVIDENCE_VALIDATION_FAILED",
+  "RUNNER_INPUT_EVIDENCE_VALIDATION_FAILED",
+  "RUNTIME_PROBE_EVIDENCE_VALIDATION_FAILED",
+  "WORKER_RUNTIME_EVIDENCE_VALIDATION_FAILED",
+]);
+
+function validateStage(code, operation) {
+  try {
+    return operation();
+  } catch {
+    const error = new Error(code);
+    error.name = "EarlyShadowEvidenceValidationError";
+    error.code = code;
+    throw error;
+  }
+}
+
+export function classifyEarlyShadowEvidenceValidationError(error) {
+  return error instanceof Error &&
+      EVIDENCE_VALIDATION_CODES.has(error.code)
+    ? error.code
+    : "SANITIZED_EVIDENCE_VALIDATION_FAILED";
+}
 
 function isRecord(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -97,7 +155,7 @@ function validateRawArtifacts(input) {
     assert.equal(observation.event, "M1_COLLECTOR_CYCLE");
     assert.equal(
       observation.schemaVersion,
-      "v2-m1-collector-observation-log.v1",
+      "v2-m1-collector-observation-log.v2",
     );
     assert.ok(isRecord(observation.cycle));
     assert.equal(observation.cycle.authorityMode, "NO_AUTHORITY");
@@ -106,7 +164,7 @@ function validateRawArtifacts(input) {
     assert.equal(observation.cycle.releaseId, input.releaseId);
     assert.equal(
       observation.cycle.schemaVersion,
-      "v2-m1-collector-worker-cycle.v1",
+      "v2-m1-collector-worker-cycle.v2",
     );
     assert.match(observation.cycle.runtimeConfigDigest, SHA256_PATTERN);
     assert.equal(typeof observation.cycle.workerRunId, "string");
@@ -269,31 +327,10 @@ function validateWorker(input) {
   );
 
   const environment = environmentMap(worker.Config?.Env, "worker");
-  const expected = new Map([
-    ["NODE_ENV", "production"],
-    ["V2_M1_COLLECTOR_AUTHORITY_MODE", "NO_AUTHORITY"],
-    ["V2_M1_COLLECTOR_AUTOMATIC_TRADING_ALLOWED", "false"],
-    ["V2_M1_COLLECTOR_SOURCE_COMMIT", input.sourceCommit],
-    ["V2_M1_COLLECTOR_RELEASE_ID", input.releaseId],
-    ["V2_M1_COLLECTOR_POLICY_VERSION", "m1-live-linear-usdt-perpetual.v1"],
-    ["V2_M1_COLLECTOR_RUN_PROFILE", "EARLY_30_MINUTES"],
-    ["V2_M1_COLLECTOR_DATABASE_HOST", "v2-m1-postgres"],
-    ["V2_M1_COLLECTOR_DATABASE_NAME", "v2_m1_b1b"],
-    ["V2_M1_COLLECTOR_CYCLE_INTERVAL_MS", "60000"],
-    ["V2_M1_COLLECTOR_MAX_CYCLES", "31"],
-    ["V2_M1_COLLECTOR_MAX_FACT_AGE_MS", "60000"],
-    ["V2_M1_COLLECTOR_MAX_SEQUENCE_GAP_MS", "300000"],
-    ["V2_M1_COLLECTOR_RECONCILIATION_INTERVAL_MS", "86400000"],
-    ["V2_M1_COLLECTOR_RETENTION_MS", "604800000"],
-    [
-      "V2_M1_COLLECTOR_WRITER_DATABASE_URL_FILE",
-      "/run/secrets/v2_m1_writer_database_url",
-    ],
-    [
-      "V2_M1_COLLECTOR_READER_DATABASE_URL_FILE",
-      "/run/secrets/v2_m1_reader_database_url",
-    ],
-  ]);
+  const expected = environmentMap(
+    earlyShadowWorkerContractEnvironment(input),
+    "early-shadow worker contract",
+  );
   for (const [name, value] of expected) {
     assert.equal(environment.get(name), value, `worker ${name} drifted`);
   }
@@ -410,7 +447,7 @@ function validateDomainEvidence(input, rawArtifacts) {
   );
   assert.equal(
     evidence.schemaVersion,
-    "v2-m1-collector-early-shadow-evidence.v1",
+    "v2-m1-collector-early-shadow-evidence.v2",
   );
   assert.equal(evidence.authorityMode, "NO_AUTHORITY");
   assert.equal(evidence.automaticTradingAllowed, false);
@@ -497,45 +534,80 @@ export function verifyEarlyShadowRunnerEvidence(report) {
 }
 
 export function buildEarlyShadowRunnerEvidence(input) {
-  assert.match(input.sourceCommit, COMMIT_PATTERN);
-  assert.equal(input.repository, B1A_REPOSITORY);
-  assert.equal(input.ref, `refs/heads/${B1A_BRANCH}`);
-  assert.equal(input.runnerProvider, B1A_TENCENT_RUNNER_PROVIDER);
-  assert.match(String(input.runId), /^[1-9][0-9]{9,15}$/u);
-  assert.equal(new Date(input.generatedAt).toISOString(), input.generatedAt);
-  assert.equal(input.releaseId, `${B1B_RELEASE_PREFIX}:${input.sourceCommit}`);
-  assert.ok(Buffer.isBuffer(input.processOutputBytes));
-  assert.ok(Buffer.isBuffer(input.observationBytes));
-  const rawArtifacts = validateRawArtifacts(input);
-  const domainEvidence = validateDomainEvidence(input, rawArtifacts);
-  const collectorImageId = validateImage(input);
-  const runtimeProbe = validateRuntimeProbe(input.runtimeProbe);
-  const nodeBaseImageId = validatePinnedImage(
-    input.nodeBaseImageInspect,
-    B1A_NODE_BASE_IMAGE,
-    "Node base image",
+  validateStage("RUNNER_INPUT_EVIDENCE_VALIDATION_FAILED", () => {
+    assert.match(input.sourceCommit, COMMIT_PATTERN);
+    assert.equal(input.repository, B1A_REPOSITORY);
+    assert.equal(input.ref, `refs/heads/${B1A_BRANCH}`);
+    assert.equal(input.runnerProvider, B1A_TENCENT_RUNNER_PROVIDER);
+    assert.match(String(input.runId), /^[1-9][0-9]{9,15}$/u);
+    assert.equal(new Date(input.generatedAt).toISOString(), input.generatedAt);
+    assert.equal(input.releaseId, `${B1B_RELEASE_PREFIX}:${input.sourceCommit}`);
+    assert.ok(Buffer.isBuffer(input.processOutputBytes));
+    assert.ok(Buffer.isBuffer(input.observationBytes));
+  });
+  const rawArtifacts = validateStage(
+    "RAW_ARTIFACT_EVIDENCE_VALIDATION_FAILED",
+    () => validateRawArtifacts(input),
   );
-  const postgresImageId = validatePinnedImage(
-    input.postgresImageInspect,
-    B1A_POSTGRES_IMAGE,
-    "Postgres image",
+  const domainEvidence = validateStage(
+    "DOMAIN_EVIDENCE_VALIDATION_FAILED",
+    () => validateDomainEvidence(input, rawArtifacts),
   );
-  const buildxImageId = validatePinnedImage(
-    input.buildxImageInspect,
-    B1A_BUILDX_IMAGE,
-    "Buildx image",
+  const collectorImageId = validateStage(
+    "COLLECTOR_IMAGE_EVIDENCE_VALIDATION_FAILED",
+    () => validateImage(input),
   );
-  for (const [value, label] of [
-    [input.runnerBinaryBytes, "runner binary"],
-    [input.runnerPluginBytes, "runner plugin"],
-  ]) {
-    assert.ok(Buffer.isBuffer(value) && value.length > 0, `${label} is required`);
-  }
-  const worker = validateWorker(input);
-  const postgresNetwork = validatePostgres(input, worker.networks);
-  const networks = validateNetworks(input);
-  assert.ok(networks.some((network) => network.name === postgresNetwork));
-  const hostSafety = validateTencentHostSafety(input.hostSafety);
+  const runtimeProbe = validateStage(
+    "RUNTIME_PROBE_EVIDENCE_VALIDATION_FAILED",
+    () => validateRuntimeProbe(input.runtimeProbe),
+  );
+  const { buildxImageId, nodeBaseImageId, postgresImageId } = validateStage(
+    "PINNED_SUPPLY_CHAIN_EVIDENCE_VALIDATION_FAILED",
+    () => {
+      const nodeBaseImageId = validatePinnedImage(
+        input.nodeBaseImageInspect,
+        B1A_NODE_BASE_IMAGE,
+        "Node base image",
+      );
+      const postgresImageId = validatePinnedImage(
+        input.postgresImageInspect,
+        B1A_POSTGRES_IMAGE,
+        "Postgres image",
+      );
+      const buildxImageId = validatePinnedImage(
+        input.buildxImageInspect,
+        B1A_BUILDX_IMAGE,
+        "Buildx image",
+      );
+      for (const value of [
+        input.runnerBinaryBytes,
+        input.runnerPluginBytes,
+      ]) {
+        assert.ok(Buffer.isBuffer(value) && value.length > 0);
+      }
+      return { buildxImageId, nodeBaseImageId, postgresImageId };
+    },
+  );
+  const worker = validateStage(
+    "WORKER_RUNTIME_EVIDENCE_VALIDATION_FAILED",
+    () => validateWorker(input),
+  );
+  const postgresNetwork = validateStage(
+    "POSTGRES_RUNTIME_EVIDENCE_VALIDATION_FAILED",
+    () => validatePostgres(input, worker.networks),
+  );
+  const networks = validateStage(
+    "NETWORK_EVIDENCE_VALIDATION_FAILED",
+    () => {
+      const networks = validateNetworks(input);
+      assert.ok(networks.some((network) => network.name === postgresNetwork));
+      return networks;
+    },
+  );
+  const hostSafety = validateStage(
+    "HOST_SAFETY_EVIDENCE_VALIDATION_FAILED",
+    () => validateTencentHostSafety(input.hostSafety),
+  );
   const businessGateConclusion = domainEvidence.businessGate.conclusion;
   const core = {
     artifacts: {

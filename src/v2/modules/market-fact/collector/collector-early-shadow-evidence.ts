@@ -24,7 +24,7 @@ const MAX_PROCESS_OUTPUT_BYTES = 32 * 1024 * 1024;
 const SHA256_PATTERN = /^sha256:[0-9a-f]{64}$/u;
 
 export const M1_COLLECTOR_EARLY_SHADOW_EVIDENCE_SCHEMA_VERSION =
-  "v2-m1-collector-early-shadow-evidence.v1" as const;
+  "v2-m1-collector-early-shadow-evidence.v2" as const;
 
 type CountRecord = Readonly<{ count: number; value: string }>;
 
@@ -46,6 +46,8 @@ export type M1CollectorEarlyShadowEvidence = Readonly<{
       minimumEligibleCount: number;
       minimumFreshCount: number;
       minimumFreshCoverageRatio: number;
+      minimumPriceUsabilityCoverageRatio: number;
+      minimumUsablePriceCount: number;
     }>;
     checkpointStatuses: readonly CountRecord[];
     cycleCount: 31;
@@ -69,6 +71,8 @@ export type M1CollectorEarlyShadowEvidence = Readonly<{
       minimumEligibleCount: number;
       minimumFreshCount: number;
       minimumFreshCoverageRatio: number;
+      minimumPriceUsabilityCoverageRatio: number;
+      minimumUsablePriceCount: number;
       providerFailureCycleCount: number;
       venue: (typeof TARGET_VENUES)[number];
     }>[];
@@ -247,6 +251,12 @@ function summarizeCoverage(cycles: readonly M1CollectorWorkerCycle[]) {
       minimumFreshCoverageRatio: minimum(coverages.map(
         (item) => item.freshCoverage.ratio ?? 0,
       )),
+      minimumPriceUsabilityCoverageRatio: minimum(coverages.map(
+        (item) => item.priceUsabilityCoverage.ratio ?? 0,
+      )),
+      minimumUsablePriceCount: minimum(coverages.map(
+        (item) => item.usablePriceCount,
+      )),
       providerFailureCycleCount: coverages.filter(
         (item) => item.providerFailures.length > 0,
       ).length,
@@ -275,6 +285,12 @@ function summarizeCoverage(cycles: readonly M1CollectorWorkerCycle[]) {
       ),
       minimumFreshCoverageRatio: minimum(aggregateCoverages.map(
         (item) => item.freshCoverage.ratio ?? 0,
+      )),
+      minimumPriceUsabilityCoverageRatio: minimum(aggregateCoverages.map(
+        (item) => item.priceUsabilityCoverage.ratio ?? 0,
+      )),
+      minimumUsablePriceCount: minimum(aggregateCoverages.map(
+        (item) => item.usablePriceCount,
       )),
     }),
     venues,

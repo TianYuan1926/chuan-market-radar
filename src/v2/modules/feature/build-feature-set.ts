@@ -26,7 +26,7 @@ export const M1_FEATURE_SET_VERSION = "m1-foundation-feature-set.v1" as const;
 export const M1_FEATURE_ENGINE_VERSION =
   "m1-point-in-time-feature-engine.v1" as const;
 export const CROSS_VENUE_DISPERSION_VERSION =
-  "cross-venue-last-price-dispersion.v1" as const;
+  "cross-venue-mark-price-dispersion.v1" as const;
 
 function uniqueSorted(values: readonly string[]): string[] {
   return [...new Set(values)].sort();
@@ -128,7 +128,7 @@ function validateInput(input: {
     if (
       instrument === undefined ||
       factByInstrument.has(fact.canonicalInstrumentId) ||
-      fact.factType !== "LAST_PRICE" ||
+      fact.factType !== "MARK_PRICE" ||
       fact.venueInstrumentId !== instrument.venueInstrumentId ||
       fact.unit !== instrument.settlementAsset ||
       fact.sourceCutoff !== input.sourceCutoff ||

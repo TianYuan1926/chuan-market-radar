@@ -7,17 +7,17 @@ import type { TargetVenue } from "../../../domain/product-constitution";
 import type { M1ArtifactName } from "../store/contracts";
 import type { M1ArtifactAppendRequest } from "../store/postgres-artifact-store";
 import type { VenueCatalogResult } from "../../universe/catalog-types";
-import type { VenueTickerResult } from "../ticker-types";
+import type { VenuePriceSnapshotResult } from "../price-snapshot-types";
 
 export const M1_COLLECTOR_RUNTIME_SCHEMA_VERSION =
-  "v2-m1-collector-runtime.v1" as const;
+  "v2-m1-collector-runtime.v2" as const;
 
 export const M1_COLLECTOR_DEFAULT_RECONCILIATION_INTERVAL_MS =
   24 * 60 * 60 * 1_000;
 
 export type CollectorCycleTrigger =
   | "STARTUP_FULL"
-  | "INCREMENTAL_TICKER"
+  | "INCREMENTAL_MARK_PRICE"
   | "PERIODIC_RECONCILIATION"
   | "RECOVERY";
 
@@ -35,7 +35,7 @@ export type CollectorDurableRuntimeState =
   | "DEGRADED"
   | "BACKPRESSURED";
 
-export type CollectorProviderOperation = "CATALOG" | "TICKER";
+export type CollectorProviderOperation = "CATALOG" | "MARK_PRICE";
 
 export type CollectorProviderFailureEvidence = Readonly<{
   kind: string;
@@ -58,8 +58,10 @@ export type CollectorVenueCoverage = Readonly<{
   eligibleCount: number;
   freshCount: number;
   freshCoverage: CollectorRatioEvidence;
+  priceUsabilityCoverage: CollectorRatioEvidence;
   providerObservedCount: number | null;
   providerFailures: readonly CollectorProviderFailureEvidence[];
+  usablePriceCount: number;
   venue: TargetVenue;
 }>;
 
@@ -71,7 +73,9 @@ export type CollectorCoverage = Readonly<{
   eligibleCount: number;
   freshCount: number;
   freshCoverage: CollectorRatioEvidence;
+  priceUsabilityCoverage: CollectorRatioEvidence;
   providerObservedCount: number | null;
+  usablePriceCount: number;
   venues: readonly CollectorVenueCoverage[];
 }>;
 
@@ -155,7 +159,7 @@ export type CollectorDurableState = Readonly<{
 
 export type CollectorVenueAdapter = Readonly<{
   fetchCatalog(): Promise<VenueCatalogResult>;
-  fetchTickers(): Promise<VenueTickerResult>;
+  fetchPriceSnapshots(): Promise<VenuePriceSnapshotResult>;
   venue: TargetVenue;
 }>;
 

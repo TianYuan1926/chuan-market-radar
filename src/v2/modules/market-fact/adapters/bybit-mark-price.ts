@@ -1,10 +1,10 @@
 import { z } from "zod";
 import type { PublicJsonTransport } from "../../universe/public-json-transport";
-import { tickerObservation } from "../ticker-normalization";
+import { markPriceObservation } from "../mark-price-normalization";
 import {
-  failedTickerBatch,
-  type VenueTickerResult,
-} from "../ticker-types";
+  failedPriceSnapshotBatch,
+  type VenuePriceSnapshotResult,
+} from "../price-snapshot-types";
 
 const VENUE = "BYBIT_LINEAR_PERPETUAL" as const;
 const HOST = "api.bybit.com";
@@ -20,16 +20,16 @@ const EnvelopeSchema = z.object({
 });
 const RetCodeSchema = z.object({ retCode: z.number().int() });
 const RowSchema = z.object({
-  lastPrice: z.unknown().optional(),
+  markPrice: z.unknown().optional(),
   symbol: z.unknown().optional(),
 });
 
-export async function fetchBybitTickers(
+export async function fetchBybitMarkPrices(
   transport: PublicJsonTransport,
-): Promise<VenueTickerResult> {
+): Promise<VenuePriceSnapshotResult> {
   const response = await transport({ allowedHost: HOST, url: URL });
   if (!response.ok) {
-    return failedTickerBatch({
+    return failedPriceSnapshotBatch({
       failure: response.failure,
       receivedAt: response.receivedAt,
       venue: VENUE,
@@ -38,10 +38,10 @@ export async function fetchBybitTickers(
 
   const retCode = RetCodeSchema.safeParse(response.data);
   if (retCode.success && retCode.data.retCode !== 0) {
-    return failedTickerBatch({
+    return failedPriceSnapshotBatch({
       failure: retCode.data.retCode === 10006
-        ? { kind: "RATE_LIMITED", reasonCode: "bybit_ticker_rate_limited" }
-        : { kind: "INVALID", reasonCode: "bybit_ticker_provider_error" },
+        ? { kind: "RATE_LIMITED", reasonCode: "bybit_mark_price_rate_limited" }
+        : { kind: "INVALID", reasonCode: "bybit_mark_price_provider_error" },
       receivedAt: response.receivedAt,
       venue: VENUE,
     });
@@ -53,8 +53,11 @@ export async function fetchBybitTickers(
     envelope.data.retCode !== 0 ||
     envelope.data.result.category !== "linear"
   ) {
-    return failedTickerBatch({
-      failure: { kind: "INVALID", reasonCode: "bybit_ticker_schema_drift" },
+    return failedPriceSnapshotBatch({
+      failure: {
+        kind: "INVALID",
+        reasonCode: "bybit_mark_price_schema_drift",
+      },
       receivedAt: response.receivedAt,
       venue: VENUE,
     });
@@ -62,11 +65,11 @@ export async function fetchBybitTickers(
 
   const observations = envelope.data.result.list.map((rawRecord, rowIndex) => {
     const row = RowSchema.safeParse(rawRecord);
-    return tickerObservation({
+    return markPriceObservation({
       eventTimestamp: envelope.data.time,
       rawRecord,
       rowIndex,
-      value: row.success ? row.data.lastPrice : null,
+      value: row.success ? row.data.markPrice : null,
       venue: VENUE,
       venueInstrumentId: row.success ? row.data.symbol : null,
     });

@@ -4,7 +4,7 @@
 
 ## 1. 目的与边界
 
-M1.2 只把 M1.1 的冻结 `Universe -> LAST_PRICE Fact + FactQuality` 推进为：
+M1.2 当前把 M1.1/B1-B2 的冻结 `Universe -> MARK_PRICE Fact + FactQuality` 推进为：
 
 ```text
 Point-in-Time FeatureSet
@@ -27,7 +27,7 @@ Point-in-Time FeatureSet
 
 ## 3. 首个 Feature
 
-定义版本：`cross-venue-last-price-dispersion.v1`。
+定义版本：`cross-venue-mark-price-dispersion.v1`。
 
 对于同一 underlying 在 Binance Futures、OKX Swap、Bybit Linear 的三个正价格：
 

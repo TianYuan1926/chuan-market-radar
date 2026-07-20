@@ -1,7 +1,7 @@
-import { fetchBinanceTickers } from "../modules/market-fact/adapters/binance-ticker";
-import { fetchBybitTickers } from "../modules/market-fact/adapters/bybit-ticker";
-import { fetchOkxTickers } from "../modules/market-fact/adapters/okx-ticker";
-import { buildLastPriceFacts } from "../modules/market-fact/build-last-price-facts";
+import { fetchBinanceMarkPrices } from "../modules/market-fact/adapters/binance-mark-price";
+import { fetchBybitMarkPrices } from "../modules/market-fact/adapters/bybit-mark-price";
+import { fetchOkxMarkPrices } from "../modules/market-fact/adapters/okx-mark-price";
+import { buildMarkPriceFacts } from "../modules/market-fact/build-mark-price-facts";
 import { buildCrossVenueFeatureSet } from "../modules/feature/build-feature-set";
 import { buildFeatureQualitySnapshot } from "../modules/feature/build-feature-quality";
 import { buildM1MarketContext } from "../modules/market-context/build-market-context";
@@ -12,16 +12,16 @@ import { buildEligibleInstrumentSnapshot } from "../modules/universe/build-eligi
 import type { PublicJsonTransport } from "../modules/universe/public-json-transport";
 import {
   BINANCE_CATALOG,
-  BINANCE_TICKERS,
+  BINANCE_MARK_PRICES,
   BYBIT_CATALOG,
-  BYBIT_TICKERS,
+  BYBIT_MARK_PRICES,
   CATALOG_RECEIVED_AT,
   GENERATED_AT,
   NORMALIZED_AT,
   OKX_CATALOG,
-  OKX_TICKERS,
+  OKX_MARK_PRICES,
   SOURCE_CUTOFF,
-  TICKER_RECEIVED_AT,
+  PRICE_SNAPSHOT_RECEIVED_AT,
 } from "./m1-provider-fixtures";
 
 function transport(data: unknown, receivedAt: string): PublicJsonTransport {
@@ -42,11 +42,17 @@ export async function buildFrozenM1IdentityFactSlice() {
     sourceCutoff: SOURCE_CUTOFF,
   });
   const batches = await Promise.all([
-    fetchBinanceTickers(transport(BINANCE_TICKERS, TICKER_RECEIVED_AT)),
-    fetchOkxTickers(transport(OKX_TICKERS, TICKER_RECEIVED_AT)),
-    fetchBybitTickers(transport(BYBIT_TICKERS, TICKER_RECEIVED_AT)),
+    fetchBinanceMarkPrices(
+      transport(BINANCE_MARK_PRICES, PRICE_SNAPSHOT_RECEIVED_AT),
+    ),
+    fetchOkxMarkPrices(
+      transport(OKX_MARK_PRICES, PRICE_SNAPSHOT_RECEIVED_AT),
+    ),
+    fetchBybitMarkPrices(
+      transport(BYBIT_MARK_PRICES, PRICE_SNAPSHOT_RECEIVED_AT),
+    ),
   ]);
-  const marketFacts = buildLastPriceFacts({
+  const marketFacts = buildMarkPriceFacts({
     batches,
     generatedAt: GENERATED_AT,
     normalizedAt: NORMALIZED_AT,

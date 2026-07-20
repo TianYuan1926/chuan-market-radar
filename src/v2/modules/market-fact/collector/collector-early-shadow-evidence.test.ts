@@ -45,8 +45,10 @@ function buildCycle(index: number): M1CollectorWorkerCycle {
       eligibleCount,
       freshCount: eligibleCount,
       freshCoverage: ratio(eligibleCount, eligibleCount),
+      priceUsabilityCoverage: ratio(eligibleCount, eligibleCount),
       providerFailures: [],
       providerObservedCount: eligibleCount,
+      usablePriceCount: eligibleCount,
       venue,
     };
   });
@@ -84,7 +86,9 @@ function buildCycle(index: number): M1CollectorWorkerCycle {
         eligibleCount,
         freshCount: eligibleCount,
         freshCoverage: ratio(eligibleCount, eligibleCount),
+        priceUsabilityCoverage: ratio(eligibleCount, eligibleCount),
         providerObservedCount: eligibleCount,
+        usablePriceCount: eligibleCount,
         venues: venueCoverage,
       },
       cycleId,
@@ -126,7 +130,7 @@ function buildCycle(index: number): M1CollectorWorkerCycle {
       schemaVersion: M1_COLLECTOR_RUNTIME_SCHEMA_VERSION,
       startedAt,
       state: "READY",
-      trigger: index === 1 ? "STARTUP_FULL" : "INCREMENTAL_TICKER",
+      trigger: index === 1 ? "STARTUP_FULL" : "INCREMENTAL_MARK_PRICE",
       universeSnapshotId: `universe:test:${index}`,
     },
     runtimeConfigDigest: RUNTIME_CONFIG_DIGEST,
@@ -147,7 +151,8 @@ function degradedCycle(input: {
   const venue = input.cycle.runtime.coverage.venues[0]!;
   const collectedCount = venue.collectedCount - collectionDeficit;
   const freshCount = venue.freshCount - input.freshDeficit;
-  assert.ok(freshCount >= 0 && freshCount <= collectedCount);
+  const usablePriceCount = Math.min(venue.usablePriceCount, collectedCount);
+  assert.ok(freshCount >= 0 && freshCount <= usablePriceCount);
   const venues = input.cycle.runtime.coverage.venues.map((item, index) =>
     index === 0
       ? {
@@ -156,15 +161,24 @@ function degradedCycle(input: {
         collectionCoverage: ratio(collectedCount, item.eligibleCount),
         freshCount,
         freshCoverage: ratio(freshCount, item.eligibleCount),
+        priceUsabilityCoverage: ratio(
+          usablePriceCount,
+          item.eligibleCount,
+        ),
+        usablePriceCount,
       }
       : item
   );
   const aggregate = input.cycle.runtime.coverage;
   const aggregateCollected = aggregate.collectedCount - collectionDeficit;
   const aggregateFresh = aggregate.freshCount - input.freshDeficit;
+  const aggregateUsable = aggregate.usablePriceCount - collectionDeficit;
   const reasons = [
     ...(collectionDeficit > 0 ? ["collection_coverage_incomplete"] : []),
     ...(input.freshDeficit > 0 ? ["fresh_coverage_incomplete"] : []),
+    ...(collectionDeficit > 0
+      ? ["price_usability_coverage_incomplete"]
+      : []),
   ];
   return parseM1CollectorWorkerCycle({
     ...input.cycle,
@@ -181,6 +195,11 @@ function degradedCycle(input: {
         ),
         freshCount: aggregateFresh,
         freshCoverage: ratio(aggregateFresh, aggregate.eligibleCount),
+        priceUsabilityCoverage: ratio(
+          aggregateUsable,
+          aggregate.eligibleCount,
+        ),
+        usablePriceCount: aggregateUsable,
         venues,
       },
       reasons,
@@ -225,6 +244,10 @@ test("builds one content-addressed 31-cycle business PASS without claiming M1 ex
   assert.equal(evidence.capture.operationalReadyCycleCount, 31);
   assert.equal(evidence.capture.aggregate.minimumCollectionCoverageRatio, 1);
   assert.equal(evidence.capture.aggregate.minimumFreshCoverageRatio, 1);
+  assert.equal(
+    evidence.capture.aggregate.minimumPriceUsabilityCoverageRatio,
+    1,
+  );
   assert.equal(evidence.slo.metrics.observationMs, 30 * 60 * 1_000 + 1_000);
   assert.equal(evidence.sourceArtifacts.processOutputDigest,
     `sha256:${createHash("sha256").update(output).digest("hex")}`,

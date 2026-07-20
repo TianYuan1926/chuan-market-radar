@@ -9,18 +9,18 @@
 - [x] **M0.0 干净开工基线**：从最新 `origin/main` 建立独立 V2 实施分支，记录设计来源、排除的旧 G0 祖先、生产只读状态和永久禁区。验证：实施分支相对 `origin/main` 仅含已审查 V2 提交，生产仍为零变更。
 - [x] **M0.1-M0.3 宪法、合同与隔离骨架**：冻结产品术语、18 个 Module、五维状态、四类不确定性、爆发行情标签、Legacy Capability Atlas、`src/v2` import fence、30 个权威产物 runtime schema 和第一条 M1 fixture。验证：V2 38/38、M0 十项机器出口与完整 `ci:production` PASS；Legacy 与 V2 零运行时互引，Legacy 539 个源文件已建立消费者地图，旧代码零删除，生产零变更。
 - [ ] **M1 数据真值纵向切片**：按 `Universe -> Fact + Quality -> Point-in-Time Feature -> Market Context -> Runtime Truth` 建设，先贯通一个标的和三家 Venue，再扩大到全部 eligible instrument。验证：100% instrument accounting、无假 0、实时/回放同源、lineage 可追溯、故障诚实降级。
-- [x] **M1.1 三 Venue Identity + Fact 本地纵切**：实现固定 HTTPS/GET Transport、Binance/OKX/Bybit catalog/ticker Adapter、完整 instrument accounting、不可变 Fact/Quality、分页/冲突/缺失/429/transport/duplicate/out-of-order/gap/stale/recovery 门禁。状态：`LOCAL_PASS_FROZEN_PROVIDER_CONTRACT / LIVE_CONNECTIVITY_UNPROVEN / PRODUCTION_UNCHANGED`。
+- [x] **M1.1 三 Venue Identity + Fact 本地纵切**：实现固定 HTTPS/GET Transport、Binance/OKX/Bybit catalog/price Adapter、完整 instrument accounting、不可变 Fact/Quality、分页/冲突/缺失/429/transport/duplicate/out-of-order/gap/stale/recovery 门禁。原 `LAST_PRICE` 已在 B1-B2 被 `MARK_PRICE / MARK_PRICE_SNAPSHOT` 替代。状态：`LOCAL_PASS_FROZEN_PROVIDER_CONTRACT / LIVE_CONNECTIVITY_UNPROVEN / PRODUCTION_UNCHANGED`。
 - [x] **M1.2 Point-in-Time Feature + Context 纯函数纵切**：已实现三 Venue 同一 underlying 的精确价格分散度、带独立 ONLINE/REPLAY run 证据的 FeatureQuality，以及只在证据充分时识别价格碎片化的最小非方向性 Market Context。状态：`LOCAL_PASS_84_OF_84_V2 / PRODUCTION_UNCHANGED`；不能访问 cutoff 后数据，不输出 Candidate、方向或交易计划。
 - [x] **M1.3 Fact Store + Replay + Runtime Truth**：已在隔离 PostgreSQL 16 演练 append-only artifact ledger、原子 Universe/Fact/Quality 分母、幂等冲突、retention metadata、双 cutoff replay manifest、五类 NOLOGIN capability role、完整 payload 篡改检测、两次 durable replay 和五维 Runtime Truth。状态：`LOCAL_POSTGRES16_REHEARSAL_PASS / PRODUCTION_UNCHANGED`；没有 production migration、live ingestion 或 authority。
-- [x] **M1.4 全 eligible Universe + Collector Runtime 本地纵切**：已从 BTC 三 Venue fixture 扩大到 21 observed / 15 eligible 的多标的版本化范围，完成启动全量、增量 ticker、周期 reconciliation、配额/并发/背压、冷启动、目录 tombstone、恢复、strict telemetry 和真实 PG16 原子落库。状态：`LOCAL_POSTGRES16_REHEARSAL_PASS / LIVE_MARKET_UNPROVEN / PRODUCTION_UNCHANGED`。
+- [x] **M1.4 全 eligible Universe + Collector Runtime 本地纵切**：已从 BTC 三 Venue fixture 扩大到 21 observed / 15 eligible 的多标的版本化范围，完成启动全量、增量 mark-price、周期 reconciliation、配额/并发/背压、冷启动、目录 tombstone、恢复、strict telemetry 和真实 PG16 原子落库。状态：`LOCAL_POSTGRES16_REHEARSAL_PASS / LIVE_MARKET_UNPROVEN / PRODUCTION_UNCHANGED`。
 - [x] **M1.5-A Durable Worker 本地出口**：已完成独立 additive checkpoint migration、artifact 引用约束、config/sequence/content digest、精确 release 恢复、固定节拍 skip-missed Worker、优雅停止、强制 telemetry sink、NO_AUTHORITY 进程入口和三态 SLO evaluator；定向 30/30、全 V2 130 pass / 0 fail / 4 explicit skip，隔离 PG16 真实重启恢复 1/1。状态：`LOCAL_ENGINEERING_AND_POSTGRES16_PASS / PRODUCTION_UNCHANGED`。
 - [x] **M1.5-B0 Shadow Release Safety 本地出口**：已补齐显式 reader/writer `SET ROLE` 与会话身份核验、secret-file URL、完整 strict observation JSONL、固定 30 分钟/24 小时 SLO 档位、有限周期、专用非 root/read-only/no-Legacy-secret 镜像与 Compose 模板。定向 41/41、全 V2 136 pass / 0 fail / 4 explicit external-dependency skips、三项隔离 PG16 回归与完整 `ci:production` PASS；Legacy Consumer Map 保持 539。B1-A 随后补齐真实 image build、三 Venue egress 和隔离 Docker Runner 证明。
 - [x] **M1.5-B1-A Reachable Docker Runner 技术预检**：在腾讯生产宿主机的隔离 no-authority Runner 上，以 exact source commit `97f10e75ce296b07d933e9c362c40ba2be0997ea` 构建并运行专用镜像。两周期均完成 1,444/1,444 eligible/collected、三 Venue 无 provider failure、checkpoint/persistence `INSERTED`、完整清理并精确恢复宿主机 11 容器/4 network/5 volume 基线。技术结论 `PASS_REACHABLE_DOCKER_RUNNER`；业务结论必须保留为 `FAIL`：READY 0/2，fresh 1,441/1,444 后降至 1,274/1,444，出现 stale/duplicate 与 60 秒调度缺口。该 PASS 只证明 Runner 可用，不证明 Market Fact SLO。
 - [ ] **M1.5-B1-B Bounded Early Shadow 业务门禁**：必须用固定 60 秒节拍和同一冻结 release/config 取得 31 个完整周期、至少 30 分钟证据。B1-A 暴露的 freshness/duplicate/schedule 问题必须进入分母，任何 `NOT_READY` 或 SLO `FAIL` 都不能被包状态遮蔽。
 - [x] **M1.5-B1-B0 31 周期证据合同与原子 Runner**：已实现内容寻址 observation/domain/runner evidence、完整 `M1CollectorWorkerCycle` JSONL、每 Venue 与 aggregate 分母、资源/调度/checkpoint 指标、exact release/image/config、无生产 authority、固定 31 周期与宿主机精确恢复。中断或短包必须清理后从第 1 周期重跑，严禁拼接。M1 专用 68/68、全 V2 274/0/5 explicit skip、ops 31/31 与完整 `ci:production` PASS；状态：`LOCAL_ENGINEERING_PASS / BUSINESS_SLO_UNPROVEN / PRODUCTION_UNCHANGED`。
-- [ ] **M1.5-B1-B1 31 周期原始实测**：当前唯一执行入口。在隔离腾讯 Runner 绑定 B1-B0 exact commit 执行冻结合同，不预改门槛。包只在 31 周期原子证据完整、可重算且宿主机已精确清理时算“实测完成”；业务 Gate 仍按 SLO 独立给出 PASS/FAIL。
-- [ ] **M1.5-B1-B2 Market Fact Freshness 语义整改（条件包）**：若 B1-B1 失败，先区分 provider snapshot 接收新鲜度、逐标的市场事件新鲜度和下游价格可用性，再修 Adapter/Quality/Collector；不得放宽 120 秒、不得把 duplicate 或 carried-forward 数据标成 FRESH、不得补 0。
-- [ ] **M1.5-B1-B3 固定门槛复验（条件包）**：整改后必须用相同 31 周期、60 秒节拍、SLO 与分母重跑；只有原始证据和重算同时 PASS，M1.5-B1 才减数。
+- [ ] **M1.5-B1-B1 31 周期原始实测**：exact commit `3908f9f5d0066849311e9d3ac875cc6a76acc69e` 的 Worker 实际运行完 31 周期，但 Runner/validator 的 reconciliation 合同漂移导致 sanitized evidence 构建失败，原始字节已按合同删除。宿主精确恢复、两份失败报告 digest 可复核；状态必须为 `EXECUTION_INVALID_NOT_COUNTED`，不得给业务 PASS/FAIL。
+- [x] **M1.5-B1-B2 Mark Price Snapshot 语义整改**：三 Venue 从混合 `LAST_PRICE` 切换为统一 `MARK_PRICE / MARK_PRICE_SNAPSHOT`；新增 `usablePriceCount` 和 price-usability SLO，保留 duplicate/stale/out-of-order fail-closed，升级全部运行/证据 schema，并让 Runner/validator 共用唯一 environment 合同。状态：`LOCAL_ENGINEERING_EXIT_PASS / PRODUCTION_UNCHANGED`。
+- [ ] **M1.5-B1-B3 固定门槛复验**：当前唯一执行入口。整改后用相同 31 周期、60 秒节拍和更严格六计数 SLO 从第 1 周期重跑；只有原始证据、独立重算、业务 Gate 和宿主恢复同时 PASS，M1.5-B1 才减数。
 - [x] **M1.6 Partitioned Fact Storage + Retention Governance 本地出口**：已建立专用 UTC 日分区、无 DEFAULT fail-closed 路由、有界活动身份注册表、旧账本新 Fact 禁写、容量水位、独立 Audit/Retention 身份、restore-verified DROP 与不可变事件。定向 5/5、隔离 PG16 1/1，真实 `pg_dump -> pg_restore` 后 replay parity PASS/deterministic true；迁移前旧 Fact 可读，2 个分区跨日读取，保留中/活跃 replay 均阻断清理，到期后原子删除 1 分区/2 Fact 且拒绝重灌；全 V2 141/0/5 explicit skips 与完整 `ci:production` PASS。状态：`LOCAL_ENGINEERING_AND_POSTGRES16_PASS / PRODUCTION_MIGRATION_NOT_RUN`。
 - [ ] **M1.6-P Production Storage 分阶段启用**：仅在 B1-B 语义 Gate 通过后，按 fresh read-only preflight -> additive Add Schema -> 最小权限身份 -> dormant no-authority Worker 顺序逐项执行；每步独立 checksum、备份/恢复、回滚和生产验证，不与业务逻辑整改混发。
 - [ ] **M1.7 Sustained 24h Shadow/SLO**：等待 M1.5-B1 与 M1.6 同时通过后，以同一 release/config 连续运行至少 24 小时并满足固定 SLO、重启恢复、成本与容量门槛，才允许 M1 减数并向 M2 runtime 开放读取许可。
@@ -63,11 +63,11 @@ M5 的 Outcome 采集从 M2 开始并行，额外 Detector、UI fixture、Runtim
 
 ```text
 M0 engineering exit: LOCAL_PASS / PRODUCTION_UNCHANGED
-Last completed package: V2-M1.5-B1-B0-EARLY-SHADOW-EVIDENCE-CONTRACT
-Current execution entry: V2-M1.5-B1-B1-31-CYCLE-EMPIRICAL-CAPTURE
+Last completed package: V2-M1.5-B1-B2-MARK-PRICE-SNAPSHOT-SEMANTICS-REMEDIATION
+Current execution entry: V2-M1.5-B1-B3-MARK-PRICE-SAME-GATE-31-CYCLE-RETEST
 Current blocked external entry: V2-M2.2-B0.2-B-EXACT-SOURCE-RIGHTS-AND-CAPABILITY-RESOLUTION
 Pending bounded shadow gate: V2-M1.5-B1-B-31-CYCLE-EARLY-SHADOW
-Current status: M1.5-B1-B0_LOCAL_ENGINEERING_PASS / B1-B1_EMPIRICAL_CAPTURE_PENDING / BUSINESS_SLO_UNPROVEN / CONDITIONAL_B1-B2_B1-B3_PENDING_RESULT / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED / PRODUCTION_SERVICES_DATA_AND_AUTHORITY_UNCHANGED
+Current status: M1.5-B1-B0_LOCAL_ENGINEERING_PASS / B1-B1_EXECUTION_INVALID_NOT_COUNTED / B1-B2_LOCAL_ENGINEERING_EXIT_PASS / B1-B3_RETEST_PENDING / BUSINESS_SLO_UNPROVEN / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED / PRODUCTION_SERVICES_DATA_AND_AUTHORITY_UNCHANGED
 ```
 
 M0 的减数只代表合同、运行时输入边界、Legacy 消费者地图和隔离门禁已经形成闭环；它不代表真实 Provider、全市场扫描、Detector、交易计划、页面或生产能力已经完成。

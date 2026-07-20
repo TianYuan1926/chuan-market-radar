@@ -14,6 +14,8 @@ import {
   B1B_RELEASE_PREFIX,
   B1B_SCOPE_LABEL,
   buildEarlyShadowRunnerEvidence,
+  classifyEarlyShadowEvidenceValidationError,
+  earlyShadowWorkerContractEnvironment,
   verifyEarlyShadowRunnerEvidence,
 } from "./m1-early-shadow-runner-evidence.mjs";
 
@@ -40,11 +42,11 @@ function rawArtifacts() {
         cycleIndex: index + 1,
         releaseId: RELEASE_ID,
         runtimeConfigDigest: RUNTIME_CONFIG_DIGEST,
-        schemaVersion: "v2-m1-collector-worker-cycle.v1",
+        schemaVersion: "v2-m1-collector-worker-cycle.v2",
         workerRunId: WORKER_RUN_ID,
       },
       event: "M1_COLLECTOR_CYCLE",
-      schemaVersion: "v2-m1-collector-observation-log.v1",
+      schemaVersion: "v2-m1-collector-observation-log.v2",
     })
   );
   const summary = JSON.stringify({
@@ -152,7 +154,7 @@ function domainEvidence(processOutputBytes, observationBytes, conclusion = "PASS
     },
     releaseId: RELEASE_ID,
     runtimeConfigDigest: RUNTIME_CONFIG_DIGEST,
-    schemaVersion: "v2-m1-collector-early-shadow-evidence.v1",
+    schemaVersion: "v2-m1-collector-early-shadow-evidence.v2",
     sourceArtifacts: {
       observationBytes: observationBytes.length,
       observationDigest: digest(observationBytes),
@@ -182,23 +184,10 @@ function workerEnvironment() {
     "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
     "NODE_VERSION=22.0.0",
     "NODE_OPTIONS=--disable-proto=throw --unhandled-rejections=strict",
-    "NODE_ENV=production",
-    "V2_M1_COLLECTOR_AUTHORITY_MODE=NO_AUTHORITY",
-    "V2_M1_COLLECTOR_AUTOMATIC_TRADING_ALLOWED=false",
-    `V2_M1_COLLECTOR_SOURCE_COMMIT=${SOURCE_COMMIT}`,
-    `V2_M1_COLLECTOR_RELEASE_ID=${RELEASE_ID}`,
-    "V2_M1_COLLECTOR_POLICY_VERSION=m1-live-linear-usdt-perpetual.v1",
-    "V2_M1_COLLECTOR_RUN_PROFILE=EARLY_30_MINUTES",
-    "V2_M1_COLLECTOR_DATABASE_HOST=v2-m1-postgres",
-    "V2_M1_COLLECTOR_DATABASE_NAME=v2_m1_b1b",
-    "V2_M1_COLLECTOR_CYCLE_INTERVAL_MS=60000",
-    "V2_M1_COLLECTOR_MAX_CYCLES=31",
-    "V2_M1_COLLECTOR_MAX_FACT_AGE_MS=60000",
-    "V2_M1_COLLECTOR_MAX_SEQUENCE_GAP_MS=300000",
-    "V2_M1_COLLECTOR_RECONCILIATION_INTERVAL_MS=86400000",
-    "V2_M1_COLLECTOR_RETENTION_MS=604800000",
-    "V2_M1_COLLECTOR_WRITER_DATABASE_URL_FILE=/run/secrets/v2_m1_writer_database_url",
-    "V2_M1_COLLECTOR_READER_DATABASE_URL_FILE=/run/secrets/v2_m1_reader_database_url",
+    ...earlyShadowWorkerContractEnvironment({
+      releaseId: RELEASE_ID,
+      sourceCommit: SOURCE_COMMIT,
+    }),
   ];
 }
 
@@ -398,14 +387,18 @@ test("rejects domain inflation, direct database capability and report tampering"
   malformedRaw.observationBytes = Buffer.from("x\n");
   assert.throws(
     () => buildEarlyShadowRunnerEvidence(malformedRaw),
-    /exactly 32 lines/u,
+    (error) =>
+      classifyEarlyShadowEvidenceValidationError(error) ===
+        "RAW_ARTIFACT_EVIDENCE_VALIDATION_FAILED",
   );
 
   const inflated = fixture("FAIL");
   inflated.domainEvidence.businessGate.conclusion = "PASS";
   assert.throws(
     () => buildEarlyShadowRunnerEvidence(inflated),
-    /Expected values to be strictly equal/u,
+    (error) =>
+      classifyEarlyShadowEvidenceValidationError(error) ===
+        "DOMAIN_EVIDENCE_VALIDATION_FAILED",
   );
 
   const directCapability = fixture();
@@ -417,7 +410,9 @@ test("rejects domain inflation, direct database capability and report tampering"
   );
   assert.throws(
     () => buildEarlyShadowRunnerEvidence(directCapability),
-    /true !== false/u,
+    (error) =>
+      classifyEarlyShadowEvidenceValidationError(error) ===
+        "WORKER_RUNTIME_EVIDENCE_VALIDATION_FAILED",
   );
 
   const report = buildEarlyShadowRunnerEvidence(fixture());

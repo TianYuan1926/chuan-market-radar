@@ -55,8 +55,8 @@ test("retains only allowlisted provider failure fields", () => {
     cycles: [{
       providerFailures: [{
         kind: "RATE_LIMITED",
-        operation: "TICKER",
-        reasonCode: "okx_ticker_rate_limited",
+        operation: "MARK_PRICE",
+        reasonCode: "okx_mark_price_rate_limited",
         secretPayload: "must-not-survive",
         venue: "OKX_SWAP",
       }],
@@ -67,8 +67,8 @@ test("retains only allowlisted provider failure fields", () => {
   );
   assert.deepEqual(report.diagnostic.providerFailures, [{
     kind: "RATE_LIMITED",
-    operation: "TICKER",
-    reasonCode: "okx_ticker_rate_limited",
+    operation: "MARK_PRICE",
+    reasonCode: "okx_mark_price_rate_limited",
     venue: "OKX_SWAP",
   }]);
   assert.equal(JSON.stringify(report).includes("must-not-survive"), false);
@@ -83,6 +83,7 @@ test("retains only bounded cycle coverage and readiness diagnostics", () => {
         eligibleCount: 3,
         freshCount: 3,
         providerObservedCount: 3,
+        usablePriceCount: 3,
         secretPayload: "must-not-survive",
         venues: [
           "BINANCE_FUTURES",
@@ -94,14 +95,15 @@ test("retains only bounded cycle coverage and readiness diagnostics", () => {
           eligibleCount: 1,
           freshCount: 1,
           providerObservedCount: 1,
+          usablePriceCount: 1,
           venue,
         })),
       },
       operationalReadiness: "NOT_READY",
       providerFailures: [],
-      reasons: ["ticker_sequence_gap"],
+      reasons: ["mark_price_snapshot_sequence_gap"],
       state: "DEGRADED",
-      trigger: "INCREMENTAL_TICKER",
+      trigger: "INCREMENTAL_MARK_PRICE",
     }],
   };
   const report = buildFailureDiagnostic(input([
@@ -119,6 +121,7 @@ test("retains only bounded cycle coverage and readiness diagnostics", () => {
       eligibleCount: 3,
       freshCount: 3,
       providerObservedCount: 3,
+      usablePriceCount: 3,
       venues: [
         "BINANCE_FUTURES",
         "BYBIT_LINEAR_PERPETUAL",
@@ -129,13 +132,14 @@ test("retains only bounded cycle coverage and readiness diagnostics", () => {
         eligibleCount: 1,
         freshCount: 1,
         providerObservedCount: 1,
+        usablePriceCount: 1,
         venue,
       })),
     },
     operationalReadiness: "NOT_READY",
-    reasons: ["ticker_sequence_gap"],
+    reasons: ["mark_price_snapshot_sequence_gap"],
     state: "DEGRADED",
-    trigger: "INCREMENTAL_TICKER",
+    trigger: "INCREMENTAL_MARK_PRICE",
   }]);
   assert.deepEqual(report.diagnostic.sloConclusions, ["INSUFFICIENT_EVIDENCE"]);
   assert.equal(JSON.stringify(report).includes("must-not-survive"), false);

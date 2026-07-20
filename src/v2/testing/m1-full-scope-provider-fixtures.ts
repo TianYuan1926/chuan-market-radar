@@ -7,7 +7,8 @@ export const FULL_SCOPE_ASSETS = Object.freeze([
 ] as const);
 
 export const FULL_SCOPE_CATALOG_RECEIVED_AT = "2026-01-15T00:00:00.000Z";
-export const FULL_SCOPE_TICKER_RECEIVED_AT = "2026-01-15T00:00:00.200Z";
+export const FULL_SCOPE_PRICE_SNAPSHOT_RECEIVED_AT =
+  "2026-01-15T00:00:00.200Z";
 export const FULL_SCOPE_EVENT_TIME_MS = "1768435200100";
 
 export function fullScopeBinanceCatalog(
@@ -144,18 +145,18 @@ export function fullScopeBybitCatalogPages(
   ] as const;
 }
 
-export function fullScopeBinanceTickers(
+export function fullScopeBinanceMarkPrices(
   eventTimeMs = FULL_SCOPE_EVENT_TIME_MS,
   assets: readonly string[] = FULL_SCOPE_ASSETS,
 ) {
   return assets.map((baseAsset, index) => ({
-    price: String(42_000 + index * 100),
+    markPrice: String(42_000 + index * 100),
     symbol: `${baseAsset}USDT`,
     time: eventTimeMs,
   }));
 }
 
-export function fullScopeOkxTickers(
+export function fullScopeOkxMarkPrices(
   eventTimeMs = FULL_SCOPE_EVENT_TIME_MS,
   assets: readonly string[] = FULL_SCOPE_ASSETS,
 ) {
@@ -163,13 +164,13 @@ export function fullScopeOkxTickers(
     code: "0",
     data: assets.map((baseAsset, index) => ({
       instId: `${baseAsset}-USDT-SWAP`,
-      last: String(42_001 + index * 100),
+      markPx: String(42_001 + index * 100),
       ts: eventTimeMs,
     })),
   };
 }
 
-export function fullScopeBybitTickers(
+export function fullScopeBybitMarkPrices(
   eventTimeMs = FULL_SCOPE_EVENT_TIME_MS,
   assets: readonly string[] = FULL_SCOPE_ASSETS,
 ) {
@@ -177,7 +178,7 @@ export function fullScopeBybitTickers(
     result: {
       category: "linear",
       list: assets.map((baseAsset, index) => ({
-        lastPrice: String(41_999 + index * 100),
+        markPrice: String(41_999 + index * 100),
         symbol: `${baseAsset}USDT`,
       })),
     },

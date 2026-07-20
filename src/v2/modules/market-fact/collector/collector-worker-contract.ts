@@ -8,7 +8,7 @@ import { deepFreezeArtifact } from "../../universe/stable-artifact";
 import { CollectorCycleTelemetrySchema } from "./collector-telemetry-schema";
 
 export const M1_COLLECTOR_WORKER_SCHEMA_VERSION =
-  "v2-m1-collector-worker-cycle.v1" as const;
+  "v2-m1-collector-worker-cycle.v2" as const;
 
 const Sha256Schema = z.string().regex(/^sha256:[0-9a-f]{64}$/u);
 

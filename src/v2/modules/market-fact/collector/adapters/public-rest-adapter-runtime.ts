@@ -2,9 +2,9 @@ import { fetchBinanceCatalog } from "../../../universe/adapters/binance-catalog"
 import { fetchBybitCatalog } from "../../../universe/adapters/bybit-catalog";
 import { fetchOkxCatalog } from "../../../universe/adapters/okx-catalog";
 import type { PublicJsonTransport } from "../../../universe/public-json-transport";
-import { fetchBinanceTickers } from "../../adapters/binance-ticker";
-import { fetchBybitTickers } from "../../adapters/bybit-ticker";
-import { fetchOkxTickers } from "../../adapters/okx-ticker";
+import { fetchBinanceMarkPrices } from "../../adapters/binance-mark-price";
+import { fetchBybitMarkPrices } from "../../adapters/bybit-mark-price";
+import { fetchOkxMarkPrices } from "../../adapters/okx-mark-price";
 import type {
   CollectorAdapterRuntime,
   CollectorClock,
@@ -53,15 +53,17 @@ export function createPublicRestCollectorAdapterRuntime(input: {
         venue: "BINANCE_FUTURES" as const,
         fetchCatalog: () =>
           fetchBinanceCatalog(requestControl.transportFor("BINANCE_FUTURES")),
-        fetchTickers: () =>
-          fetchBinanceTickers(requestControl.transportFor("BINANCE_FUTURES")),
+        fetchPriceSnapshots: () =>
+          fetchBinanceMarkPrices(
+            requestControl.transportFor("BINANCE_FUTURES"),
+          ),
       }),
       Object.freeze({
         venue: "OKX_SWAP" as const,
         fetchCatalog: () =>
           fetchOkxCatalog(requestControl.transportFor("OKX_SWAP")),
-        fetchTickers: () =>
-          fetchOkxTickers(requestControl.transportFor("OKX_SWAP")),
+        fetchPriceSnapshots: () =>
+          fetchOkxMarkPrices(requestControl.transportFor("OKX_SWAP")),
       }),
       Object.freeze({
         venue: "BYBIT_LINEAR_PERPETUAL" as const,
@@ -69,8 +71,8 @@ export function createPublicRestCollectorAdapterRuntime(input: {
           fetchBybitCatalog(
             requestControl.transportFor("BYBIT_LINEAR_PERPETUAL"),
           ),
-        fetchTickers: () =>
-          fetchBybitTickers(
+        fetchPriceSnapshots: () =>
+          fetchBybitMarkPrices(
             requestControl.transportFor("BYBIT_LINEAR_PERPETUAL"),
           ),
       }),

@@ -2,8 +2,10 @@ import type { TargetVenue } from "../../domain/product-constitution";
 import type { DataQualityState } from "../../domain/states";
 import type { ProviderFailure } from "../universe/catalog-types";
 
-export type TickerObservation = {
+export type PriceSnapshotObservation = {
+  eventTimeBasis: "MARK_PRICE_SNAPSHOT";
   eventTime: string | null;
+  factType: "MARK_PRICE";
   qualityStatus: DataQualityState;
   reasonCodes: readonly string[];
   sequence: string | null;
@@ -13,25 +15,27 @@ export type TickerObservation = {
   venueInstrumentId: string | null;
 };
 
-type VenueTickerBase = {
+type VenuePriceSnapshotBase = {
   issues: readonly string[];
-  observations: readonly TickerObservation[];
+  observations: readonly PriceSnapshotObservation[];
   receivedAt: string;
   venue: TargetVenue;
 };
 
-export type VenueTickerSuccess = VenueTickerBase & { ok: true };
-export type VenueTickerFailure = VenueTickerBase & {
+export type VenuePriceSnapshotSuccess = VenuePriceSnapshotBase & { ok: true };
+export type VenuePriceSnapshotFailure = VenuePriceSnapshotBase & {
   failure: ProviderFailure;
   ok: false;
 };
-export type VenueTickerResult = VenueTickerSuccess | VenueTickerFailure;
+export type VenuePriceSnapshotResult =
+  | VenuePriceSnapshotSuccess
+  | VenuePriceSnapshotFailure;
 
-export function failedTickerBatch(input: {
+export function failedPriceSnapshotBatch(input: {
   failure: ProviderFailure;
   receivedAt: string;
   venue: TargetVenue;
-}): VenueTickerFailure {
+}): VenuePriceSnapshotFailure {
   return {
     failure: input.failure,
     issues: [input.failure.reasonCode],

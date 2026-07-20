@@ -122,7 +122,7 @@ test("propagates stale source quality and emits null instead of a fallback value
         value: null,
         quality: {
           ageMs: 10_000,
-          reasonCodes: ["ticker_stale_at_cutoff"],
+          reasonCodes: ["mark_price_snapshot_stale_at_cutoff"],
           status: "STALE" as const,
         },
       }
@@ -133,7 +133,7 @@ test("propagates stale source quality and emits null instead of a fallback value
     contentHash: "sha256:partial-test-fact-quality",
     quality: {
       ageMs: 10_000,
-      reasonCodes: ["ticker_stale_at_cutoff"],
+      reasonCodes: ["mark_price_snapshot_stale_at_cutoff"],
       status: "PARTIAL",
     },
   };
@@ -146,6 +146,6 @@ test("propagates stale source quality and emits null instead of a fallback value
   assert.equal(featureSet.features[0]?.quality.status, "STALE");
   assert.ok(
     featureSet.features[0]?.quality.reasonCodes.some((reason) =>
-      reason.includes("ticker_stale_at_cutoff")),
+      reason.includes("mark_price_snapshot_stale_at_cutoff")),
   );
 });

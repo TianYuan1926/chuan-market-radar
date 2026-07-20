@@ -5,7 +5,7 @@ import type {
 import { TARGET_VENUES, type TargetVenue } from "../../../domain/product-constitution";
 import { deepFreezeArtifact } from "../../universe/stable-artifact";
 import type { VenueCatalogResult } from "../../universe/catalog-types";
-import type { VenueTickerResult } from "../ticker-types";
+import type { VenuePriceSnapshotResult } from "../price-snapshot-types";
 import type {
   CollectorCoverage,
   CollectorProviderFailureEvidence,
@@ -35,14 +35,14 @@ function catalogFailures(
       }]);
 }
 
-function tickerFailures(
-  batches: readonly VenueTickerResult[],
+function priceSnapshotFailures(
+  batches: readonly VenuePriceSnapshotResult[],
 ): CollectorProviderFailureEvidence[] {
   return batches.flatMap((batch) => batch.ok
     ? []
     : [{
       kind: batch.failure.kind,
-      operation: "TICKER" as const,
+      operation: "MARK_PRICE" as const,
       reasonCode: batch.failure.reasonCode,
       venue: batch.venue,
     }]);
@@ -50,11 +50,11 @@ function tickerFailures(
 
 export function collectorProviderFailures(input: {
   catalogs: readonly VenueCatalogResult[] | null;
-  tickerBatches: readonly VenueTickerResult[];
+  priceSnapshotBatches: readonly VenuePriceSnapshotResult[];
 }): readonly CollectorProviderFailureEvidence[] {
   return deepFreezeArtifact([
     ...catalogFailures(input.catalogs),
-    ...tickerFailures(input.tickerBatches),
+    ...priceSnapshotFailures(input.priceSnapshotBatches),
   ].sort((left, right) =>
     `${left.venue}:${left.operation}:${left.reasonCode}`.localeCompare(
       `${right.venue}:${right.operation}:${right.reasonCode}`,
@@ -66,7 +66,7 @@ export function buildCollectorCoverage(input: {
   catalogs: readonly VenueCatalogResult[] | null;
   facts: readonly PointInTimeMarketFact[];
   providerObservedByVenue: Readonly<Record<TargetVenue, number>> | null;
-  tickerBatches: readonly VenueTickerResult[];
+  priceSnapshotBatches: readonly VenuePriceSnapshotResult[];
   universe: EligibleInstrumentSnapshot;
 }): CollectorCoverage {
   if (input.facts.length !== input.universe.eligibleCount) {
@@ -96,9 +96,13 @@ export function buildCollectorCoverage(input: {
     const freshCount = venueFacts.filter(
       (fact) => fact.value !== null && fact.quality.status === "FRESH",
     ).length;
+    const usablePriceCount = venueFacts.filter(
+      (fact) => fact.value !== null,
+    ).length;
     const carriedForwardCount = input.carriedForwardByVenue[venue];
     if (
-      freshCount > collectedCount ||
+      freshCount > usablePriceCount ||
+      usablePriceCount > collectedCount ||
       collectedCount > eligibleCount ||
       eligibleCount > accountedCount ||
       carriedForwardCount > accountedCount
@@ -113,10 +117,12 @@ export function buildCollectorCoverage(input: {
       eligibleCount,
       freshCount,
       freshCoverage: ratio(freshCount, eligibleCount),
+      priceUsabilityCoverage: ratio(usablePriceCount, eligibleCount),
       providerObservedCount: input.providerObservedByVenue?.[venue] ?? null,
       providerFailures: providerFailures.filter(
         (failure) => failure.venue === venue,
       ),
+      usablePriceCount,
       venue,
     };
   });
@@ -124,6 +130,10 @@ export function buildCollectorCoverage(input: {
   const eligibleCount = venues.reduce((sum, venue) => sum + venue.eligibleCount, 0);
   const collectedCount = venues.reduce((sum, venue) => sum + venue.collectedCount, 0);
   const freshCount = venues.reduce((sum, venue) => sum + venue.freshCount, 0);
+  const usablePriceCount = venues.reduce(
+    (sum, venue) => sum + venue.usablePriceCount,
+    0,
+  );
   const carriedForwardCount = venues.reduce(
     (sum, venue) => sum + venue.carriedForwardCount,
     0,
@@ -143,7 +153,9 @@ export function buildCollectorCoverage(input: {
     eligibleCount,
     freshCount,
     freshCoverage: ratio(freshCount, eligibleCount),
+    priceUsabilityCoverage: ratio(usablePriceCount, eligibleCount),
     providerObservedCount,
+    usablePriceCount,
     venues,
   });
 }

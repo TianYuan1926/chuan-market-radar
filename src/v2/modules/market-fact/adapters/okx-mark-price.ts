@@ -1,14 +1,14 @@
 import { z } from "zod";
 import type { PublicJsonTransport } from "../../universe/public-json-transport";
-import { tickerObservation } from "../ticker-normalization";
+import { markPriceObservation } from "../mark-price-normalization";
 import {
-  failedTickerBatch,
-  type VenueTickerResult,
-} from "../ticker-types";
+  failedPriceSnapshotBatch,
+  type VenuePriceSnapshotResult,
+} from "../price-snapshot-types";
 
 const VENUE = "OKX_SWAP" as const;
 const HOST = "www.okx.com";
-const URL = `https://${HOST}/api/v5/market/tickers?instType=SWAP`;
+const URL = `https://${HOST}/api/v5/public/mark-price?instType=SWAP`;
 
 const EnvelopeSchema = z.object({
   code: z.string(),
@@ -16,22 +16,22 @@ const EnvelopeSchema = z.object({
 });
 const RowSchema = z.object({
   instId: z.unknown().optional(),
-  last: z.unknown().optional(),
+  markPx: z.unknown().optional(),
   ts: z.unknown().optional(),
 });
 
 function providerFailure(code: string) {
   return ["50011", "50040"].includes(code)
-    ? { kind: "RATE_LIMITED" as const, reasonCode: "okx_ticker_rate_limited" }
-    : { kind: "INVALID" as const, reasonCode: "okx_ticker_provider_error" };
+    ? { kind: "RATE_LIMITED" as const, reasonCode: "okx_mark_price_rate_limited" }
+    : { kind: "INVALID" as const, reasonCode: "okx_mark_price_provider_error" };
 }
 
-export async function fetchOkxTickers(
+export async function fetchOkxMarkPrices(
   transport: PublicJsonTransport,
-): Promise<VenueTickerResult> {
+): Promise<VenuePriceSnapshotResult> {
   const response = await transport({ allowedHost: HOST, url: URL });
   if (!response.ok) {
-    return failedTickerBatch({
+    return failedPriceSnapshotBatch({
       failure: response.failure,
       receivedAt: response.receivedAt,
       venue: VENUE,
@@ -40,14 +40,17 @@ export async function fetchOkxTickers(
 
   const envelope = EnvelopeSchema.safeParse(response.data);
   if (!envelope.success) {
-    return failedTickerBatch({
-      failure: { kind: "INVALID", reasonCode: "okx_ticker_schema_drift" },
+    return failedPriceSnapshotBatch({
+      failure: {
+        kind: "INVALID",
+        reasonCode: "okx_mark_price_schema_drift",
+      },
       receivedAt: response.receivedAt,
       venue: VENUE,
     });
   }
   if (envelope.data.code !== "0") {
-    return failedTickerBatch({
+    return failedPriceSnapshotBatch({
       failure: providerFailure(envelope.data.code),
       receivedAt: response.receivedAt,
       venue: VENUE,
@@ -56,11 +59,11 @@ export async function fetchOkxTickers(
 
   const observations = envelope.data.data.map((rawRecord, rowIndex) => {
     const row = RowSchema.safeParse(rawRecord);
-    return tickerObservation({
+    return markPriceObservation({
       eventTimestamp: row.success ? row.data.ts : null,
       rawRecord,
       rowIndex,
-      value: row.success ? row.data.last : null,
+      value: row.success ? row.data.markPx : null,
       venue: VENUE,
       venueInstrumentId: row.success ? row.data.instId : null,
     });

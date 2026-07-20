@@ -651,16 +651,21 @@ function normalizeCoverageCounts(coverage, label, requireObserved) {
     "collectedCount",
     "eligibleCount",
     "freshCount",
+    "usablePriceCount",
   ]) {
     assertNonNegativeInteger(coverage[key], `${label}.${key}`);
   }
   assertPositiveInteger(coverage.accountedCount, `${label}.accountedCount`);
   assertPositiveInteger(coverage.eligibleCount, `${label}.eligibleCount`);
   assert.equal(coverage.collectedCount, coverage.eligibleCount, `${label} collection must be complete`);
-  assertPositiveInteger(coverage.freshCount, `${label}.freshCount`);
+  assertNonNegativeInteger(coverage.freshCount, `${label}.freshCount`);
   assert.ok(
-    coverage.freshCount <= coverage.collectedCount,
-    `${label} freshness cannot exceed collection`,
+    coverage.freshCount <= coverage.usablePriceCount,
+    `${label} freshness cannot exceed usable price truth`,
+  );
+  assert.ok(
+    coverage.usablePriceCount <= coverage.collectedCount,
+    `${label} usable price truth cannot exceed collection`,
   );
   if (requireObserved) {
     assertPositiveInteger(
@@ -678,6 +683,18 @@ function normalizeCoverageCounts(coverage, label, requireObserved) {
   assert.equal(coverage.collectionCoverage?.denominator, coverage.eligibleCount);
   assert.equal(coverage.collectionCoverage?.numerator, coverage.collectedCount);
   assert.equal(coverage.collectionCoverage?.ratio, 1);
+  assert.equal(
+    coverage.priceUsabilityCoverage?.denominator,
+    coverage.eligibleCount,
+  );
+  assert.equal(
+    coverage.priceUsabilityCoverage?.numerator,
+    coverage.usablePriceCount,
+  );
+  assert.equal(
+    coverage.priceUsabilityCoverage?.ratio,
+    coverage.usablePriceCount / coverage.eligibleCount,
+  );
   assert.equal(coverage.freshCoverage?.denominator, coverage.eligibleCount);
   assert.equal(coverage.freshCoverage?.numerator, coverage.freshCount);
   assert.equal(
@@ -692,7 +709,9 @@ function normalizeCoverageCounts(coverage, label, requireObserved) {
     eligibleCount: coverage.eligibleCount,
     freshCount: coverage.freshCount,
     freshCoverageRatio: coverage.freshCoverage.ratio,
+    priceUsabilityCoverageRatio: coverage.priceUsabilityCoverage.ratio,
     providerObservedCount: coverage.providerObservedCount,
+    usablePriceCount: coverage.usablePriceCount,
   };
 }
 
@@ -720,6 +739,7 @@ function normalizeCoverage(coverage, label, requireObserved) {
     "collectedCount",
     "eligibleCount",
     "freshCount",
+    "usablePriceCount",
   ]) {
     assert.equal(
       venues.reduce((sum, venue) => sum + venue[field], 0),
@@ -807,6 +827,11 @@ function validateLiveEvidence(input) {
         coverage.eligibleCount,
         `cycle ${index} READY cannot exceed freshness truth`,
       );
+      assert.equal(
+        coverage.usablePriceCount,
+        coverage.eligibleCount,
+        `cycle ${index} READY cannot exceed usable price truth`,
+      );
     } else {
       assert.equal(cycle.state, "DEGRADED");
       assert.ok(reasons.length > 0, `cycle ${index} must explain NOT_READY`);
@@ -814,6 +839,12 @@ function validateLiveEvidence(input) {
         assert.ok(
           reasons.includes("fresh_coverage_incomplete"),
           `cycle ${index} must preserve incomplete freshness truth`,
+        );
+      }
+      if (coverage.usablePriceCount < coverage.eligibleCount) {
+        assert.ok(
+          reasons.includes("price_usability_coverage_incomplete"),
+          `cycle ${index} must preserve incomplete price usability truth`,
         );
       }
     }
@@ -834,7 +865,7 @@ function validateLiveEvidence(input) {
   assert.equal(
     cycles[1].trigger,
     cycles[0].operationalReadiness === "READY"
-      ? "INCREMENTAL_TICKER"
+      ? "INCREMENTAL_MARK_PRICE"
       : "RECOVERY",
   );
   const operationalReadyCycleCount = cycles.filter(
@@ -872,6 +903,15 @@ function validateLiveEvidence(input) {
       assert.ok(
         sloReasons.includes("fresh_coverage_below_slo"),
         "SLO failure must preserve the freshness threshold violation",
+      );
+    }
+    if (cycles.some(
+      (cycle) =>
+        cycle.coverage.usablePriceCount < cycle.coverage.eligibleCount,
+    )) {
+      assert.ok(
+        sloReasons.includes("price_usability_coverage_below_slo"),
+        "SLO failure must preserve the price usability threshold violation",
       );
     }
   } else {

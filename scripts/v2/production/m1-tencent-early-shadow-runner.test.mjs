@@ -73,10 +73,17 @@ test("early-shadow worker environment matches the bounded 31-cycle process contr
 });
 
 test("early-shadow runner locks the atomic observation and isolation contract", async () => {
-  const source = await readFile(
-    "scripts/v2/production/m1-tencent-early-shadow-runner.mjs",
-    "utf8",
-  );
+  const [runnerSource, evidenceSource] = await Promise.all([
+    readFile(
+      "scripts/v2/production/m1-tencent-early-shadow-runner.mjs",
+      "utf8",
+    ),
+    readFile(
+      "scripts/v2/production/m1-early-shadow-runner-evidence.mjs",
+      "utf8",
+    ),
+  ]);
+  const source = `${runnerSource}\n${evidenceSource}`;
   for (const required of [
     '"V2_M1_COLLECTOR_AUTHORITY_MODE=NO_AUTHORITY"',
     '"V2_M1_COLLECTOR_AUTOMATIC_TRADING_ALLOWED=false"',
@@ -117,7 +124,7 @@ test("early-shadow runner locks the atomic observation and isolation contract", 
     "V2_M1_COLLECTOR_READER_DATABASE_URL=",
   ]) {
     assert.equal(
-      source.includes(forbidden),
+      runnerSource.includes(forbidden),
       false,
       `forbidden B1-B production capability: ${forbidden}`,
     );

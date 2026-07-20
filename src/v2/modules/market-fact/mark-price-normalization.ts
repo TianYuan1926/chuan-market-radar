@@ -4,7 +4,7 @@ import {
   normalizeVenueInstrumentId,
 } from "../universe/identity";
 import { stableSha256 } from "../universe/stable-artifact";
-import type { TickerObservation } from "./ticker-types";
+import type { PriceSnapshotObservation } from "./price-snapshot-types";
 
 export function unixMilliseconds(value: unknown): {
   eventTime: string;
@@ -29,14 +29,14 @@ export function unixMilliseconds(value: unknown): {
   return { eventTime: date.toISOString(), sequence: text };
 }
 
-export function tickerObservation(input: {
+export function markPriceObservation(input: {
   eventTimestamp: unknown;
   rawRecord: unknown;
   rowIndex: number;
   value: unknown;
   venue: TargetVenue;
   venueInstrumentId: unknown;
-}): TickerObservation {
+}): PriceSnapshotObservation {
   const venueInstrumentId = typeof input.venueInstrumentId === "string"
     ? normalizeVenueInstrumentId(input.venueInstrumentId)
     : null;
@@ -46,22 +46,24 @@ export function tickerObservation(input: {
   const time = unixMilliseconds(input.eventTimestamp);
   const reasonCodes: string[] = [];
   if (venueInstrumentId === null) {
-    reasonCodes.push("ticker_instrument_id_invalid");
+    reasonCodes.push("mark_price_instrument_id_invalid");
   }
   if (value === null) {
-    reasonCodes.push("ticker_price_invalid");
+    reasonCodes.push("mark_price_value_invalid");
   }
   if (time === null) {
-    reasonCodes.push("ticker_event_time_invalid");
+    reasonCodes.push("mark_price_event_time_invalid");
   }
 
   return {
+    eventTimeBasis: "MARK_PRICE_SNAPSHOT",
     eventTime: time?.eventTime ?? null,
+    factType: "MARK_PRICE",
     qualityStatus: reasonCodes.length === 0 ? "FRESH" : "INVALID",
     reasonCodes,
     sequence: time?.sequence ?? null,
     sourceRecordId:
-      `${input.venue}:ticker:${input.rowIndex}:` +
+      `${input.venue}:mark-price:${input.rowIndex}:` +
       stableSha256(input.rawRecord).slice(0, 20),
     value,
     venue: input.venue,

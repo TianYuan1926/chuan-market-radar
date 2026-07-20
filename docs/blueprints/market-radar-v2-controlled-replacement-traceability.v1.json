@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.10",
-  "status": "m1_5_b1b0_early_shadow_evidence_local_pass_b1b1_empirical_capture_pending_business_slo_unproven_m2_2_c1_forward_only_ready_external_rights_and_historical_source_blocked_m1_not_complete",
-  "generatedAt": "2026-07-21T03:12:04+08:00",
+  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.11",
+  "status": "m1_5_b1b2_mark_price_semantics_local_engineering_exit_pass_b1b1_execution_invalid_not_counted_b1b3_retest_pending_business_slo_unproven_m2_2_c1_forward_only_ready_external_rights_and_historical_source_blocked_m1_not_complete",
+  "generatedAt": "2026-07-21T04:47:13+08:00",
   "implementationAuthorized": true,
   "productionMutationAuthorized": false,
   "authority": {
@@ -10,7 +10,7 @@
     "index": "docs/blueprints/README.md",
     "currentFacts": "PROJECT_CONTEXT_FOR_CHATGPT.md",
     "recentChanges": "CHANGELOG_FOR_CHATGPT.md",
-    "deliveryReport": "docs/blueprints/V2_M1_5_B1_B0_EARLY_SHADOW_EVIDENCE_DELIVERY_REPORT.md",
+    "deliveryReport": "docs/blueprints/V2_M1_5_B1_B2_MARK_PRICE_SEMANTICS_REMEDIATION_DELIVERY_REPORT.md",
     "buildSequence": "market-radar-v2-build-sequence.md",
     "baseManifest": "docs/architecture/v2/V2_BASE_MANIFEST.v1.json",
     "baselineDecision": "docs/architecture/v2/ADR-0001-CLEAN-BASELINE-AND-V2-ISOLATION.md",
@@ -28,6 +28,7 @@
     "m1LiveNoAuthorityCollectorContract": "docs/architecture/v2/M1_5_LIVE_NO_AUTHORITY_COLLECTOR_CONTRACT_V1.md",
     "m1ShadowReleaseSafetyContract": "docs/architecture/v2/M1_5_B0_SHADOW_RELEASE_SAFETY_CONTRACT_V1.md",
     "m1EarlyShadowEvidenceContract": "docs/architecture/v2/M1_5_B1_B0_EARLY_SHADOW_EVIDENCE_CONTRACT_V1.md",
+    "m1MarkPriceSnapshotSemanticsContract": "docs/architecture/v2/M1_5_B1_B2_MARK_PRICE_SNAPSHOT_SEMANTICS_CONTRACT_V1.md",
     "m1PartitionedFactStorageContract": "docs/architecture/v2/M1_6_PARTITIONED_FACT_STORAGE_CONTRACT_V1.md",
     "m2DiscoveryContractsAndGoldenFixtures": "docs/architecture/v2/M2_0_DISCOVERY_CONTRACTS_AND_GOLDEN_FIXTURES_V1.md",
     "m2DraftReplayKernelsContract": "docs/architecture/v2/M2_1_DRAFT_REPLAY_KERNELS_CONTRACT_V1.md",
@@ -55,7 +56,7 @@
   "currentBoundary": {
     "readiness": "R1",
     "status": "runnable_but_incomplete_not_practical_ready",
-    "v2ImplementationStatus": "m1_5_b1b0_atomic_31_cycle_evidence_and_isolated_runner_local_pass_b1b1_empirical_capture_pending_business_slo_unproven_m2_2_c1_forward_only_ready_external_rights_blocked_detectors_draft_candidate_emission_false_m1_not_complete",
+    "v2ImplementationStatus": "m1_5_b1b2_mark_price_semantics_local_engineering_exit_pass_b1b1_execution_invalid_not_counted_b1b3_same_gate_retest_pending_business_slo_unproven_m2_2_c1_forward_only_ready_external_rights_blocked_detectors_draft_candidate_emission_false_m1_not_complete",
     "v2ImplementationBranch": "codex/market-radar-v2-implementation",
     "v2ImplementationBaseCommit": "e5eb90026d8bfcd52b060359446515de5a5c32d6",
     "latestProductionFinalStatus": "unknown_until_fresh_read_only_verification",
@@ -693,7 +694,7 @@
       "dependsOn": [
         "M0"
       ],
-      "status": "b1b0_early_shadow_evidence_local_pass_b1b1_empirical_capture_pending_business_slo_unproven_m1_not_complete",
+      "status": "b1b2_mark_price_semantics_local_engineering_exit_pass_b1b1_execution_invalid_not_counted_b1b3_retest_pending_business_slo_unproven_m1_not_complete",
       "workPackages": [
         {
           "id": "M1.5-B1-A",
@@ -708,17 +709,17 @@
         {
           "id": "M1.5-B1-B1",
           "name": "fixed_policy_31_cycle_empirical_capture",
-          "status": "current_execution_entry"
+          "status": "execution_invalid_not_counted_evidence_packaging_failed_host_restored"
         },
         {
           "id": "M1.5-B1-B2",
-          "name": "market_fact_freshness_semantics_remediation",
-          "status": "conditional_on_b1_b1_gate_fail"
+          "name": "uniform_mark_price_snapshot_semantics_and_price_usability_truth",
+          "status": "local_engineering_exit_pass_production_unchanged"
         },
         {
           "id": "M1.5-B1-B3",
-          "name": "same_policy_31_cycle_repeat_gate",
-          "status": "conditional_on_remediation"
+          "name": "mark_price_same_policy_atomic_31_cycle_retest",
+          "status": "current_execution_entry_pending_exact_release"
         },
         {
           "id": "M1.6-P",
@@ -899,17 +900,17 @@
     "legacyDeletionAllowed": false
   },
   "lastCompletedImplementationEntry": {
-    "id": "V2-M1.5-B1-B0-EARLY-SHADOW-EVIDENCE-CONTRACT",
-    "name": "atomic_31_cycle_content_addressed_evidence_and_exact_host_restoration_runner_contract",
-    "status": "local_engineering_pass_business_slo_unproven_production_services_data_and_authority_unchanged",
+    "id": "V2-M1.5-B1-B2-MARK-PRICE-SNAPSHOT-SEMANTICS-REMEDIATION",
+    "name": "uniform_mark_price_snapshot_semantics_and_price_usability_truth",
+    "status": "local_engineering_exit_pass_business_slo_unproven_production_unchanged",
     "productionMutationPerformed": false,
     "migrationPerformed": false,
     "legacyDeletionPerformed": false
   },
   "currentImplementationEntry": {
-    "id": "V2-M1.5-B1-B1-31-CYCLE-EMPIRICAL-CAPTURE",
-    "name": "fixed_policy_atomic_31_cycle_empirical_capture",
-    "status": "pending_external_execution",
+    "id": "V2-M1.5-B1-B3-MARK-PRICE-SAME-GATE-31-CYCLE-RETEST",
+    "name": "mark_price_same_policy_atomic_31_cycle_retest",
+    "status": "pending_exact_release_and_external_execution",
     "productionMutationAllowed": false,
     "migrationAllowed": false,
     "legacyDeletionAllowed": false
@@ -950,6 +951,48 @@
     "productionMutationPerformed": false,
     "candidateEmissionAllowed": false
   },
+  "invalidEarlyShadowEmpiricalCapture": {
+    "id": "V2-M1.5-B1-B1-31-CYCLE-EMPIRICAL-CAPTURE",
+    "sourceCommit": "3908f9f5d0066849311e9d3ac875cc6a76acc69e",
+    "status": "EXECUTION_INVALID_NOT_COUNTED",
+    "observedProcessCycleCount": 31,
+    "rawEvidenceRetained": false,
+    "businessConclusionAllowed": false,
+    "failureReportDigests": [
+      "sha256:ba16338bcf0cf7ae9600bd34d6c415f35e228a3e8958fcf70faa854a8ceb0ebc",
+      "sha256:cbf1079a177bb21f64452ecf9a396225daa933826edd527fffa87d894dd717e8"
+    ],
+    "failureCause": "runner_and_evidence_validator_reconciliation_environment_drift",
+    "exactDockerStateRestored": true,
+    "productionMutationPerformed": false,
+    "candidateEmissionAllowed": false
+  },
+  "completedMarkPriceSnapshotSemanticsRemediation": {
+    "id": "V2-M1.5-B1-B2-MARK-PRICE-SNAPSHOT-SEMANTICS-REMEDIATION",
+    "status": "local_engineering_exit_pass",
+    "factType": "MARK_PRICE",
+    "eventTimeBasis": "MARK_PRICE_SNAPSHOT",
+    "sourceCapability": "public_mark_price_snapshot",
+    "coverageCounters": [
+      "providerObservedCount",
+      "accountedCount",
+      "eligibleCount",
+      "collectedCount",
+      "usablePriceCount",
+      "freshCount"
+    ],
+    "minimumCollectionCoverageRatio": 1,
+    "minimumPriceUsabilityCoverageRatio": 1,
+    "minimumFreshCoverageRatio": 1,
+    "collectorRuntimeSchemaVersion": "market-fact-collector-runtime.v2",
+    "workerCycleSchemaVersion": "market-fact-collector-worker-cycle.v2",
+    "sloReportSchemaVersion": "market-fact-collector-slo-report.v3",
+    "earlyShadowEvidenceSchemaVersion": "market-radar-v2-m1-early-shadow-evidence.v2",
+    "runnerEvidenceSchemaVersion": "market-radar-v2-m1-early-shadow-runner-evidence.v2",
+    "businessSloProven": false,
+    "productionMutationPerformed": false,
+    "candidateEmissionAllowed": false
+  },
   "pendingHistoricalDataGate": {
     "id": "V2-M2.2-B0.2-B-EXACT-SOURCE-RIGHTS-AND-CAPABILITY-RESOLUTION",
     "status": "blocked_on_external_human_rights_review_and_qualified_historical_instrument_source",
@@ -975,10 +1018,14 @@
   },
   "pendingExternalGate": {
     "id": "V2-M1.5-B1-B-31-CYCLE-EARLY-SHADOW",
-    "status": "pending_b1_b1_fixed_policy_atomic_empirical_capture",
+    "status": "pending_b1_b3_mark_price_same_gate_retest",
     "maximumCycles": 31,
     "minimumCycles": 31,
     "atomicSingleProcessRequired": true,
+    "collectionCoverageRatioRequired": 1,
+    "priceUsabilityCoverageRatioRequired": 1,
+    "freshCoverageRatioRequired": 1,
+    "operationalReadyRatioRequired": 1,
     "authorityMode": "NO_AUTHORITY",
     "productionMutationAllowed": false
   }

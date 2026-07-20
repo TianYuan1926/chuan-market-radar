@@ -2,6 +2,41 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-21 / V2 M1.5-B1-B2 Mark Price Snapshot Semantics Remediation
+
+### 本轮目标
+
+修正三 Venue 价格事实语义和 B1-B1 暴露的 Runner/validator 配置漂移，为同门槛 31 周期复测建立不可夸大的地基。
+
+### 修改范围
+
+- Binance/OKX/Bybit 统一改为公开 `MARK_PRICE / MARK_PRICE_SNAPSHOT`，Provider 快照时间和本机 knowledge time 分离。
+- Collector、Worker、SLO 和 evidence 升级为 providerObserved/accounted/eligible/collected/usablePrice/fresh 六计数，新增 100% price-usability 门槛。
+- Runner 与 validator 共用唯一 environment builder；旧 schema、聚合不等于 Venue 求和、技术 PASS 冒充业务 PASS 均 fail closed。
+
+### 核心链路影响
+
+加固 `全市场发现 -> Market Fact + Quality -> Point-in-Time Feature`。未生成 Candidate、Analysis、Strategy、Backtest、页面或生产 authority。
+
+### 测试结果
+
+- identity/fact 30/30、feature/context 17/17、collector/runner 70/70、ops 32/32 PASS。
+- 完整 `ci:production` 退出码 0：Legacy 965/0/4 skip、Worker 23/23、Historical 4/4、V2 277/0/5 explicit skip、ops 32/32、M0 11/11、build、Golden 16/16 和 security 全部通过。
+
+### 是否部署
+
+未部署。生产 DB、Redis、env、migration、Feature Flag、服务、仓库、Candidate runtime 和 authority 零变更。
+
+### 风险与遗留问题
+
+- B1-B1 的 31 周期因完整证据未保留只能记 `EXECUTION_INVALID_NOT_COUNTED`，不能从抽样画面推断业务结果。
+- mark price 不是成交、订单簿或可执行价格；未来仍需独立事实流。
+- B1-B3 新窗口未完成前，业务 SLO、M1.5-B1 和 M1 都未通过。
+
+### 下一轮建议
+
+完整门禁与 exact commit/push 后，只执行 `V2-M1.5-B1-B3-MARK-PRICE-SAME-GATE-31-CYCLE-RETEST`。
+
 ## 2026-07-21 / V2 M1.5-B1-B0 Early Shadow Evidence Contract
 
 ### 本轮目标
@@ -148,41 +183,3 @@
 ### 下一轮建议
 
 只执行 `V2-M2.2-B0.2-C1-EGRESS-CAPABLE-FORWARD-CAPTURE-START`：恢复可信 egress，用同一 release 取得至少两轮完整三 Venue 前向证据；B0.2-B 外部门继续并行等待。
-
-## 2026-07-20 / V2 M2.2-B0.2-A Rights and Historical Instrument Evidence Gate
-
-### 本轮目标
-
-把来源权利和历史 instrument identity 从可自报布尔值升级为可审计、会过期、可核算完整分母且默认关闭的机器 Gate，并如实判断现有候选是否能解锁真实 cohort。
-
-### 修改范围
-
-- 新增内容寻址权利审查：仅账户所有者或合格法律审查者可作外部决定，绑定条款、账户/法域、用途、保留/回放权利、有效期、attestation 和撤销处置。
-- 新增历史 instrument capability/record/coverage：绑定 onboard/delist、合约与结算属性、状态区间、knowledge time、identity epoch、symbol reuse 和完整 point-in-time 分母。
-- 升级 source qualification 到 v2；历史身份未 READY 时，即使技术链和权利通过也不得 bulk acquisition 或 cohort freeze。
-- 登记 Binance/OKX/Bybit 当前接口与 Tardis/Kaiko 候选；当前全部为 `RESEARCH_ONLY`，未把厂商宣传、当前 snapshot 或 archive presence 当成历史证明。
-
-### 核心链路影响
-
-加固 `全市场发现 -> 候选筛选 -> 复盘进化/Research Governance` 的历史 Universe 真值，防止幸存者偏差、错误合约、晚到知识和无权数据污染 Detector 验收。未新增真实发现能力，未生成 Candidate、Signal、等级或计划。
-
-### 测试结果
-
-- B0.2-A 定向：35/35 PASS，覆盖 Agent 自批、exact operator/双数据范围、过期权利、当前快照倒推、provider 漂移、状态缺口、晚到知识、symbol reuse、下架矛盾、unknown knowledge-time bulk 阻断和防篡改。
-- 完整 `ci:production` PASS（exit 0）：Legacy 965/0/4 skip、Worker 23/23、Historical 4/4、V2 242 total / 237 pass / 0 fail / 5 explicit skip、M0 10/10、Next build、Golden 16/16、禁文件/secret/security 全部通过。
-- 第一次全 V2 回归因 Research 注册表持有 OKX provider host 而 1 fail；未加白名单，改用官方 SDK 非运行证据引用后复跑通过。
-- `backtest:formal`、production smoke、live、Shadow、holdout 未运行；本轮不是能力或部署验收。
-
-### 是否部署
-
-未部署。未连接生产，未修改 DB、Redis、Worker、migration、env、Feature Flag、前端、API 或 secret。
-
-### 风险与遗留问题
-
-- 人工作源权利仍 `PENDING`，合格 point-in-time 历史来源数量仍为 0；exact operator、历史行情 + instrument reference 双范围、provider 和 knowledge-time 任一不明时，bulk/cohort 正确保持 blocked。
-- 当前接口只能从捕获日起积累未来历史，不能回填过去；Tardis/Kaiko 仍需精确合同/SLA、技术抽样与权利审查。
-- L2 Liquidity Shift 的历史能力仍未解决，五个 Detector 仍 DRAFT，Candidate emission=false。
-
-### 下一轮建议
-
-本地只执行 `V2-M2.2-B0.2-C-FIRST-PARTY-FORWARD-INSTRUMENT-CAPTURE`；外部并行解决 `B0.2-B` 的精确权利和合格历史来源，二者都不得伪装成已解锁 B1。

@@ -242,7 +242,7 @@ test(
         ),
       });
       const second = await restartedRuntime.runNextCycle();
-      assert.equal(second.telemetry.trigger, "INCREMENTAL_TICKER");
+      assert.equal(second.telemetry.trigger, "INCREMENTAL_MARK_PRICE");
       assert.equal(second.telemetry.state, "READY");
       assert.equal(
         restartedProvider.calls.filter((call) => call.operation === "CATALOG").length,

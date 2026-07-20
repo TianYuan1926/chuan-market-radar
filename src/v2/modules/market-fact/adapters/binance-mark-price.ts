@@ -1,28 +1,28 @@
 import { z } from "zod";
 import type { PublicJsonTransport } from "../../universe/public-json-transport";
-import { tickerObservation } from "../ticker-normalization";
+import { markPriceObservation } from "../mark-price-normalization";
 import {
-  failedTickerBatch,
-  type VenueTickerResult,
-} from "../ticker-types";
+  failedPriceSnapshotBatch,
+  type VenuePriceSnapshotResult,
+} from "../price-snapshot-types";
 
 const VENUE = "BINANCE_FUTURES" as const;
 const HOST = "fapi.binance.com";
-const URL = `https://${HOST}/fapi/v2/ticker/price`;
+const URL = `https://${HOST}/fapi/v1/premiumIndex`;
 
 const EnvelopeSchema = z.array(z.unknown());
 const RowSchema = z.object({
-  price: z.unknown().optional(),
+  markPrice: z.unknown().optional(),
   symbol: z.unknown().optional(),
   time: z.unknown().optional(),
 });
 
-export async function fetchBinanceTickers(
+export async function fetchBinanceMarkPrices(
   transport: PublicJsonTransport,
-): Promise<VenueTickerResult> {
+): Promise<VenuePriceSnapshotResult> {
   const response = await transport({ allowedHost: HOST, url: URL });
   if (!response.ok) {
-    return failedTickerBatch({
+    return failedPriceSnapshotBatch({
       failure: response.failure,
       receivedAt: response.receivedAt,
       venue: VENUE,
@@ -31,8 +31,11 @@ export async function fetchBinanceTickers(
 
   const envelope = EnvelopeSchema.safeParse(response.data);
   if (!envelope.success) {
-    return failedTickerBatch({
-      failure: { kind: "INVALID", reasonCode: "binance_ticker_schema_drift" },
+    return failedPriceSnapshotBatch({
+      failure: {
+        kind: "INVALID",
+        reasonCode: "binance_mark_price_schema_drift",
+      },
       receivedAt: response.receivedAt,
       venue: VENUE,
     });
@@ -40,11 +43,11 @@ export async function fetchBinanceTickers(
 
   const observations = envelope.data.map((rawRecord, rowIndex) => {
     const row = RowSchema.safeParse(rawRecord);
-    return tickerObservation({
+    return markPriceObservation({
       eventTimestamp: row.success ? row.data.time : null,
       rawRecord,
       rowIndex,
-      value: row.success ? row.data.price : null,
+      value: row.success ? row.data.markPrice : null,
       venue: VENUE,
       venueInstrumentId: row.success ? row.data.symbol : null,
     });

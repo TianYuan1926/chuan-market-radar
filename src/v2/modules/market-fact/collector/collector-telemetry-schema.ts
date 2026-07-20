@@ -13,7 +13,7 @@ const Venue = z.enum(TARGET_VENUES);
 
 const ProviderFailureSchema = z.strictObject({
   kind: NonEmptyString,
-  operation: z.enum(["CATALOG", "TICKER"]),
+  operation: z.enum(["CATALOG", "MARK_PRICE"]),
   reasonCode: NonEmptyString,
   venue: Venue,
 });
@@ -42,12 +42,15 @@ const VenueCoverageSchema = z.strictObject({
   eligibleCount: NonNegativeInteger,
   freshCount: NonNegativeInteger,
   freshCoverage: RatioSchema,
+  priceUsabilityCoverage: RatioSchema,
   providerObservedCount: NonNegativeInteger.nullable(),
   providerFailures: z.array(ProviderFailureSchema),
+  usablePriceCount: NonNegativeInteger,
   venue: Venue,
 }).superRefine((value, context) => {
   if (
-    value.freshCount > value.collectedCount ||
+    value.freshCount > value.usablePriceCount ||
+    value.usablePriceCount > value.collectedCount ||
     value.collectedCount > value.eligibleCount ||
     value.eligibleCount > value.accountedCount ||
     value.carriedForwardCount > value.accountedCount ||
@@ -55,6 +58,8 @@ const VenueCoverageSchema = z.strictObject({
     value.collectionCoverage.denominator !== value.eligibleCount ||
     value.freshCoverage.numerator !== value.freshCount ||
     value.freshCoverage.denominator !== value.eligibleCount ||
+    value.priceUsabilityCoverage.numerator !== value.usablePriceCount ||
+    value.priceUsabilityCoverage.denominator !== value.eligibleCount ||
     value.providerFailures.some((failure) => failure.venue !== value.venue)
   ) {
     context.addIssue({
@@ -72,7 +77,9 @@ const CoverageSchema = z.strictObject({
   eligibleCount: NonNegativeInteger,
   freshCount: NonNegativeInteger,
   freshCoverage: RatioSchema,
+  priceUsabilityCoverage: RatioSchema,
   providerObservedCount: NonNegativeInteger.nullable(),
+  usablePriceCount: NonNegativeInteger,
   venues: z.array(VenueCoverageSchema).length(TARGET_VENUES.length),
 }).superRefine((value, context) => {
   const totals = value.venues.reduce((sum, venue) => ({
@@ -81,6 +88,7 @@ const CoverageSchema = z.strictObject({
     collected: sum.collected + venue.collectedCount,
     eligible: sum.eligible + venue.eligibleCount,
     fresh: sum.fresh + venue.freshCount,
+    usable: sum.usable + venue.usablePriceCount,
     observed: sum.observed + (venue.providerObservedCount ?? 0),
   }), {
     accounted: 0,
@@ -88,6 +96,7 @@ const CoverageSchema = z.strictObject({
     collected: 0,
     eligible: 0,
     fresh: 0,
+    usable: 0,
     observed: 0,
   });
   if (
@@ -98,6 +107,7 @@ const CoverageSchema = z.strictObject({
     totals.collected !== value.collectedCount ||
     totals.eligible !== value.eligibleCount ||
     totals.fresh !== value.freshCount ||
+    totals.usable !== value.usablePriceCount ||
     (value.providerObservedCount === null
       ? value.venues.some((venue) => venue.providerObservedCount !== null)
       : totals.observed !== value.providerObservedCount) ||
@@ -105,6 +115,8 @@ const CoverageSchema = z.strictObject({
     value.collectionCoverage.denominator !== value.eligibleCount ||
     value.freshCoverage.numerator !== value.freshCount ||
     value.freshCoverage.denominator !== value.eligibleCount
+    || value.priceUsabilityCoverage.numerator !== value.usablePriceCount
+    || value.priceUsabilityCoverage.denominator !== value.eligibleCount
   ) {
     context.addIssue({
       code: "custom",
@@ -203,7 +215,7 @@ export const CollectorCycleTelemetrySchema = z.strictObject({
   ]),
   trigger: z.enum([
     "STARTUP_FULL",
-    "INCREMENTAL_TICKER",
+    "INCREMENTAL_MARK_PRICE",
     "PERIODIC_RECONCILIATION",
     "RECOVERY",
   ]),
@@ -239,6 +251,8 @@ export const CollectorCycleTelemetrySchema = z.strictObject({
       value.request.queueRejected !== 0 ||
       value.request.venues.some((venue) => venue.quotaRejected !== 0) ||
       value.coverage.eligibleCount === 0 ||
+      value.coverage.collectedCount !== value.coverage.eligibleCount ||
+      value.coverage.usablePriceCount !== value.coverage.eligibleCount ||
       value.coverage.freshCount !== value.coverage.eligibleCount ||
       value.factQualitySnapshotId === null ||
       value.universeSnapshotId === null

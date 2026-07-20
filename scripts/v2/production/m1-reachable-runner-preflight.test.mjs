@@ -32,8 +32,10 @@ function venueCoverage(venue, observed = 20) {
     eligibleCount: 12,
     freshCount: 12,
     freshCoverage: ratio(12),
+    priceUsabilityCoverage: ratio(12),
     providerFailures: [],
     providerObservedCount: observed,
+    usablePriceCount: 12,
     venue,
   };
 }
@@ -47,7 +49,9 @@ function coverage(observed = 60) {
     eligibleCount: 36,
     freshCount: 36,
     freshCoverage: ratio(36),
+    priceUsabilityCoverage: ratio(36),
     providerObservedCount: observed,
+    usablePriceCount: 36,
     venues: [
       venueCoverage("BINANCE_FUTURES", observed === null ? null : 20),
       venueCoverage("OKX_SWAP", observed === null ? null : 20),
@@ -81,7 +85,7 @@ function liveTap() {
         providerFailures: [],
         reasons: [],
         state: "READY",
-        trigger: "INCREMENTAL_TICKER",
+        trigger: "INCREMENTAL_MARK_PRICE",
       },
     ],
     releaseId: `m1-5-live:${SOURCE_COMMIT.slice(0, 12)}`,
@@ -386,10 +390,10 @@ test("passes only technical reachability while preserving honest NOT_READY cycle
   mutateLiveRuntime(input, (runtime) => {
     markCyclePartiallyFresh(runtime.cycles[0], [
       "fresh_coverage_incomplete",
-      "ticker_stale_at_cutoff",
+      "mark_price_snapshot_stale_at_cutoff",
     ]);
     markCyclePartiallyFresh(runtime.cycles[1], [
-      "duplicate_ticker_sequence",
+      "duplicate_mark_price_snapshot_sequence",
       "fresh_coverage_incomplete",
     ]);
     runtime.cycles[1].trigger = "RECOVERY";
@@ -408,7 +412,7 @@ test("passes only technical reachability while preserving honest NOT_READY cycle
     35 / 36,
   );
   assert.deepEqual(report.liveValidation.cycles[1].reasons, [
-    "duplicate_ticker_sequence",
+    "duplicate_mark_price_snapshot_sequence",
     "fresh_coverage_incomplete",
   ]);
   assert.equal(

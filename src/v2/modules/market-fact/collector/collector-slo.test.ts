@@ -45,6 +45,7 @@ function policy(overrides: Partial<CollectorSloPolicy> = {}): CollectorSloPolicy
     minCollectionCoverageRatio: 1,
     minCycles: 2,
     minFreshCoverageRatio: 1,
+    minPriceUsabilityCoverageRatio: 1,
     minObservationMs: 1_000,
     minOperationalReadyRatio: 1,
     ...overrides,
@@ -118,6 +119,7 @@ function withIncompleteCollection(
   assert.ok(venue.collectedCount > 0);
   const collectedCount = venue.collectedCount - 1;
   const freshCount = Math.min(venue.freshCount, collectedCount);
+  const usablePriceCount = Math.min(venue.usablePriceCount, collectedCount);
   const venues = cycle.runtime.coverage.venues.map((item, index) =>
     index === 0
       ? {
@@ -134,11 +136,18 @@ function withIncompleteCollection(
           numerator: freshCount,
           ratio: freshCount / item.eligibleCount,
         },
+        priceUsabilityCoverage: {
+          denominator: item.eligibleCount,
+          numerator: usablePriceCount,
+          ratio: usablePriceCount / item.eligibleCount,
+        },
+        usablePriceCount,
       }
       : item
   );
   const aggregateCollected = cycle.runtime.coverage.collectedCount - 1;
   const aggregateFresh = cycle.runtime.coverage.freshCount - 1;
+  const aggregateUsable = cycle.runtime.coverage.usablePriceCount - 1;
   return parseM1CollectorWorkerCycle({
     ...cycle,
     dataQuality: "PARTIAL",
@@ -159,11 +168,77 @@ function withIncompleteCollection(
           numerator: aggregateFresh,
           ratio: aggregateFresh / cycle.runtime.coverage.eligibleCount,
         },
+        priceUsabilityCoverage: {
+          denominator: cycle.runtime.coverage.eligibleCount,
+          numerator: aggregateUsable,
+          ratio: aggregateUsable / cycle.runtime.coverage.eligibleCount,
+        },
+        usablePriceCount: aggregateUsable,
         venues,
       },
       reasons: [
         "collection_coverage_incomplete",
         "fresh_coverage_incomplete",
+        "price_usability_coverage_incomplete",
+      ],
+      state: "DEGRADED",
+    },
+  });
+}
+
+function withUnusablePrice(
+  cycle: M1CollectorWorkerCycle,
+): M1CollectorWorkerCycle {
+  const venue = cycle.runtime.coverage.venues[0]!;
+  assert.ok(venue.usablePriceCount > 0);
+  const usablePriceCount = venue.usablePriceCount - 1;
+  const freshCount = Math.min(venue.freshCount, usablePriceCount);
+  const venues = cycle.runtime.coverage.venues.map((item, index) =>
+    index === 0
+      ? {
+        ...item,
+        freshCount,
+        freshCoverage: {
+          denominator: item.eligibleCount,
+          numerator: freshCount,
+          ratio: freshCount / item.eligibleCount,
+        },
+        priceUsabilityCoverage: {
+          denominator: item.eligibleCount,
+          numerator: usablePriceCount,
+          ratio: usablePriceCount / item.eligibleCount,
+        },
+        usablePriceCount,
+      }
+      : item
+  );
+  const aggregateFresh = cycle.runtime.coverage.freshCount - 1;
+  const aggregateUsable = cycle.runtime.coverage.usablePriceCount - 1;
+  return parseM1CollectorWorkerCycle({
+    ...cycle,
+    dataQuality: "PARTIAL",
+    operationalReadiness: "NOT_READY",
+    runtime: {
+      ...cycle.runtime,
+      coverage: {
+        ...cycle.runtime.coverage,
+        freshCount: aggregateFresh,
+        freshCoverage: {
+          denominator: cycle.runtime.coverage.eligibleCount,
+          numerator: aggregateFresh,
+          ratio: aggregateFresh / cycle.runtime.coverage.eligibleCount,
+        },
+        priceUsabilityCoverage: {
+          denominator: cycle.runtime.coverage.eligibleCount,
+          numerator: aggregateUsable,
+          ratio: aggregateUsable / cycle.runtime.coverage.eligibleCount,
+        },
+        usablePriceCount: aggregateUsable,
+        venues,
+      },
+      reasons: [
+        "fresh_coverage_incomplete",
+        "price_usability_coverage_incomplete",
       ],
       state: "DEGRADED",
     },
@@ -200,6 +275,7 @@ test("passes only after all evidence and thresholds are satisfied", async () => 
   assert.equal(report.metrics.checkpointRatio, 1);
   assert.equal(report.metrics.minCollectionCoverageRatio, 1);
   assert.equal(report.metrics.minFreshCoverageRatio, 1);
+  assert.equal(report.metrics.minPriceUsabilityCoverageRatio, 1);
   assert.deepEqual(report.reasons, []);
 });
 
@@ -267,6 +343,24 @@ test("fails when any eligible instrument is omitted from collection", async () =
   assert.equal(report.conclusion, "FAIL");
   assert.ok(report.reasons.includes("collection_coverage_below_slo"));
   assert.ok((report.metrics.minCollectionCoverageRatio ?? 1) < 1);
+});
+
+test("fails price usability independently while collection remains complete", async () => {
+  const cycles = await readyCycles();
+  const unusable = [cycles[0]!, withUnusablePrice(cycles[1]!)];
+  const report = evaluateM1CollectorSlo({
+    cycles: unusable,
+    evaluatedAt: unusable.at(-1)!.completedAt,
+    policy: policy(),
+    releaseId: RELEASE_ID,
+  });
+
+  assert.equal(report.conclusion, "FAIL");
+  assert.equal(report.metrics.minCollectionCoverageRatio, 1);
+  assert.ok(
+    report.reasons.includes("price_usability_coverage_below_slo"),
+  );
+  assert.ok((report.metrics.minPriceUsabilityCoverageRatio ?? 1) < 1);
 });
 
 test("fails closed when one observation window mixes runtime configurations", async () => {

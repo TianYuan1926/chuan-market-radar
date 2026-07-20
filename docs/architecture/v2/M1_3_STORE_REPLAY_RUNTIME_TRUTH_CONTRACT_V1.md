@@ -139,7 +139,7 @@ productionChanged = false
 - 没有生产 migration、生产 writer/reader/replay 身份或生产 authority。
 - 没有 raw payload/object storage、Kline/orderbook/OI/funding replay。
 - retention purge、partition、容量、备份、恢复和 SLO 尚未实现。
-- 当前仍只有冻结 BTC 三 Venue `LAST_PRICE` 与一个价格分散 Feature。
+- 当前仍只有冻结 BTC 三 Venue `MARK_PRICE` 与一个标记价格分散 Feature。
 - 本合同不能证明提前发现、Candidate recall、盈利能力或实战准入。
 
 ## 10. 下一入口
