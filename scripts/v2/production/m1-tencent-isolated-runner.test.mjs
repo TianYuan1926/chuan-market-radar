@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   buildStageFailure,
   runnerNames,
+  splitDockerFormatRecord,
 } from "./m1-tencent-isolated-runner.mjs";
 
 const sourceCommit = "a".repeat(40);
@@ -22,6 +23,19 @@ test("Tencent runner generates only run-scoped Docker identities", () => {
   });
   assert.throws(() => runnerNames("latest", sourceCommit));
   assert.throws(() => runnerNames("1760000000000", "main"));
+});
+
+test("Tencent runner parses Docker fields without relying on tab expansion", () => {
+  assert.deepEqual(
+    splitDockerFormatRecord("one|two|three", 3, "TEST_FORMAT_FAILED"),
+    ["one", "two", "three"],
+  );
+  assert.throws(() =>
+    splitDockerFormatRecord("one\\ttwo", 2, "TEST_FORMAT_FAILED")
+  );
+  assert.throws(() =>
+    splitDockerFormatRecord("one||three", 3, "TEST_FORMAT_FAILED")
+  );
 });
 
 test("Tencent runner is isolated, bounded, no-authority, and self-cleaning", async () => {

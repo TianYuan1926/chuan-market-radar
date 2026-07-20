@@ -34,6 +34,7 @@ const BUILD_MEMORY_BYTES = 2 * 1024 * 1024 * 1024;
 const BUILD_MEMORY_SWAP_BYTES = 3 * 1024 * 1024 * 1024;
 const COMMAND_BUFFER_BYTES = 64 * 1024 * 1024;
 const MAX_LIVE_TAP_BYTES = 5 * 1024 * 1024;
+const DOCKER_FIELD_SEPARATOR = "|";
 const DOCKER_HEALTH_FORMAT =
   '{{with (index .State "Health")}}{{.Status}}{{else}}none{{end}}';
 const BUILDX_PLUGIN_PATH = join(
@@ -106,6 +107,20 @@ function lines(value) {
     .filter(Boolean);
 }
 
+export function splitDockerFormatRecord(value, expectedFieldCount, failureCode) {
+  assert.equal(typeof value, "string");
+  assert.ok(Number.isSafeInteger(expectedFieldCount) && expectedFieldCount > 0);
+  assert.match(failureCode, /^[A-Z][A-Z0-9_]{2,95}$/u);
+  const fields = value.split(DOCKER_FIELD_SEPARATOR);
+  if (
+    fields.length !== expectedFieldCount ||
+    fields.some((field) => field.length === 0)
+  ) {
+    throw new RunnerFailure(failureCode);
+  }
+  return fields;
+}
+
 function imagePresent(reference) {
   return docker(["image", "inspect", reference], {
     allowFailure: true,
@@ -135,11 +150,11 @@ function runningContainerSnapshot() {
     const output = docker([
       "inspect",
       "--format",
-      `{{.Id}}\\t{{.Name}}\\t{{.Config.Image}}\\t{{.RestartCount}}\\t{{.State.StartedAt}}\\t${DOCKER_HEALTH_FORMAT}`,
+      `{{.Id}}|{{.Name}}|{{.Config.Image}}|{{.RestartCount}}|{{.State.StartedAt}}|${DOCKER_HEALTH_FORMAT}`,
       id,
     ], { failureCode: "CONTAINER_SNAPSHOT_FAILED" }).stdout.trim();
     const [containerId, rawName, image, restartCount, startedAt, health] =
-      output.split("\t");
+      splitDockerFormatRecord(output, 6, "CONTAINER_SNAPSHOT_FAILED");
     return {
       health,
       id: containerId,
@@ -157,9 +172,13 @@ function networkSnapshot() {
     "ls",
     "--no-trunc",
     "--format",
-    "{{.ID}}\\t{{.Name}}\\t{{.Driver}}\\t{{.Scope}}",
+    "{{.ID}}|{{.Name}}|{{.Driver}}|{{.Scope}}",
   ], { failureCode: "NETWORK_SNAPSHOT_FAILED" }).stdout).map((line) => {
-    const [id, name, driver, scope] = line.split("\t");
+    const [id, name, driver, scope] = splitDockerFormatRecord(
+      line,
+      4,
+      "NETWORK_SNAPSHOT_FAILED",
+    );
     return { driver, id, name, scope };
   }).sort((left, right) => left.id.localeCompare(right.id));
 }
@@ -169,9 +188,13 @@ function volumeSnapshot() {
     "volume",
     "ls",
     "--format",
-    "{{.Name}}\\t{{.Driver}}",
+    "{{.Name}}|{{.Driver}}",
   ], { failureCode: "VOLUME_SNAPSHOT_FAILED" }).stdout).map((line) => {
-    const [name, driver] = line.split("\t");
+    const [name, driver] = splitDockerFormatRecord(
+      line,
+      2,
+      "VOLUME_SNAPSHOT_FAILED",
+    );
     return { driver, name };
   }).sort((left, right) => left.name.localeCompare(right.name));
 }
@@ -548,12 +571,17 @@ async function run() {
       String(BUILD_MEMORY_SWAP_BYTES),
       names.builderContainer,
     ], { failureCode: "BUILDER_LIMIT_FAILED" });
-    const buildLimits = docker([
+    const buildLimitOutput = docker([
       "inspect",
       "--format",
-      "{{.HostConfig.NanoCpus}}\\t{{.HostConfig.Memory}}\\t{{.HostConfig.MemorySwap}}",
+      "{{.HostConfig.NanoCpus}}|{{.HostConfig.Memory}}|{{.HostConfig.MemorySwap}}",
       names.builderContainer,
-    ], { failureCode: "BUILDER_LIMIT_INSPECT_FAILED" }).stdout.trim().split("\t").map(Number);
+    ], { failureCode: "BUILDER_LIMIT_INSPECT_FAILED" }).stdout.trim();
+    const buildLimits = splitDockerFormatRecord(
+      buildLimitOutput,
+      3,
+      "BUILDER_LIMIT_INSPECT_FAILED",
+    ).map(Number);
     assert.deepEqual(buildLimits, [
       BUILD_CPU_NANO,
       BUILD_MEMORY_BYTES,
