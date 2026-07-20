@@ -1,10 +1,10 @@
-FROM node:22-bookworm-slim AS dependencies
+FROM node:22-bookworm-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3 AS dependencies
 
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-FROM node:22-bookworm-slim AS builder
+FROM node:22-bookworm-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3 AS builder
 
 WORKDIR /app
 COPY --from=dependencies /app/node_modules ./node_modules
@@ -12,7 +12,7 @@ COPY tsconfig.json tsconfig.market-test.json package.json package-lock.json ./
 COPY src ./src
 RUN npm run build:market-cli
 
-FROM node:22-bookworm-slim AS runtime
+FROM node:22-bookworm-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3 AS runtime
 
 ARG V2_M1_COLLECTOR_SOURCE_COMMIT
 RUN case "${V2_M1_COLLECTOR_SOURCE_COMMIT}" in \

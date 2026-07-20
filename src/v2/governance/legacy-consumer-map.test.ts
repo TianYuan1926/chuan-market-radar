@@ -22,6 +22,7 @@ test("keeps every V2 graph root outside the Legacy consumer map", () => {
     "deploy/v2/m1-collector/Dockerfile.ts",
     "scripts/v2/production/release.mjs",
     "tools/v2/check-contract.mjs",
+    ".github/workflows/v2-m1-5-b1-reachable-runner-preflight.yml",
   ]) {
     assert.equal(isV2OwnedRepositoryPath(path), true, path);
   }
@@ -31,6 +32,7 @@ test("keeps every V2 graph root outside the Legacy consumer map", () => {
     "deploy/workers/scanner-worker.js",
     "scripts/deploy-production.mjs",
     "tools/check-production.mjs",
+    ".github/workflows/production.yml",
   ]) {
     assert.equal(isV2OwnedRepositoryPath(path), false, path);
   }

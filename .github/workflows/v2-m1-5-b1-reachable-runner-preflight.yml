@@ -1,0 +1,198 @@
+name: V2 M1.5 B1 Reachable Docker Runner Preflight
+
+on:
+  push:
+    branches:
+      - codex/market-radar-v2-implementation
+    paths:
+      - .github/workflows/v2-m1-5-b1-reachable-runner-preflight.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v2-m1-5-b1-reachable-runner-preflight-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  reachable-runner-preflight:
+    name: Exact-image live no-authority preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      COLLECTOR_IMAGE: market-radar-v2-m1-collector:b1a-${{ github.sha }}
+      EGRESS_NETWORK: v2-m1-b1a-egress-${{ github.run_id }}-${{ github.run_attempt }}
+      NODE_BASE_IMAGE: node:22-bookworm-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3
+      POSTGRES_CONTAINER: v2-m1-b1a-postgres-${{ github.run_id }}-${{ github.run_attempt }}
+      POSTGRES_IMAGE: postgres:16-bookworm@sha256:92620daddcd947f8d5ab5ba66e848702fe443d87fed30c4cea8e389fd78dfc55
+      STORAGE_NETWORK: v2-m1-b1a-storage-${{ github.run_id }}-${{ github.run_attempt }}
+      WORKER_CONTAINER: v2-m1-b1a-worker-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Checkout exact branch commit
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Verify exact clean tracked source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain --untracked-files=no)"
+
+      - name: Pull locked bases and build exact collector image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull "$NODE_BASE_IMAGE"
+          docker pull "$POSTGRES_IMAGE"
+          docker build \
+            --pull \
+            --build-arg "V2_M1_COLLECTOR_SOURCE_COMMIT=$GITHUB_SHA" \
+            --file deploy/v2/m1-collector/Dockerfile \
+            --tag "$COLLECTOR_IMAGE" \
+            .
+          mkdir -p "$RUNNER_TEMP/v2-m1-b1a"
+          docker image inspect "$COLLECTOR_IMAGE" > "$RUNNER_TEMP/v2-m1-b1a/collector-image-inspect.json"
+          docker image inspect "$NODE_BASE_IMAGE" > "$RUNNER_TEMP/v2-m1-b1a/node-base-image-inspect.json"
+          docker image inspect "$POSTGRES_IMAGE" > "$RUNNER_TEMP/v2-m1-b1a/postgres-image-inspect.json"
+
+      - name: Prove minimal non-root runtime image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --network none \
+            --read-only \
+            --user 1000:1000 \
+            --cap-drop ALL \
+            --security-opt no-new-privileges \
+            --pids-limit 32 \
+            --memory 128m \
+            --cpus 0.25 \
+            --entrypoint node \
+            "$COLLECTOR_IMAGE" \
+            -e 'const fs=require("node:fs");const required=["/app/.tmp/market-tests/v2/entrypoints/m1-collector-worker.js","/app/.tmp/market-tests/v2/modules/market-fact/collector/collector-live.integration.test.js"];const forbidden=["/app/.env","/app/.git","/app/deploy","/app/scripts","/app/src"];const paths=Object.fromEntries([...required,...forbidden].map((path)=>[path,fs.existsSync(path)]));process.stdout.write(JSON.stringify({cwd:process.cwd(),gid:process.getgid(),paths,uid:process.getuid()}));' \
+            > "$RUNNER_TEMP/v2-m1-b1a/runtime-probe.json"
+
+      - name: Start isolated ephemeral Postgres
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker network create --internal "$STORAGE_NETWORK"
+          docker network create "$EGRESS_NETWORK"
+          docker run --detach \
+            --name "$POSTGRES_CONTAINER" \
+            --network "$STORAGE_NETWORK" \
+            --network-alias v2-m1-postgres \
+            --restart no \
+            --tmpfs /var/lib/postgresql/data:rw,noexec,nosuid,nodev,size=512m \
+            --tmpfs /var/run/postgresql:rw,nosuid,nodev,size=16m \
+            --env POSTGRES_HOST_AUTH_METHOD=trust \
+            --env POSTGRES_DB=v2_m1_b1a \
+            --health-cmd "pg_isready -U postgres -d v2_m1_b1a" \
+            --health-interval 2s \
+            --health-timeout 2s \
+            --health-retries 60 \
+            "$POSTGRES_IMAGE"
+          for attempt in $(seq 1 60); do
+            status="$(docker inspect --format '{{.State.Health.Status}}' "$POSTGRES_CONTAINER")"
+            if [ "$status" = "healthy" ]; then
+              break
+            fi
+            test "$status" != "unhealthy"
+            sleep 2
+          done
+          test "$(docker inspect --format '{{.State.Health.Status}}' "$POSTGRES_CONTAINER")" = "healthy"
+
+      - name: Run two public three-venue collector cycles
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker create \
+            --name "$WORKER_CONTAINER" \
+            --network "$STORAGE_NETWORK" \
+            --read-only \
+            --user 1000:1000 \
+            --cap-drop ALL \
+            --security-opt no-new-privileges \
+            --pids-limit 128 \
+            --memory 512m \
+            --cpus 0.75 \
+            --tmpfs /tmp:rw,noexec,nosuid,nodev,size=32m,uid=1000,gid=1000,mode=0700 \
+            --env V2_M1_LIVE_REHEARSAL=1 \
+            --env "V2_M1_REHEARSAL_SOURCE_COMMIT=$GITHUB_SHA" \
+            --env V2_M1_REHEARSAL_DATABASE_URL=postgresql://postgres@v2-m1-postgres:5432/v2_m1_b1a \
+            --entrypoint node \
+            "$COLLECTOR_IMAGE" \
+            --test \
+            --test-reporter=tap \
+            .tmp/market-tests/v2/modules/market-fact/collector/collector-live.integration.test.js
+          docker network connect "$EGRESS_NETWORK" "$WORKER_CONTAINER"
+          set +e
+          docker start --attach "$WORKER_CONTAINER" 2>&1 | tee "$RUNNER_TEMP/v2-m1-b1a/live.tap"
+          worker_status="${PIPESTATUS[0]}"
+          set -e
+          docker inspect "$WORKER_CONTAINER" > "$RUNNER_TEMP/v2-m1-b1a/worker-container-inspect.json"
+          docker inspect "$POSTGRES_CONTAINER" > "$RUNNER_TEMP/v2-m1-b1a/postgres-container-inspect.json"
+          docker network inspect "$STORAGE_NETWORK" "$EGRESS_NETWORK" > "$RUNNER_TEMP/v2-m1-b1a/network-inspect.json"
+          test "$worker_status" -eq 0
+
+      - name: Build sanitized content-addressed evidence
+        id: evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          generated_at="$(date -u +'%Y-%m-%dT%H:%M:%S.000Z')"
+          node scripts/v2/production/m1-reachable-runner-preflight.mjs build \
+            --source-commit "$GITHUB_SHA" \
+            --repository "$GITHUB_REPOSITORY" \
+            --ref "$GITHUB_REF" \
+            --run-id "$GITHUB_RUN_ID" \
+            --run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --runner-os "$RUNNER_OS" \
+            --runner-arch "$RUNNER_ARCH" \
+            --collector-image-reference "$COLLECTOR_IMAGE" \
+            --node-base-image-reference "$NODE_BASE_IMAGE" \
+            --postgres-image-reference "$POSTGRES_IMAGE" \
+            --collector-image-inspect "$RUNNER_TEMP/v2-m1-b1a/collector-image-inspect.json" \
+            --node-base-image-inspect "$RUNNER_TEMP/v2-m1-b1a/node-base-image-inspect.json" \
+            --postgres-image-inspect "$RUNNER_TEMP/v2-m1-b1a/postgres-image-inspect.json" \
+            --worker-container-inspect "$RUNNER_TEMP/v2-m1-b1a/worker-container-inspect.json" \
+            --postgres-container-inspect "$RUNNER_TEMP/v2-m1-b1a/postgres-container-inspect.json" \
+            --network-inspect "$RUNNER_TEMP/v2-m1-b1a/network-inspect.json" \
+            --runtime-probe "$RUNNER_TEMP/v2-m1-b1a/runtime-probe.json" \
+            --live-tap "$RUNNER_TEMP/v2-m1-b1a/live.tap" \
+            --dockerfile deploy/v2/m1-collector/Dockerfile \
+            --package-lock package-lock.json \
+            --validator scripts/v2/production/m1-reachable-runner-preflight.mjs \
+            --workflow .github/workflows/v2-m1-5-b1-reachable-runner-preflight.yml \
+            --generated-at "$generated_at" \
+            --output "$RUNNER_TEMP/v2-m1-b1a/evidence/reachable-runner-preflight.json"
+          digest="$(node -e 'const fs=require("node:fs");const report=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));process.stdout.write(report.evidenceDigest);' "$RUNNER_TEMP/v2-m1-b1a/evidence/reachable-runner-preflight.json")"
+          digest_hex="${digest#sha256:}"
+          test "${#digest_hex}" -eq 64
+          echo "digest_hex=$digest_hex" >> "$GITHUB_OUTPUT"
+          compact="$(node -e 'const fs=require("node:fs");process.stdout.write(JSON.stringify(JSON.parse(fs.readFileSync(process.argv[1],"utf8"))));' "$RUNNER_TEMP/v2-m1-b1a/evidence/reachable-runner-preflight.json")"
+          escaped="${compact//%/%25}"
+          escaped="${escaped//$'\r'/%0D}"
+          escaped="${escaped//$'\n'/%0A}"
+          echo "::notice title=M1 B1-A Evidence::$escaped"
+
+      - name: Upload sanitized evidence only
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: v2-m1-b1a-${{ github.sha }}-${{ steps.evidence.outputs.digest_hex }}
+          path: ${{ runner.temp }}/v2-m1-b1a/evidence/reachable-runner-preflight.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Destroy ephemeral runtime
+        if: always()
+        shell: bash
+        run: |
+          docker rm --force "$WORKER_CONTAINER" >/dev/null 2>&1 || true
+          docker rm --force "$POSTGRES_CONTAINER" >/dev/null 2>&1 || true
+          docker network rm "$EGRESS_NETWORK" >/dev/null 2>&1 || true
+          docker network rm "$STORAGE_NETWORK" >/dev/null 2>&1 || true
+          rm -rf "$RUNNER_TEMP/v2-m1-b1a"

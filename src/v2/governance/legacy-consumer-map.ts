@@ -22,6 +22,10 @@ const GRAPH_SCAN_ROOTS = ["src", "deploy", "scripts", "tools"] as const;
 const V2_OWNED_GRAPH_PREFIXES = GRAPH_SCAN_ROOTS.map(
   (root) => `${root}/v2/`,
 );
+const V2_OWNED_REPOSITORY_PREFIXES = [
+  ...V2_OWNED_GRAPH_PREFIXES,
+  ".github/workflows/v2-",
+] as const;
 const IGNORED_DIRECTORIES = new Set([
   ".git",
   ".next",
@@ -139,7 +143,7 @@ function isCodeFile(path: string): boolean {
 }
 
 export function isV2OwnedRepositoryPath(repositoryPath: string): boolean {
-  return V2_OWNED_GRAPH_PREFIXES.some((prefix) =>
+  return V2_OWNED_REPOSITORY_PREFIXES.some((prefix) =>
     repositoryPath.startsWith(prefix)
   );
 }
