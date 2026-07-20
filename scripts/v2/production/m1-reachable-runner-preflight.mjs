@@ -307,6 +307,25 @@ export function validateTencentHostSafety(hostSafety) {
   };
 }
 
+export function classifyTencentHostSafetyValidationError(error) {
+  const message = error instanceof Error ? error.message : "";
+  const categories = [
+    [/hostSafety\.(before|after)\.containers/u, "HOST_CONTAINER_SNAPSHOT_SCHEMA_INVALID"],
+    [/hostSafety\.(before|after)\.networks/u, "HOST_NETWORK_SNAPSHOT_SCHEMA_INVALID"],
+    [/hostSafety\.(before|after)\.volumes/u, "HOST_VOLUME_SNAPSHOT_SCHEMA_INVALID"],
+    [/running container count/u, "HOST_RUNNING_CONTAINER_COUNT_INVALID"],
+    [/production containers must not be/u, "HOST_CONTAINER_HEALTH_NOT_READY"],
+    [/Docker state must be restored exactly/u, "HOST_DOCKER_STATE_DRIFTED"],
+    [/(cpuCount|load1|host load)/u, "HOST_CPU_LOAD_THRESHOLD_FAILED"],
+    [/available memory/u, "HOST_MEMORY_THRESHOLD_FAILED"],
+    [/available disk/u, "HOST_DISK_THRESHOLD_FAILED"],
+    [/(executionLimits|build limits)/u, "HOST_BUILD_LIMIT_CONTRACT_INVALID"],
+    [/hostSafety\.cleanup/u, "HOST_CLEANUP_PROOF_INVALID"],
+  ];
+  return categories.find(([pattern]) => pattern.test(message))?.[1] ??
+    "HOST_SAFETY_CONTRACT_FAILED";
+}
+
 function oneInspect(value, label) {
   assert.ok(Array.isArray(value), `${label} must be a Docker inspect array`);
   assert.equal(value.length, 1, `${label} must contain exactly one object`);

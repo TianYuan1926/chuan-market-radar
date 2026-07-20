@@ -51,7 +51,7 @@ test("Tencent runner is isolated, bounded, no-authority, and self-cleaning", asy
     "HOME=${homedir()}",
     '"buildx", "rm", "--force"',
     '"RESTORE_EXACT_HOST_STATE"',
-    "validateTencentHostSafety(hostSafetyInput)",
+    "proveTencentHostSafety(hostSafetyInput)",
   ]) {
     assert.ok(source.includes(required), `missing isolated runner boundary: ${required}`);
   }

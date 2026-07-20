@@ -8,6 +8,7 @@ import {
   B1A_REPOSITORY,
   B1A_TENCENT_RUNNER_PROVIDER,
   buildReachableRunnerEvidence,
+  classifyTencentHostSafetyValidationError,
   stableDigest,
   validateTencentHostSafety,
   verifyReachableRunnerEvidence,
@@ -420,4 +421,23 @@ test("rejects Tencent host restart, residue, and weak resource claims", () => {
   const lowMemory = tencentHostSafety();
   lowMemory.resources.memoryAvailableBytes = 2 * 1024 * 1024 * 1024;
   assert.throws(() => validateTencentHostSafety(lowMemory), /available memory/u);
+});
+
+test("classifies host validation failures without exposing Docker values", () => {
+  assert.equal(
+    classifyTencentHostSafetyValidationError(
+      new Error("hostSafety.before.networks[0].id is invalid: secret-value"),
+    ),
+    "HOST_NETWORK_SNAPSHOT_SCHEMA_INVALID",
+  );
+  assert.equal(
+    classifyTencentHostSafetyValidationError(
+      new Error("available memory is below the locked execution threshold"),
+    ),
+    "HOST_MEMORY_THRESHOLD_FAILED",
+  );
+  assert.equal(
+    classifyTencentHostSafetyValidationError(new Error("unknown raw detail")),
+    "HOST_SAFETY_CONTRACT_FAILED",
+  );
 });

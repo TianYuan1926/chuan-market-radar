@@ -14,6 +14,7 @@ import {
   B1A_TENCENT_RUNNER_PROVIDER,
   B1A_WORKFLOW_PATH,
   buildReachableRunnerEvidence,
+  classifyTencentHostSafetyValidationError,
   stableDigest,
   validateTencentHostSafety,
 } from "./m1-reachable-runner-preflight.mjs";
@@ -181,6 +182,14 @@ function hostSnapshot() {
     networks: networkSnapshot(),
     volumes: volumeSnapshot(),
   };
+}
+
+function proveTencentHostSafety(input) {
+  try {
+    return validateTencentHostSafety(input);
+  } catch (error) {
+    throw new RunnerFailure(classifyTencentHostSafetyValidationError(error));
+  }
 }
 
 function namespaceResources(kind, runId) {
@@ -425,7 +434,7 @@ async function run() {
     stage("LOCK_HOST_BASELINE");
     resources = await resourceSnapshot();
     before = hostSnapshot();
-    validateTencentHostSafety({
+    proveTencentHostSafety({
       after: before,
       before,
       cleanup: {
@@ -802,7 +811,7 @@ async function run() {
       },
       resources,
     };
-    hostSafetySummary = validateTencentHostSafety(hostSafetyInput);
+    hostSafetySummary = proveTencentHostSafety(hostSafetyInput);
   } catch {
     restorationCode = "HOST_RESTORATION_NOT_PROVEN";
     failure ??= new RunnerFailure(restorationCode);
