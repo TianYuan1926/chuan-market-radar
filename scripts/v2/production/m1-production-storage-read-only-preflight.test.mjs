@@ -442,6 +442,7 @@ test("production runner is a scoped, no-authority temporary host runtime", async
   assert.match(source, /\.State\.Pid/u);
   assert.match(source, /--preserve-symlinks/u);
   assert.match(source, /timeout 60s/u);
+  assert.match(source, /sudo test -d "\$\{POSTGRES_DATA_SOURCE\}"/u);
   assert.match(source, /REPEATABLE_READ_READ_ONLY/u);
   assert.match(source, /database-facts\.json/u);
   assert.match(source, /docker-before\.json/u);

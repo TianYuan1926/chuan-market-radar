@@ -214,7 +214,7 @@ fi
 
 POSTGRES_DATA_SOURCE="$(sudo docker inspect "${POSTGRES_CONTAINER}" \
   | jq -er '.[0].Mounts[] | select(.Destination == "/var/lib/postgresql/data") | .Source')"
-[[ -d "${POSTGRES_DATA_SOURCE}" ]] || fail "PostgreSQL data source is unavailable"
+sudo test -d "${POSTGRES_DATA_SOURCE}" || fail "PostgreSQL data source is unavailable"
 read -r DISK_TOTAL_BYTES DISK_USED_BYTES DISK_AVAILABLE_BYTES < <(
   sudo df -B1 --output=size,used,avail "${POSTGRES_DATA_SOURCE}" | awk 'NR == 2 {print $1, $2, $3}'
 )
