@@ -13,6 +13,9 @@ export const B1A_POSTGRES_IMAGE =
   "postgres:16-bookworm@sha256:92620daddcd947f8d5ab5ba66e848702fe443d87fed30c4cea8e389fd78dfc55";
 export const B1A_WORKFLOW_PATH =
   ".github/workflows/v2-m1-5-b1-reachable-runner-preflight.yml";
+export const B1A_GITHUB_RUNNER_PROVIDER = "GITHUB_HOSTED";
+export const B1A_TENCENT_RUNNER_PROVIDER =
+  "TENCENT_LIGHTHOUSE_ISOLATED";
 
 const SCHEMA_VERSION =
   "v2-m1-reachable-runner-preflight-evidence.v1";
@@ -24,6 +27,11 @@ const TARGET_VENUES = [
   "BYBIT_LINEAR_PERPETUAL",
   "OKX_SWAP",
 ];
+const TENCENT_MIN_MEMORY_AVAILABLE_BYTES = 3 * 1024 * 1024 * 1024;
+const TENCENT_MIN_DISK_AVAILABLE_BYTES = 20 * 1024 * 1024 * 1024;
+const TENCENT_BUILD_CPU_NANO = 1_500_000_000;
+const TENCENT_BUILD_MEMORY_BYTES = 2 * 1024 * 1024 * 1024;
+const TENCENT_BUILD_MEMORY_SWAP_BYTES = 3 * 1024 * 1024 * 1024;
 const EXPECTED_TEST_PATH =
   ".tmp/market-tests/v2/modules/market-fact/collector/collector-live.integration.test.js";
 const EXPECTED_ENTRYPOINT = [
@@ -90,6 +98,203 @@ function assertPositiveInteger(value, label) {
 
 function assertExactArray(actual, expected, label) {
   assert.deepEqual(actual, expected, `${label} must match the locked contract`);
+}
+
+function assertBoolean(value, label) {
+  assert.equal(typeof value, "boolean", `${label} must be boolean`);
+}
+
+function normalizeSnapshotRecords(records, fields, validators, label) {
+  assert.ok(Array.isArray(records), `${label} must be an array`);
+  const normalized = records.map((record, index) => {
+    assert.ok(isRecord(record), `${label}[${index}] must be an object`);
+    assert.deepEqual(
+      Object.keys(record).sort(),
+      [...fields].sort(),
+      `${label}[${index}] fields must be exact`,
+    );
+    for (const field of fields) {
+      validators[field](record[field], `${label}[${index}].${field}`);
+    }
+    return Object.fromEntries(fields.map((field) => [field, record[field]]));
+  });
+  normalized.sort((left, right) =>
+    JSON.stringify(left).localeCompare(JSON.stringify(right))
+  );
+  assert.equal(
+    new Set(normalized.map((record) => JSON.stringify(record))).size,
+    normalized.length,
+    `${label} must not contain duplicates`,
+  );
+  return normalized;
+}
+
+function normalizeHostSnapshot(snapshot, label) {
+  assert.ok(isRecord(snapshot), `${label} must be an object`);
+  assert.deepEqual(
+    Object.keys(snapshot).sort(),
+    ["containers", "networks", "volumes"],
+    `${label} fields must be exact`,
+  );
+  const text = (pattern) => (value, fieldLabel) => {
+    assert.equal(typeof value, "string", `${fieldLabel} must be text`);
+    assert.match(value, pattern, `${fieldLabel} is invalid`);
+  };
+  const integer = (value, fieldLabel) =>
+    assertNonNegativeInteger(value, fieldLabel);
+  return {
+    containers: normalizeSnapshotRecords(
+      snapshot.containers,
+      ["health", "id", "image", "name", "restartCount", "startedAt"],
+      {
+        health: text(/^(healthy|none|starting)$/u),
+        id: text(/^[0-9a-f]{64}$/u),
+        image: text(/^[A-Za-z0-9_./:@-]{1,512}$/u),
+        name: text(/^[A-Za-z0-9_.-]{1,255}$/u),
+        restartCount: integer,
+        startedAt: text(/^\d{4}-\d{2}-\d{2}T[^\s]{1,64}Z$/u),
+      },
+      `${label}.containers`,
+    ),
+    networks: normalizeSnapshotRecords(
+      snapshot.networks,
+      ["driver", "id", "name", "scope"],
+      {
+        driver: text(/^[A-Za-z0-9_.-]{1,64}$/u),
+        id: text(/^[0-9a-f]{64}$/u),
+        name: text(/^[A-Za-z0-9_.-]{1,255}$/u),
+        scope: text(/^[A-Za-z0-9_.-]{1,64}$/u),
+      },
+      `${label}.networks`,
+    ),
+    volumes: normalizeSnapshotRecords(
+      snapshot.volumes,
+      ["driver", "name"],
+      {
+        driver: text(/^[A-Za-z0-9_.-]{1,64}$/u),
+        name: text(/^[A-Za-z0-9_.-]{1,255}$/u),
+      },
+      `${label}.volumes`,
+    ),
+  };
+}
+
+export function validateTencentHostSafety(hostSafety) {
+  assert.ok(isRecord(hostSafety), "Tencent host safety input must be an object");
+  assert.deepEqual(
+    Object.keys(hostSafety).sort(),
+    ["after", "before", "cleanup", "executionLimits", "resources"],
+    "Tencent host safety fields must be exact",
+  );
+  const before = normalizeHostSnapshot(hostSafety.before, "hostSafety.before");
+  const after = normalizeHostSnapshot(hostSafety.after, "hostSafety.after");
+  assertPositiveInteger(
+    before.containers.length,
+    "hostSafety.before running container count",
+  );
+  assert.equal(
+    before.containers.every((container) =>
+      container.health === "healthy" || container.health === "none"
+    ),
+    true,
+    "production containers must not be starting or unhealthy before execution",
+  );
+  assert.deepEqual(after, before, "production host Docker state must be restored exactly");
+
+  const resources = hostSafety.resources;
+  assert.ok(isRecord(resources), "hostSafety.resources must be an object");
+  assert.deepEqual(
+    Object.keys(resources).sort(),
+    ["cpuCount", "diskAvailableBytes", "load1", "memoryAvailableBytes"],
+  );
+  assertPositiveInteger(resources.cpuCount, "hostSafety.resources.cpuCount");
+  assert.ok(
+    Number.isFinite(resources.load1) && resources.load1 >= 0,
+    "hostSafety.resources.load1 must be finite and non-negative",
+  );
+  assert.ok(
+    resources.load1 <= resources.cpuCount * 1.5,
+    "host load exceeds the locked execution threshold",
+  );
+  assert.ok(
+    Number.isSafeInteger(resources.memoryAvailableBytes) &&
+      resources.memoryAvailableBytes >= TENCENT_MIN_MEMORY_AVAILABLE_BYTES,
+    "available memory is below the locked execution threshold",
+  );
+  assert.ok(
+    Number.isSafeInteger(resources.diskAvailableBytes) &&
+      resources.diskAvailableBytes >= TENCENT_MIN_DISK_AVAILABLE_BYTES,
+    "available disk is below the locked execution threshold",
+  );
+
+  assert.deepEqual(hostSafety.executionLimits, {
+    buildCpuNano: TENCENT_BUILD_CPU_NANO,
+    buildMemoryBytes: TENCENT_BUILD_MEMORY_BYTES,
+    buildMemorySwapBytes: TENCENT_BUILD_MEMORY_SWAP_BYTES,
+  });
+
+  const cleanup = hostSafety.cleanup;
+  assert.ok(isRecord(cleanup), "hostSafety.cleanup must be an object");
+  assert.deepEqual(
+    Object.keys(cleanup).sort(),
+    [
+      "builderPresentAfter",
+      "collectorImagePresentAfter",
+      "collectorImagePresentBefore",
+      "namespaceContainersAfter",
+      "namespaceNetworksAfter",
+      "namespaceVolumesAfter",
+      "nodeBaseImagePresentAfter",
+      "nodeBaseImagePresentBefore",
+      "postgresImagePresentAfter",
+      "postgresImagePresentBefore",
+    ],
+  );
+  for (const name of [
+    "builderPresentAfter",
+    "collectorImagePresentAfter",
+    "collectorImagePresentBefore",
+    "nodeBaseImagePresentAfter",
+    "nodeBaseImagePresentBefore",
+    "postgresImagePresentAfter",
+    "postgresImagePresentBefore",
+  ]) {
+    assertBoolean(cleanup[name], `hostSafety.cleanup.${name}`);
+  }
+  assert.equal(cleanup.builderPresentAfter, false);
+  assert.equal(cleanup.collectorImagePresentBefore, false);
+  assert.equal(cleanup.collectorImagePresentAfter, false);
+  assert.equal(
+    cleanup.nodeBaseImagePresentAfter,
+    cleanup.nodeBaseImagePresentBefore,
+  );
+  assert.equal(
+    cleanup.postgresImagePresentAfter,
+    cleanup.postgresImagePresentBefore,
+  );
+  for (const name of [
+    "namespaceContainersAfter",
+    "namespaceNetworksAfter",
+    "namespaceVolumesAfter",
+  ]) {
+    assert.deepEqual(cleanup[name], [], `hostSafety.cleanup.${name} must be empty`);
+  }
+
+  const baselineDigest = stableDigest(before);
+  return {
+    baselineDigest,
+    buildLimits: { ...hostSafety.executionLimits },
+    cleanupVerified: true,
+    cpuCount: resources.cpuCount,
+    diskAvailableBytes: resources.diskAvailableBytes,
+    exactDockerStateRestored: true,
+    load1: resources.load1,
+    memoryAvailableBytes: resources.memoryAvailableBytes,
+    networkCount: before.networks.length,
+    postCleanupDigest: stableDigest(after),
+    preexistingRunningContainerCount: before.containers.length,
+    volumeCount: before.volumes.length,
+  };
 }
 
 function oneInspect(value, label) {
@@ -211,7 +416,7 @@ function validateRuntimeProbe(probe) {
   );
 }
 
-function validateWorkerContainer(input) {
+function validateWorkerContainer(input, runnerProvider) {
   const worker = oneInspect(input.workerContainerInspect, "worker container inspect");
   assert.equal(worker.Config?.Image, input.collectorImageReference);
   assert.equal(worker.Config?.User, "1000:1000", "worker must run as 1000:1000");
@@ -236,6 +441,16 @@ function validateWorkerContainer(input) {
   assertNoPublishedPorts(worker, "worker");
   assert.ok(isRecord(worker.HostConfig?.Tmpfs), "worker must have a bounded tmpfs");
   assert.ok("/tmp" in worker.HostConfig.Tmpfs, "worker must mount /tmp as tmpfs");
+  if (runnerProvider === B1A_TENCENT_RUNNER_PROVIDER) {
+    assert.equal(
+      worker.Config?.Labels?.["market-radar.v2.scope"],
+      "b1a2-isolated-preflight",
+    );
+    assert.equal(
+      worker.Config?.Labels?.["market-radar.v2.run-id"],
+      String(input.runId),
+    );
+  }
 
   const workerEnvironment = environmentMap(worker.Config?.Env, "worker");
   assert.equal(workerEnvironment.get("V2_M1_LIVE_REHEARSAL"), "1");
@@ -260,7 +475,7 @@ function validateWorkerContainer(input) {
   return networks;
 }
 
-function validatePostgresContainer(input, workerNetworks) {
+function validatePostgresContainer(input, workerNetworks, runnerProvider) {
   const postgres = oneInspect(
     input.postgresContainerInspect,
     "Postgres container inspect",
@@ -285,9 +500,26 @@ function validatePostgresContainer(input, workerNetworks) {
   assert.equal(postgresEnvironment.get("POSTGRES_HOST_AUTH_METHOD"), "trust");
   assert.equal(postgresEnvironment.get("POSTGRES_DB"), "v2_m1_b1a");
   assert.equal(postgresEnvironment.has("POSTGRES_PASSWORD"), false);
+  if (runnerProvider === B1A_TENCENT_RUNNER_PROVIDER) {
+    assert.equal(postgres.HostConfig?.Memory, 384 * 1024 * 1024);
+    assert.equal(postgres.HostConfig?.NanoCpus, 500_000_000);
+    assert.equal(postgres.HostConfig?.PidsLimit, 128);
+    assert.ok(
+      postgres.HostConfig?.SecurityOpt?.includes("no-new-privileges"),
+      "Tencent isolated Postgres must set no-new-privileges",
+    );
+    assert.equal(
+      postgres.Config?.Labels?.["market-radar.v2.scope"],
+      "b1a2-isolated-preflight",
+    );
+    assert.equal(
+      postgres.Config?.Labels?.["market-radar.v2.run-id"],
+      String(input.runId),
+    );
+  }
 }
 
-function validateNetworks(input) {
+function validateNetworks(input, runnerProvider) {
   assert.ok(Array.isArray(input.networkInspect), "network inspect must be an array");
   assert.equal(input.networkInspect.length, 2, "exactly two isolated networks are required");
   const normalized = input.networkInspect
@@ -300,6 +532,16 @@ function validateNetworks(input) {
           network.Name.startsWith("v2-m1-b1a-egress-"),
         "preflight network name is outside the locked namespace",
       );
+      if (runnerProvider === B1A_TENCENT_RUNNER_PROVIDER) {
+        assert.equal(
+          network.Labels?.["market-radar.v2.scope"],
+          "b1a2-isolated-preflight",
+        );
+        assert.equal(
+          network.Labels?.["market-radar.v2.run-id"],
+          String(input.runId),
+        );
+      }
       return { internal: network.Internal, name: network.Name };
     })
     .sort((left, right) => left.name.localeCompare(right.name));
@@ -462,12 +704,40 @@ export function verifyReachableRunnerEvidence(report) {
   assert.equal(report.schemaVersion, SCHEMA_VERSION);
   assert.equal(report.status, "PASS_REACHABLE_DOCKER_RUNNER_PREFLIGHT");
   assert.equal(report.scope.productionMutation, false);
+  assert.ok(
+    [B1A_GITHUB_RUNNER_PROVIDER, B1A_TENCENT_RUNNER_PROVIDER].includes(
+      report.runner.provider,
+    ),
+    "runner provider is outside the locked contract",
+  );
+  if (report.runner.provider === B1A_TENCENT_RUNNER_PROVIDER) {
+    assert.equal(report.scope.productionHostUsed, true);
+    assert.equal(report.hostSafety?.cleanupVerified, true);
+    assert.equal(report.hostSafety?.exactDockerStateRestored, true);
+    assert.equal(
+      report.hostSafety?.postCleanupDigest,
+      report.hostSafety?.baselineDigest,
+    );
+    assert.match(report.supplyChain.runnerContractDigest, SHA256_PATTERN);
+  } else {
+    assert.equal(report.scope.productionHostUsed, false);
+    assert.equal("hostSafety" in report, false);
+    assert.equal("runnerContractDigest" in report.supplyChain, false);
+  }
   assert.equal(report.scope.automaticTradingAllowed, false);
   assert.equal(report.liveValidation.sloConclusion, "INSUFFICIENT_EVIDENCE");
   return report;
 }
 
 export function buildReachableRunnerEvidence(input) {
+  const runnerProvider =
+    input.runnerProvider ?? B1A_GITHUB_RUNNER_PROVIDER;
+  assert.ok(
+    [B1A_GITHUB_RUNNER_PROVIDER, B1A_TENCENT_RUNNER_PROVIDER].includes(
+      runnerProvider,
+    ),
+    "runner provider is outside the locked contract",
+  );
   assert.match(input.sourceCommit, COMMIT_PATTERN, "source commit must be exact");
   assert.equal(input.repository, B1A_REPOSITORY);
   assert.equal(input.ref, `refs/heads/${B1A_BRANCH}`);
@@ -485,10 +755,21 @@ export function buildReachableRunnerEvidence(input) {
 
   const imageIds = validateImageInspect(input);
   validateRuntimeProbe(input.runtimeProbe);
-  const workerNetworks = validateWorkerContainer(input);
-  validatePostgresContainer(input, workerNetworks);
-  validateNetworks(input);
+  const workerNetworks = validateWorkerContainer(input, runnerProvider);
+  validatePostgresContainer(input, workerNetworks, runnerProvider);
+  validateNetworks(input, runnerProvider);
   const liveValidation = validateLiveEvidence(input);
+  const hostSafety =
+    runnerProvider === B1A_TENCENT_RUNNER_PROVIDER
+      ? validateTencentHostSafety(input.hostSafety)
+      : null;
+  if (runnerProvider === B1A_TENCENT_RUNNER_PROVIDER) {
+    assert.ok(
+      Buffer.isBuffer(input.runnerContractBytes) &&
+        input.runnerContractBytes.length > 0,
+      "Tencent runner contract bytes are required",
+    );
+  }
 
   const core = {
     generatedAt: input.generatedAt,
@@ -498,7 +779,7 @@ export function buildReachableRunnerEvidence(input) {
       attempt: Number(input.runAttempt),
       id: String(input.runId),
       operatingSystem: input.runnerOs,
-      provider: "GITHUB_HOSTED",
+      provider: runnerProvider,
     },
     schemaVersion: SCHEMA_VERSION,
     scope: {
@@ -506,6 +787,8 @@ export function buildReachableRunnerEvidence(input) {
       candidateRuntimePresent: false,
       databaseMigrationAppliedToProduction: false,
       detectorExecuted: false,
+      productionHostUsed:
+        runnerProvider === B1A_TENCENT_RUNNER_PROVIDER,
       productionDependenciesUsed: false,
       productionMutation: false,
       productionNetworkUsed: false,
@@ -530,7 +813,11 @@ export function buildReachableRunnerEvidence(input) {
       postgresImageReference: input.postgresImageReference,
       validatorDigest: byteDigest(input.validatorBytes),
       workflowDigest: byteDigest(input.workflowBytes),
+      ...(runnerProvider === B1A_TENCENT_RUNNER_PROVIDER
+        ? { runnerContractDigest: byteDigest(input.runnerContractBytes) }
+        : {}),
     },
+    ...(hostSafety === null ? {} : { hostSafety }),
   };
   const evidenceDigest = stableDigest(core);
   return verifyReachableRunnerEvidence({

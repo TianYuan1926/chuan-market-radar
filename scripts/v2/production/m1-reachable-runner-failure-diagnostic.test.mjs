@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   B1A_BRANCH,
   B1A_REPOSITORY,
+  B1A_TENCENT_RUNNER_PROVIDER,
 } from "./m1-reachable-runner-preflight.mjs";
 import {
   buildFailureDiagnostic,
@@ -78,5 +79,61 @@ test("rejects a success exit code or wrong branch binding", () => {
   assert.throws(() => buildFailureDiagnostic({
     ...input("failure"),
     ref: "refs/heads/main",
+  }));
+});
+
+test("Tencent failure diagnostics require proven host restoration", () => {
+  const snapshot = {
+    containers: [{
+      health: "healthy",
+      id: "1".repeat(64),
+      image: "market-radar-production:web",
+      name: "market-radar-web-1",
+      restartCount: 0,
+      startedAt: "2026-07-20T09:00:00.000000000Z",
+    }],
+    networks: [],
+    volumes: [],
+  };
+  const hostSafety = {
+    after: structuredClone(snapshot),
+    before: structuredClone(snapshot),
+    cleanup: {
+      builderPresentAfter: false,
+      collectorImagePresentAfter: false,
+      collectorImagePresentBefore: false,
+      namespaceContainersAfter: [],
+      namespaceNetworksAfter: [],
+      namespaceVolumesAfter: [],
+      nodeBaseImagePresentAfter: true,
+      nodeBaseImagePresentBefore: true,
+      postgresImagePresentAfter: true,
+      postgresImagePresentBefore: true,
+    },
+    executionLimits: {
+      buildCpuNano: 1_500_000_000,
+      buildMemoryBytes: 2 * 1024 * 1024 * 1024,
+      buildMemorySwapBytes: 3 * 1024 * 1024 * 1024,
+    },
+    resources: {
+      cpuCount: 4,
+      diskAvailableBytes: 40 * 1024 * 1024 * 1024,
+      load1: 1,
+      memoryAvailableBytes: 4 * 1024 * 1024 * 1024,
+    },
+  };
+  const report = buildFailureDiagnostic({
+    ...input("# tests 1\n# pass 0\n# fail 1\n# skipped 0\n"),
+    hostSafety,
+    runnerProvider: B1A_TENCENT_RUNNER_PROVIDER,
+  });
+  assert.equal(report.scope.productionHostUsed, true);
+  assert.equal(report.hostSafety.cleanupVerified, true);
+
+  hostSafety.after.containers[0].restartCount = 1;
+  assert.throws(() => buildFailureDiagnostic({
+    ...input("failure"),
+    hostSafety,
+    runnerProvider: B1A_TENCENT_RUNNER_PROVIDER,
   }));
 });

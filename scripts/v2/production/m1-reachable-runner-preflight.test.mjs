@@ -5,8 +5,10 @@ import {
   B1A_NODE_BASE_IMAGE,
   B1A_POSTGRES_IMAGE,
   B1A_REPOSITORY,
+  B1A_TENCENT_RUNNER_PROVIDER,
   buildReachableRunnerEvidence,
   stableDigest,
+  validateTencentHostSafety,
   verifyReachableRunnerEvidence,
 } from "./m1-reachable-runner-preflight.mjs";
 
@@ -232,6 +234,53 @@ function fixture() {
   };
 }
 
+function tencentHostSafety() {
+  const snapshot = {
+    containers: [{
+      health: "healthy",
+      id: "4".repeat(64),
+      image: "market-radar-production:web",
+      name: "market-radar-web-1",
+      restartCount: 0,
+      startedAt: "2026-07-20T09:00:00.000000000Z",
+    }],
+    networks: [{
+      driver: "bridge",
+      id: "5".repeat(64),
+      name: "market-radar-default",
+      scope: "local",
+    }],
+    volumes: [{ driver: "local", name: "market-radar-postgres-data" }],
+  };
+  return {
+    after: structuredClone(snapshot),
+    before: structuredClone(snapshot),
+    cleanup: {
+      builderPresentAfter: false,
+      collectorImagePresentAfter: false,
+      collectorImagePresentBefore: false,
+      namespaceContainersAfter: [],
+      namespaceNetworksAfter: [],
+      namespaceVolumesAfter: [],
+      nodeBaseImagePresentAfter: true,
+      nodeBaseImagePresentBefore: true,
+      postgresImagePresentAfter: false,
+      postgresImagePresentBefore: false,
+    },
+    executionLimits: {
+      buildCpuNano: 1_500_000_000,
+      buildMemoryBytes: 2 * 1024 * 1024 * 1024,
+      buildMemorySwapBytes: 3 * 1024 * 1024 * 1024,
+    },
+    resources: {
+      cpuCount: 4,
+      diskAvailableBytes: 40 * 1024 * 1024 * 1024,
+      load1: 1.25,
+      memoryAvailableBytes: 4 * 1024 * 1024 * 1024,
+    },
+  };
+}
+
 test("builds a content-addressed, no-authority reachable-runner report", () => {
   const report = buildReachableRunnerEvidence(fixture());
   assert.equal(report.status, "PASS_REACHABLE_DOCKER_RUNNER_PREFLIGHT");
@@ -303,4 +352,59 @@ test("rejects runtime privilege, source pollution, and production-like storage",
   const mounted = fixture();
   mounted.postgresContainerInspect[0].Mounts = [{ Type: "bind" }];
   assert.throws(() => buildReachableRunnerEvidence(mounted), /production data/u);
+});
+
+test("binds Tencent isolated execution to exact host restoration evidence", () => {
+  const input = fixture();
+  input.runnerProvider = B1A_TENCENT_RUNNER_PROVIDER;
+  input.runnerContractBytes = Buffer.from("isolated runner contract\n");
+  input.hostSafety = tencentHostSafety();
+  input.workerContainerInspect[0].Config.Labels = {
+    "market-radar.v2.run-id": input.runId,
+    "market-radar.v2.scope": "b1a2-isolated-preflight",
+  };
+  input.postgresContainerInspect[0].Config.Labels = {
+    "market-radar.v2.run-id": input.runId,
+    "market-radar.v2.scope": "b1a2-isolated-preflight",
+  };
+  Object.assign(input.postgresContainerInspect[0].HostConfig, {
+    Memory: 384 * 1024 * 1024,
+    NanoCpus: 500_000_000,
+    PidsLimit: 128,
+    SecurityOpt: ["no-new-privileges"],
+  });
+  for (const network of input.networkInspect) {
+    network.Labels = {
+      "market-radar.v2.run-id": input.runId,
+      "market-radar.v2.scope": "b1a2-isolated-preflight",
+    };
+  }
+
+  const report = buildReachableRunnerEvidence(input);
+  assert.equal(report.runner.provider, B1A_TENCENT_RUNNER_PROVIDER);
+  assert.equal(report.scope.productionHostUsed, true);
+  assert.equal(report.scope.productionMutation, false);
+  assert.equal(report.hostSafety.cleanupVerified, true);
+  assert.equal(
+    report.hostSafety.baselineDigest,
+    report.hostSafety.postCleanupDigest,
+  );
+  assert.match(report.supplyChain.runnerContractDigest, /^sha256:[0-9a-f]{64}$/u);
+});
+
+test("rejects Tencent host restart, residue, and weak resource claims", () => {
+  const restarted = tencentHostSafety();
+  restarted.after.containers[0].restartCount = 1;
+  assert.throws(
+    () => validateTencentHostSafety(restarted),
+    /restored exactly/u,
+  );
+
+  const residue = tencentHostSafety();
+  residue.cleanup.namespaceNetworksAfter.push("v2-m1-b1a-egress-residue");
+  assert.throws(() => validateTencentHostSafety(residue), /must be empty/u);
+
+  const lowMemory = tencentHostSafety();
+  lowMemory.resources.memoryAvailableBytes = 2 * 1024 * 1024 * 1024;
+  assert.throws(() => validateTencentHostSafety(lowMemory), /available memory/u);
 });

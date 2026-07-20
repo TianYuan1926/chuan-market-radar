@@ -4,8 +4,11 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   B1A_BRANCH,
+  B1A_GITHUB_RUNNER_PROVIDER,
   B1A_REPOSITORY,
+  B1A_TENCENT_RUNNER_PROVIDER,
   stableDigest,
+  validateTencentHostSafety,
 } from "./m1-reachable-runner-preflight.mjs";
 
 const MAX_INPUT_BYTES = 5 * 1024 * 1024;
@@ -126,10 +129,30 @@ export function verifyFailureDiagnostic(report) {
   assert.equal(report.status, "FAIL_REACHABLE_DOCKER_RUNNER_PREFLIGHT");
   assert.equal(report.scope.productionMutation, false);
   assert.equal(report.scope.rawLogIncluded, false);
+  assert.ok(
+    [B1A_GITHUB_RUNNER_PROVIDER, B1A_TENCENT_RUNNER_PROVIDER].includes(
+      report.runner.provider,
+    ),
+  );
+  if (report.runner.provider === B1A_TENCENT_RUNNER_PROVIDER) {
+    assert.equal(report.scope.productionHostUsed, true);
+    assert.equal(report.hostSafety?.cleanupVerified, true);
+    assert.equal(report.hostSafety?.exactDockerStateRestored, true);
+  } else {
+    assert.equal(report.scope.productionHostUsed, false);
+    assert.equal("hostSafety" in report, false);
+  }
   return report;
 }
 
 export function buildFailureDiagnostic(input) {
+  const runnerProvider =
+    input.runnerProvider ?? B1A_GITHUB_RUNNER_PROVIDER;
+  assert.ok(
+    [B1A_GITHUB_RUNNER_PROVIDER, B1A_TENCENT_RUNNER_PROVIDER].includes(
+      runnerProvider,
+    ),
+  );
   assert.match(input.sourceCommit, COMMIT_PATTERN);
   assert.equal(input.repository, B1A_REPOSITORY);
   assert.equal(input.ref, `refs/heads/${B1A_BRANCH}`);
@@ -139,6 +162,10 @@ export function buildFailureDiagnostic(input) {
   assert.equal(new Date(input.generatedAt).toISOString(), input.generatedAt);
   assert.equal(typeof input.liveTap, "string");
   assert.ok(Buffer.byteLength(input.liveTap) > 0);
+  const hostSafety =
+    runnerProvider === B1A_TENCENT_RUNNER_PROVIDER
+      ? validateTencentHostSafety(input.hostSafety)
+      : null;
 
   const core = {
     diagnostic: {
@@ -154,11 +181,13 @@ export function buildFailureDiagnostic(input) {
     runner: {
       attempt: input.runAttempt,
       id: String(input.runId),
-      provider: "GITHUB_HOSTED",
+      provider: runnerProvider,
     },
     schemaVersion: SCHEMA_VERSION,
     scope: {
       automaticTradingAllowed: false,
+      productionHostUsed:
+        runnerProvider === B1A_TENCENT_RUNNER_PROVIDER,
       productionMutation: false,
       productionNetworkUsed: false,
       productionSecretsUsed: false,
@@ -171,6 +200,7 @@ export function buildFailureDiagnostic(input) {
       repository: input.repository,
     },
     status: "FAIL_REACHABLE_DOCKER_RUNNER_PREFLIGHT",
+    ...(hostSafety === null ? {} : { hostSafety }),
   };
   const evidenceDigest = stableDigest(core);
   return verifyFailureDiagnostic({
