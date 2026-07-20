@@ -14,7 +14,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 export const P0_DATABASE_FACTS_SCHEMA_VERSION =
   "v2-m1-production-storage-database-read-only-facts.v1";
 export const P0_HOST_FACTS_SCHEMA_VERSION =
-  "v2-m1-production-storage-host-read-only-facts.v1";
+  "v2-m1-production-storage-host-read-only-facts.v2";
 export const P0_RECOVERY_EVIDENCE_SCHEMA_VERSION =
   "v2-m1-production-storage-recovery-evidence.v1";
 export const P0_REPORT_SCHEMA_VERSION =
@@ -593,7 +593,7 @@ function normalizeHostFacts(value) {
     "productionRepositoryMutation",
     "productionServiceMutation",
     "secretFileRemoved",
-    "temporaryContainerRemoved",
+    "temporaryRuntimeRemoved",
   ], "hostFacts.runnerBoundary");
   return {
     capturedAt: iso(value.capturedAt, "hostFacts.capturedAt"),
@@ -912,7 +912,7 @@ export function buildM1ProductionStorageReadOnlyPreflight(input) {
     && host.productionWorktreeCleanBefore
     && host.productionWorktreeCleanAfter);
   checks.add("production_docker_state_restored", dockerRestored);
-  checks.add("runner_temporary_scope_clean", host.runnerBoundary.temporaryContainerRemoved
+  checks.add("runner_temporary_scope_clean", host.runnerBoundary.temporaryRuntimeRemoved
     && host.runnerBoundary.secretFileRemoved
     && !host.runnerBoundary.productionDatabaseMutation
     && !host.runnerBoundary.productionRepositoryMutation

@@ -138,7 +138,7 @@ function hostFacts() {
       productionRepositoryMutation: false,
       productionServiceMutation: false,
       secretFileRemoved: true,
-      temporaryContainerRemoved: true,
+      temporaryRuntimeRemoved: true,
     },
     schemaVersion: P0_HOST_FACTS_SCHEMA_VERSION,
     sourceCommit: SOURCE_COMMIT,
@@ -431,15 +431,17 @@ test("every database statement is statically read-only or transaction-local", ()
   }
 });
 
-test("production runner is a scoped, no-authority transient-container operation", async () => {
+test("production runner is a scoped, no-authority temporary host runtime", async () => {
   const runnerPath = fileURLToPath(new URL(
     "./m1-production-storage-read-only-preflight.sh",
     import.meta.url,
   ));
   const source = await readFile(runnerPath, "utf8");
-  assert.match(source, /--read-only/u);
-  assert.match(source, /--cap-drop ALL/u);
-  assert.match(source, /no-new-privileges:true/u);
+  assert.match(source, /HOST_NODE_BINARY/u);
+  assert.match(source, /HOST_NODE_MODULES/u);
+  assert.match(source, /\.State\.Pid/u);
+  assert.match(source, /--preserve-symlinks/u);
+  assert.match(source, /timeout 60s/u);
   assert.match(source, /REPEATABLE_READ_READ_ONLY/u);
   assert.match(source, /database-facts\.json/u);
   assert.match(source, /docker-before\.json/u);
@@ -447,10 +449,12 @@ test("production runner is a scoped, no-authority transient-container operation"
   assert.match(source, /docker inspect "\$\{POSTGRES_CONTAINER\}"/u);
   assert.match(source, /@uri/u);
   assert.match(source, /\.s\.PGSQL\.5432/u);
-  assert.match(source, /dst=\/var\/run\/postgresql,readonly/u);
+  assert.match(source, /temporaryRuntimeRemoved/u);
   assert.match(source, /productionDatabaseMutation: false/u);
+  assert.doesNotMatch(source, /GraphDriver/u);
   assert.doesNotMatch(source, /POSTGRES_PASSWORD/u);
   assert.doesNotMatch(source, /substr\(\$0, 1, 13\) == "DATABASE_URL="/u);
+  assert.doesNotMatch(source, /sudo docker run/u);
   assert.doesNotMatch(source, /docker compose[^\n]*(up|down|restart)/u);
   assert.doesNotMatch(source, /\bpsql\b/u);
   assert.doesNotMatch(source, /\b(CONFIRM_MIGRATION|INSERT INTO|CREATE TABLE|DROP TABLE)\b/u);
@@ -459,7 +463,7 @@ test("production runner is a scoped, no-authority transient-container operation"
   }));
   assert.equal(plan.productionDatabaseMutation, false);
   assert.equal(plan.migrationAllowed, false);
-  assert.equal(plan.temporaryContainerOnly, true);
+  assert.equal(plan.temporaryHostRuntimeOnly, true);
 });
 
 test("schema classifier rejects managed residue when the schema is reported absent", () => {

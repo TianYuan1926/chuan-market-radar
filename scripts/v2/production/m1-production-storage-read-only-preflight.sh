@@ -17,7 +17,7 @@ fail() {
 
 print_plan() {
   cat <<'JSON'
-{"schemaVersion":"v2-m1-production-storage-read-only-runner-plan.v1","mode":"plan","databaseTransaction":"REPEATABLE_READ_READ_ONLY","effectiveRoles":["pg_monitor","pg_read_all_data"],"productionDatabaseMutation":false,"productionServiceMutation":false,"productionRepositoryMutation":false,"migrationAllowed":false,"temporaryContainerOnly":true}
+{"schemaVersion":"v2-m1-production-storage-read-only-runner-plan.v2","mode":"plan","databaseTransaction":"REPEATABLE_READ_READ_ONLY","effectiveRoles":["pg_monitor","pg_read_all_data"],"productionDatabaseMutation":false,"productionServiceMutation":false,"productionRepositoryMutation":false,"migrationAllowed":false,"temporaryHostRuntimeOnly":true}
 JSON
 }
 
@@ -29,7 +29,7 @@ fi
 [[ "${CONFIRM_READ_ONLY_PREFLIGHT}" == "EXECUTE_V2_M1_P0_READ_ONLY_PREFLIGHT" ]] \
   || fail "exact read-only preflight confirmation is required"
 
-for command in awk comm date df docker du git install jq mktemp rm sha256sum sort sudo tr wc; do
+for command in awk date df docker du git install jq ln mktemp rm sha256sum sort sudo timeout tr wc; do
   command -v "${command}" >/dev/null 2>&1 || fail "required command missing: ${command}"
 done
 sudo docker version >/dev/null 2>&1 || fail "Docker is unavailable"
@@ -51,14 +51,16 @@ sudo docker version >/dev/null 2>&1 || fail "Docker is unavailable"
 
 install -d -m 700 "${OUTPUT_DIRECTORY}"
 SECRET_FILE="${OUTPUT_DIRECTORY}/.database-connection.secret"
-RUNNER_NAME="market-radar-v2-m1-p0-${SOURCE_COMMIT:0:12}"
+HOST_RUNTIME_ROOT="${OUTPUT_DIRECTORY}/.host-runtime"
 SECRET_REMOVED=false
-CONTAINER_REMOVED=false
+TEMPORARY_RUNTIME_REMOVED=false
 
 cleanup() {
-  sudo docker rm -f "${RUNNER_NAME}" >/dev/null 2>&1 || true
   if [[ -e "${SECRET_FILE}" ]]; then
     sudo rm -f "${SECRET_FILE}"
+  fi
+  if [[ -e "${HOST_RUNTIME_ROOT}" ]]; then
+    sudo rm -rf "${HOST_RUNTIME_ROOT}"
   fi
 }
 trap cleanup EXIT
@@ -138,32 +140,33 @@ POSTGRES_CONTAINER="$(compose ps -q postgres)"
 [[ "$(sudo docker inspect -f '{{.State.Running}}' "${POSTGRES_CONTAINER}")" == "true" ]] \
   || fail "production PostgreSQL container is not running"
 
-WEB_NETWORKS="${OUTPUT_DIRECTORY}/.web-networks"
-POSTGRES_NETWORKS="${OUTPUT_DIRECTORY}/.postgres-networks"
-sudo docker inspect "${WEB_CONTAINER}" | jq -r '.[0].NetworkSettings.Networks | keys[]' | sort > "${WEB_NETWORKS}"
-sudo docker inspect "${POSTGRES_CONTAINER}" | jq -r '.[0].NetworkSettings.Networks | keys[]' | sort > "${POSTGRES_NETWORKS}"
-mapfile -t COMMON_NETWORKS < <(comm -12 "${WEB_NETWORKS}" "${POSTGRES_NETWORKS}")
-rm -f "${WEB_NETWORKS}" "${POSTGRES_NETWORKS}"
-[[ ${#COMMON_NETWORKS[@]} -eq 1 ]] || fail "Web/PostgreSQL common network is not unique"
-NETWORK_NAME="${COMMON_NETWORKS[0]}"
-WEB_IMAGE="$(sudo docker inspect -f '{{.Image}}' "${WEB_CONTAINER}")"
-[[ "${WEB_IMAGE}" =~ ^sha256:[0-9a-f]{64}$ ]] || fail "production Web image is not content addressed"
-POSTGRES_MERGED_DIRECTORY="$(sudo docker inspect -f '{{.GraphDriver.Data.MergedDir}}' "${POSTGRES_CONTAINER}")"
-[[ "${POSTGRES_MERGED_DIRECTORY}" == /* ]] || fail "PostgreSQL merged directory is unavailable"
-POSTGRES_SOCKET_SOURCE="${POSTGRES_MERGED_DIRECTORY}/var/run/postgresql"
+WEB_PID="$(sudo docker inspect -f '{{.State.Pid}}' "${WEB_CONTAINER}")"
+POSTGRES_PID="$(sudo docker inspect -f '{{.State.Pid}}' "${POSTGRES_CONTAINER}")"
+[[ "${WEB_PID}" =~ ^[1-9][0-9]*$ && "${POSTGRES_PID}" =~ ^[1-9][0-9]*$ ]] \
+  || fail "production container PID is invalid"
+HOST_NODE_BINARY="/proc/${WEB_PID}/root/usr/local/bin/node"
+HOST_NODE_MODULES="/proc/${WEB_PID}/root/app/node_modules"
+POSTGRES_SOCKET_SOURCE="/proc/${POSTGRES_PID}/root/var/run/postgresql"
+sudo test -x "${HOST_NODE_BINARY}" || fail "production Node runtime is unavailable"
+sudo test -d "${HOST_NODE_MODULES}" || fail "production Node modules are unavailable"
 sudo test -S "${POSTGRES_SOCKET_SOURCE}/.s.PGSQL.5432" \
   || fail "PostgreSQL local socket is unavailable"
+install -d -m 700 "${HOST_RUNTIME_ROOT}"
+install -m 500 "${PROBE_SOURCE}" "${HOST_RUNTIME_ROOT}/probe.mjs"
+[[ "$(sha256sum "${HOST_RUNTIME_ROOT}/probe.mjs" | awk '{print $1}')" == "${PROBE_SHA256}" ]] \
+  || fail "temporary probe checksum mismatch"
+ln -s "${HOST_NODE_MODULES}" "${HOST_RUNTIME_ROOT}/node_modules"
 
 # Local socket authentication avoids treating a stale initialization password as authority.
 sudo docker inspect "${POSTGRES_CONTAINER}" \
-  | jq -er '
+  | jq -er --arg socketDirectory "${POSTGRES_SOCKET_SOURCE}" '
       .[0].Config.Env
       | map(capture("^(?<key>POSTGRES_(?:USER|DB))=(?<value>.*)$"))
       | from_entries
       | (.POSTGRES_USER // "") as $username
       | (.POSTGRES_DB // "") as $database
       | if ([$username, $database] | all(length > 0)) then
-          "postgresql://\($username | @uri):local-socket@localhost/\($database | @uri)?host=%2Fvar%2Frun%2Fpostgresql"
+          "postgresql://\($username | @uri):local-socket@localhost/\($database | @uri)?host=\($socketDirectory | @uri)"
         else
           error("PostgreSQL bootstrap identity is incomplete")
         end
@@ -172,24 +175,10 @@ sudo docker inspect "${POSTGRES_CONTAINER}" \
 [[ "$(sudo wc -l < "${SECRET_FILE}" | tr -d ' ')" == "1" ]] \
   || fail "exactly one database connection must be materialized"
 sudo chmod 600 "${SECRET_FILE}"
-sudo chown 1000:1000 "${SECRET_FILE}"
 
-sudo docker run --name "${RUNNER_NAME}" --rm \
-  --network "${NETWORK_NAME}" \
-  --read-only \
-  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=16m \
-  --cap-drop ALL \
-  --security-opt no-new-privileges:true \
-  --pids-limit 128 \
-  --memory 512m \
-  --cpus 1 \
-  --user 1000:1000 \
-  --mount "type=bind,src=${PROBE_SOURCE},dst=/app/m1-p0-read-only-preflight.mjs,readonly" \
-  --mount "type=bind,src=${SECRET_FILE},dst=/run/secrets/database-connection,readonly" \
-  --mount "type=bind,src=${POSTGRES_SOCKET_SOURCE},dst=/var/run/postgresql,readonly" \
-  "${WEB_IMAGE}" \
-  node /app/m1-p0-read-only-preflight.mjs probe \
-    --database-connection-file /run/secrets/database-connection \
+sudo timeout 60s "${HOST_NODE_BINARY}" --preserve-symlinks \
+  "${HOST_RUNTIME_ROOT}/probe.mjs" probe \
+    --database-connection-file "${SECRET_FILE}" \
     --source-commit "${SOURCE_COMMIT}" \
   > "${DATABASE_FACTS}"
 chmod 600 "${DATABASE_FACTS}"
@@ -206,9 +195,9 @@ jq -e '
 
 sudo rm -f "${SECRET_FILE}"
 SECRET_REMOVED=true
-[[ -z "$(sudo docker ps -aq --filter "name=^/${RUNNER_NAME}$")" ]] \
-  || fail "temporary P0 container remains"
-CONTAINER_REMOVED=true
+sudo rm -rf "${HOST_RUNTIME_ROOT}"
+[[ ! -e "${HOST_RUNTIME_ROOT}" ]] || fail "temporary P0 runtime remains"
+TEMPORARY_RUNTIME_REMOVED=true
 
 capture_docker_state "${AFTER_SNAPSHOT}"
 AFTER_DIGEST="sha256:$(sha256sum "${AFTER_SNAPSHOT}" | awk '{print $1}')"
@@ -237,7 +226,7 @@ done
 
 CAPTURED_AT="$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
 jq -n \
-  --arg schemaVersion "v2-m1-production-storage-host-read-only-facts.v1" \
+  --arg schemaVersion "v2-m1-production-storage-host-read-only-facts.v2" \
   --arg capturedAt "${CAPTURED_AT}" \
   --arg sourceCommit "${SOURCE_COMMIT}" \
   --arg productionHeadBefore "${PRODUCTION_HEAD_BEFORE}" \
@@ -258,7 +247,7 @@ jq -n \
   --argjson postgresData "${POSTGRES_DATA_BYTES}" \
   --argjson postgresWal "${POSTGRES_WAL_BYTES}" \
   --argjson secretRemoved "${SECRET_REMOVED}" \
-  --argjson containerRemoved "${CONTAINER_REMOVED}" \
+  --argjson temporaryRuntimeRemoved "${TEMPORARY_RUNTIME_REMOVED}" \
   '{
     schemaVersion: $schemaVersion,
     capturedAt: $capturedAt,
@@ -285,7 +274,7 @@ jq -n \
       postgresWalBytes: $postgresWal
     },
     runnerBoundary: {
-      temporaryContainerRemoved: $containerRemoved,
+      temporaryRuntimeRemoved: $temporaryRuntimeRemoved,
       secretFileRemoved: $secretRemoved,
       productionDatabaseMutation: false,
       productionRepositoryMutation: false,
