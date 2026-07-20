@@ -22,7 +22,13 @@
 - [x] **M2.0 发现合同与黄金样本（可并行本地）**：已冻结六族十四模式、Detector event/knowledge 双 cutoff 输入、Candidate/Episode/Thesis v2 生命周期、UTC 去重、三层运行漏斗和 19 个 point-in-time fixture。状态：`LOCAL_CONTRACT_PASS / M1_RUNTIME_BLOCKED / PRODUCTION_UNCHANGED`；Candidate 仍无等级/计划，fixture 无 Outcome/future material。
 - [x] **M2.1 Pre-Move + Breakout/Retest DRAFT Replay Kernels（可并行本地）**：已建立三个 Pre-Move 与两个 Breakout/Retest 独立纯函数内核、显式多空/UNKNOWN、late/noise/fakeout veto、缺失诚实降级、确定性 digest 和注册身份防篡改。状态：`LOCAL_DRAFT_KERNEL_PASS / UNCALIBRATED / NO_CANDIDATE_EMISSION / M1_RUNTIME_BLOCKED`；合成样本不能把生命周期升级为 REPLAY_VALIDATED。
 - [x] **M2.2-A Historical Replay Contract + Lifecycle Gate Harness（可并行本地）**：已冻结真实数据接纳、固定 Detector 分母、完整背景窗口、candidate/event/matched-non-event 三业务分母、purge/embargo、holdout group isolation、主 Bundle 与 sealed holdout 物理分离、target-blind 首次发现、knowledge-time lead、分层指标/CI 和四态 Gate。状态：`LOCAL_HARNESS_PASS / REAL_COHORT_MISSING / GATE_INSUFFICIENT / DETECTORS_DRAFT / NO_CANDIDATE_EMISSION`；test-only 合成 cohort 永远不能晋级。
-- [ ] **M2.2-B Real Historical Cohort Acquisition + Freeze**：登记来源 license/retention/replay rights，生成完整 point-in-time observations、Candidate Universe 背景窗口、Event/Matched non-event 标签、真实 train/validation/holdout 和独立 holdout artifact；冻结 ranking policy 与全部 trial registry，本包不得打开 holdout。
+- [ ] **M2.2-B Real Historical Cohort Acquisition + Freeze**：该总包保留，但按真实依赖拆成 B0-B3；任何子 Gate 不通过都不得用下载量或代码量冒充总包完成。
+- [x] **M2.2-B0 Source Qualification + Acquisition Safety**：已建立人工权利审查、历史合约身份、knowledge-time、逐 Detector 数据覆盖、精确对象/checksum、工作区外路径、容量预算和单对象验证后强制删原始字节的 fail-closed Gate。真实 BTCUSDT 1m 月文件 1,838,455 bytes 与官方 SHA-256 一致；状态：`LOCAL_SOURCE_GATE_PASS / TECHNICAL_PILOT_PASS / BULK_BLOCKED / COHORT_BLOCKED / PRODUCTION_UNCHANGED`。
+- [ ] **M2.2-B0.1 Target-Blind Diagnostic Strength + Construction Policy Freeze**：先补当前 DRAFT Kernel 缺失的可复现强度与 ranking 合同，再冻结 train-only 事件阈值、matched control、完整背景、pre-cutoff regime/liquidity、modeled knowledge-time 和全部 trial registry；严禁 Outcome/future 字段进入排序。
+- [ ] **M2.2-B0.2 Rights + Point-in-Time Instrument Metadata Resolution**：由账户所有者或合格法律审查者绑定不可变官方条款证据，并取得历史 onboard/delist/contract type/settlement/underlying class/status；归档 presence、当前 snapshot 或 Agent 推断都不能通过。可与 B0.1 并行，二者都通过才开放 B1。
+- [ ] **M2.2-B1 Immutable Raw Archive Acquisition**：仅按冻结精确对象清单批量下载，逐文件官方 checksum、断点续传、容量水位和 Git 外不可变索引；L2 不足的 Detector 保持 unsupported。
+- [ ] **M2.2-B2 Cohort Construction**：只在 TRAIN 拟合标签阈值，生成 point-in-time observations、Event、Matched non-event 与 Candidate Universe 完整背景；同一冻结 Detector 分母逐窗口运行，任何缺失进入 unavailable 分母。
+- [ ] **M2.2-B3 Split + Sealed Holdout Freeze**：冻结 train/validation、purge/embargo、symbol/regime assignment 和独立 holdout commitment；本包仍不得打开 holdout，也不得挑选表现最好的 trial。
 - [ ] **M2.2-C Registered Replay + Sensitivity + Untouched Holdout**：先在 validation 执行全部预登记 sensitivity trial 并报告失败，再单次打开 holdout，输出 overall/family/detector/direction/regime/liquidity 指标、Top20 late/noise、失败案例和 sealed result；每个实际 stratum 都必须登记并逐层过线，数据或样本不足必须 INSUFFICIENT。
 - [ ] **M2.2-D Independent Audit + Lifecycle Proposal**：独立复核来源权利、分母、future leak、trial completeness、custody ledger 和 Gate digest。只有 PASS 才可提出 REPLAY_VALIDATED；生命周期修改仍需独立 package，Candidate/runtime 仍封闭。
 - [ ] **M3 唯一决策纵向切片**：完成 family-specific Analysis、Evidence/Setup 双评级、StrategyDraft、Execution Feasibility 唯一终审、Personal/Portfolio Risk。验证：只有 Final Decision 能产生 READY，false READY=0，结构与净 RR 均不低于 3，所有关键缺失 fail closed。
@@ -48,10 +54,10 @@ M5 的 Outcome 采集从 M2 开始并行，额外 Detector、UI fixture、Runtim
 
 ```text
 M0 engineering exit: LOCAL_PASS / PRODUCTION_UNCHANGED
-Last completed package: V2-M2.2-A Historical Replay Contract and Lifecycle Gate Harness
-Current local engineering package: V2-M2.2-B-REAL-HISTORICAL-COHORT-ACQUISITION-AND-FREEZE
+Last completed package: V2-M2.2-B0 Historical Source Qualification and Acquisition Safety
+Current local engineering package: V2-M2.2-B0.1-TARGET-BLIND-DIAGNOSTIC-STRENGTH-AND-CONSTRUCTION-POLICY-FREEZE
 Pending external gate: V2-M1.5-B1-EGRESS-EARLY-SHADOW-GATE
-Current status: M2.2_A_LOCAL_HARNESS_PASS / REAL_COHORT_MISSING / M2.2_GATE_INSUFFICIENT / DETECTORS_STILL_DRAFT / M1.5-B1_AND_M1.7_PENDING / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED / PRODUCTION_UNCHANGED
+Current status: M2.2_B0_LOCAL_SOURCE_GATE_PASS / TECHNICAL_PILOT_PASS / BULK_AND_COHORT_BLOCKED_ON_RIGHTS_AND_POINT_IN_TIME_INSTRUMENT_HISTORY / RANKING_STRENGTH_MISSING / M2.2_GATE_INSUFFICIENT / DETECTORS_STILL_DRAFT / M1.5-B1_AND_M1.7_PENDING / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED / PRODUCTION_UNCHANGED
 ```
 
 M0 的减数只代表合同、运行时输入边界、Legacy 消费者地图和隔离门禁已经形成闭环；它不代表真实 Provider、全市场扫描、Detector、交易计划、页面或生产能力已经完成。

@@ -78,3 +78,18 @@ network + object storage + Postgres index + Redis memory + provider request cost
 - 实时与回放使用同一 Feature 实现，同一冻结输入字节级确定。
 - 单源失败只降级对应能力；unknown 不变 0，stale 不变 live。
 - CoinGlass 当前 plan、限额和端点只有 fresh capability probe 后才可从 `UNVERIFIED` 升级。
+
+## 7. M2.2 历史来源现状
+
+2026-07-20 的 B0 资格 Gate 已真实验证 Binance Vision 单个 USD-M Futures 1m 月文件及官方 SHA-256，验证后原始 ZIP 删除。该结果只把技术通道升为 `TECHNICAL_PILOT_PASS`：
+
+```text
+rights review=PENDING_HUMAN_REVIEW
+point-in-time instrument history=INCOMPLETE
+bulk acquisition=false
+cohort freeze=false
+knowledge time=MODELED_NOT_OBSERVED
+L2 Liquidity Shift=UNSUPPORTED_BY_KLINE_ARCHIVE
+```
+
+详细合同见 `M2_2_B0_HISTORICAL_SOURCE_QUALIFICATION_AND_ACQUISITION_SAFETY_V1.md`。公开可下载、归档 presence、当前 instrument snapshot 和仓库许可证文件都不能单独把 retention/replay 权利或历史 eligible universe 写成 APPROVED。

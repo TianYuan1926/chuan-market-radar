@@ -2,6 +2,44 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-20 / V2 M2.2-B0 Historical Source Qualification and Acquisition Safety
+
+### 本轮目标
+
+在真实 historical cohort 下载前，把来源权利、历史合约身份、时间语义、Detector 数据覆盖、checksum、容量和原始数据边界做成 fail-closed Gate，并执行一个会自动删除原始字节的真实技术试点。
+
+### 修改范围
+
+- 新增严格 source qualification、source assessment、exact-object acquisition plan/preflight 和技术 pilot result 合同。
+- 新增 HTTPS host allowlist、官方 SHA-256 sidecar、大小上限、受校验续传、路径逃逸、时间倒置、磁盘保留量和验证后 raw deletion 防线。
+- Binance Vision 当前登记为技术 PASS、人工权利 PENDING、point-in-time instrument history 不完整；Kline 支持四个 Detector 输入建设，Liquidity Shift 因 L2 缺失保持 unsupported。
+- 调整 M2.2-B 为 B0-B3 证据出口，下一本地包先补 target-blind diagnostic strength 和 cohort construction policy，不修改 Detector 生命周期。
+
+### 核心链路影响
+
+只加固 `复盘进化 -> Research Governance` 的真实数据入口，防止污染 Detector 评价。未生成 Candidate、Signal、等级或交易计划，未读取 Legacy/M1 runtime，未修改前端、API、DB、Redis、Worker、migration、secret 或生产。
+
+### 测试结果
+
+- M2.2-B0 定向合同：14/14 PASS；M2.2-A 回归 13/13 PASS。
+- 真实技术 pilot：BTCUSDT 2026-06 1m 月文件 1,838,455 bytes，官方/实际 SHA-256 一致，结果 `VERIFIED_AND_RAW_DELETED`。
+- 完整 `ci:production`：PASS，exit code 0；Legacy 965/0/4 skip、Worker 23/23、Historical 4/4、V2 194/0/5 explicit skip、M0 10/10、build、golden 16/16 和安全门禁全部通过。
+- `backtest:formal`、production smoke 未运行；本轮不是能力或部署验收。
+
+### 是否部署
+
+未部署。原始试点数据只短暂存在于 Git 工作区外，验证后已删除；生产零连接、零命令、零变更。
+
+### 风险与遗留问题
+
+- retention/replay 权利仍需人工审查，不能由 Agent 根据公开可下载或仓库 MIT 文件自行批准。
+- 归档 presence 不能证明历史 eligible instrument；必须补 point-in-time onboard/delist/contract/settlement/underlying/status。
+- M2.1 只有 matched/no-match，没有 target-blind 强度，当前不能诚实生成 Top20 ranking。
+
+### 下一轮建议
+
+只执行 `V2-M2.2-B0.1-TARGET-BLIND-DIAGNOSTIC-STRENGTH-AND-CONSTRUCTION-POLICY-FREEZE`；B0.2 权利和历史合约身份可并行解决，二者都通过前禁止 bulk acquisition。
+
 ## 2026-07-20 / V2 M2.2-A Historical Replay Contract and Lifecycle Gate Harness
 
 ### 本轮目标
@@ -156,45 +194,3 @@
 ### 下一轮建议
 
 只执行 `V2-M2.0-DISCOVERY-CONTRACTS-AND-GOLDEN-FIXTURES` 本地合同包；M1.5-B1/M1.7 外部门禁未通过前，Detector runtime 继续封闭。
-
-## 2026-07-20 / V2 M1.5-B0 Shadow Release Safety Local Exit
-
-### 本轮目标
-
-在 live Shadow 前修复进程身份、secret 注入、SLO 证据和容器权限缺口，并把有限观察与长期 Fact 存储能力分开。
-
-### 修改范围
-
-- 入口显式假设并核验 `market_radar_v2_m1_writer/reader`，要求不同 session login、固定 host/database 和生产非空密码。
-- database URL 支持两个独立 secret file；日志改为完整 strict observation envelope，增加固定 SLO JSONL CLI。
-- 冻结 31 周期/30 分钟与 1441 周期/24 小时两个有限 profile，retention 最大 30 天，拒绝无限 Shadow。
-- 新增只含编译后 V2 runtime 的专用 Dockerfile 和非 root/read-only/no-capability/no-port/no-Legacy-secret Compose overlay。
-- 新鲜读取 Edge OrcaTerm；只确认 0 会话/无连接配置，未输入或保存凭据，生产零命令。
-
-### 核心链路影响
-
-加固 `Universe -> Market Fact + Quality -> Runtime Truth` 的 Shadow 运行边界，不生成 Candidate、方向、Signal、READY 或交易计划。审计发现高频 Fact 单表没有物理 purge，新增 M1.6 分区/retention 地基步骤。
-
-### 测试结果
-
-- `test:v2-m1-collector`：41/41 PASS。
-- `typecheck`、`lint`、YAML 语法与 `git diff --check`：PASS。
-- `test:v2-foundation`：136 pass / 0 fail / 4 explicit external-dependency skips；新增 V2 graph root 回归后，Legacy Consumer Map 仍为 539 个源文件。
-- 隔离 PostgreSQL 16：M1.5 checkpoint restart、M1.4 collector、M1.3 store/replay 三项各 1/1 PASS。
-- 完整 `ci:production`：`exit_code=0`；Legacy market 965/0、Worker 23/0、历史回测 4/0、build、golden 16/16 与 security 均通过。
-- 本机无 Docker CLI，真实 image build 与 Compose merge 未运行，明确为 UNPROVEN。
-- `backtest:formal` 与 production smoke 未运行；本轮不属于 formal 验收且生产零变更。
-
-### 是否部署
-
-未部署。未创建 OrcaTerm 连接、未执行 migration、身份创建、secret 写入、镜像构建、容器启动、数据库/Redis/Legacy 变更或 GitHub main 部署。
-
-### 风险与遗留问题
-
-- 本机 provider egress 不可达、OrcaTerm 0 会话且 Docker CLI 不存在；live、image 和生产事实仍未证明。
-- 当前高频 Fact 单表 append-only 且没有物理 purge，只允许有限 Shadow，禁止长期一分钟全市场写入。
-- 首次全 V2 门禁发现 `deploy/v2/**` 被误纳入 Legacy Consumer Map；已统一排除四个 V2 graph root 并增加回归，未通过重生成基线掩盖污染。
-
-### 下一轮建议
-
-只执行 `V2-M1.6-PARTITIONED-FACT-STORAGE`；外部 M1.5-B1 固定 31 周期 early Shadow 在可信通道恢复后并行，二者都通过后再做 M1.7 24 小时持续 SLO。
