@@ -148,17 +148,22 @@ rm -f "${WEB_NETWORKS}" "${POSTGRES_NETWORKS}"
 NETWORK_NAME="${COMMON_NETWORKS[0]}"
 WEB_IMAGE="$(sudo docker inspect -f '{{.Image}}' "${WEB_CONTAINER}")"
 [[ "${WEB_IMAGE}" =~ ^sha256:[0-9a-f]{64}$ ]] || fail "production Web image is not content addressed"
+POSTGRES_MERGED_DIRECTORY="$(sudo docker inspect -f '{{.GraphDriver.Data.MergedDir}}' "${POSTGRES_CONTAINER}")"
+[[ "${POSTGRES_MERGED_DIRECTORY}" == /* ]] || fail "PostgreSQL merged directory is unavailable"
+POSTGRES_SOCKET_SOURCE="${POSTGRES_MERGED_DIRECTORY}/var/run/postgresql"
+sudo test -S "${POSTGRES_SOCKET_SOURCE}/.s.PGSQL.5432" \
+  || fail "PostgreSQL local socket is unavailable"
 
+# Local socket authentication avoids treating a stale initialization password as authority.
 sudo docker inspect "${POSTGRES_CONTAINER}" \
   | jq -er '
       .[0].Config.Env
-      | map(capture("^(?<key>POSTGRES_(?:USER|PASSWORD|DB))=(?<value>.*)$"))
+      | map(capture("^(?<key>POSTGRES_(?:USER|DB))=(?<value>.*)$"))
       | from_entries
       | (.POSTGRES_USER // "") as $username
-      | (.POSTGRES_PASSWORD // "") as $password
       | (.POSTGRES_DB // "") as $database
-      | if ([$username, $password, $database] | all(length > 0)) then
-          "postgresql://\($username | @uri):\($password | @uri)@postgres:5432/\($database | @uri)"
+      | if ([$username, $database] | all(length > 0)) then
+          "postgresql://\($username | @uri):local-socket@localhost/\($database | @uri)?host=%2Fvar%2Frun%2Fpostgresql"
         else
           error("PostgreSQL bootstrap identity is incomplete")
         end
@@ -181,6 +186,7 @@ sudo docker run --name "${RUNNER_NAME}" --rm \
   --user 1000:1000 \
   --mount "type=bind,src=${PROBE_SOURCE},dst=/app/m1-p0-read-only-preflight.mjs,readonly" \
   --mount "type=bind,src=${SECRET_FILE},dst=/run/secrets/database-connection,readonly" \
+  --mount "type=bind,src=${POSTGRES_SOCKET_SOURCE},dst=/var/run/postgresql,readonly" \
   "${WEB_IMAGE}" \
   node /app/m1-p0-read-only-preflight.mjs probe \
     --database-connection-file /run/secrets/database-connection \
