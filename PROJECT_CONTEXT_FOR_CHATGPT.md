@@ -1,6 +1,6 @@
 # Market Radar 项目当前上下文
 
-更新日期：2026-07-20
+更新日期：2026-07-21
 
 用途：让 Codex、ChatGPT 和外部审计员在几分钟内获得当前真实状态、唯一蓝图、风险和下一入口。本文件只保存当前事实，不保存施工流水账，不包含 secret。
 
@@ -65,8 +65,8 @@ Runtime / Security / Release Control 贯穿全链。
 
 当前唯一设计权威：
 
-- `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`，内容版本 v1.6。
-- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.8。
+- `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`，内容版本 v1.7。
+- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.9。
 - `docs/blueprints/README.md`，权威解析入口。
 - `market-radar-v2-build-sequence.md`，当前正确施工依赖与减数规则。
 
@@ -81,9 +81,10 @@ M1.3_STORE_REPLAY_RUNTIME_TRUTH_LOCAL_PASS
 M1.4_FULL_UNIVERSE_COLLECTOR_LOCAL_POSTGRES16_PASS
 M1.5A_DURABLE_WORKER_CHECKPOINT_SLO_LOCAL_POSTGRES16_PASS
 M1.5B0_SHADOW_RELEASE_SAFETY_LOCAL_PASS
-M1.5_COLLECTOR_LIVE_EGRESS_AND_DOCKER_UNPROVEN
-M1.5B1A_REACHABLE_DOCKER_RUNNER_PREFLIGHT_PENDING
-M1.5B1B_EARLY_SHADOW_PENDING
+M1.5B1A_REACHABLE_DOCKER_RUNNER_TECHNICAL_PASS
+M1.5B1A_BUSINESS_READINESS_AND_SLO_FAIL
+M1.5B1B0_EARLY_SHADOW_EVIDENCE_CONTRACT_CURRENT
+M1.5B1B_31_CYCLE_EARLY_SHADOW_PENDING
 M1.6_PARTITIONED_FACT_STORAGE_LOCAL_POSTGRES16_PASS
 M2.0_DISCOVERY_CONTRACTS_LOCAL_PASS
 M2.1_DRAFT_REPLAY_KERNELS_LOCAL_PASS
@@ -140,7 +141,7 @@ automaticTradingAllowed=false
 - M1.3 已建立无 memory fallback 的 PostgreSQL artifact store、Universe/Fact/FactQuality 原子事务、完整 payload digest、严格幂等冲突、event/knowledge 双 cutoff Manifest、五类 NOLOGIN capability role、两次 durable replay 和固定 profile 的 Runtime Truth v2。隔离 PG16 真实演练 1/1 PASS：8 artifact、权限、append-only、污染检测、parity 和 deterministic replay 均通过；结果保持 `REHEARSAL/PARTIAL`。
 - M1.4 已建立 21 observed / 15 eligible 的三 Venue 多标的 fixture、完整/增量 reconciliation、目录 tombstone、provider quota、global/per-provider concurrency、有限队列、冷启动、数据库失败和恢复状态机。Collector strict telemetry 分开报告 providerObserved/accounted/eligible/collected/fresh；真实 PG16 已证明启动、增量和全 catalog 故障的原子持久化，生产 import 仍只能通过 Adapter。
 - M1.5-A 已建立独立 additive checkpoint migration、artifact 引用与 digest 防线、精确 release/config/sequence/schedule 恢复、固定节拍 skip-missed Worker、优雅停止、强制 telemetry sink、分离 reader/writer 身份的 NO_AUTHORITY 进程入口和三态 SLO evaluator。隔离 PG16 已证明关闭连接后的精确增量恢复、append-only、幂等、越权拒绝和 checkpoint 不领先 artifact。
-- M1.5-B0 已补齐显式 reader/writer role assumption 与会话身份核验、两个 secret-file database URL、完整 strict observation JSONL、固定 30 分钟/24 小时有限 Shadow profile，以及无 Legacy secret、非 root、只读 filesystem、无端口的专用容器边界。定向 41/41、全 V2 136 pass / 0 fail / 4 explicit external-dependency skips、三项隔离 PG16 回归与完整 `ci:production` 均通过；本机无 Docker CLI，真实 image build/Compose merge 未证明。
+- M1.5-B0 已补齐显式 reader/writer role assumption 与会话身份核验、两个 secret-file database URL、完整 strict observation JSONL、固定 30 分钟/24 小时有限 Shadow profile，以及无 Legacy secret、非 root、只读 filesystem、无端口的专用容器边界。定向 41/41、全 V2 136 pass / 0 fail / 4 explicit external-dependency skips、三项隔离 PG16 回归与完整 `ci:production` 均通过；B1-A 已随后补齐 exact image build、三 Venue egress 与隔离 Docker Runner 证明。
 - M1.6 已建立专用 UTC 日分区、无 DEFAULT fail-closed 路由、有界活动身份注册表、旧账本新 Fact 禁写、容量水位、Audit/Retention 分权、restore-verified DROP 与不可变 CREATED/DROPPED/run evidence。隔离 PG16 真实证明旧读兼容、两日跨分区、`pg_dump -> pg_restore -> replay parity`、保留/replay 阻断、原子清理与防重灌；全 V2 141/0/5 explicit skips 与完整 `ci:production` PASS，生产 migration 和真实容量未证明。
 - M2.0 已冻结六个机会族、十四种模式、family-specific direction、Detector event/knowledge 双 cutoff、Candidate/Episode/Thesis strict v2 schema、Detector emission authority、UTC Episode 去重、生命周期、三层运行漏斗和 19 个 test-only point-in-time fixture；fixture 递归拒绝 Outcome/MFE/MAE 等未来材料。该结论只证明本地合同，不证明 Detector、Deep Validation、真实市场发现率或生产能力。
 - M2.1 已建立三个 Pre-Move 与两个 Breakout/Retest 独立 DRAFT 纯回放内核，包含显式长短/UNKNOWN、late/noise/fakeout veto、unavailable 降级、顺序无关 digest 和 Detector 注册身份防篡改。阈值固定标记 `UNCALIBRATED_DRAFT_THRESHOLDS`，Candidate emission=false；定向 10/10、M2.0 回归 16/16、全 V2 167 pass / 0 fail / 5 explicit skips。没有历史 cohort、真实指标或生命周期升级证据。
@@ -149,7 +150,7 @@ automaticTradingAllowed=false
 - M2.2-B0.1 已为五个 DRAFT Detector 增加 target-blind relative-rule-margin diagnostic strength，明确不是概率、等级或交易结论；固定 Detector 分母 Top20、TRAIN-only 六维事件阈值、matched/background、pre-cutoff regime/liquidity、observed/modeled knowledge-time、purge/embargo 和 1+4 trial registry 已由 version/digest 绑定到 dataset/experiment/holdout v2。定向 45/45 PASS；真实 cohort 仍为 0、Gate=`INSUFFICIENT`、Detector 仍 DRAFT、Candidate 禁发。
 - M2.2-B0.2-A 已把来源权利升级为内容寻址、限定账户/法域、带有效期且只能由账户所有者或合格法律审查者作出的外部结论；把历史 instrument identity、onboard/delist、状态区间、knowledge time、symbol reuse epoch 和全分母覆盖核算做成 fail-closed Gate。当前五个来源候选全部为 `RESEARCH_ONLY`，合格历史来源仍为 0；Agent、当前快照和 archive presence 均不能自证通过。
 - M2.2-B0.2-C/C1 已建立 release-bound 三 Venue exact raw capture、工作区外内容寻址 store、完整分母、三类 identity evidence、identity epoch、持续缺席非 delist、全链 journal 验证与 clean-HEAD CLI。冻结 release `4139cc631d3d760876c3e39404c494462541a910` 连续取得两轮三 Venue COMPLETE；Binance/OKX/Bybit 分别 841/426/746 rows，目标 654/272/642，out-of-scope 187/154/104，unresolved=0；跨度约 368.5 秒，三家均 2/2 complete、gap/conflict/blocker=0、`FORWARD_ONLY_READY`。这只通过前向捕获起点，不回填历史、不解锁 B0.2-B/B1 historical acquisition、Detector 或 Candidate。
-- 本机早期 M1 live no-authority probe 曾两轮连接/请求超时并保持 0 observed / 0 eligible / `DEGRADED`；C1 现已证明显式代理下的公开 catalog egress，但本机仍无 Docker CLI，M1 collector image、四分母、31 周期 Shadow、24h SLO、生产 migration、API、页面和生产 authority 仍未证明。
+- M1.5-B1-A 已在腾讯宿主机隔离 no-authority Runner 以 exact commit `97f10e75ce296b07d933e9c362c40ba2be0997ea` 构建专用镜像并真实运行两周期。每周期 eligible/collected 均 1,444/1,444、三 Venue provider failure=0、checkpoint/persistence=`INSERTED`，宿主机 11 容器/4 network/5 volume 已按 digest 精确恢复；evidence `sha256:a44cab89b8a4bf291e7c8f67eb6de2b76f2637f4f8265d91ebb8f1224d2a40c2` 独立重算通过。技术 Runner=`PASS`，业务 readiness=`FAIL`：READY 0/2，fresh 1,441 后降至 1,274，原因包括 stale、duplicate 和 missed schedule。31 周期 Shadow、语义整改、24h SLO、生产 migration、API、页面和生产 authority 仍未证明。
 
 ## 6. Docker 服务清单
 
@@ -281,14 +282,12 @@ npm run security:check
 系统等级：R1
 工程描述：可运行但不完整
 实战描述：不能支撑实战
-V2：M0、M1.1-M1.6、M2.0、M2.1、M2.2-A、M2.2-B0、B0.1、B0.2-A、B0.2-C 本地工程出口与 C1 前向捕获运行起点通过；两轮 release-bound 三 Venue COMPLETE 且 continuity FORWARD_ONLY_READY；五个历史来源候选仍为 RESEARCH_ONLY，bulk acquisition/cohort freeze blocked；真实 cohort Gate=INSUFFICIENT，五个 Detector 仍为 DRAFT 且 Candidate 禁发；当前本地入口 M1.5-B1-A 可达 Docker Runner 预检，外部门 B0.2-B 仍待人工作源权利与合格历史来源
-本轮生产变更：0
+V2：M0、M1.1-M1.6、M2.0、M2.1、M2.2-A、M2.2-B0、B0.1、B0.2-A、B0.2-C/C1 对应本地或运行起点出口已通过；M1.5-B1-A 可达 Docker Runner 技术 PASS，但业务 readiness/SLO FAIL，M1 未完成；当前入口是 B1-B0 31 周期证据合同。五个历史来源仍为 RESEARCH_ONLY，bulk/cohort blocked；真实 cohort Gate=INSUFFICIENT，Detector=DRAFT、Candidate 禁发
+本轮生产服务、数据与 authority 变更：0
 当前生产终态：UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION
 ```
 
-最后一条已记录生产事实来自 2026-07-19：Cycle-7 已成功启动后台观察，截至当时至少完成 sample 3，状态仍为 `IN_PROGRESS_FRESH_ACTIVATION_AND_ACCUMULATION`。活跃记忆没有更晚的 final evidence。
-
-2026-07-20 本轮尝试通过 Microsoft Edge 读取腾讯 OrcaTerm，但页面显示 0 个会话且无连接配置，没有执行任何生产命令。因此现在不能声称 observer 仍在运行、Cycle-7 PASS/FAIL、G0 完成或生产当前健康/异常。任何下一生产动作前必须恢复可信只读通道并重新验证 release identity、Compose、health、Candidate runtime、Postgres、Redis 和 observer/终证据。
+2026-07-21 B1-A 在腾讯生产宿主机内使用完全隔离的临时 Runner；结束后 baseline/post-cleanup digest 一致，确认 11 个运行容器、4 个 network、5 个 volume 精确恢复，临时 clone、tool、network、volume 和容器已删除。该证据只证明 Docker 宿主机基线未被改变，不包含生产应用 `/api/health`、Postgres/Redis 业务健康、Legacy observer 或 G0 最终状态，因此生产业务终态继续写 `UNKNOWN`。
 
 Legacy G0 历史剩余安全出口为 7：
 
@@ -306,6 +305,12 @@ Cycle final
 
 ## 14. 最近三次关键事件
 
+### 2026-07-21 / V2 M1.5-B1-A Reachable Docker Runner Preflight
+
+- exact commit `97f10e75ce296b07d933e9c362c40ba2be0997ea` 在腾讯隔离 no-authority Runner 完成专用 image build、两周期三 Venue live Collector、checkpoint/persistence、证据重算与宿主机精确恢复；技术结论 PASS。
+- 两周期 eligible/collected 均 1,444/1,444，但 fresh 为 1,441 与 1,274，READY 0/2；SLO 以 `fresh_coverage_below_slo`、`missed_schedule_starts_above_slo`、`operational_ready_ratio_below_slo` 明确 FAIL，没有降低门槛或改写成证据不足。
+- 完整 `ci:production` PASS；生产服务、数据、身份、env、migration 和 authority 零变更。下一入口是 B1-B0 31 周期证据合同，不是 M1.7。
+
 ### 2026-07-20 / V2 M2.2-B0.2-C1 Release-Bound Forward Capture Start
 
 - 首次可达实采发现 Unicode 合约身份、out-of-scope 与 unresolved 混淆、artifact 无 exact release 三个真实缺口；修正为三类 identity evidence，并把 Raw/Snapshot/Batch/Continuity/Reference/Journal 全部绑定 clean Git release 与冻结 config。
@@ -317,12 +322,6 @@ Cycle final
 - 权利审查改为外部人工作源、条款内容摘要、账户/法域范围、有效期和撤销处置；Agent 或合成证据无法伪装为批准。
 - 历史 instrument capability/record/coverage 逐项核算 onboard、delist、contract、settlement、underlying、状态区间、knowledge time、symbol reuse 与完整分母；当前快照和 archive presence 禁止回填历史。
 - 定向 35/35、全 V2 237/0/5 explicit skip、M0 10/10 与完整 `ci:production` PASS；五个候选仍全部 `RESEARCH_ONLY`，权利 PENDING、合格历史来源=0、bulk/cohort blocked、生产零变更。
-
-### 2026-07-20 / V2 M2.2-B0.1 Target-Blind Strength and Construction Policy Local Exit
-
-- 五个 DRAFT Detector 的命中诊断增加 relative-rule-margin strength；组件、质量、方向、veto/unavailable、固定 Detector 分母、Top20 和稳定 tie-break 均由 strict schema 与 digest 验证，未来 Outcome 物理不在排序输入。
-- 冻结 TRAIN-only 六维事件阈值、matched control、300 秒完整背景、pre-cutoff regime/liquidity、observed/modeled knowledge-time、purge/embargo 与五项试验 registry，并绑定 dataset/experiment/holdout v2；任意阈值、策略或 trial 漂移拒绝。
-- 定向 45/45 PASS；只证明本地 Research 合同。真实 cohort=0、Gate=`INSUFFICIENT`、Detector=DRAFT、Candidate 禁发、生产零变更。
 
 ## 15. 当前风险
 
@@ -337,7 +336,7 @@ Cycle final
 - Legacy 多套事实/决策/Candidate/Outcome 路径仍存在，单一 authority 未完成。
 - 数据库失败回退内存、前端合同过宽、health 语义和管理面权限仍有事实误导风险。
 - 预览 mock seed 入口仅在本地删除，尚未部署；若生产旧 env 曾错误启用，必须以现场证据确认影响。
-- V2 M1.1-M1.6 已有本地数据、Worker、checkpoint、SLO、Shadow 安全和分区/恢复证据；C1 已证明显式代理下三家 catalog egress，但 Docker image、Collector 四分母、Compose merge、生产 migration、真实容量、31 周期 Shadow 与 24h SLO PASS 均未证明。
+- V2 M1.1-M1.6 已有本地数据、Worker、checkpoint、SLO、Shadow 安全和分区/恢复证据；B1-A 已证明 exact Docker image、三 Venue live Collector、完整 eligible/collected 分母和宿主机恢复，但 READY 0/2、freshness 与 cadence SLO FAIL。31 周期成因证据、正确 freshness 语义、生产 migration/容量和 24h SLO PASS 仍未证明。
 - M1.6 migration 前旧 V2 Fact 保持兼容但不自动清理；生产 preflight 必须证明旧 Fact 为零，非零时另做受控 backfill/retirement，不能进入长期 Shadow。
 - M2.0 的 19 个 test-only fixture 只证明合同和反未来泄漏，不能作为 Detector precision/recall/lead-time 或生命周期晋级证据。
 - M2.2-A/B0.1/B0.2-A 已能拒绝 future leak、病例对照 precision 膨胀、任意排序/构造政策、伪 holdout、Agent 自批权利和当前快照倒推历史，但 accepted real historical cohort=0；真实来源权利、完整背景实际构造、真实 Top20/sensitivity、独立 holdout custody/result 和审计都未完成，Gate 必须保持 INSUFFICIENT，禁止发 Candidate 或宣称 Detector 有效。
@@ -353,7 +352,7 @@ Cycle final
 
 下一轮审计优先检查：
 
-1. M1.5-B1-A 是否在 branch-scoped、no-authority、可达 Docker runner 构建 exact source image，并得到三家 live provider 原始 observed/accounted/eligible/collected/fresh，而不是把 C1 catalog、fixture、官方文档或超时写成 Collector 四分母。
+1. M1.5-B1-B0/B1 是否保持 exact source/image/config、31 个一分钟完整周期、每 Venue 四分母和可重算 SLO；B1-A 的 stale/duplicate/missed-start 是否被如实保留，而不是通过放宽 freshness、把 carried-forward 标成 FRESH 或缩小分母制造 PASS。
 2. C1 正式证据是否继续保持 exact release/config、两轮完整 raw、冻结 cadence、active gap=0 和无 identity conflict；前向 capture 永远不能伪装历史回填或长期 SLO。
 3. M1.6 production Gate 是否绑定旧 Fact=0、migration checksum、预建窗口、容量阈值、备份恢复和 Audit/Retention 分权。
 4. Candidate/Evidence/Setup/Action/User Fit 是否越层。
@@ -378,10 +377,10 @@ Cycle final
 ## 18. 当前本地入口与关键外部门
 
 ```text
-V2-M1.5-B1-A-REACHABLE-DOCKER-RUNNER-PREFLIGHT
+V2-M1.5-B1-B0-EARLY-SHADOW-EVIDENCE-CONTRACT
 ```
 
-C1 已形成 release-bound 前向连续实采起点。下一本地包只在 branch-scoped、no-authority GitHub-hosted runner 构建 exact source image 并验证三家 Collector 四分母、身份隔离与脱敏证据；预检通过前不得启动 31 周期 Shadow。关键外部门 `V2-M2.2-B0.2-B-EXACT-SOURCE-RIGHTS-AND-CAPABILITY-RESOLUTION` 仍需账户所有者/合格法律审查者和可验证历史来源；未解决前 historical bulk acquisition、真实 cohort、holdout、Detector lifecycle 和 runtime 一律关闭。
+B1-A 已证明隔离 Runner 技术可达，同时以 READY 0/2 证明当前业务质量不能过门。下一包先建立 31 周期内容寻址证据、固定一分钟 cadence、完整分母、业务 Gate 独立结论和可恢复 Runner；随后原门槛实测。若 FAIL，先区分 snapshot 接收、逐标的 market-event recency 和下游 price usability，再定点整改并用同一 Gate 复验。只有 B1-B PASS 后才进入 M1.6 production storage 分阶段启用与 M1.7 24h Shadow。关键外部门 `V2-M2.2-B0.2-B-EXACT-SOURCE-RIGHTS-AND-CAPABILITY-RESOLUTION` 仍需账户所有者/合格法律审查者和可验证历史来源；未解决前 historical bulk acquisition、真实 cohort、holdout、Detector lifecycle 和 runtime 一律关闭。
 
 ## 19. 活跃记忆维护规则
 

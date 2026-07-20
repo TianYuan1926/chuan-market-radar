@@ -14,9 +14,15 @@
 - [x] **M1.3 Fact Store + Replay + Runtime Truth**：已在隔离 PostgreSQL 16 演练 append-only artifact ledger、原子 Universe/Fact/Quality 分母、幂等冲突、retention metadata、双 cutoff replay manifest、五类 NOLOGIN capability role、完整 payload 篡改检测、两次 durable replay 和五维 Runtime Truth。状态：`LOCAL_POSTGRES16_REHEARSAL_PASS / PRODUCTION_UNCHANGED`；没有 production migration、live ingestion 或 authority。
 - [x] **M1.4 全 eligible Universe + Collector Runtime 本地纵切**：已从 BTC 三 Venue fixture 扩大到 21 observed / 15 eligible 的多标的版本化范围，完成启动全量、增量 ticker、周期 reconciliation、配额/并发/背压、冷启动、目录 tombstone、恢复、strict telemetry 和真实 PG16 原子落库。状态：`LOCAL_POSTGRES16_REHEARSAL_PASS / LIVE_MARKET_UNPROVEN / PRODUCTION_UNCHANGED`。
 - [x] **M1.5-A Durable Worker 本地出口**：已完成独立 additive checkpoint migration、artifact 引用约束、config/sequence/content digest、精确 release 恢复、固定节拍 skip-missed Worker、优雅停止、强制 telemetry sink、NO_AUTHORITY 进程入口和三态 SLO evaluator；定向 30/30、全 V2 130 pass / 0 fail / 4 explicit skip，隔离 PG16 真实重启恢复 1/1。状态：`LOCAL_ENGINEERING_AND_POSTGRES16_PASS / PRODUCTION_UNCHANGED`。
-- [x] **M1.5-B0 Shadow Release Safety 本地出口**：已补齐显式 reader/writer `SET ROLE` 与会话身份核验、secret-file URL、完整 strict observation JSONL、固定 30 分钟/24 小时 SLO 档位、有限周期、专用非 root/read-only/no-Legacy-secret 镜像与 Compose 模板。定向 41/41、全 V2 136 pass / 0 fail / 4 explicit external-dependency skips、三项隔离 PG16 回归与完整 `ci:production` PASS；Legacy Consumer Map 保持 539。本机无 Docker CLI，真实 image build/Compose merge 仍未证明。Edge OrcaTerm 新鲜预检为 0 会话，生产零命令、零变更。
-- [ ] **M1.5-B1 Reachable Egress + Bounded Early Shadow**：C1 已证明显式代理下三家 catalog egress，但本机仍无 Docker CLI。先执行 B1-A：在 branch-scoped GitHub-hosted no-authority runner 构建精确 source image 并证明三家 Collector observed/accounted/eligible/collected/fresh 四分母、身份与证据；再执行 B1-B：独立运行 31 个一分钟周期。30 分钟 SLO PASS 只允许进入长期存储/持续观察，不等于 M1 完成。
+- [x] **M1.5-B0 Shadow Release Safety 本地出口**：已补齐显式 reader/writer `SET ROLE` 与会话身份核验、secret-file URL、完整 strict observation JSONL、固定 30 分钟/24 小时 SLO 档位、有限周期、专用非 root/read-only/no-Legacy-secret 镜像与 Compose 模板。定向 41/41、全 V2 136 pass / 0 fail / 4 explicit external-dependency skips、三项隔离 PG16 回归与完整 `ci:production` PASS；Legacy Consumer Map 保持 539。B1-A 随后补齐真实 image build、三 Venue egress 和隔离 Docker Runner 证明。
+- [x] **M1.5-B1-A Reachable Docker Runner 技术预检**：在腾讯生产宿主机的隔离 no-authority Runner 上，以 exact source commit `97f10e75ce296b07d933e9c362c40ba2be0997ea` 构建并运行专用镜像。两周期均完成 1,444/1,444 eligible/collected、三 Venue 无 provider failure、checkpoint/persistence `INSERTED`、完整清理并精确恢复宿主机 11 容器/4 network/5 volume 基线。技术结论 `PASS_REACHABLE_DOCKER_RUNNER`；业务结论必须保留为 `FAIL`：READY 0/2，fresh 1,441/1,444 后降至 1,274/1,444，出现 stale/duplicate 与 60 秒调度缺口。该 PASS 只证明 Runner 可用，不证明 Market Fact SLO。
+- [ ] **M1.5-B1-B Bounded Early Shadow 业务门禁**：必须用固定 60 秒节拍和同一冻结 release/config 取得 31 个完整周期、至少 30 分钟证据。B1-A 暴露的 freshness/duplicate/schedule 问题必须进入分母，任何 `NOT_READY` 或 SLO `FAIL` 都不能被包状态遮蔽。
+- [ ] **M1.5-B1-B0 31 周期证据合同与可恢复 Runner**：先在本地实现内容寻址 observation/evidence、完整 `M1CollectorWorkerCycle` JSONL、每 Venue 四分母、资源/调度/checkpoint 指标、exact release/image/config、无生产 authority、可中断恢复、自动停止和宿主机精确恢复。状态：当前工程入口。
+- [ ] **M1.5-B1-B1 31 周期原始实测**：在隔离腾讯 Runner 执行冻结合同，不预改门槛。包只在证据完整、可重算、已清理时算“实测完成”；业务 Gate 仍按 SLO 独立给出 PASS/FAIL。
+- [ ] **M1.5-B1-B2 Market Fact Freshness 语义整改（条件包）**：若 B1-B1 失败，先区分 provider snapshot 接收新鲜度、逐标的市场事件新鲜度和下游价格可用性，再修 Adapter/Quality/Collector；不得放宽 120 秒、不得把 duplicate 或 carried-forward 数据标成 FRESH、不得补 0。
+- [ ] **M1.5-B1-B3 固定门槛复验（条件包）**：整改后必须用相同 31 周期、60 秒节拍、SLO 与分母重跑；只有原始证据和重算同时 PASS，M1.5-B1 才减数。
 - [x] **M1.6 Partitioned Fact Storage + Retention Governance 本地出口**：已建立专用 UTC 日分区、无 DEFAULT fail-closed 路由、有界活动身份注册表、旧账本新 Fact 禁写、容量水位、独立 Audit/Retention 身份、restore-verified DROP 与不可变事件。定向 5/5、隔离 PG16 1/1，真实 `pg_dump -> pg_restore` 后 replay parity PASS/deterministic true；迁移前旧 Fact 可读，2 个分区跨日读取，保留中/活跃 replay 均阻断清理，到期后原子删除 1 分区/2 Fact 且拒绝重灌；全 V2 141/0/5 explicit skips 与完整 `ci:production` PASS。状态：`LOCAL_ENGINEERING_AND_POSTGRES16_PASS / PRODUCTION_MIGRATION_NOT_RUN`。
+- [ ] **M1.6-P Production Storage 分阶段启用**：仅在 B1-B 语义 Gate 通过后，按 fresh read-only preflight -> additive Add Schema -> 最小权限身份 -> dormant no-authority Worker 顺序逐项执行；每步独立 checksum、备份/恢复、回滚和生产验证，不与业务逻辑整改混发。
 - [ ] **M1.7 Sustained 24h Shadow/SLO**：等待 M1.5-B1 与 M1.6 同时通过后，以同一 release/config 连续运行至少 24 小时并满足固定 SLO、重启恢复、成本与容量门槛，才允许 M1 减数并向 M2 runtime 开放读取许可。
 - [ ] **M2 发现与深验纵向切片**：先做 Pre-Move 和 Breakout/Retest，贯通 `DiscoveryCandidate -> CandidateEpisode + OpportunityThesis -> EvidencePackage`；稳定后再并行增加其余四个机会族。验证：Candidate 不带等级/计划，point-in-time replay 可复现，三分母、队列 SLA、冷启动和漂移成立。
 - [x] **M2.0 发现合同与黄金样本（可并行本地）**：已冻结六族十四模式、Detector event/knowledge 双 cutoff 输入、Candidate/Episode/Thesis v2 生命周期、UTC 去重、三层运行漏斗和 19 个 point-in-time fixture。状态：`LOCAL_CONTRACT_PASS / M1_RUNTIME_BLOCKED / PRODUCTION_UNCHANGED`；Candidate 仍无等级/计划，fixture 无 Outcome/future material。
@@ -57,11 +63,11 @@ M5 的 Outcome 采集从 M2 开始并行，额外 Detector、UI fixture、Runtim
 
 ```text
 M0 engineering exit: LOCAL_PASS / PRODUCTION_UNCHANGED
-Last completed package: V2-M2.2-B0.2-C1 Release-Bound Forward Capture Start
-Current local entry: V2-M1.5-B1-A-REACHABLE-DOCKER-RUNNER-PREFLIGHT
+Last completed package: V2-M1.5-B1-A-REACHABLE-DOCKER-RUNNER-PREFLIGHT
+Current local entry: V2-M1.5-B1-B0-EARLY-SHADOW-EVIDENCE-CONTRACT
 Current blocked external entry: V2-M2.2-B0.2-B-EXACT-SOURCE-RIGHTS-AND-CAPABILITY-RESOLUTION
 Pending bounded shadow gate: V2-M1.5-B1-B-31-CYCLE-EARLY-SHADOW
-Current status: M2.2_B0_B0.1_B0.2-A_B0.2-C_LOCAL_ENGINEERING_AND_C1_OPERATIONAL_CAPTURE_START_PASS / FORWARD_ONLY_READY / RIGHTS_AND_HISTORICAL_IDENTITY_MACHINE_GATE_FROZEN / FIVE_SOURCE_CANDIDATES_RESEARCH_ONLY / BULK_AND_COHORT_BLOCKED_ON_EXTERNAL_RIGHTS_AND_QUALIFIED_HISTORICAL_SOURCE / M2.2_GATE_INSUFFICIENT / DETECTORS_STILL_DRAFT / M1.5-B1_A_B1_B_AND_M1.7_PENDING / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED / PRODUCTION_UNCHANGED
+Current status: M1.5-B1-A_TECHNICAL_RUNNER_PASS / BUSINESS_READINESS_FAIL / READY_0_OF_2 / B1-B0_B1-B1_AND_CONDITIONAL_REMEDIATION_PENDING / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED / PRODUCTION_SERVICES_DATA_AND_AUTHORITY_UNCHANGED / HOST_DOCKER_BASELINE_EXACTLY_RESTORED
 ```
 
 M0 的减数只代表合同、运行时输入边界、Legacy 消费者地图和隔离门禁已经形成闭环；它不代表真实 Provider、全市场扫描、Detector、交易计划、页面或生产能力已经完成。

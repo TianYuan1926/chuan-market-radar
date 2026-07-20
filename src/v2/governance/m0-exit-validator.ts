@@ -29,7 +29,7 @@ export type M0ExitReport = Readonly<{
   legacySourceFiles: number;
   productionMutationPerformed: false;
   productionStatus: "UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION";
-  nextEntry: "COMPLETED=V2-M2.2-B0.2-C1-OPERATIONAL-CAPTURE-START-PASS LOCAL_NEXT=V2-M1.5-B1-A-REACHABLE-DOCKER-RUNNER-PREFLIGHT EXTERNAL_GATE=V2-M2.2-B0.2-B-EXACT-SOURCE-RIGHTS-AND-CAPABILITY-RESOLUTION DETECTORS_DRAFT";
+  nextEntry: string;
 }>;
 
 type CheckRunner = () => string;
@@ -150,6 +150,17 @@ export function buildM0ExitReport(repositoryRoot: string): M0ExitReport {
       automaticTrading: boolean;
     };
   }>(repositoryRoot, "docs/architecture/v2/V2_BASE_MANIFEST.v1.json");
+  const executionMatrix = readJson<{
+    lastCompletedImplementationEntry: { id: string };
+    currentImplementationEntry: {
+      id: string;
+      productionMutationAllowed: boolean;
+    };
+    pendingHistoricalDataGate: { id: string };
+  }>(
+    repositoryRoot,
+    "docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json",
+  );
   const fixture = readJson<{
     fixtureKind: string;
     synthetic: boolean;
@@ -332,6 +343,21 @@ export function buildM0ExitReport(repositoryRoot: string): M0ExitReport {
     return "production mutation false / destructive authority false / status unknown";
   });
 
+  check("active_execution_entry_matches_machine_matrix", () => {
+    const ids = [
+      executionMatrix.lastCompletedImplementationEntry.id,
+      executionMatrix.currentImplementationEntry.id,
+      executionMatrix.pendingHistoricalDataGate.id,
+    ];
+    if (ids.some((id) => !/^V2-M[0-9]/u.test(id))) {
+      throw new Error("machine matrix contains an invalid implementation entry id");
+    }
+    if (executionMatrix.currentImplementationEntry.productionMutationAllowed) {
+      throw new Error("current implementation entry unexpectedly grants production mutation");
+    }
+    return ids.join(" -> ");
+  });
+
   const passed = checks.every((item) => item.passed);
   return {
     schemaVersion: "market-radar-v2-m0-exit-report.v1",
@@ -346,7 +372,7 @@ export function buildM0ExitReport(repositoryRoot: string): M0ExitReport {
     legacySourceFiles: currentMap.totals.sourceFiles,
     productionMutationPerformed: false,
     productionStatus: "UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION",
-    nextEntry: "COMPLETED=V2-M2.2-B0.2-C1-OPERATIONAL-CAPTURE-START-PASS LOCAL_NEXT=V2-M1.5-B1-A-REACHABLE-DOCKER-RUNNER-PREFLIGHT EXTERNAL_GATE=V2-M2.2-B0.2-B-EXACT-SOURCE-RIGHTS-AND-CAPABILITY-RESOLUTION DETECTORS_DRAFT",
+    nextEntry: `COMPLETED=${executionMatrix.lastCompletedImplementationEntry.id} LOCAL_NEXT=${executionMatrix.currentImplementationEntry.id} EXTERNAL_GATE=${executionMatrix.pendingHistoricalDataGate.id} DETECTORS_DRAFT`,
   };
 }
 

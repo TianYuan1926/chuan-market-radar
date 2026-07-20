@@ -2,6 +2,43 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-21 / V2 M1.5-B1-A Reachable Docker Runner Preflight
+
+### 本轮目标
+
+在可达隔离 Docker Runner 构建 exact source 的 M1 no-authority image，真实验证三 Venue Collector 分母、持久化、业务 readiness、证据重算与宿主机恢复。
+
+### 修改范围
+
+- 将技术 Runner PASS 与业务 readiness/SLO PASS 彻底分开；technical package 不得遮蔽周期 `NOT_READY`。
+- preflight evidence 升级为 v2，绑定 source/image、两周期完整分母、质量原因、SLO、NO_AUTHORITY、清理与 baseline digest。
+- 增加 incomplete collection、partial freshness、缺失 NOT_READY 原因和 SLO FAIL 被弱化的 anti-inflation 测试。
+
+### 核心链路影响
+
+加固 `全市场发现 -> Market Fact + Quality` 的 live 运行证据；未生成 Candidate、Analysis、Strategy、Backtest、页面或生产 authority。
+
+### 测试结果
+
+- 腾讯隔离 Runner technical PASS；exact source `97f10e75ce296b07d933e9c362c40ba2be0997ea`，evidence `sha256:a44cab89b8a4bf291e7c8f67eb6de2b76f2637f4f8265d91ebb8f1224d2a40c2` 独立重算 PASS。
+- 两周期 eligible/collected 均 1,444/1,444，fresh 1,441 与 1,274，READY 0/2；业务 SLO 正确为 FAIL。
+- host cleanup PASS：11 containers / 4 networks / 5 volumes 的 baseline 与 post-cleanup digest 完全一致。
+- 完整 `ci:production` PASS：Legacy 965/0/4 skip、Worker 23/23、Historical 4/4、V2 267/0/5 explicit skip、M0 11/11、build、Golden 16/16、security PASS。
+
+### 是否部署
+
+未部署。使用生产宿主机隔离临时 Runner，但生产服务、数据、DB、Redis、env、migration、Feature Flag、Candidate runtime 和 authority 零变更；临时执行资源已清理。
+
+### 风险与遗留问题
+
+- B1-A 只证明 Runner 技术链路，业务 readiness 明确 FAIL；不得宣称 M1.5-B1 或全市场健康完成。
+- Binance 暴露逐 row stale/duplicate 与第二周期 fresh ratio 约 67.92%，固定节拍还有 missed start；需要 31 周期证据定性，不能先放宽门槛。
+- 生产应用健康仍未做新鲜只读验证，保持 UNKNOWN。
+
+### 下一轮建议
+
+只执行 `V2-M1.5-B1-B0-EARLY-SHADOW-EVIDENCE-CONTRACT`：冻结 31 周期完整证据、独立业务 Gate、可恢复 Runner 与宿主机精确清理，再按原门槛实测。
+
 ## 2026-07-20 / V2 M2.2-B0.2-C1 Release-Bound Forward Capture Start
 
 ### 本轮目标
@@ -150,41 +187,3 @@
 ### 下一轮建议
 
 只进入 `V2-M2.2-B0.2-RIGHTS-AND-POINT-IN-TIME-INSTRUMENT-METADATA-RESOLUTION`；该入口受外部权利与历史身份证据阻断，Agent 不得自批。
-
-## 2026-07-20 / V2 M2.2-B0 Historical Source Qualification and Acquisition Safety
-
-### 本轮目标
-
-在真实 historical cohort 下载前，把来源权利、历史合约身份、时间语义、Detector 数据覆盖、checksum、容量和原始数据边界做成 fail-closed Gate，并执行一个会自动删除原始字节的真实技术试点。
-
-### 修改范围
-
-- 新增严格 source qualification、source assessment、exact-object acquisition plan/preflight 和技术 pilot result 合同。
-- 新增 HTTPS host allowlist、官方 SHA-256 sidecar、大小上限、受校验续传、路径逃逸、时间倒置、磁盘保留量和验证后 raw deletion 防线。
-- Binance Vision 当前登记为技术 PASS、人工权利 PENDING、point-in-time instrument history 不完整；Kline 支持四个 Detector 输入建设，Liquidity Shift 因 L2 缺失保持 unsupported。
-- 调整 M2.2-B 为 B0-B3 证据出口，下一本地包先补 target-blind diagnostic strength 和 cohort construction policy，不修改 Detector 生命周期。
-
-### 核心链路影响
-
-只加固 `复盘进化 -> Research Governance` 的真实数据入口，防止污染 Detector 评价。未生成 Candidate、Signal、等级或交易计划，未读取 Legacy/M1 runtime，未修改前端、API、DB、Redis、Worker、migration、secret 或生产。
-
-### 测试结果
-
-- M2.2-B0 定向合同：14/14 PASS；M2.2-A 回归 13/13 PASS。
-- 真实技术 pilot：BTCUSDT 2026-06 1m 月文件 1,838,455 bytes，官方/实际 SHA-256 一致，结果 `VERIFIED_AND_RAW_DELETED`。
-- 完整 `ci:production`：PASS，exit code 0；Legacy 965/0/4 skip、Worker 23/23、Historical 4/4、V2 194/0/5 explicit skip、M0 10/10、build、golden 16/16 和安全门禁全部通过。
-- `backtest:formal`、production smoke 未运行；本轮不是能力或部署验收。
-
-### 是否部署
-
-未部署。原始试点数据只短暂存在于 Git 工作区外，验证后已删除；生产零连接、零命令、零变更。
-
-### 风险与遗留问题
-
-- retention/replay 权利仍需人工审查，不能由 Agent 根据公开可下载或仓库 MIT 文件自行批准。
-- 归档 presence 不能证明历史 eligible instrument；必须补 point-in-time onboard/delist/contract/settlement/underlying/status。
-- M2.1 只有 matched/no-match，没有 target-blind 强度，当前不能诚实生成 Top20 ranking。
-
-### 下一轮建议
-
-只执行 `V2-M2.2-B0.1-TARGET-BLIND-DIAGNOSTIC-STRENGTH-AND-CONSTRUCTION-POLICY-FREEZE`；B0.2 权利和历史合约身份可并行解决，二者都通过前禁止 bulk acquisition。

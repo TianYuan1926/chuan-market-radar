@@ -1,6 +1,6 @@
 # M1.5-B0 Shadow Release Safety 合同 v1
 
-状态：`LOCAL_ENGINEERING_PASS / EXTERNAL_PREFLIGHT_CHANNEL_UNAVAILABLE / IMAGE_BUILD_UNPROVEN / PRODUCTION_UNCHANGED`
+状态：`LOCAL_ENGINEERING_PASS / B1-A_REACHABLE_DOCKER_RUNNER_TECHNICAL_PASS / BUSINESS_READINESS_FAIL / B1-B_PENDING / PRODUCTION_SERVICES_DATA_AND_AUTHORITY_UNCHANGED`
 
 ## 1. 目标
 
@@ -57,22 +57,28 @@ M1.6 现已完成本地分区、容量、restore-verified retention 和隔离 PG
 
 ```text
 M1.5-B0 local release safety
--> M1.5-B1 reachable egress + bounded 30-minute Shadow
-   || M1.6 partitioned Fact storage + retention governance
+-> M1.5-B1-A reachable Docker Runner technical preflight
+-> M1.5-B1-B0 31-cycle evidence contract
+-> M1.5-B1-B1 fixed-policy empirical capture
+-> M1.5-B1-B2 freshness semantics remediation when Gate FAIL
+-> M1.5-B1-B3 same-policy repeat when remediation was required
+-> M1.6 production storage staged enablement
 -> M1.7 sustained 24-hour Shadow/SLO
 -> M1 exit
 ```
 
-M1.5-B1 与 M1.6 可以工程并行；M1.7 必须等待两者都通过。M2 合同/fixture 可并行准备，但 M2 runtime 不得读取 M1 authority，直至 M1.7 出口通过。
+B1-B0/B1 必须先保留 B1-A 暴露的失败真值；若 B1-B1 直接 PASS，则 B1-B2/B3 条件包跳过。M1.6 本地工程已通过，但生产分阶段启用等待 B1-B 语义 Gate；M1.7 必须等待两者都通过。M2 合同/fixture 可并行准备，但 M2 runtime 不得读取 M1 authority，直至 M1.7 出口通过。
 
 ## 7. 当前外部预检事实
 
-2026-07-20 通过 Microsoft Edge 新鲜读取腾讯 OrcaTerm：页面为“暂无连接配置”，`0 个会话已连接`。仅打开并关闭新建连接对话框，未输入主机、用户名、密码，未保存连接，生产零命令、零变更。
+2026-07-21 B1-A 已在腾讯宿主机的隔离 no-authority Runner 构建 exact source image 并完成两周期 live Collector。技术条件全部通过：三 Venue provider failure=0、eligible/collected 均 1,444/1,444、checkpoint/persistence=`INSERTED`、内容寻址证据可独立重算，宿主机 11 containers / 4 networks / 5 volumes 基线精确恢复。
 
-当前本机无 Docker CLI，因此只完成 YAML 解析、静态安全测试和 TypeScript/Node 门禁；专用镜像真实 build、Compose merge、image digest 与 egress 必须在可用 Docker runner 重新证明，不能由静态检查替代。
+业务条件未通过：两周期均 `DEGRADED/PARTIAL/NOT_READY`，fresh 为 1,441 和 1,274，READY 0/2，SLO 原因包括 freshness、missed schedule 和 operational readiness。该结果不证明生产 Compose merge、生产应用 health 或 bounded Shadow PASS。
 
 ## 8. 独立生产 Gate
 
-进入 M1.5-B1 前必须新鲜绑定：production HEAD/tree/cleanliness、Compose 与 identity wrapper、现有容器/镜像、Postgres/Redis/health、磁盘/内存、三家 provider egress、source commit/tree、专用 image digest、两份 secret file 的存在/权限而非内容、schema/migration checksum、登录角色、30 分钟档位、自动停止条件和回滚目标。
+进入 B1-B1 前必须绑定：exact source/tree/image/config、隔离 Runner 与 host baseline、三 Venue egress、固定 60 秒/31 周期档位、完整 observation schema、证据目录、资源上限、自动停止、断点恢复和清理目标。它不得读取生产 secret、连接生产 Postgres/Redis 或加入生产 network。
+
+进入 M1.6 production storage 或 M1.7 前仍必须新鲜绑定：production HEAD/tree/cleanliness、Compose 与 identity wrapper、现有容器/镜像、Postgres/Redis/health、磁盘/内存、两份 secret file 的存在/权限而非内容、schema/migration checksum、登录角色、回滚目标和 B1-B PASS evidence。
 
 本合同不授权创建连接配置、写 secret、创建数据库身份、执行 migration、构建/启动生产容器或修改 production repository。
