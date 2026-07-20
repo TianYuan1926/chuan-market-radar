@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { ProviderFailure } from "./catalog-types";
 
 const DEFAULT_TIMEOUT_MS = 8_000;
@@ -6,8 +7,11 @@ const MAX_TIMEOUT_MS = 60_000;
 const MAX_RESPONSE_BYTES = 10 * 1024 * 1024;
 
 export type PublicJsonSuccess = {
+  bodyBytes?: number;
+  bodyDigest?: string;
   data: unknown;
   ok: true;
+  rawBody?: Uint8Array;
   receivedAt: string;
   status: number;
 };
@@ -23,6 +27,7 @@ export type PublicJsonResult = PublicJsonSuccess | PublicJsonFailure;
 
 export type PublicJsonRequest = {
   allowedHost: string;
+  captureBody?: boolean;
   maxResponseBytes?: number;
   timeoutMs?: number;
   url: string;
@@ -49,7 +54,13 @@ function failure(
 async function readBoundedBody(
   response: Response,
   maxResponseBytes: number,
-): Promise<string | null> {
+  captureBody: boolean,
+): Promise<Readonly<{
+  bodyBytes?: number;
+  bodyDigest?: string;
+  rawBody?: Uint8Array;
+  text: string;
+}> | null> {
   const declaredLength = response.headers.get("content-length");
   if (
     declaredLength !== null &&
@@ -60,13 +71,26 @@ async function readBoundedBody(
   }
 
   if (response.body === null) {
-    return "";
+    const rawBody = new Uint8Array();
+    return {
+      ...(captureBody
+        ? {
+          bodyBytes: 0,
+          bodyDigest:
+            `sha256:${createHash("sha256").update(rawBody).digest("hex")}`,
+          rawBody,
+        }
+        : {}),
+      text: "",
+    };
   }
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
+  const digest = captureBody ? createHash("sha256") : null;
+  const chunks: Uint8Array[] = [];
   let total = 0;
-  let body = "";
+  let text = "";
 
   while (true) {
     const chunk = await reader.read();
@@ -78,10 +102,31 @@ async function readBoundedBody(
       await reader.cancel();
       return null;
     }
-    body += decoder.decode(chunk.value, { stream: true });
+    digest?.update(chunk.value);
+    if (captureBody) {
+      chunks.push(Uint8Array.from(chunk.value));
+    }
+    text += decoder.decode(chunk.value, { stream: true });
   }
-  body += decoder.decode();
-  return body;
+  text += decoder.decode();
+  const rawBody = captureBody ? new Uint8Array(total) : undefined;
+  if (rawBody !== undefined) {
+    let offset = 0;
+    for (const chunk of chunks) {
+      rawBody.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+  }
+  return {
+    ...(rawBody === undefined || digest === null
+      ? {}
+      : {
+        bodyBytes: total,
+        bodyDigest: `sha256:${digest.digest("hex")}`,
+        rawBody,
+      }),
+    text,
+  };
 }
 
 export function createPublicJsonTransport(
@@ -164,7 +209,11 @@ export function createPublicJsonTransport(
         );
       }
 
-      const body = await readBoundedBody(response, maxResponseBytes);
+      const body = await readBoundedBody(
+        response,
+        maxResponseBytes,
+        request.captureBody === true,
+      );
       if (body === null) {
         return failure(
           "INVALID",
@@ -176,8 +225,15 @@ export function createPublicJsonTransport(
 
       try {
         return {
-          data: JSON.parse(body) as unknown,
+          ...(body.bodyDigest === undefined
+            ? {}
+            : {
+              bodyBytes: body.bodyBytes,
+              bodyDigest: body.bodyDigest,
+            }),
+          data: JSON.parse(body.text) as unknown,
           ok: true,
+          ...(body.rawBody === undefined ? {} : { rawBody: body.rawBody }),
           receivedAt,
           status: response.status,
         };

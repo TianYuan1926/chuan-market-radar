@@ -27,7 +27,8 @@
 - [x] **M2.2-B0.1 Target-Blind Diagnostic Strength + Construction Policy Freeze**：已为五个 DRAFT Kernel 增加只读 relative-rule-margin strength，冻结固定 Detector 分母 Top20、TRAIN-only 六维事件阈值、matched control、300 秒完整背景、pre-cutoff regime/liquidity、observed/modeled knowledge-time、purge/embargo 和 1+4 trial registry，并把全部 id/digest 绑定到 dataset/experiment/holdout v2。定向 45/45 PASS；真实 cohort=0、Gate=INSUFFICIENT、Detector=DRAFT、Candidate 禁发、生产零变更。
 - [x] **M2.2-B0.2-A Rights + Historical Instrument Evidence Gate**：已把外部人工、exact operator/双数据范围、条款 hash/bytes/留存、有效期、provider binding、identity epoch、状态区间、knowledge time、完整 point-in-time 分母和 unresolved 核算做成 fail-closed Gate。定向 35/35；五个来源候选均 `RESEARCH_ONLY`，这只证明错误证据过不了。
 - [ ] **M2.2-B0.2-B Exact Source Rights + Capability Resolution**：由账户所有者或合格法律审查者绑定 exact source、账户、司法范围和有期限条款证据；来源还须逐字段证明完整历史分母、已退市、onboard/delist、contract/settlement/underlying/status interval 与 symbol reuse。该外部门通过前 B1 保持 blocked。
-- [ ] **M2.2-B0.2-C First-Party Forward Instrument Capture**：在不读取 M1 authority、不写 Candidate 的独立 Research 边界内，从真实 capture start 起连续保留三 Venue current snapshot/transition、原始 digest 和 coverage gap。它可与 B0.2-B 并行，只改善未来，永久禁止冒充过去回填。
+- [x] **M2.2-B0.2-C First-Party Forward Instrument Capture Local Engineering**：已在不读取 M1 authority、不写 Candidate 的独立 Research 边界内实现三 Venue exact raw bytes、完整/部分/失败分母、identity epoch、coverage gap、链式 checkpoint 和 append-only journal。定向 28/28 PASS；两轮本机真实请求均因 egress 失败，complete snapshot=0，因此只达到 `LOCAL_ENGINEERING_PASS`，运行捕获起点未通过，永久禁止冒充历史回填。
+- [ ] **M2.2-B0.2-C1 Egress-Capable Forward Capture Start**：在可信可达网络运行同一 no-authority runner，取得至少两轮、跨度达到冻结 cadence、raw 可复核、active gap=0 且无 unresolved/conflict 的三 Venue 完整 Snapshot。失败 journal、单轮成功或部分分母均不得减数；不得顺带部署 M2 runtime 或修改生产 authority。
 - [ ] **M2.2-B1 Immutable Raw Archive Acquisition**：仅按冻结精确对象清单批量下载，逐文件官方 checksum、断点续传、容量水位和 Git 外不可变索引；L2 不足的 Detector 保持 unsupported。
 - [ ] **M2.2-B2 Cohort Construction**：只在 TRAIN 拟合标签阈值，生成 point-in-time observations、Event、Matched non-event 与 Candidate Universe 完整背景；同一冻结 Detector 分母逐窗口运行，任何缺失进入 unavailable 分母。
 - [ ] **M2.2-B3 Split + Sealed Holdout Freeze**：冻结 train/validation、purge/embargo、symbol/regime assignment 和独立 holdout commitment；本包仍不得打开 holdout，也不得挑选表现最好的 trial。
@@ -56,11 +57,11 @@ M5 的 Outcome 采集从 M2 开始并行，额外 Detector、UI fixture、Runtim
 
 ```text
 M0 engineering exit: LOCAL_PASS / PRODUCTION_UNCHANGED
-Last completed package: V2-M2.2-B0.2-A Rights and Historical Instrument Evidence Gate
-Current local entry: V2-M2.2-B0.2-C-FIRST-PARTY-FORWARD-INSTRUMENT-CAPTURE
+Last completed package: V2-M2.2-B0.2-C First-Party Forward Instrument Capture Local Engineering
+Current operational entry: V2-M2.2-B0.2-C1-EGRESS-CAPABLE-FORWARD-CAPTURE-START
 Current blocked external entry: V2-M2.2-B0.2-B-EXACT-SOURCE-RIGHTS-AND-CAPABILITY-RESOLUTION
 Pending external gate: V2-M1.5-B1-EGRESS-EARLY-SHADOW-GATE
-Current status: M2.2_B0_B0.1_B0.2-A_LOCAL_PASS / RIGHTS_AND_HISTORICAL_IDENTITY_MACHINE_GATE_FROZEN / FIVE_SOURCE_CANDIDATES_RESEARCH_ONLY / BULK_AND_COHORT_BLOCKED_ON_EXTERNAL_RIGHTS_AND_QUALIFIED_HISTORICAL_SOURCE / M2.2_GATE_INSUFFICIENT / DETECTORS_STILL_DRAFT / M1.5-B1_AND_M1.7_PENDING / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED / PRODUCTION_UNCHANGED
+Current status: M2.2_B0_B0.1_B0.2-A_B0.2-C_LOCAL_ENGINEERING_PASS / FORWARD_CAPTURE_START_BLOCKED_ON_EGRESS / RIGHTS_AND_HISTORICAL_IDENTITY_MACHINE_GATE_FROZEN / FIVE_SOURCE_CANDIDATES_RESEARCH_ONLY / BULK_AND_COHORT_BLOCKED_ON_EXTERNAL_RIGHTS_AND_QUALIFIED_HISTORICAL_SOURCE / M2.2_GATE_INSUFFICIENT / DETECTORS_STILL_DRAFT / M1.5-B1_AND_M1.7_PENDING / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED / PRODUCTION_UNCHANGED
 ```
 
 M0 的减数只代表合同、运行时输入边界、Legacy 消费者地图和隔离门禁已经形成闭环；它不代表真实 Provider、全市场扫描、Detector、交易计划、页面或生产能力已经完成。

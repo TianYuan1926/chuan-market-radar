@@ -2,6 +2,43 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-20 / V2 M2.2-B0.2-C First-Party Forward Instrument Capture
+
+### 本轮目标
+
+从真实捕获时刻起，为 Binance Futures、OKX Swap 和 Bybit Linear Perpetual 建立可审计的前向 instrument truth；明确只改善未来，不能回填历史或解锁 Detector。
+
+### 修改范围
+
+- 扩展现有 GET-only transport 的显式 opt-in raw bytes 捕获；默认 M1 调用不保留 raw，也不增加 SHA 开销。
+- 新增三 Venue Snapshot/Batch、完整分母、identity epoch、持续缺席非 delist、coverage gap、链式 continuity checkpoint、工作区外 content-addressed store 和单写 append-only journal。
+- 新增 no-authority CLI 与 anti-backfill、partial denominator、identity reuse、tamper、symlink/path escape 和 stale concurrent append 测试。
+
+### 核心链路影响
+
+加固 `全市场发现 -> 候选筛选 -> Research Governance` 的未来 Universe 真值，减少从捕获日起的幸存者偏差。未读取 M1 authority，未生成 Candidate、Signal、等级、READY 或计划。
+
+### 测试结果
+
+- B0.2-C 定向：28/28 PASS。
+- 全 V2：266 total / 261 pass / 0 fail / 5 explicit external-dependency skips；完整 `ci:production` PASS，Legacy 965/0/4 skip、Worker 23/23、Historical 4/4、M0 10/10、build、Golden 16/16、禁文件/secret/security 全部通过。
+- 两轮真实本机捕获均写入正式外部 journal；Binance `provider_request_failed`，OKX/Bybit `provider_timeout`，三家 complete snapshot=0、captureStartedAt=null。这是 egress 阻断证据，不是 live coverage PASS。
+- `backtest:formal`、production smoke、Shadow 和 holdout 未运行；本轮不是部署或能力晋级验收。
+
+### 是否部署
+
+未部署。未连接生产，未修改 DB、Redis、Worker、migration、env、Feature Flag、前端、API、Candidate authority 或 secret。
+
+### 风险与遗留问题
+
+- 本地工程链已形成，但没有任何完整三 Venue Snapshot；运行捕获起点仍 `BLOCKED_ON_EGRESS`。
+- B0.2-B 的人工权利与合格 historical instrument source 仍 blocked；前向 capture 永远不能替代过去窗口。
+- 真实 cohort=0、Gate=`INSUFFICIENT`、Detector=DRAFT、Candidate emission=false。
+
+### 下一轮建议
+
+只执行 `V2-M2.2-B0.2-C1-EGRESS-CAPABLE-FORWARD-CAPTURE-START`：恢复可信 egress，用同一 release 取得至少两轮完整三 Venue 前向证据；B0.2-B 外部门继续并行等待。
+
 ## 2026-07-20 / V2 M2.2-B0.2-A Rights and Historical Instrument Evidence Gate
 
 ### 本轮目标
@@ -151,42 +188,3 @@
 ### 下一轮建议
 
 只执行 `V2-M2.2-B-REAL-HISTORICAL-COHORT-ACQUISITION-AND-FREEZE`；先冻结来源权利、完整背景/事件/对照、真实 split 与独立 holdout artifact，本包不得打开 holdout。
-
-## 2026-07-20 / V2 M2.1 Pre-Move and Breakout/Retest DRAFT Replay Kernels
-
-### 本轮目标
-
-实现最早两类机会的五个独立 DRAFT 纯函数内核，证明双 cutoff 输入、长短非对称、UNKNOWN/冲突、veto、缺失降级、确定性和篡改防线，同时拒绝用合成样本夸大 Detector 能力。
-
-### 修改范围
-
-- 新增三个 Pre-Move 内核：Compression、Flow Divergence、Liquidity Shift；新增 Breakout Edge 与 Role-Flip Retest 两个内核。
-- 阈值版本固定标记 `UNCALIBRATED_DRAFT_THRESHOLDS`；Detector lifecycle=DRAFT、candidateEmissionAllowed=false、runtimeReadAllowed=false。
-- 输入要求 observation 唯一、FeatureSet lineage、event cutoff 和 value-quality 一致；输出重算 digest/ID，并锁定 detector/version/family/pattern 注册身份。
-- 长短规则使用独立 semantic key；late/noise/fakeout veto 优先，缺少相反方向数据不会被静默写成 NO_MATCH。
-- 未修改 Legacy、M1 runtime、Deep、Analysis、Strategy、Outcome、前端、API、DB、Redis、Worker 或生产。
-
-### 核心链路影响
-
-在 `Multi-Opportunity Detection` 内形成 Pre-Move 与 Breakout/Retest 的 DRAFT 计算地基。本轮不发 Candidate，不产生 Signal、等级、READY 或交易计划，不证明真实市场发现率。
-
-### 测试结果
-
-- M2.1 定向 10/10；M2.0 回归 16/16；`typecheck`、`lint` PASS。
-- 全 V2：172 tests / 167 pass / 0 fail / 5 explicit external-dependency skips。
-- 完整 `ci:production` PASS：Legacy 965/0/4 skip、Worker 23/23、历史回测 4/4、全 V2 167/0/5 skip、M0 10/10、build、golden 16/16 和安全门禁全部通过。
-- `backtest:formal`、live、Shadow、production smoke 和 migration 未运行。
-- 首次 typecheck 拒绝通用 number/boolean probe；已拆分类型安全 probe。反审计另补 evaluation digest 重算与 Detector 注册身份防篡改。
-
-### 是否部署
-
-未部署。没有读取 M1 authority、写 Candidate、升级 Detector 生命周期或改变生产。
-
-### 风险与遗留问题
-
-- 阈值尚未在真实冻结 historical cohort 上校准，禁止部署或据此交易。
-- 缺少 event/candidate/matched-non-event 三分母、regime/direction 分层指标、threshold sensitivity 和 untouched holdout。
-
-### 下一轮建议
-
-只执行 `V2-M2.2-HISTORICAL-REPLAY-AND-DETECTOR-LIFECYCLE-GATE`；真实 replay 未过线前保持 DRAFT 和 Candidate 禁发。

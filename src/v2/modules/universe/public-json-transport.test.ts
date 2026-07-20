@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 import { createPublicJsonTransport } from "./public-json-transport";
 
@@ -26,6 +27,34 @@ test("uses only credential-free GET against the exact HTTPS allowlist", async ()
   assert.equal(request.init?.credentials, "omit");
   assert.equal(request.init?.redirect, "error");
   assert.equal(new URL(String(request.input)).hostname, "example.com");
+  assert.equal(result.ok && result.rawBody, undefined);
+  assert.equal(result.ok && result.bodyDigest, undefined);
+  assert.equal(result.ok && result.bodyBytes, undefined);
+});
+
+test("optionally exposes the exact response bytes with their measured digest", async () => {
+  const body = new TextEncoder().encode('{"unicode":"\u4e2d\u6587","n":1}');
+  const transport = createPublicJsonTransport(async () => new Response(body, {
+    headers: { "content-type": "application/json" },
+    status: 200,
+  }), () => NOW);
+
+  const result = await transport({
+    allowedHost: "example.com",
+    captureBody: true,
+    url: "https://example.com/public",
+  });
+
+  assert.equal(result.ok, true);
+  if (!result.ok) {
+    return;
+  }
+  assert.equal(result.bodyBytes, body.byteLength);
+  assert.equal(
+    result.bodyDigest,
+    `sha256:${createHash("sha256").update(body).digest("hex")}`,
+  );
+  assert.deepEqual(result.rawBody, body);
 });
 
 test("rejects a host escape before fetch is called", async () => {

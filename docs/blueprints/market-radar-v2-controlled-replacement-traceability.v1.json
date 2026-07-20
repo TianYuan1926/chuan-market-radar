@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.6",
-  "status": "m2_2_b0_2_a_evidence_gate_local_pass_external_rights_and_historical_source_blocked_bulk_and_cohort_blocked_detectors_draft",
-  "generatedAt": "2026-07-20T19:07:27+08:00",
+  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.7",
+  "status": "m2_2_b0_2_c_local_engineering_pass_forward_capture_start_blocked_on_egress_external_rights_and_historical_source_blocked_bulk_and_cohort_blocked_detectors_draft",
+  "generatedAt": "2026-07-20T20:42:08+08:00",
   "implementationAuthorized": true,
   "productionMutationAuthorized": false,
   "authority": {
@@ -10,7 +10,7 @@
     "index": "docs/blueprints/README.md",
     "currentFacts": "PROJECT_CONTEXT_FOR_CHATGPT.md",
     "recentChanges": "CHANGELOG_FOR_CHATGPT.md",
-    "deliveryReport": "docs/blueprints/V2_M2_2_B0_2_A_RIGHTS_AND_HISTORICAL_INSTRUMENT_EVIDENCE_GATE_DELIVERY_REPORT.md",
+    "deliveryReport": "docs/blueprints/V2_M2_2_B0_2_C_FIRST_PARTY_FORWARD_INSTRUMENT_CAPTURE_DELIVERY_REPORT.md",
     "buildSequence": "market-radar-v2-build-sequence.md",
     "baseManifest": "docs/architecture/v2/V2_BASE_MANIFEST.v1.json",
     "baselineDecision": "docs/architecture/v2/ADR-0001-CLEAN-BASELINE-AND-V2-ISOLATION.md",
@@ -34,6 +34,7 @@
     "m2HistoricalSourceQualificationContract": "docs/architecture/v2/M2_2_B0_HISTORICAL_SOURCE_QUALIFICATION_AND_ACQUISITION_SAFETY_V1.md",
     "m2TargetBlindDiagnosticStrengthContract": "docs/architecture/v2/M2_2_B0_1_TARGET_BLIND_DIAGNOSTIC_STRENGTH_AND_CONSTRUCTION_POLICY_V1.md",
     "m2RightsAndHistoricalInstrumentEvidenceGate": "docs/architecture/v2/M2_2_B0_2_RIGHTS_AND_HISTORICAL_INSTRUMENT_EVIDENCE_GATE_V1.md",
+    "m2FirstPartyForwardInstrumentCaptureContract": "docs/architecture/v2/M2_2_B0_2_C_FIRST_PARTY_FORWARD_INSTRUMENT_CAPTURE_V1.md",
     "legacyEngineeringReference": "docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md",
     "legacyRuntimeReference": "docs/blueprints/MARKET_RADAR_PRODUCTION_RUNTIME_BLUEPRINT_V1.md",
     "legacyReadinessReference": "docs/superpowers/plans/2026-07-10-market-radar-practical-readiness-master-plan-v3.md"
@@ -698,7 +699,7 @@
       "dependsOn": [
         "M1"
       ],
-      "status": "m2_2_b0_2_a_local_evidence_gate_pass_external_resolution_bulk_and_cohort_blocked_real_replay_gate_insufficient_runtime_blocked_until_m1_exit",
+      "status": "m2_2_b0_2_c_local_engineering_pass_forward_capture_start_blocked_on_egress_external_resolution_bulk_and_cohort_blocked_real_replay_gate_insufficient_runtime_blocked_until_m1_exit",
       "workPackages": [
         {
           "id": "M2.0",
@@ -718,7 +719,7 @@
         {
           "id": "M2.2-B",
           "name": "real_historical_cohort_acquisition_and_freeze",
-          "status": "in_progress_b0_b0_1_and_b0_2_a_local_pass_external_resolution_bulk_and_cohort_blocked"
+          "status": "in_progress_b0_b0_1_b0_2_a_and_b0_2_c_local_pass_external_resolution_bulk_and_cohort_blocked"
         },
         {
           "id": "M2.2-B0",
@@ -743,7 +744,12 @@
         {
           "id": "M2.2-B0.2-C",
           "name": "first_party_forward_instrument_capture",
-          "status": "pending_local_forward_only_does_not_backfill_history"
+          "status": "local_engineering_pass_operational_capture_start_blocked_on_egress_forward_only_production_unchanged"
+        },
+        {
+          "id": "M2.2-B0.2-C1",
+          "name": "egress_capable_forward_capture_start",
+          "status": "pending_trusted_egress_and_two_complete_three_venue_snapshots"
         },
         {
           "id": "M2.2-B1",
@@ -853,17 +859,17 @@
     "legacyDeletionAllowed": false
   },
   "lastCompletedImplementationEntry": {
-    "id": "V2-M2.2-B0.2-A-RIGHTS-AND-HISTORICAL-INSTRUMENT-EVIDENCE-GATE",
-    "name": "external_human_rights_and_point_in_time_instrument_evidence_machine_gate",
-    "status": "local_evidence_gate_pass_external_resolution_blocked_bulk_and_cohort_false_production_unchanged",
+    "id": "V2-M2.2-B0.2-C-FIRST-PARTY-FORWARD-INSTRUMENT-CAPTURE",
+    "name": "three_venue_forward_only_instrument_snapshot_and_transition_capture",
+    "status": "local_engineering_pass_operational_capture_start_blocked_on_egress_no_historical_backfill_production_unchanged",
     "productionMutationPerformed": false,
     "migrationPerformed": false,
     "legacyDeletionPerformed": false
   },
   "currentImplementationEntry": {
-    "id": "V2-M2.2-B0.2-C-FIRST-PARTY-FORWARD-INSTRUMENT-CAPTURE",
-    "name": "three_venue_forward_only_instrument_snapshot_and_transition_capture",
-    "status": "pending_local_implementation_does_not_resolve_past_historical_window",
+    "id": "V2-M2.2-B0.2-C1-EGRESS-CAPABLE-FORWARD-CAPTURE-START",
+    "name": "trusted_egress_forward_capture_start_with_complete_three_venue_evidence",
+    "status": "pending_egress_two_complete_snapshots_frozen_cadence_raw_integrity_and_zero_active_gap",
     "productionMutationAllowed": false,
     "migrationAllowed": false,
     "legacyDeletionAllowed": false
