@@ -1,6 +1,6 @@
 # M1.6-P0R Capacity and Recovery Remediation Contract V1
 
-状态：`COS_BUCKET_PROVISIONED / OBJECT_LOCK_AGE_STS_RECOVERY_AND_NO_COST_CAPACITY_PROOF_PENDING / P0_BLOCKED`
+状态：`COS_BUCKET_PROVISIONED / OBJECT_LOCK_WHITELIST_REQUIRED / AGE_VAULT_TOOL_LOCAL_PASS_IDENTITY_NOT_CREATED / STS_RECOVERY_AND_NO_COST_CAPACITY_PROOF_PENDING / P0_BLOCKED`
 
 ## 1. 目的
 
@@ -71,7 +71,7 @@ ceil((current used + projected consumption) / 0.70)
 
 ### 5.1 腾讯 COS 运行级硬约束
 
-- 腾讯 COS 空桶 `market-radar-v2-p0r-1445289689` 已创建并由控制台概览核验为 `ap-hongkong / SINGLE_AZ / PRIVATE / VERSIONING / SSE-COS`，对象 0、存储 0 MB；生产恢复仍未开始。
+- 腾讯 COS 专用空桶已创建并由控制台概览核验为 `ap-hongkong / SINGLE_AZ / PRIVATE / VERSIONING / SSE-COS`，对象 0、存储 0 MB；精确名称只保存在 Git 外受限事实文件，Git 只登记名称摘要 `sha256:85c3b03bfc42eb22e41bd622bbabb3c8a04778c2397af932fd889aa14440fc63`；生产恢复仍未开始。
 - bucket 必须位于 `ap-hongkong`、单可用区、私有 ACL、versioning=`ENABLED`、SSE-COS AES256，并开启不可撤销的 Object Lock，默认 `COMPLIANCE` 31 天。腾讯当前 Object Lock 为白名单能力且不支持多 AZ bucket；版本控制启用后不得暂停。
 - 每次演练生成 128-bit 随机熵的 run-id，并形成唯一 `market-radar-v2/p0r/<date>/<run-id>.dump.age`。run-id、source commit、bucket、region、生产源 IP `/32`、唯一对象键和 STS policy 必须进入同一 provisioning plan 与 checksum-bound bundle。
 - STS 使用 `GetFederationToken`、7200 秒、无 `principal` 的精确 CAM policy，只允许 10 个 bucket/object 读取验证与唯一对象 Put action；source IP、HTTPS、TLS>=1.2、private ACL、Content-Type 和 COMPLIANCE retention 均为条件。原始 STS response 与编译后的 credential 只能位于 `/dev/shm`，原始 response 编译后立即删除。
@@ -79,6 +79,8 @@ ceil((current used + projected consumption) / 0.70)
 - 腾讯官方明确说明：versioning 启用后 `x-cos-forbid-overwrite` 不生效。因此它只能作为请求/策略约束，不能写成防覆盖能力。真实防碰撞合同是高熵唯一 key、上传前 HEAD 必须 404、已存在立即停止、上传后绑定 exact versionId；不得复用 key。
 
 age 私钥必须由用户保存在与 COS 分离的加密保险库中，至少保留到对象 retention 到期；生产宿主机只允许 `/dev/shm` 临时副本，隔离恢复后删除。删除生产副本不等于销毁唯一恢复密钥。
+
+免费保管路线固定为可信 Apple Silicon Mac 的登录 Keychain。生成工具必须验证官方 `age v1.3.1` darwin/arm64 archive SHA-256、独立推导 recipient、Keychain 读回与 recipient 一致性，只输出 mode-600 公钥和无私钥 attestation；重复项、输出覆盖、工具链漂移或读回不一致全部失败并回滚新建项。该本地工具 PASS 不代表真实身份已生成。
 
 ## 6. P0R-E 生产验收
 
@@ -114,14 +116,14 @@ P0R-D0 零付费容量重设计通过并应用后必须按顺序验证：
 
 ## 9. 当前出口
 
-当前达到 `P0R_COS_BUCKET_PROVISIONED / OBJECT_LOCK_AGE_STS_RECOVERY_AND_NO_COST_CAPACITY_PROOF_PENDING`：
+当前达到 `P0R_COS_BUCKET_PROVISIONED / OBJECT_LOCK_WHITELIST_REQUIRED / AGE_VAULT_TOOL_LOCAL_PASS_IDENTITY_NOT_CREATED / STS_RECOVERY_AND_NO_COST_CAPACITY_PROOF_PENDING`：
 
 - strict recovery verifier、同一快照 PostgreSQL backup capture、数据库结构/计数 fingerprint、腾讯 COS 私有归档 helper、隔离 PG16 restore runner 和可复现受限 bundle builder 已实现。
-- 运行级 provisioning plan/STS credential compiler 已实现；单 AZ/region、policy/request/plan digest、上传前对象不存在和 exact version 均进入 strict evidence。P0R 定向测试当前 35/35 通过。
-- 香港单 AZ 私有/versioned/SSE-COS 空桶已创建；Object Lock、age、STS、对象上传和恢复仍未执行。
+- 运行级 provisioning plan/STS credential compiler 已实现；单 AZ/region、policy/request/plan digest、上传前对象不存在和 exact version 均进入 strict evidence。macOS Keychain age vault 工具已加入同一门禁，P0R 定向测试当前 41/41 通过。
+- 香港单 AZ 私有/versioned/SSE-COS 空桶已创建；控制台未出现 Object Lock 入口，腾讯白名单工单已填写脱敏草稿但因账号手机号未设置尚未提交。真实 age 身份、STS、对象上传和恢复仍未执行。
 - 生产容量尚未通过零付费重设计证明，fresh P0 尚未重跑；因此 P0 仍为 `BLOCKED`，P1 仍不允许启动。
 
-下一生产动作必须先只读证明 Object Lock 支持并独立确认不可逆 COMPLIANCE 31 天动作，再生成离机 age X25519 身份并按运行计划签发 7200 秒精确对象范围的临时 COS 凭证；然后执行真实同快照加密备份、远端按 version 取回、隔离 PG16 restore 和 fingerprint parity。该证据封存后进入 P0R-D0 零付费容量重设计与机器证明。任何长期凭证、付费、关机或 P1 生产写入都不由本合同隐式授权。
+下一生产动作必须先补齐账号联系方式并提交白名单工单；只有腾讯确认支持后，才在动作时确认不可逆 COMPLIANCE 31 天、生成离机 age X25519 身份并按运行计划签发 7200 秒精确对象范围的临时 COS 凭证。然后执行真实同快照加密备份、远端按 version 取回、隔离 PG16 restore 和 fingerprint parity。该证据封存后进入 P0R-D0 零付费容量重设计与机器证明。任何长期凭证、付费、关机或 P1 生产写入都不由本合同隐式授权。
 
 参考：腾讯云官方文档说明套餐升级可涉及系统盘自动扩容且运行中实例需要确认强制关机；数据盘是 blast radius 更大的备选路径。
 

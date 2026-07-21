@@ -2,6 +2,41 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-21 / V2 M1.6-P0R-B1B Object Lock and Age Vault Qualification
+
+### 本轮目标
+
+确认 Object Lock 实际资格，并实现免费、受保护的离机 age X25519 身份生成与保管工具，不生成真实私钥或冒充生产恢复。
+
+### 修改范围
+
+- Edge 只读确认 COS 仍为空且新旧控制台没有 Object Lock 入口；腾讯白名单工单已填写脱敏草稿，但账号手机号未设置，尚未提交。
+- 新增 macOS Keychain age vault 工具：冻结官方 archive checksum、独立 recipient 推导、Keychain 读回、失败回滚和无私钥 attestation；按官方 v1.3.1 源码兼容 stdout/stderr 重复同一 recipient，并拒绝冲突 recipient。
+- 清理 tracked bucket 标识与真实 APPID 测试 fixture，新增 bucket 标识和 age 私钥 CI 防污染门禁。
+
+### 核心链路影响
+
+只加固 `全市场发现 -> Market Fact + Quality -> Runtime Truth` 的恢复地基；不产生 Candidate、Analysis、Strategy 或交易计划。
+
+### 测试结果
+
+- age vault 6/6、P0R 41/41、Go COS helper、secret pattern 和新文件 ESLint PASS。
+- 完整 `ci:production` PASS：typecheck、lint、market 965/0/4 explicit skips、Worker 23/23、historical smoke 4/4、V2 foundation 277/0/5 explicit external skips、V2 ops 95/95、M0 11/11、build、Golden 16/16 和 security 全部通过；未运行 `backtest:formal`。
+
+### 是否部署
+
+未部署应用；未提交工单、未启用 Object Lock、未生成 age/STS、未上传对象、未执行生产恢复。生产服务、数据和 authority 零变更。
+
+### 风险与遗留问题
+
+- Object Lock 白名单未开通，账号手机号未设置；草稿不是提交或开通证据。
+- age vault 是本地工具 PASS；官方 darwin/arm64 archive 尚未成功下载并执行，真实身份尚未生成。
+- P0 继续因容量与 recovery evidence BLOCKED，P1 关闭。
+
+### 下一轮建议
+
+只补齐账号联系方式并提交 Object Lock 白名单工单；等待期间并行推进 P0R-D0 纯本地容量模型，不生成私钥、STS 或对象。
+
 ## 2026-07-21 / V2 M1.6-P0R-B1 COS Bucket Provisioning
 
 ### 本轮目标
@@ -10,7 +45,7 @@
 
 ### 修改范围
 
-- 创建 `market-radar-v2-p0r-1445289689`，地域 `ap-hongkong`、单 AZ、私有读写、versioning 与 SSE-COS 已开启。
+- 创建专用 COS 空桶，地域 `ap-hongkong`、单 AZ、私有读写、versioning 与 SSE-COS 已开启；精确名称只保存在 Git 外受限事实文件。
 - 概览确认对象 0、存储 0 MB、外网流量 0 B、读请求 0；未开启日志、静态网站、CDN、全球加速或数据万象。
 - 更新权威蓝图、机器矩阵、施工顺序、项目上下文和本轮交付报告；交易与生产运行代码零变化。
 
@@ -32,6 +67,7 @@
 - P0 继续因容量与 recovery evidence BLOCKED；P1 关闭。
 - Object Lock COMPLIANCE 31 天不可逆，必须先证明支持并独立确认。
 - 用户拒绝付费扩容；零付费容量架构必须保留原门禁并取得机器证据，不能直接降低阈值。
+- 安全更正：提交 `c647376c` 曾记录完整 bucket 名；当前 HEAD 已脱敏并新增 CI 防复发，但历史提交仍应视为“bucket 标识已知”。桶私有、为空且没有凭证泄露，这不是 secret rotation 证明。
 
 ### 下一轮建议
 
@@ -145,40 +181,3 @@
 ### 下一轮建议
 
 只执行 `V2-M1.6-P0R-CAPACITY-AND-RECOVERY-REMEDIATION`；取得加密离机备份、隔离恢复和容量整改后重跑 P0，禁止直接进入 P1。
-
-## 2026-07-21 / V2 M1.5-B1-B3 Mark Price Same-Gate 31-Cycle Retest
-
-### 本轮目标
-
-在腾讯隔离 no-authority Runner 以 B1-B2 exact clean commit 完整执行 31 周期同门槛复验，并用独立复算和宿主恢复证据决定 M1.5-B1 是否真实完成。
-
-### 修改范围
-
-- exact image、临时 PostgreSQL、storage/egress 双网络和 31 周期 Worker；生产服务、数据、身份与 authority 不变。
-- 固化 Runner/Domain/observation/process-output 四类内容寻址证据，并对永久副本独立复算。
-- 更新 V2 v1.10 蓝图、v1.12 机器矩阵和双轨施工顺序，将下一入口切到 M1.6-P0。
-
-### 核心链路影响
-
-证明 `全市场发现 -> Market Fact + Quality` 的 30 分钟 Early Shadow 业务门槛；不证明 Detector、Candidate、Strategy、页面、24 小时 SLO 或盈利能力。
-
-### 测试结果
-
-- exact commit `33f08d3fb72912a2617ed3a21f58cb4c347aefcb`；31/31 READY，minimum collected/usable/fresh 1,444/1,444，四项 ratio=1。
-- provider failure、missed start、not-ready 均为 0；observation 1,805,547 ms，p95 cycle 5,997 ms，max schedule lag 45 ms。
-- Runner evidence `sha256:58b5d118503def8287642b78e12eb895a26130ac0ecb12b52bbf06e82ce51860` 与永久副本独立复算 PASS；宿主 11 containers / 4 networks / 5 volumes 精确恢复，隔离残留 0。
-- 完整 `ci:production` 退出码 0：Legacy 965/0/4 skip、Worker 23/23、Historical 4/4、V2 277/0/5 explicit skip、ops 32/32、M0 11/11、build、Golden 16/16 和 security 全部 PASS；`backtest:formal` 未运行。
-
-### 是否部署
-
-未部署应用。仅在生产宿主机运行隔离临时 no-authority 单元；生产 DB/Redis/env/migration/Feature Flag/服务/仓库/Candidate runtime/authority 零变更，临时资源已清理。
-
-### 风险与遗留问题
-
-- Early Shadow PASS 不等于 24 小时 SLO 或 M1 完成。
-- production storage migration、最小权限身份、容量/WAL、备份恢复和 isolated-write Shadow 尚未证明。
-- 生产应用业务健康仍为 `UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION`。
-
-### 下一轮建议
-
-只执行 `V2-M1.6-P0-PRODUCTION-STORAGE-READ-ONLY-PREFLIGHT-CONTRACT`；P0 未通过前禁止 Add Schema。

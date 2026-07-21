@@ -12,7 +12,7 @@
 
 ## 3. 修改文件清单
 
-- 腾讯 COS 外部资源：创建 `market-radar-v2-p0r-1445289689`。
+- 腾讯 COS 外部资源：创建专用空桶；精确名称只保存在 Git 外受限事实文件。
 - `PROJECT_CONTEXT_FOR_CHATGPT.md`：记录当前真实外部资源状态和下一入口。
 - `CHANGELOG_FOR_CHATGPT.md`：登记本轮重要变化。
 - `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`：升级当前事实，不降低 P0 容量与恢复门禁。
@@ -53,7 +53,7 @@ npm run ci:production
 
 ## 8. 测试结果
 
-- COS 创建：PASS，完整名称 `market-radar-v2-p0r-1445289689`。
+- COS 创建：PASS；Git 仅登记名称摘要 `sha256:85c3b03bfc42eb22e41bd622bbabb3c8a04778c2397af932fd889aa14440fc63`。
 - 地域/冗余：PASS，`ap-hongkong / SINGLE_AZ`。
 - 权限：PASS，私有读写。
 - 版本控制：PASS，已开启。
@@ -71,6 +71,8 @@ npm run ci:production
 ## 9. 失败项
 
 无 COS 创建失败。安全管理菜单一次出现腾讯控制台“服务器暂时未响应”提示，因此 Object Lock 可用性没有被本轮证明；该提示不影响已由概览读取到的桶、权限、版本和加密事实，但 Object Lock 必须继续保持未完成。
+
+安全更正：初始提交 `c647376c` 曾把完整 bucket 名写入 Git 文档，违反本运行手册对敏感目标元数据的最小暴露要求。当前 HEAD 已改为摘要并新增 CI 防复发；历史提交中的 bucket 标识仍视为已知。桶保持私有、为空且没有凭证泄露，因此本更正不宣称完成 secret rotation。
 
 ## 10. 是否更新 PROJECT_CONTEXT_FOR_CHATGPT.md
 

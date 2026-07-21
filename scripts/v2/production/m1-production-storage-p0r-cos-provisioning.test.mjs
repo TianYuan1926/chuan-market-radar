@@ -20,7 +20,7 @@ const SOURCE_COMMIT = "b".repeat(40);
 
 function plan() {
   return buildP0RCosProvisioningPlan({
-    appId: "1445289689",
+    appId: "1234567890",
     bucketBaseName: "market-radar-v2-p0r",
     plannedAt: NOW,
     region: "ap-hongkong",
@@ -84,7 +84,7 @@ test("rejects plan drift, broad network scope and timestamp reuse", () => {
   assert.throws(() => validateP0RCosProvisioningPlan(drifted), /digest mismatch/u);
   assert.throws(() => buildP0RCosProvisioningPlan({
     ...{
-      appId: "1445289689",
+      appId: "1234567890",
       bucketBaseName: "market-radar-v2-p0r",
       plannedAt: NOW,
       region: "ap-hongkong",
@@ -94,7 +94,7 @@ test("rejects plan drift, broad network scope and timestamp reuse", () => {
     sourceIpCidr: "0.0.0.0/0",
   }), /IPv4 \/32/u);
   assert.throws(() => buildP0RCosProvisioningPlan({
-    appId: "1445289689",
+    appId: "1234567890",
     bucketBaseName: "market-radar-v2-p0r",
     plannedAt: NOW,
     region: "ap-hongkong",
@@ -138,7 +138,7 @@ test("create-plan CLI writes a mode-600, secret-free artifact", async () => {
   const stdout = execFileSync(process.execPath, [
     "scripts/v2/production/m1-production-storage-p0r-cos-provisioning.mjs",
     "create-plan",
-    "--app-id", "1445289689",
+    "--app-id", "1234567890",
     "--bucket-base-name", "market-radar-v2-p0r",
     "--now", NOW,
     "--output", output,

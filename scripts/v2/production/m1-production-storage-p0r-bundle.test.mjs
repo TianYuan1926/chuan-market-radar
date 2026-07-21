@@ -94,7 +94,7 @@ test("approval package embeds and checksum-binds the exact COS provisioning plan
   const directory = await mkdtemp(join(tmpdir(), "p0r-bundle-plan-"));
   const sourceCommit = "a".repeat(40);
   const cosProvisioningPlan = buildP0RCosProvisioningPlan({
-    appId: "1445289689",
+    appId: "1234567890",
     bucketBaseName: "market-radar-v2-p0r",
     plannedAt: "2026-07-21T12:34:56.000Z",
     region: "ap-hongkong",

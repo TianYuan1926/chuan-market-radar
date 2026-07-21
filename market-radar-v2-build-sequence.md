@@ -24,7 +24,7 @@
 - [x] **M1.6 Partitioned Fact Storage + Retention Governance 本地出口**：已建立专用 UTC 日分区、无 DEFAULT fail-closed 路由、有界活动身份注册表、旧账本新 Fact 禁写、容量水位、独立 Audit/Retention 身份、restore-verified DROP 与不可变事件。定向 5/5、隔离 PG16 1/1，真实 `pg_dump -> pg_restore` 后 replay parity PASS/deterministic true；迁移前旧 Fact 可读，2 个分区跨日读取，保留中/活跃 replay 均阻断清理，到期后原子删除 1 分区/2 Fact 且拒绝重灌；全 V2 141/0/5 explicit skips 与完整 `ci:production` PASS。状态：`LOCAL_ENGINEERING_AND_POSTGRES16_PASS / PRODUCTION_MIGRATION_NOT_RUN`。
 - [ ] **M1.6-P Production Storage 分阶段启用**：B1-B 已通过，当前开始分阶段启用；每步独立 checksum、备份/恢复、回滚和生产验证，不与业务逻辑整改混发。
 - [x] **M1.6-P0 新鲜只读预检合同与现场证明**：exact source `d5dbc804be00c546624ab933bad6282228f983c4` 已完成 22 项定向、54 项 ops、完整 `ci:production` 和生产只读执行。Fact capture=`PASS`，admission=`BLOCKED`：V2 schema=`ABSENT_CLEAN`、旧/新 Fact=0、数据库/服务/仓库 mutation=0，但当前 120 GiB 系统盘按冻结模型预计使用率 90%，可用 70.02 GB 小于所需 87.09 GB，且无合格 recovery evidence。状态：`EXECUTED_BLOCKED_NOT_READY_FOR_P1`。
-- [ ] **M1.6-P0R Capacity + Recovery Remediation**：P0R-A recovery 工具链与 P0R-B 云资源前置安全合同已本地通过；腾讯 COS 空桶 `market-radar-v2-p0r-1445289689` 已按 `ap-hongkong / SINGLE_AZ / PRIVATE / VERSIONING / SSE-COS` 创建并由概览复核，对象 0、存储 0 MB。固定剩余顺序为 `P0R-B1B 只读确认 Object Lock 支持 + 独立确认 COMPLIANCE 31d -> P0R-B2 离机 age 身份与运行级 STS -> P0R-C 同快照加密 backup / 远端精确 version retrieval / 独立 PG16 restore -> P0R-D0 零付费容量架构重设计与机器证明 -> P0R-E boot/filesystem/Docker/Postgres/Redis/app health -> fresh P0`。用户拒绝付费扩容后，原容量 blocker 与门槛不变；不得用缩短核心扫描分母、删防线或改阈值替代证明。P0R 只允许重跑 P0，不能直接授权 P1。当前状态：`COS_BUCKET_PROVISIONED / OBJECT_LOCK_AGE_STS_RECOVERY_AND_NO_COST_CAPACITY_PROOF_PENDING`。
+- [ ] **M1.6-P0R Capacity + Recovery Remediation**：P0R-A recovery 工具链与 P0R-B 云资源前置安全合同已本地通过；腾讯 COS 专用空桶已按 `ap-hongkong / SINGLE_AZ / PRIVATE / VERSIONING / SSE-COS` 创建并由概览复核，对象 0、存储 0 MB。精确 bucket 名只保存在 Git 外 mode-600 事实文件。控制台未出现 Object Lock 入口，状态为白名单待开通；工单已填写脱敏草稿但因账号手机号未设置尚未提交。macOS Keychain age vault 工具本地 41/41 PASS，真实身份未生成。固定剩余顺序为 `提交并通过 Object Lock 白名单 -> 独立确认 COMPLIANCE 31d -> P0R-B2 真实离机 age 身份与运行级 STS -> P0R-C 同快照加密 backup / 远端精确 version retrieval / 独立 PG16 restore -> P0R-D0 零付费容量架构重设计与机器证明 -> P0R-E boot/filesystem/Docker/Postgres/Redis/app health -> fresh P0`。原容量 blocker 与门槛不变；不得用缩短核心扫描分母、删防线或改阈值替代证明。P0R 只允许重跑 P0，不能直接授权 P1。当前状态：`OBJECT_LOCK_WHITELIST_REQUIRED / AGE_VAULT_TOOL_LOCAL_PASS_IDENTITY_NOT_CREATED / RECOVERY_AND_NO_COST_CAPACITY_PROOF_PENDING`。
 - [ ] **M1.6-P1 Add Schema**：仅在 P0 PASS 和独立 migration 授权后，事务性应用 checksum 固定的 additive schema；禁止 backfill、身份切换、Worker 启动和其他服务变更。
 - [ ] **M1.6-P2 最小权限身份与会话证明**：独立创建/绑定 migration、writer、reader、replay、audit、retention 权限，验证越权拒绝；不启动 Worker。
 - [ ] **M1.6-P3 分区与 dormant no-authority Worker**：按容量门槛预建有界 UTC 分区，部署 dormant Worker，默认不写入；只做身份、镜像、配置、rollback 和 absence 证明。
@@ -102,10 +102,10 @@ M2.2-B0.2-B external rights/source resolution
 M0 engineering exit: LOCAL_PASS / PRODUCTION_UNCHANGED
 Last completed package: V2-M1.5-B1-B3-MARK-PRICE-SAME-GATE-31-CYCLE-RETEST
 Last production gate execution: V2-M1.6-P0-PRODUCTION-STORAGE-READ-ONLY-PREFLIGHT = BLOCKED
-Current execution entry: V2-M1.6-P0R-B1B-OBJECT-LOCK-AGE-STS-QUALIFICATION
+Current execution entry: V2-M1.6-P0R-B1B-OBJECT-LOCK-WHITELIST-AND-AGE-VAULT-QUALIFICATION
 Current blocked external entry: V2-M2.2-B0.2-B-EXACT-SOURCE-RIGHTS-AND-CAPABILITY-RESOLUTION
 Completed bounded shadow gate: V2-M1.5-B1-B-PASS_EARLY_SHADOW_BUSINESS_GATE
-Current status: M1.5-B1_COMPLETE / B1-B1_EXECUTION_INVALID_NOT_COUNTED / B1-B3_PASS / M1.6-P0_EXECUTED_BLOCKED_CAPACITY_AND_RECOVERY / M1.6-P0R_COS_BUCKET_PROVISIONED_OBJECT_LOCK_AGE_STS_RECOVERY_AND_NO_COST_CAPACITY_PROOF_PENDING / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED / PRODUCTION_SERVICES_DATA_AND_AUTHORITY_UNCHANGED
+Current status: M1.5-B1_COMPLETE / B1-B1_EXECUTION_INVALID_NOT_COUNTED / B1-B3_PASS / M1.6-P0_EXECUTED_BLOCKED_CAPACITY_AND_RECOVERY / M1.6-P0R_OBJECT_LOCK_WHITELIST_REQUIRED_AGE_VAULT_TOOL_LOCAL_PASS_IDENTITY_NOT_CREATED_RECOVERY_AND_NO_COST_CAPACITY_PROOF_PENDING / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED / PRODUCTION_SERVICES_DATA_AND_AUTHORITY_UNCHANGED
 ```
 
 M0 的减数只代表合同、运行时输入边界、Legacy 消费者地图和隔离门禁已经形成闭环；它不代表真实 Provider、全市场扫描、Detector、交易计划、页面或生产能力已经完成。

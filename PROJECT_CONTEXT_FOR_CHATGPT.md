@@ -65,8 +65,8 @@ Runtime / Security / Release Control 贯穿全链。
 
 当前唯一设计权威：
 
-- `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`，内容版本 v1.13。
-- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.15。
+- `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`，内容版本 v1.15。
+- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.17。
 - `docs/blueprints/README.md`，权威解析入口。
 - `market-radar-v2-build-sequence.md`，当前正确施工依赖与减数规则。
 
@@ -90,7 +90,7 @@ M1.5B1B3_EARLY_SHADOW_BUSINESS_GATE_PASS
 M1.5B1_COMPLETE
 M1.6_PARTITIONED_FACT_STORAGE_LOCAL_POSTGRES16_PASS
 M1.6P0_PRODUCTION_STORAGE_READ_ONLY_PREFLIGHT_EXECUTED_BLOCKED
-M1.6P0R_COS_BUCKET_PROVISIONED_OBJECT_LOCK_AGE_STS_RECOVERY_AND_NO_COST_CAPACITY_PROOF_PENDING
+M1.6P0R_OBJECT_LOCK_WHITELIST_REQUIRED_AGE_VAULT_TOOL_LOCAL_PASS_IDENTITY_NOT_CREATED_RECOVERY_AND_NO_COST_CAPACITY_PROOF_PENDING
 M2.0_DISCOVERY_CONTRACTS_LOCAL_PASS
 M2.1_DRAFT_REPLAY_KERNELS_LOCAL_PASS
 M2.2A_HISTORICAL_REPLAY_GATE_HARNESS_LOCAL_PASS
@@ -147,7 +147,7 @@ automaticTradingAllowed=false
 - M1.4 已建立 21 observed / 15 eligible 的三 Venue 多标的 fixture、完整/增量 reconciliation、目录 tombstone、provider quota、global/per-provider concurrency、有限队列、冷启动、数据库失败和恢复状态机。Collector strict telemetry 分开报告 providerObserved/accounted/eligible/collected/fresh；真实 PG16 已证明启动、增量和全 catalog 故障的原子持久化，生产 import 仍只能通过 Adapter。
 - M1.5-A 已建立独立 additive checkpoint migration、artifact 引用与 digest 防线、精确 release/config/sequence/schedule 恢复、固定节拍 skip-missed Worker、优雅停止、强制 telemetry sink、分离 reader/writer 身份的 NO_AUTHORITY 进程入口和三态 SLO evaluator。隔离 PG16 已证明关闭连接后的精确增量恢复、append-only、幂等、越权拒绝和 checkpoint 不领先 artifact。
 - M1.5-B0 已补齐显式 reader/writer role assumption 与会话身份核验、两个 secret-file database URL、完整 strict observation JSONL、固定 30 分钟/24 小时有限 Shadow profile，以及无 Legacy secret、非 root、只读 filesystem、无端口的专用容器边界。定向 41/41、全 V2 136 pass / 0 fail / 4 explicit external-dependency skips、三项隔离 PG16 回归与完整 `ci:production` 均通过；B1-A 已随后补齐 exact image build、三 Venue egress 与隔离 Docker Runner 证明。
-- M1.6 已建立 UTC 日分区、fail-closed 路由、有界身份注册、容量/保留/恢复治理并通过隔离 PG16。生产 P0 exact source `d5dbc804be00c546624ab933bad6282228f983c4` 已只读执行：PostgreSQL 16、schema=`ABSENT_CLEAN`、旧/新 Fact=0、mutation=0；但 120 GiB 系统盘预计使用率 90%、headroom 不足且 recovery evidence 缺失，准入 `BLOCKED`。P0R 同快照加密 backup、fingerprint、隔离 restore 与 strict verifier 已本地通过；腾讯 COS 空桶 `market-radar-v2-p0r-1445289689` 已按香港单 AZ、私有、versioning、SSE-COS 创建并复核为 0 对象/0 MB。Object Lock、age、STS、生产恢复、零付费容量证明和 fresh P0 未执行，入口是 P0R-B1B，不是 P1。
+- M1.6 已建立 UTC 日分区、fail-closed 路由、有界身份注册、容量/保留/恢复治理并通过隔离 PG16。生产 P0 exact source `d5dbc804be00c546624ab933bad6282228f983c4` 已只读执行：PostgreSQL 16、schema=`ABSENT_CLEAN`、旧/新 Fact=0、mutation=0；但 120 GiB 系统盘预计使用率 90%、headroom 不足且 recovery evidence 缺失，准入 `BLOCKED`。P0R 同快照加密 backup、fingerprint、隔离 restore 与 strict verifier 已本地通过；腾讯 COS 专用空桶已按香港单 AZ、私有、versioning、SSE-COS 创建并复核为空，精确名称只保存在 Git 外受限事实文件。当前账号没有 Object Lock 入口，白名单工单已填写脱敏草稿但因手机号未设置尚未提交；macOS Keychain age vault 工具本地 41/41 PASS，真实身份、STS、生产恢复、零付费容量证明和 fresh P0 未执行，入口仍是 P0R-B1B，不是 P1。
 - M2.0 已冻结六个机会族、十四种模式、family-specific direction、Detector event/knowledge 双 cutoff、Candidate/Episode/Thesis strict v2 schema、Detector emission authority、UTC Episode 去重、生命周期、三层运行漏斗和 19 个 test-only point-in-time fixture；fixture 递归拒绝 Outcome/MFE/MAE 等未来材料。该结论只证明本地合同，不证明 Detector、Deep Validation、真实市场发现率或生产能力。
 - M2.1 已建立三个 Pre-Move 与两个 Breakout/Retest 独立 DRAFT 纯回放内核，包含显式长短/UNKNOWN、late/noise/fakeout veto、unavailable 降级、顺序无关 digest 和 Detector 注册身份防篡改。阈值固定标记 `UNCALIBRATED_DRAFT_THRESHOLDS`，Candidate emission=false；定向 10/10、M2.0 回归 16/16、全 V2 167 pass / 0 fail / 5 explicit skips。没有历史 cohort、真实指标或生命周期升级证据。
 - M2.2-A 已建立真实历史数据接纳、完整 Candidate 背景窗口、candidate/event/matched-non-event 三业务分母、固定 Detector 分母、purge/embargo、holdout group isolation 与独立 custody、target-blind 首次发现、Wilson CI/lead-time 秩区间和四态 lifecycle proposal Gate。独立 custody 下 research Bundle 物理禁止 inline holdout，Gate 只打开 commitment 匹配的 sealed artifact；lead time 使用数据实际可知的 knowledge cutoff。当前仓库 accepted real cohort=0，Top20 ranking、threshold sensitivity 和真实 untouched holdout 均缺失，因此 Gate=`INSUFFICIENT`；五个 Detector 保持 DRAFT、Candidate 禁发。
@@ -291,9 +291,9 @@ npm run security:check
 系统等级：R1
 工程描述：可运行但不完整
 实战描述：不能支撑实战
-V2：M0、M1.1-M1.6、M1.5-B1、M2.0、M2.1、M2.2-A、M2.2-B0、B0.1、B0.2-A、B0.2-C/C1 对应本地、业务或运行起点出口已通过；B1-B1 永久不计，B1-B3 已取得完整 31 周期业务 PASS。M1.6-P0 因容量与恢复证据 BLOCKED；P0R 本地工程 PASS，香港私有 COS 空桶已创建，Object Lock/age/STS/真实恢复/零付费容量证明仍待执行，M1 未完成。五个历史来源仍为 RESEARCH_ONLY，真实 cohort Gate=INSUFFICIENT，Detector=DRAFT、Candidate 禁发
+V2：M0、M1.1-M1.6、M1.5-B1、M2.0、M2.1、M2.2-A、M2.2-B0、B0.1、B0.2-A、B0.2-C/C1 对应本地、业务或运行起点出口已通过；B1-B1 永久不计，B1-B3 已取得完整 31 周期业务 PASS。M1.6-P0 因容量与恢复证据 BLOCKED；P0R 空桶已创建，Object Lock 白名单待开通，age vault 工具本地 PASS 但身份未生成，STS/真实恢复/零付费容量证明仍待执行，M1 未完成。五个历史来源仍为 RESEARCH_ONLY，真实 cohort Gate=INSUFFICIENT，Detector=DRAFT、Candidate 禁发
 本轮生产服务、数据与 authority 变更：0；外部云资源变更：创建 1 个空 COS bucket
-当前生产存储门禁：P0_BLOCKED_CAPACITY_AND_RECOVERY；P0R_COS_BUCKET_PROVISIONED_OBJECT_LOCK_AGE_STS_RECOVERY_AND_NO_COST_CAPACITY_PROOF_PENDING；应用业务健康未在本包评估
+当前生产存储门禁：P0_BLOCKED_CAPACITY_AND_RECOVERY；P0R_OBJECT_LOCK_WHITELIST_REQUIRED_AGE_VAULT_TOOL_LOCAL_PASS_IDENTITY_NOT_CREATED_RECOVERY_AND_NO_COST_CAPACITY_PROOF_PENDING；应用业务健康未在本包评估
 ```
 
 2026-07-21 P0 通过只读事务取得数据库/容量事实，Docker/Git before/after 一致，证据 `sha256:344ae4e05ec78e74ca97c92728fc06576f744e795bf4919d6eb3b76ee145769e`。它只判定存储准入，不包含 `/api/health`、Redis 或业务 ready，因此不得扩写为全站健康或全站失败。
@@ -314,11 +314,11 @@ Cycle final
 
 ## 14. 最近三次关键事件
 
-### 2026-07-21 / V2 M1.6-P0R-B1 COS Bucket Provisioning
+### 2026-07-21 / V2 M1.6-P0R-B1B Object Lock and Age Vault Qualification
 
-- 创建 `market-radar-v2-p0r-1445289689`，控制台确认 `ap-hongkong / SINGLE_AZ / PRIVATE / VERSIONING / SSE-COS`。
-- 概览读取到对象 0、存储 0 MB、外网流量 0 B、读请求 0；日志、静态网站、CDN、全球加速和数据万象未开启。
-- 未启用 Object Lock，未生成 age/STS，未上传对象，未执行 backup/restore；空桶不能让 P0 或 M1 减数。
+- Edge 只读确认桶仍为空且新旧控制台均无 Object Lock 入口；按官方白名单要求保持 `WHITELIST_REQUIRED`。
+- 腾讯工单已按版本控制模块填写脱敏草稿，但账号手机号未设置，未提交；未传 bucket 标识或联系方式。
+- macOS Keychain age vault 工具 6/6、新 P0R 总门禁 41/41 PASS；真实私钥、STS、对象和恢复均未执行。
 
 ### 2026-07-21 / V2 M1.6-P0R-B Cloud Prerequisite Safety
 
@@ -367,10 +367,9 @@ Cycle final
 4. Candidate/Evidence/Setup/Action/User Fit 是否越层。
 5. READY 是否由后端完整计划、执行可行性、结构 RR、净成本和运行健康共同决定。
 6. 数据缺失、CoinGlass 失败、429、stale 和数据库故障是否诚实降级。
-7. Outcome/Research 是否与生产判断隔离，是否记录所有失败试验。
-8. 前端是否只读 Decision Snapshot。
-9. 发布是否绑定 commit、artifact、image、schema、feature/rule version、rollback 和 evidence。
-10. 旧代码删除是否有消费者扫描、replacement 稳定期和 absence test。
+7. 前端是否只读 Decision Snapshot。
+8. 发布是否绑定 commit、artifact、image、schema、feature/rule version、rollback 和 evidence。
+9. 旧代码删除是否有消费者扫描、replacement 稳定期和 absence test。
 
 ## 17. 用户工作方式与协作规则
 
@@ -386,10 +385,10 @@ Cycle final
 ## 18. 当前执行入口与关键外部门
 
 ```text
-V2-M1.6-P0R-B1B-OBJECT-LOCK-AGE-STS-QUALIFICATION
+V2-M1.6-P0R-B1B-OBJECT-LOCK-WHITELIST-AND-AGE-VAULT-QUALIFICATION
 ```
 
-B1-B3 已关闭 M1.5-B1；P0 已执行并因容量与 recovery evidence BLOCKED。香港单 AZ 私有 COS 空桶已创建；当前剩余是 Object Lock 支持证明与独立确认、离机 age 身份、运行级 STS、真实加密备份/隔离恢复，以及不降低门槛的零付费容量架构证明，随后验证完整生产健康并重跑 fresh P0。只有新 P0 PASS 才能进入 `P1 schema -> P2 identities -> P3 partitions+dormant Worker -> P4 isolated-write Shadow -> M1.7 24h`。关键外部门 B0.2-B 仍需账户所有者/合格法律审查者和可验证历史来源；未解决前 historical bulk、真实 cohort、holdout、Detector lifecycle 和 runtime 一律关闭。
+B1-B3 已关闭 M1.5-B1；P0 已执行并因容量与 recovery evidence BLOCKED。香港单 AZ 私有 COS 空桶已创建；当前必须先补齐账号联系方式并提交/通过 Object Lock 白名单，再动作时确认 COMPLIANCE 31 天、生成真实离机 age 身份与运行级 STS，执行加密备份/隔离恢复和零付费容量机器证明，随后验证完整生产健康并重跑 fresh P0。只有新 P0 PASS 才能进入 `P1 schema -> P2 identities -> P3 partitions+dormant Worker -> P4 isolated-write Shadow -> M1.7 24h`。关键外部门 B0.2-B 仍需账户所有者/合格法律审查者和可验证历史来源；未解决前 historical bulk、真实 cohort、holdout、Detector lifecycle 和 runtime 一律关闭。
 
 ## 19. 活跃记忆维护规则
 

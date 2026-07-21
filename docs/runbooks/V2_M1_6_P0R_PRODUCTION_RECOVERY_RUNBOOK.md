@@ -1,6 +1,6 @@
 # V2 M1.6-P0R 生产恢复运行手册
 
-状态：`READY_FOR_CONTROLLED_USE_AFTER_EXTERNAL_RESOURCE_CONFIRMATION / PRODUCTION_RECOVERY_NOT_EXECUTED / P0_BLOCKED`
+状态：`OBJECT_LOCK_WHITELIST_REQUIRED / AGE_VAULT_TOOL_LOCAL_PASS_IDENTITY_NOT_CREATED / PRODUCTION_RECOVERY_NOT_EXECUTED / P0_BLOCKED`
 
 ## 1. 唯一目标
 
@@ -14,7 +14,7 @@
 -> 上传无 secret、含受限目标元数据的 checksum-bound bundle 与临时 secret 副本
 -> 执行真实 backup / retrieval / isolated restore
 -> 封存脱敏 evidence，确认临时 secret 与容器/volume 已清理
--> 用户执行系统盘升级
+-> 执行并证明零付费容量驻留重设计
 -> 验证完整生产健康
 -> fresh P0
 -> 只有 fresh P0 PASS 才能请求 P1
@@ -22,11 +22,11 @@
 
 ## 2. 外部前置条件
 
-1. 专用腾讯 COS bucket `market-radar-v2-p0r-1445289689` 已按 `ap-hongkong`、单可用区、私有读写、versioning=`ENABLED`、SSE-COS 创建且当前对象 0；上传前仍必须由 helper 重新证明 owner 权限、无公开 bucket policy、region/单 AZ 和 exact key 不存在。
-2. Object Lock 已开启，默认 `COMPLIANCE` 31 天；对象上传仍显式设置 31 天 COMPLIANCE。腾讯当前要求白名单、不支持多 AZ、开启后不可关闭且 versioning 不可暂停；任一条件不满足就停止，不能降级成普通可删对象。
+1. 专用腾讯 COS bucket 已按 `ap-hongkong`、单可用区、私有读写、versioning=`ENABLED`、SSE-COS 创建且当前对象 0；精确名称只能从 Git 外 mode-600 事实文件注入，Git 只登记名称摘要 `sha256:85c3b03bfc42eb22e41bd622bbabb3c8a04778c2397af932fd889aa14440fc63`。上传前仍必须由 helper 重新证明 owner 权限、无公开 bucket policy、region/单 AZ 和 exact key 不存在。
+2. 当前账号控制台没有 Object Lock 入口，状态为 `WHITELIST_REQUIRED`；腾讯支持工单已在 Edge 按“对象存储/功能咨询/版本控制”填写脱敏草稿，但账号手机号未设置，工单尚未提交。白名单开通并取得动作时确认后，才能启用默认 `COMPLIANCE` 31 天；对象上传仍显式设置 31 天 COMPLIANCE。该能力不支持多 AZ、开启后不可关闭且 versioning 不可暂停；任一条件不满足就停止，不能降级成普通可删对象。
 3. 唯一对象 key 符合 `market-radar-v2/p0r/<date>/<run-id>.dump.age`，禁止复用旧 key。
 4. 腾讯 STS 使用当前 `GetFederationToken` API，固定 7200 秒。必须在签发后 5 分钟内编译，编译时至少剩 6600 秒；COS helper 开始时至少剩 75 分钟。权限必须与 plan 要求的 10 个 action、唯一 bucket/key、源 IP `/32` 和请求条件完全一致。
-5. 独立 age X25519 恢复身份由用户在可信设备生成。私钥在与 COS 分离的加密保险库中保留至少到对象 retention 到期；生产机只接收 `/dev/shm` 临时副本，执行后自动删除。
+5. 独立 age X25519 恢复身份只能由本手册固定的 macOS Keychain 工具在可信设备生成：官方 darwin/arm64 archive 必须匹配冻结 SHA-256，私钥只经进程内存写入登录 Keychain，独立推导 recipient 并读回验证；Git 外只保存 mode-600 recipient 与无私钥 attestation。私钥至少保留到所有绑定对象 retention 到期，生产机只接收 `/dev/shm` 临时副本，执行后自动删除。当前工具本地测试已通过，但真实身份尚未生成。
 6. 用户拒绝付费扩容；真实恢复证据封存后必须进入独立 P0R-D0 零付费容量重设计。该包必须在现有 120 GiB 上用实测增长、WAL/索引上界、Detector 最大 lookback、分区保留和磁盘水位证明稳态不超过 60%、worst-case 不超过 70%，不得减少 eligible 分母、扫描 cadence 或恢复防线。
 
 ## 3. 禁止材料
@@ -44,6 +44,20 @@ COS bucket 名和 object key 出现在公开报告或聊天
 ```
 
 ## 4. 本地构建
+
+Object Lock 白名单和动作时确认均满足后，先在可信 Apple Silicon Mac 下载官方 `age v1.3.1` darwin/arm64 archive，并核对 SHA-256 `01120ea2cbf0463d4c6bd767f99f3271bbed1cdc8a9aa718a76ba1fe4f01998b`。随后只执行一次：
+
+```bash
+node scripts/v2/production/m1-production-storage-p0r-age-vault.mjs generate \
+  --age-archive /absolute/path/age-v1.3.1-darwin-arm64.tar.gz \
+  --attestation-output /absolute/restricted/path/age-vault-attestation.json \
+  --keychain-account market-radar-v2-p0r-recovery \
+  --keychain-service com.chuan.market-radar.v2.p0r.age \
+  --recipient-output /absolute/restricted/path/age-recipient.txt \
+  --confirm CREATE_V2_M1_P0R_AGE_IDENTITY_IN_MACOS_KEYCHAIN
+```
+
+命令拒绝覆盖已有 Keychain 项或输出，失败会回滚本次新建项；标准输出只含 attestation/recipient digest，不含私钥或 recipient 明文。只有 `PASS_P0R_AGE_IDENTITY_VAULT`、recipient 文件与 attestation 三者同时存在且目录/文件权限分别为 700/600，才允许继续。不得把私钥写入 shell 参数、聊天、报告、Git 或普通 staging。
 
 必须先从 clean commit 生成运行级 provisioning plan。`run-id` 默认带 128-bit 随机熵；`source-ip-cidr` 必须是生产宿主公网出口的单个 `/32`：
 
