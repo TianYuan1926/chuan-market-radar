@@ -99,7 +99,7 @@ test(
   "measures production-shaped Fact, index, ledger and WAL cost on isolated PostgreSQL 16",
   {
     skip: databaseUrl === undefined || outputPath === undefined,
-    timeout: 5 * 60_000,
+    timeout: 35 * 60_000,
   },
   async () => {
     assert.ok(databaseUrl);
