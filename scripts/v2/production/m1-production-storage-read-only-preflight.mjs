@@ -36,6 +36,11 @@ export const P0_EXPECTED_MIGRATIONS = Object.freeze([
       "sha256:9a507139b88efa86a5bb5d4593149881a4e8fad8081f27e5a7ada791c8ac7303",
     version: "v2-m1-partitioned-fact-store.v1",
   }),
+  Object.freeze({
+    checksum:
+      "sha256:17cf407811a3f3518cfd7bf15312dda771e0709d8eb23a62b8bcc56f7c14b68e",
+    version: "v2-m1-partitioned-fact-store.v2",
+  }),
 ]);
 
 const GIB = 1024 ** 3;

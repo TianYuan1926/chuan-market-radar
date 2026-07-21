@@ -18,6 +18,9 @@ import {
   M1_PARTITIONED_FACT_TABLE,
 } from "./partitioned-fact-postgres-schema";
 import {
+  M1_PARTITIONED_FACT_SIX_HOUR_POSTGRES_MIGRATION_SQL,
+} from "./partitioned-fact-postgres-six-hour-schema";
+import {
   M1_STORE_IDENTITIES,
   type M1SqlPool,
 } from "./contracts";
@@ -122,13 +125,15 @@ test(
     assert.ok(cycles >= 4 && cycles <= 31, "capacity calibration cycles must be between 4 and 31");
     const calibrationDay = new Date().toISOString().slice(0, 10);
     const calibrationSourceCutoff = `${calibrationDay}T00:00:00.500Z`;
-    const partitionName = `point_in_time_market_fact_ledger_p${calibrationDay.replaceAll("-", "")}`;
+    const partitionName =
+      `point_in_time_market_fact_ledger_p${calibrationDay.replaceAll("-", "")}_00`;
     const admin = new Pool({ connectionString: databaseUrl, max: 2 });
     let writer: Pool | undefined;
     let retention: Pool | undefined;
     try {
       await admin.query(M1_STORE_POSTGRES_MIGRATION_SQL);
       await admin.query(M1_PARTITIONED_FACT_POSTGRES_MIGRATION_SQL);
+      await admin.query(M1_PARTITIONED_FACT_SIX_HOUR_POSTGRES_MIGRATION_SQL);
       await admin.query(`
         CREATE ROLE ${WRITER_LOGIN} LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;
         CREATE ROLE ${RETENTION_LOGIN} LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;
@@ -140,9 +145,9 @@ test(
       const partitions = await new M1PostgresFactPartitionRetention(
         retention as unknown as M1SqlPool,
       ).ensurePartitions({
-        endDay: calibrationDay,
+        endAt: `${calibrationDay}T00:00:00.000Z`,
         releaseId: RELEASE_ID,
-        startDay: calibrationDay,
+        startAt: `${calibrationDay}T00:00:00.000Z`,
       });
       assert.equal(partitions.length, 1);
       assert.equal(partitions[0]!.partitionName, partitionName);

@@ -29,6 +29,10 @@ import {
   M1_PARTITIONED_FACT_TABLE,
 } from "./partitioned-fact-postgres-schema";
 import {
+  M1_PARTITIONED_FACT_SIX_HOUR_POSTGRES_MIGRATION_CHECKSUM,
+  M1_PARTITIONED_FACT_SIX_HOUR_POSTGRES_MIGRATION_SQL,
+} from "./partitioned-fact-postgres-six-hour-schema";
+import {
   M1_STORE_IDENTITIES,
   type M1SqlPool,
   type M1StoredArtifactRecord,
@@ -176,6 +180,38 @@ test(
       ]);
 
       await admin.query(M1_PARTITIONED_FACT_POSTGRES_MIGRATION_SQL);
+      await admin.query("BEGIN");
+      await admin.query(`
+        SELECT *
+        FROM ${M1_STORE_POSTGRES_SCHEMA}.ensure_market_fact_partitions(
+          '2026-01-15'::date,
+          '2026-01-15'::date,
+          '${RELEASE_ID}'
+        )
+      `);
+      await assert.rejects(
+        admin.query(M1_PARTITIONED_FACT_SIX_HOUR_POSTGRES_MIGRATION_SQL),
+        (error: unknown) =>
+          pgCode(error) === "55000" &&
+          error instanceof Error &&
+          error.message.includes("requires an empty v1 partition state"),
+      );
+      await admin.query("ROLLBACK");
+      await admin.query(M1_PARTITIONED_FACT_SIX_HOUR_POSTGRES_MIGRATION_SQL);
+      const legacyFunctions = await admin.query<{
+        daily_drop: string | null;
+        daily_ensure: string | null;
+      }>(`
+        SELECT
+          to_regprocedure('${M1_STORE_POSTGRES_SCHEMA}.drop_expired_market_fact_partitions(text,date,text,text)')::text
+            AS daily_drop,
+          to_regprocedure('${M1_STORE_POSTGRES_SCHEMA}.ensure_market_fact_partitions(date,date,text)')::text
+            AS daily_ensure
+      `);
+      assert.deepEqual(legacyFunctions.rows[0], {
+        daily_drop: null,
+        daily_ensure: null,
+      });
       const migration = await admin.query<{ checksum: string }>(`
         SELECT checksum
         FROM ${M1_STORE_POSTGRES_SCHEMA}.schema_migrations
@@ -184,6 +220,15 @@ test(
       assert.equal(
         migration.rows[0]!.checksum,
         M1_PARTITIONED_FACT_POSTGRES_MIGRATION_CHECKSUM,
+      );
+      const sixHourMigration = await admin.query<{ checksum: string }>(`
+        SELECT checksum
+        FROM ${M1_STORE_POSTGRES_SCHEMA}.schema_migrations
+        WHERE version = 'v2-m1-partitioned-fact-store.v2'
+      `);
+      assert.equal(
+        sixHourMigration.rows[0]!.checksum,
+        M1_PARTITIONED_FACT_SIX_HOUR_POSTGRES_MIGRATION_CHECKSUM,
       );
       const retentionCapability = await admin.query<{
         rolcanlogin: boolean;
@@ -228,17 +273,26 @@ test(
         retention as unknown as M1SqlPool,
       );
       const ensured = await retentionStore.ensurePartitions({
-        startDay: "2026-01-15",
-        endDay: "2026-01-16",
+        startAt: "2026-01-15T00:00:00.000Z",
+        endAt: "2026-01-16T18:00:00.000Z",
         releaseId: RELEASE_ID,
       });
-      assert.equal(ensured.length, 2);
+      assert.equal(ensured.length, 8);
       assert.ok(ensured.every((partition) => partition.created));
       assert.ok((await retentionStore.ensurePartitions({
-        startDay: "2026-01-15",
-        endDay: "2026-01-16",
+        startAt: "2026-01-15T00:00:00.000Z",
+        endAt: "2026-01-16T18:00:00.000Z",
         releaseId: RELEASE_ID,
       })).every((partition) => !partition.created));
+      await assert.rejects(
+        retentionStore.ensurePartitions({
+          startAt: "2026-01-15T01:00:00.000Z",
+          endAt: "2026-01-15T06:00:00.000Z",
+          releaseId: RELEASE_ID,
+        }),
+        (error: unknown) => pgCode(error) === "22023",
+      );
+      await admin.query(M1_PARTITIONED_FACT_SIX_HOUR_POSTGRES_MIGRATION_SQL);
 
       const requests = [
         {
@@ -481,13 +535,13 @@ test(
         requiredCoverageEnd: "2026-01-17T00:00:00.000Z",
       });
       assert.equal(capacity.status, "PASS");
-      assert.equal(capacity.partitionCount, 2);
+      assert.equal(capacity.partitionCount, 8);
       assert.ok(capacity.estimatedRows >= 17);
 
       await assert.rejects(
         retentionStore.dropExpired({
           runId: "m1-6-retention-before-expiry",
-          cutoffDay: "2026-01-16",
+          cutoffAt: "2026-01-15T06:00:00.000Z",
           releaseId: RELEASE_ID,
           backupEvidenceId: "backup-not-yet-verified",
         }),
@@ -544,6 +598,8 @@ test(
         sourceDigest: stableContentHash({
           manifestDigest: manifest.manifestDigest,
           migrationChecksum: M1_PARTITIONED_FACT_POSTGRES_MIGRATION_CHECKSUM,
+          sixHourMigrationChecksum:
+            M1_PARTITIONED_FACT_SIX_HOUR_POSTGRES_MIGRATION_CHECKSUM,
           partitionedFactCount: 17,
           restoredReplayParity: restoredReplay.featureQuality.onlineOfflineParity,
         }),
@@ -569,7 +625,7 @@ test(
       );
       await assert.rejects(
         audit.query(`SELECT * FROM ${M1_STORE_POSTGRES_SCHEMA}.drop_expired_market_fact_partitions(
-          'audit-cannot-drop', '2026-01-16'::date, '${RELEASE_ID}', '${backup.record.evidenceId}'
+          'audit-cannot-drop', '2026-01-15T06:00:00.000Z'::timestamptz, '${RELEASE_ID}', '${backup.record.evidenceId}'
         )`),
         (error: unknown) => pgCode(error) === "42501",
       );
@@ -586,7 +642,7 @@ test(
       await assert.rejects(
         retentionStore.dropExpired({
           runId: "m1-6-active-replay-block",
-          cutoffDay: "2026-01-16",
+          cutoffAt: "2026-01-15T06:00:00.000Z",
           releaseId: RELEASE_ID,
           backupEvidenceId: backup.record.evidenceId,
         }),
@@ -604,7 +660,7 @@ test(
       }
       const retentionRun = await retentionStore.dropExpired({
         runId: "m1-6-drop-expired-2026-01-15",
-        cutoffDay: "2026-01-16",
+        cutoffAt: "2026-01-15T06:00:00.000Z",
         releaseId: RELEASE_ID,
         backupEvidenceId: backup.record.evidenceId,
       });
@@ -616,7 +672,7 @@ test(
       assert.deepEqual(
         await retentionStore.dropExpired({
           runId: "m1-6-drop-expired-2026-01-15",
-          cutoffDay: "2026-01-16",
+          cutoffAt: "2026-01-15T06:00:00.000Z",
           releaseId: RELEASE_ID,
           backupEvidenceId: backup.record.evidenceId,
         }),
@@ -629,7 +685,7 @@ test(
         active_identities: string;
       }>(`
         SELECT
-          to_regclass('${M1_STORE_POSTGRES_SCHEMA}.point_in_time_market_fact_ledger_p20260115')::text
+          to_regclass('${M1_STORE_POSTGRES_SCHEMA}.point_in_time_market_fact_ledger_p20260115_00')::text
             AS dropped_relation,
           (SELECT count(*)::text
             FROM ${M1_STORE_POSTGRES_SCHEMA}.${M1_PARTITIONED_FACT_TABLE})
@@ -656,15 +712,15 @@ test(
       );
       await assert.rejects(
         retentionStore.ensurePartitions({
-          startDay: "2026-01-15",
-          endDay: "2026-01-15",
+          startAt: "2026-01-15T00:00:00.000Z",
+          endAt: "2026-01-15T00:00:00.000Z",
           releaseId: RELEASE_ID,
         }),
         (error: unknown) => pgCode(error) === "55000",
       );
       await assert.rejects(
         writer.query(`SELECT * FROM ${M1_STORE_POSTGRES_SCHEMA}.drop_expired_market_fact_partitions(
-          'writer-cannot-drop', '2026-01-16'::date, '${RELEASE_ID}', '${backup.record.evidenceId}'
+          'writer-cannot-drop', '2026-01-15T06:00:00.000Z'::timestamptz, '${RELEASE_ID}', '${backup.record.evidenceId}'
         )`),
         (error: unknown) => pgCode(error) === "42501",
       );
@@ -675,7 +731,7 @@ test(
         productionConnected: false,
         productionChanged: false,
         legacyFactReadable: true,
-        activePartitionsBeforeDrop: 2,
+        activePartitionsBeforeDrop: 8,
         crossPartitionRead: true,
         backupRestoreReplayParity: restoredReplay.featureQuality.onlineOfflineParity,
         backupRestoreDeterministic: restoredReplay.featureQuality.replayDeterministic,

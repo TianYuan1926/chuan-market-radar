@@ -4,7 +4,7 @@ import {
   M1_STORE_SCHEMA_VERSION,
 } from "./contracts";
 import {
-  M1_FACT_PARTITION_POLICY_VERSION,
+  M1_FACT_DAILY_PARTITION_POLICY_VERSION,
   M1_FACT_RETENTION_IDENTITY,
   M1_PARTITIONED_FACT_SCHEMA_VERSION,
 } from "./partitioned-fact-contract";
@@ -138,7 +138,7 @@ CREATE TABLE IF NOT EXISTS ${M1_STORE_POSTGRES_SCHEMA}.${M1_FACT_PARTITION_EVENT
   occurred_at timestamptz NOT NULL DEFAULT clock_timestamp(),
   release_id text NOT NULL,
   partition_policy_version text NOT NULL
-    CHECK (partition_policy_version = '${M1_FACT_PARTITION_POLICY_VERSION}'),
+    CHECK (partition_policy_version = '${M1_FACT_DAILY_PARTITION_POLICY_VERSION}'),
   retention_run_id text,
   operator_identity text NOT NULL
     CHECK (operator_identity = '${M1_FACT_RETENTION_IDENTITY}'),
@@ -414,7 +414,7 @@ BEGIN
         target_lower,
         target_upper,
         p_release_id,
-        '${M1_FACT_PARTITION_POLICY_VERSION}',
+        '${M1_FACT_DAILY_PARTITION_POLICY_VERSION}',
         '${M1_FACT_RETENTION_IDENTITY}'
       );
       created := true;
@@ -657,7 +657,7 @@ BEGIN
       candidate.lower_bound,
       candidate.upper_bound,
       p_release_id,
-      '${M1_FACT_PARTITION_POLICY_VERSION}',
+      '${M1_FACT_DAILY_PARTITION_POLICY_VERSION}',
       p_run_id,
       '${M1_FACT_RETENTION_IDENTITY}'
     );

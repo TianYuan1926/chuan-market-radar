@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { IsoDateTimeSchema } from "../../../runtime-schema/primitives";
 import { deepFreezeArtifact } from "../../universe/stable-artifact";
 import type { M1SqlPool } from "./contracts";
 import {
@@ -42,7 +42,7 @@ type BackupRow = Record<string, unknown> & {
 type RetentionRow = Record<string, unknown> & {
   run_id: string;
   release_id: string;
-  cutoff_day: string | Date;
+  cutoff_at: string | Date;
   backup_evidence_id: string;
   completed_at: string | Date;
   dropped_partition_count: string | number;
@@ -55,7 +55,6 @@ type RetentionRow = Record<string, unknown> & {
 const BackupInputSchema = M1FactBackupEvidenceSchema.omit({
   auditorIdentity: true,
 });
-const DateOnlySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/u);
 
 function iso(value: string | Date): string {
   const date = value instanceof Date ? value : new Date(value);
@@ -88,13 +87,10 @@ function backupRecord(row: BackupRow): M1FactBackupEvidence {
 }
 
 function retentionRecord(row: RetentionRow): M1FactRetentionRun {
-  const cutoff = row.cutoff_day instanceof Date
-    ? row.cutoff_day.toISOString().slice(0, 10)
-    : String(row.cutoff_day).slice(0, 10);
   return deepFreezeArtifact(M1FactRetentionRunSchema.parse({
     runId: row.run_id,
     releaseId: row.release_id,
-    cutoffDay: cutoff,
+    cutoffAt: iso(row.cutoff_at),
     backupEvidenceId: row.backup_evidence_id,
     completedAt: iso(row.completed_at),
     droppedPartitionCount: integer(row.dropped_partition_count),
@@ -211,8 +207,8 @@ export class M1PostgresFactPartitionRetention {
   }
 
   async ensurePartitions(input: {
-    startDay: string;
-    endDay: string;
+    startAt: string;
+    endAt: string;
     releaseId: string;
   }): Promise<readonly Readonly<{
     partitionName: string;
@@ -220,8 +216,8 @@ export class M1PostgresFactPartitionRetention {
     upperBound: string;
     created: boolean;
   }>[]> {
-    const startDay = DateOnlySchema.parse(input.startDay);
-    const endDay = DateOnlySchema.parse(input.endDay);
+    const startAt = IsoDateTimeSchema.parse(input.startAt);
+    const endAt = IsoDateTimeSchema.parse(input.endAt);
     if (input.releaseId.trim() === "") {
       throw new Error("partition release id is required");
     }
@@ -233,11 +229,11 @@ export class M1PostgresFactPartitionRetention {
     }>(`
       SELECT *
       FROM ${M1_STORE_POSTGRES_SCHEMA}.ensure_market_fact_partitions(
-        $1::date,
-        $2::date,
+        $1::timestamptz,
+        $2::timestamptz,
         $3
       )
-    `, [startDay, endDay, input.releaseId]);
+    `, [startAt, endAt, input.releaseId]);
     return deepFreezeArtifact(result.rows.map((row) => ({
       partitionName: row.partition_name,
       lowerBound: iso(row.lower_bound),
@@ -248,11 +244,11 @@ export class M1PostgresFactPartitionRetention {
 
   async dropExpired(input: {
     runId: string;
-    cutoffDay: string;
+    cutoffAt: string;
     releaseId: string;
     backupEvidenceId: string;
   }): Promise<M1FactRetentionRun> {
-    const cutoffDay = DateOnlySchema.parse(input.cutoffDay);
+    const cutoffAt = IsoDateTimeSchema.parse(input.cutoffAt);
     for (const value of [
       input.runId,
       input.releaseId,
@@ -266,13 +262,13 @@ export class M1PostgresFactPartitionRetention {
       SELECT *
       FROM ${M1_STORE_POSTGRES_SCHEMA}.drop_expired_market_fact_partitions(
         $1,
-        $2::date,
+        $2::timestamptz,
         $3,
         $4
       )
     `, [
       input.runId,
-      cutoffDay,
+      cutoffAt,
       input.releaseId,
       input.backupEvidenceId,
     ]);

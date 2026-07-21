@@ -1,20 +1,24 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { evaluateM1FactStorageCapacity } from "./partitioned-fact-contract";
+import {
+  evaluateM1FactStorageCapacity,
+  M1FactPartitionInventoryRowSchema,
+} from "./partitioned-fact-contract";
 
 const policy = {
   maxPartitionBytes: 1_000,
   maxTotalBytes: 3_000,
   requiredCoverageStart: "2026-07-20T00:00:00.000Z",
-  requiredCoverageEnd: "2026-07-22T00:00:00.000Z",
+  requiredCoverageEnd: "2026-07-20T12:00:00.000Z",
 } as const;
 
-function partition(day: 20 | 21, bytes = 500) {
-  const next = day + 1;
+function partition(hour: 0 | 6, bytes = 500) {
+  const next = hour + 6;
   return {
-    partitionName: `point_in_time_market_fact_ledger_p202607${day}`,
-    lowerBound: `2026-07-${day}T00:00:00.000Z`,
-    upperBound: `2026-07-${next}T00:00:00.000Z`,
+    partitionName:
+      `point_in_time_market_fact_ledger_p20260720_${String(hour).padStart(2, "0")}`,
+    lowerBound: `2026-07-20T${String(hour).padStart(2, "0")}:00:00.000Z`,
+    upperBound: `2026-07-20T${String(next).padStart(2, "0")}:00:00.000Z`,
     totalBytes: bytes,
     estimatedRows: 100,
     createdAt: "2026-07-19T00:00:00.000Z",
@@ -24,7 +28,7 @@ function partition(day: 20 | 21, bytes = 500) {
 
 test("passes only for a contiguous bounded partition window", () => {
   const report = evaluateM1FactStorageCapacity({
-    partitions: [partition(21), partition(20)],
+    partitions: [partition(6), partition(0)],
     policy,
   });
 
@@ -43,9 +47,16 @@ test("keeps empty partition evidence insufficient", () => {
   ]);
 });
 
+test("rejects legacy daily partition names from current inventory", () => {
+  assert.throws(() => M1FactPartitionInventoryRowSchema.parse({
+    ...partition(0),
+    partitionName: "point_in_time_market_fact_ledger_p20260720",
+  }));
+});
+
 test("blocks gaps, missing write horizon and exceeded watermarks", () => {
   const report = evaluateM1FactStorageCapacity({
-    partitions: [partition(20, 1_500)],
+    partitions: [partition(0, 1_500)],
     policy,
   });
 

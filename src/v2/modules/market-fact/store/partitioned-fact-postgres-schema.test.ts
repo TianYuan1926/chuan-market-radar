@@ -11,6 +11,10 @@ test("keeps the reviewed base migration immutable", () => {
     M1_STORE_POSTGRES_MIGRATION_CHECKSUM,
     "sha256:88915ee4a13d14eb03eae6172bb57a52b5929f69b4c4f7232dcf987041644f51",
   );
+  assert.equal(
+    M1_PARTITIONED_FACT_POSTGRES_MIGRATION_CHECKSUM,
+    "sha256:9a507139b88efa86a5bb5d4593149881a4e8fad8081f27e5a7ada791c8ac7303",
+  );
 });
 
 test("freezes partition, identity, backup and retention boundaries", () => {

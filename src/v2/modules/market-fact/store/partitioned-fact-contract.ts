@@ -4,14 +4,18 @@ import { deepFreezeArtifact } from "../../universe/stable-artifact";
 
 export const M1_PARTITIONED_FACT_SCHEMA_VERSION =
   "v2-m1-partitioned-fact-store.v1" as const;
-export const M1_FACT_PARTITION_POLICY_VERSION =
+export const M1_PARTITIONED_FACT_SIX_HOUR_SCHEMA_VERSION =
+  "v2-m1-partitioned-fact-store.v2" as const;
+export const M1_FACT_DAILY_PARTITION_POLICY_VERSION =
   "v2-m1-fact-daily-partition.v1" as const;
+export const M1_FACT_PARTITION_POLICY_VERSION =
+  "v2-m1-fact-six-hour-partition.v2" as const;
 export const M1_FACT_RETENTION_IDENTITY =
   "market_radar_v2_m1_retention" as const;
 
 const Sha256Schema = z.string().regex(/^sha256:[0-9a-f]{64}$/u);
 const PartitionNameSchema = z.string().regex(
-  /^point_in_time_market_fact_ledger_p[0-9]{8}$/u,
+  /^point_in_time_market_fact_ledger_p[0-9]{8}_(?:00|06|12|18)$/u,
 );
 
 export const M1FactPartitionInventoryRowSchema = z.strictObject({
@@ -70,7 +74,7 @@ export type M1FactBackupEvidence = z.infer<
 export const M1FactRetentionRunSchema = z.strictObject({
   runId: NonEmptyStringSchema,
   releaseId: NonEmptyStringSchema,
-  cutoffDay: z.string().regex(/^\d{4}-\d{2}-\d{2}$/u),
+  cutoffAt: IsoDateTimeSchema,
   backupEvidenceId: NonEmptyStringSchema,
   completedAt: IsoDateTimeSchema,
   droppedPartitionCount: z.number().int().nonnegative(),
