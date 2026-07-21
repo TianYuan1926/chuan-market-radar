@@ -65,8 +65,8 @@ Runtime / Security / Release Control 贯穿全链。
 
 当前唯一设计权威：
 
-- `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`，内容版本 v1.17。
-- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.19。
+- `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`，内容版本 v1.18。
+- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.20。
 - `docs/blueprints/README.md`，权威解析入口。
 - `market-radar-v2-build-sequence.md`，当前正确施工依赖与减数规则。
 
@@ -90,7 +90,7 @@ M1.5B1B3_EARLY_SHADOW_BUSINESS_GATE_PASS
 M1.5B1_COMPLETE
 M1.6_PARTITIONED_FACT_STORAGE_LOCAL_POSTGRES16_PASS
 M1.6P0_PRODUCTION_STORAGE_READ_ONLY_PREFLIGHT_EXECUTED_BLOCKED
-M1.6P0R_SIX_HOUR_NO_COST_CAPACITY_LOCAL_MACHINE_PROOF_PASS_OBJECT_LOCK_WHITELIST_REQUIRED_RECOVERY_PENDING
+M1.6P0R_OBJECT_LOCK_31D_AGE_VAULT_AND_TRANSPORT_PASS_STS_AND_RECOVERY_PENDING
 M1.6_FRESH_P0_CAPACITY_ADMISSION_LOCAL_ENGINEERING_PASS_PRODUCTION_EVIDENCE_PENDING
 M2.0_DISCOVERY_CONTRACTS_LOCAL_PASS
 M2.1_DRAFT_REPLAY_KERNELS_LOCAL_PASS
@@ -101,6 +101,7 @@ M2.2B0.2A_RIGHTS_AND_HISTORICAL_IDENTITY_MACHINE_GATE_LOCAL_PASS
 M2.2B0.2C_FORWARD_INSTRUMENT_CAPTURE_LOCAL_ENGINEERING_PASS
 M2.2B0.2C1_FORWARD_CAPTURE_START_PASS
 forwardInstrumentContinuity=FORWARD_ONLY_READY
+M3.0_FINAL_DECISION_AUTHORITY_CONTRACT_LOCAL_PASS_NO_AUTHORITY
 M2.2_REAL_COHORT_GATE_INSUFFICIENT
 detectorLifecycle=DRAFT
 candidateEmissionAllowed=false
@@ -148,7 +149,7 @@ automaticTradingAllowed=false
 - M1.4 已建立 21 observed / 15 eligible 的三 Venue 多标的 fixture、完整/增量 reconciliation、目录 tombstone、provider quota、global/per-provider concurrency、有限队列、冷启动、数据库失败和恢复状态机。Collector strict telemetry 分开报告 providerObserved/accounted/eligible/collected/fresh；真实 PG16 已证明启动、增量和全 catalog 故障的原子持久化，生产 import 仍只能通过 Adapter。
 - M1.5-A 已建立独立 additive checkpoint migration、artifact 引用与 digest 防线、精确 release/config/sequence/schedule 恢复、固定节拍 skip-missed Worker、优雅停止、强制 telemetry sink、分离 reader/writer 身份的 NO_AUTHORITY 进程入口和三态 SLO evaluator。隔离 PG16 已证明关闭连接后的精确增量恢复、append-only、幂等、越权拒绝和 checkpoint 不领先 artifact。
 - M1.5-B0 已补齐显式 reader/writer role assumption 与会话身份核验、两个 secret-file database URL、完整 strict observation JSONL、固定 30 分钟/24 小时有限 Shadow profile，以及无 Legacy secret、非 root、只读 filesystem、无端口的专用容器边界。定向 41/41、全 V2 136 pass / 0 fail / 4 explicit external-dependency skips、三项隔离 PG16 回归与完整 `ci:production` 均通过；B1-A 已随后补齐 exact image build、三 Venue egress 与隔离 Docker Runner 证明。
-- M1.6 v1 日分区迁移 checksum 保持不可变，新增 additive v2 六小时 UTC 分区和小时级 retention cutoff。隔离 PG16 已证明非空 v1 拒绝升级、8 个连续分区、跨分区读取、dump/restore/replay parity、引用阻断和原子淘汰。clean commit `15746813245744af4f4ba73f61a976b722ad9a21` 完成 8 周期/11,552 Fact 容量校准，最大周期 33,660 ms；按 1,805 Facts/分钟、37h 最坏驻留和 1.5 倍成本，旧根盘快照稳态/峰值为 59%/67%，本地无扩容模型 PASS。生产 P0 仍是过期的 `BLOCKED`：真实 recovery 缺失、topology 需刷新且旧远端 bundle 摘要不合格。腾讯 COS 空桶仍待 Object Lock 白名单，真实 age/STS/对象/恢复未执行；入口仍是 P0R-B1B，不是 P1。
+- M1.6 v1 日分区迁移 checksum 保持不可变，新增 additive v2 六小时 UTC 分区和小时级 retention cutoff。隔离 PG16 已证明非空 v1 拒绝升级、8 个连续分区、dump/restore/replay parity、引用阻断和原子淘汰；8 周期/11,552 Fact 校准得到稳态/峰值 59%/67% 本地无扩容模型 PASS。Object Lock 已回读 `COMPLIANCE` 31 天，真实 age 身份仅在 macOS Keychain，exact commit `6a81e865e61569f7d2d7c3bb3be1d78db72a9eab` 的 transport bundle 已通过；STS、对象、真实 recovery、fresh topology 和 fresh P0 未执行，P1 关闭。
 - M2.0 已冻结六个机会族、十四种模式、family-specific direction、Detector event/knowledge 双 cutoff、Candidate/Episode/Thesis strict v2 schema、Detector emission authority、UTC Episode 去重、生命周期、三层运行漏斗和 19 个 test-only point-in-time fixture；fixture 递归拒绝 Outcome/MFE/MAE 等未来材料。该结论只证明本地合同，不证明 Detector、Deep Validation、真实市场发现率或生产能力。
 - M2.1 已建立三个 Pre-Move 与两个 Breakout/Retest 独立 DRAFT 纯回放内核，包含显式长短/UNKNOWN、late/noise/fakeout veto、unavailable 降级、顺序无关 digest 和 Detector 注册身份防篡改。阈值固定标记 `UNCALIBRATED_DRAFT_THRESHOLDS`，Candidate emission=false；定向 10/10、M2.0 回归 16/16、全 V2 167 pass / 0 fail / 5 explicit skips。没有历史 cohort、真实指标或生命周期升级证据。
 - M2.2-A 已建立真实历史数据接纳、完整 Candidate 背景窗口、candidate/event/matched-non-event 三业务分母、固定 Detector 分母、purge/embargo、holdout group isolation 与独立 custody、target-blind 首次发现、Wilson CI/lead-time 秩区间和四态 lifecycle proposal Gate。独立 custody 下 research Bundle 物理禁止 inline holdout，Gate 只打开 commitment 匹配的 sealed artifact；lead time 使用数据实际可知的 knowledge cutoff。当前仓库 accepted real cohort=0，Top20 ranking、threshold sensitivity 和真实 untouched holdout 均缺失，因此 Gate=`INSUFFICIENT`；五个 Detector 保持 DRAFT、Candidate 禁发。
@@ -156,6 +157,7 @@ automaticTradingAllowed=false
 - M2.2-B0.1 已为五个 DRAFT Detector 增加 target-blind relative-rule-margin diagnostic strength，明确不是概率、等级或交易结论；固定 Detector 分母 Top20、TRAIN-only 六维事件阈值、matched/background、pre-cutoff regime/liquidity、observed/modeled knowledge-time、purge/embargo 和 1+4 trial registry 已由 version/digest 绑定到 dataset/experiment/holdout v2。定向 45/45 PASS；真实 cohort 仍为 0、Gate=`INSUFFICIENT`、Detector 仍 DRAFT、Candidate 禁发。
 - M2.2-B0.2-A 已把来源权利升级为内容寻址、限定账户/法域、带有效期且只能由账户所有者或合格法律审查者作出的外部结论；把历史 instrument identity、onboard/delist、状态区间、knowledge time、symbol reuse epoch 和全分母覆盖核算做成 fail-closed Gate。当前五个来源候选全部为 `RESEARCH_ONLY`，合格历史来源仍为 0；Agent、当前快照和 archive presence 均不能自证通过。
 - M2.2-B0.2-C/C1 已建立 release-bound 三 Venue exact raw capture、工作区外内容寻址 store、完整分母、三类 identity evidence、identity epoch、持续缺席非 delist、全链 journal 验证与 clean-HEAD CLI。冻结 release `4139cc631d3d760876c3e39404c494462541a910` 连续取得两轮三 Venue COMPLETE；Binance/OKX/Bybit 分别 841/426/746 rows，目标 654/272/642，out-of-scope 187/154/104，unresolved=0；跨度约 368.5 秒，三家均 2/2 complete、gap/conflict/blocker=0、`FORWARD_ONLY_READY`。这只通过前向捕获起点，不回填历史、不解锁 B0.2-B/B1 historical acquisition、Detector 或 Candidate。
+- M3.0 已建立 strict Final Decision Bundle：upstream authority、same-release/id/time lineage、Evidence/Setup 双评级、Draft、Feasibility、Trigger、Runtime、Action State、READY plan parity 和派生原因完整性 15/15 PASS。当前 M1 未退出、M2 Gate=INSUFFICIENT、Detector=DRAFT、Candidate 禁发，因此只能 planless BLOCKED；family Analysis、真实校准、Strategy template、live Feasibility、Personal/Portfolio Risk 和 M3 runtime 均未完成。
 - M1.5-B1-A 已在腾讯宿主机隔离 no-authority Runner 以 exact commit `97f10e75ce296b07d933e9c362c40ba2be0997ea` 构建专用镜像并真实运行两周期。每周期 eligible/collected 均 1,444/1,444、三 Venue provider failure=0、checkpoint/persistence=`INSERTED`，宿主机 11 容器/4 network/5 volume 已按 digest 精确恢复；evidence `sha256:a44cab89b8a4bf291e7c8f67eb6de2b76f2637f4f8265d91ebb8f1224d2a40c2` 独立重算通过。技术 Runner=`PASS`，业务 readiness=`FAIL`：READY 0/2，fresh 1,441 后降至 1,274，原因包括 stale、duplicate 和 missed schedule。31 周期 Shadow、语义整改、24h SLO、生产 migration、API、页面和生产 authority 仍未证明。
 - M1.5-B1-B0 已冻结单进程 31 周期、60 秒 cadence、完整分母、strict process summary、独立业务 SLO、内容寻址 domain/runner evidence 和宿主 Docker 精确恢复；中断、短包或跨进程/config 拼接全部拒绝。
 - M1.5-B1-B1 exact commit `3908f9f5d0066849311e9d3ac875cc6a76acc69e` 虽观察到进程运行 31 周期，但 Runner 使用 1 小时 reconciliation、validator 仍要求旧 24 小时值，导致完整脱敏证据未生成且原始字节已按清理合同删除。两个失败报告 digest 已独立重算、宿主精确恢复；该窗口只能记 `EXECUTION_INVALID_NOT_COUNTED`，不得推断业务 PASS/FAIL。
@@ -292,9 +294,9 @@ npm run security:check
 系统等级：R1
 工程描述：可运行但不完整
 实战描述：不能支撑实战
-V2：M0、M1.1-M1.6、M1.5-B1、M2.0、M2.1、M2.2-A、M2.2-B0、B0.1、B0.2-A、B0.2-C/C1 对应本地、业务或运行起点出口已通过；B1-B1 永久不计，B1-B3 已取得完整 31 周期业务 PASS。M1.6-P0 因容量与恢复证据 BLOCKED；P0R 六小时无扩容本地机器模型 PASS，但 Object Lock 白名单、真实 age/STS、生产恢复、fresh topology 和 fresh P0 仍待执行，M1 未完成。五个历史来源仍为 RESEARCH_ONLY，真实 cohort Gate=INSUFFICIENT，Detector=DRAFT、Candidate 禁发
-本轮生产服务、数据与 authority 变更：0；外部云资源变更：创建 1 个空 COS bucket
-当前生产存储门禁：P0_BLOCKED_CAPACITY_AND_RECOVERY；P0R_SIX_HOUR_NO_COST_CAPACITY_LOCAL_MACHINE_PROOF_PASS_OBJECT_LOCK_WHITELIST_REQUIRED_RECOVERY_AND_FRESH_TOPOLOGY_PENDING；应用业务健康未在本包评估
+V2：M0、M1.1-M1.6、M1.5-B1、M2.0-M2.2 已列本地包、C1 和 M3.0 合同出口通过；B1-B1 永久不计。M1.6-P0 因容量与恢复证据 BLOCKED；Object Lock 31 天、age Keychain 身份和 exact transport bundle 已通过，但 STS、对象、生产恢复、fresh topology/P0 未执行，M1 未完成。历史 cohort Gate=INSUFFICIENT，Detector=DRAFT、Candidate 禁发；M3.0 无 runtime/READY authority
+本轮生产服务、数据库、Redis、Worker 与业务 authority 变更：0；外部安全状态：COS Object Lock COMPLIANCE 31 天已启用
+当前生产存储门禁：P0_BLOCKED_CAPACITY_AND_RECOVERY；P0R_OBJECT_LOCK_31D_AGE_VAULT_AND_TRANSPORT_PASS_STS_RECOVERY_AND_FRESH_TOPOLOGY_PENDING；应用业务健康未在本包评估
 ```
 
 2026-07-21 P0 通过只读事务取得数据库/容量事实，Docker/Git before/after 一致，证据 `sha256:344ae4e05ec78e74ca97c92728fc06576f744e795bf4919d6eb3b76ee145769e`。它只判定存储准入，不包含 `/api/health`、Redis 或业务 ready，因此不得扩写为全站健康或全站失败。
@@ -315,29 +317,26 @@ Cycle final
 
 ## 14. 最近三次关键事件
 
+### 2026-07-21 / V2 M1.6-P0R-B1C Object Lock, Age and Transport Preparation
+- 用户动作级确认后，Microsoft Edge 已启用并回读 Object Lock=`COMPLIANCE` 31 天；真实 age X25519 身份只在 macOS Keychain，public attestation 不含私钥。
+- 首次 bundle 因错误交叉编译 `go test` 真实失败；提交 `6a81e865e61569f7d2d7c3bb3be1d78db72a9eab` 拆分 host-test/linux-build 并用真实 helper 测试修复。
+- exact plan 与 mode-600 transport bundle 已通过，12/12 hash 一致且无 secret/private key；STS、对象、backup/retrieval/restore 未执行，P0/P1 不变。
+
+### 2026-07-21 / V2 M3.0 Final Decision Authority Contract
+- 新增 upstream authority、release/id/time lineage、双评级、Draft/Feasibility/Trigger/Runtime 和 READY plan parity 的 strict 合同。
+- 15/15 定向、全 V2 294/0/6 explicit skip、ops 115/115 和完整 CI PASS；伪造 READY、隐藏原因、权限矛盾和 future 字段均 fail closed。
+- 只达到 `LOCAL_CONTRACT_PASS`；M1/M2 未开放时必须 planless BLOCKED，M3 主步骤不减数。
+
 ### 2026-07-21 / V2 M1.6 Fresh P0 Capacity Admission
-
-- 新组合判定器要求旧 P0 报告由 raw database/host/recovery evidence 精确重建；所有非容量 blocker 原样继承，只替代三个旧日分区容量计算。
-- 容量门禁纠正为稳态 `<=60%`、峰值 `<=70%`；隔离 restore target 必须容纳当前数据库、完整稳态数据集与 WAL reserve，61% 稳态反例明确 BLOCKED。
-- 定向 10/10、P0R 59/59、ops 113/113、完整 `ci:production` PASS；未消费 fresh 生产证据，P0/P1 状态不变。
-
-### 2026-07-21 / V2 M1.6-P0R-D0 No-Cost Capacity and Six-Hour Partitions
-
-- v1 partition checksum 保持 `sha256:9a507139b88efa86a5bb5d4593149881a4e8fad8081f27e5a7ada791c8ac7303`；新增 v2 checksum `sha256:17cf407811a3f3518cfd7bf15312dda771e0709d8eb23a62b8bcc56f7c14b68e`。
-- clean source `15746813245744af4f4ba73f61a976b722ad9a21` 完成 8 周期/11,552 Fact 隔离 PG16 校准，最大周期 33,660 ms；capacity evidence `sha256:78a4db6afa3b943689105a68514aa06a8f38f2d5e676a399d9975e94368be99e`。
-- 六小时模型稳态/峰值 59%/67%，本地容量数学 PASS；生产连接/变更=false，真实恢复和 fresh P0 仍 BLOCKED。
-
-### 2026-07-21 / V2 M1.6-P0R-B1B Object Lock and Age Vault Qualification
-
-- Edge 只读确认桶仍为空且新旧控制台均无 Object Lock 入口；按官方白名单要求保持 `WHITELIST_REQUIRED`。
-- 腾讯工单已按版本控制模块填写脱敏草稿，但账号手机号未设置，未提交；未传 bucket 标识或联系方式。
-- macOS Keychain age vault 工具 6/6、新 P0R 总门禁当轮 41/41 PASS；真实私钥、STS、对象和恢复均未执行。
+- 新组合判定器由 raw database/host/recovery evidence 重建旧 P0，继承全部非容量 blocker，只替代三个旧日分区容量计算。
+- 容量门禁固定稳态 `<=60%`、峰值 `<=70%`；隔离 restore target 必须容纳数据库、完整稳态数据集和 WAL reserve。
+- 定向 10/10、P0R 59/59、ops 113/113 和完整 CI PASS；尚未消费 fresh 生产证据。
 
 ## 15. 当前风险
 
 ### P0
 
-- M1.6-P0 存储准入仍为 BLOCKED；六小时容量和 fresh admission 只有本地工程 PASS，不能替代 fresh topology、exact-release calibration 和真实恢复。COS 空桶对象仍为 0，P1 严禁启动。
+- M1.6-P0 存储准入仍为 BLOCKED；Object Lock、age 和 transport 不是恢复 PASS，仍缺 STS、加密备份、exact retrieval、独立 PG16 restore、cleanup、fresh topology 和 exact-release calibration，P1 严禁启动。
 - 一旦发现 mock/fallback 冒充真值、WAIT 冒充 READY、future leak、secret、数据库损坏或错误交易计划，立即停止其他开发。
 
 ### P1
@@ -352,6 +351,7 @@ Cycle final
 - M2.2-A/B0.1/B0.2-A 已能拒绝 future leak、病例对照 precision 膨胀、任意排序/构造政策、伪 holdout、Agent 自批权利和当前快照倒推历史，但 accepted real historical cohort=0；真实来源权利、完整背景实际构造、真实 Top20/sensitivity、独立 holdout custody/result 和审计都未完成，Gate 必须保持 INSUFFICIENT，禁止发 Candidate 或宣称 Detector 有效。
 - M2.2-B0 证明官方归档技术链可用；B0.2-A 进一步证明公开下载、当前 snapshot 和 archive presence 都不能给出历史 eligibility。五个候选全部 `RESEARCH_ONLY`，Kline 也不支持 L2 Liquidity Shift，故 bulk/cohort 继续 blocked。
 - C1 前向捕获起点已通过，但当前只有两轮、约 6 分钟目录证据；它不能替代持续采集、历史 instrument source、历史权利、真实 cohort 或长期 SLO，旧未绑定 release 的诊断根不得并入正式链。
+- M3.0 只验证决策合同；真实 family Analysis、Evidence/Setup 校准、Strategy template、执行成本事实、个人/组合风险和 untouched holdout 缺失，任何 V2 READY 声明均为 P1 风险。
 
 ### P2
 
@@ -362,11 +362,11 @@ Cycle final
 
 下一轮审计优先检查：
 
-1. 已建 COS 是否继续保持单 AZ/私有/versioned/SSE-COS/空桶；Object Lock 是否先证明支持再独立确认；age/STS、加密离机备份、上传前 key absent、exact version retrieval、独立 PG16 restore、无明文 dump 和临时 secret 清理是否真实通过；fresh P0 是否只替代三个旧容量计算、继承全部非容量 blocker，并同时满足稳态 60% / 峰值 70%，而非改阈值跳 P1。
+1. COS 是否保持单 AZ/私有/versioned/SSE-COS/Object Lock 31d；STS 是否 exact-plan 最小权限，上传前 key absent、加密备份、exact version retrieval、独立 PG16 restore、无明文 dump 和临时 secret 清理是否真实通过；fresh P0 是否继承全部非容量 blocker并满足稳态 60% / 峰值 70%。
 2. C1 正式证据是否继续保持 exact release/config、两轮完整 raw、冻结 cadence、active gap=0 和无 identity conflict；前向 capture 永远不能伪装历史回填或长期 SLO。
 3. M1.6 production Gate 是否绑定旧 Fact=0、migration checksum、预建窗口、容量阈值、备份恢复和 Audit/Retention 分权。
 4. Candidate/Evidence/Setup/Action/User Fit 是否越层。
-5. READY 是否由后端完整计划、执行可行性、结构 RR、净成本和运行健康共同决定。
+5. M3 READY 是否只由同 release/id/time lineage 的后端完整计划、双评级、执行可行性、结构与净 RR、Trigger 和 Runtime Gate 共同决定，派生原因是否完整。
 6. 数据缺失、CoinGlass 失败、429、stale 和数据库故障是否诚实降级。
 7. 前端是否只读 Decision Snapshot。
 8. 发布是否绑定 commit、artifact、image、schema、feature/rule version、rollback 和 evidence。
@@ -386,10 +386,10 @@ Cycle final
 ## 18. 当前执行入口与关键外部门
 
 ```text
-V2-M1.6-P0R-B1B-OBJECT-LOCK-WHITELIST-AND-AGE-VAULT-QUALIFICATION
+V2-M1.6-P0R-C-STS-ENCRYPTED-BACKUP-EXACT-RETRIEVAL-AND-ISOLATED-RESTORE
 ```
 
-B1-B3 已关闭 M1.5-B1；P0 已执行并因容量与 recovery evidence BLOCKED。P0R-D0 六小时机器证明和 fresh P0 组合准入工具已本地 PASS，但这不改写旧 P0。香港单 AZ 私有 COS 空桶已创建；当前必须先补齐账号联系方式并提交/通过 Object Lock 白名单，再动作时确认 COMPLIANCE 31 天、生成真实离机 age 身份与运行级 STS，执行加密备份/精确取回/隔离恢复，随后刷新完整生产健康与 topology，在 exact clean release 重跑校准并执行 fresh P0。只有新 P0 PASS 才能进入 `P1 v1+v2 schema -> P2 identities -> P3 six-hour partitions+dormant Worker -> P4 isolated-write Shadow -> M1.7 24h`。关键外部门 B0.2-B 仍需账户所有者/合格法律审查者和可验证历史来源；未解决前 historical bulk、真实 cohort、holdout、Detector lifecycle 和 runtime 一律关闭。
+B1-B3 已关闭 M1.5-B1；P0 已执行并因容量与 recovery evidence BLOCKED。Object Lock 31 天、age Keychain 身份和 exact transport bundle 已通过；当前只执行 exact-plan 7200 秒 STS、受限上传、加密备份、精确取回、隔离恢复和 cleanup。随后刷新完整生产健康/topology，在 exact clean release 重跑校准并执行 fresh P0。只有新 P0 PASS 才能进入 `P1 v1+v2 schema -> P2 identities -> P3 six-hour partitions+dormant Worker -> P4 isolated-write Shadow -> M1.7 24h`。外部门 B0.2-B 仍需账户所有者/合格审查者和可验证历史来源；未解决前 historical bulk、真实 cohort、holdout、Detector lifecycle 和 runtime 一律关闭。
 
 ## 19. 活跃记忆维护规则
 

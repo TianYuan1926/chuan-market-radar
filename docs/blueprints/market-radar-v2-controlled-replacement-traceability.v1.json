@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.19",
-  "status": "m1_5_b1_early_shadow_business_gate_pass_b1b1_execution_invalid_not_counted_b1b3_pass_m1_6_p0_executed_blocked_capacity_and_recovery_p0r_six_hour_no_cost_capacity_and_fresh_p0_admission_local_engineering_pass_object_lock_whitelist_required_recovery_pending_m2_2_c1_forward_only_ready_external_rights_and_historical_source_blocked_m1_not_complete",
-  "generatedAt": "2026-07-21T19:20:00+08:00",
+  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.20",
+  "status": "m1_5_b1_pass_m1_6_p0_blocked_p0r_object_lock_31d_age_vault_and_transport_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_m3_0_local_contract_pass_no_authority_external_historical_source_blocked_m1_not_complete",
+  "generatedAt": "2026-07-21T23:05:04+08:00",
   "implementationAuthorized": true,
   "productionMutationAuthorized": false,
   "authority": {
@@ -10,7 +10,7 @@
     "index": "docs/blueprints/README.md",
     "currentFacts": "PROJECT_CONTEXT_FOR_CHATGPT.md",
     "recentChanges": "CHANGELOG_FOR_CHATGPT.md",
-    "deliveryReport": "docs/blueprints/V2_M1_6_FRESH_P0_CAPACITY_ADMISSION_DELIVERY_REPORT.md",
+    "deliveryReport": "docs/blueprints/V2_M3_0_FINAL_DECISION_AUTHORITY_CONTRACT_DELIVERY_REPORT.md",
     "buildSequence": "market-radar-v2-build-sequence.md",
     "baseManifest": "docs/architecture/v2/V2_BASE_MANIFEST.v1.json",
     "baselineDecision": "docs/architecture/v2/ADR-0001-CLEAN-BASELINE-AND-V2-ISOLATION.md",
@@ -37,6 +37,7 @@
     "m1ProductionStorageP0RBCloudPrerequisiteDeliveryReport": "docs/blueprints/V2_M1_6_P0R_B_CLOUD_PREREQUISITE_SAFETY_DELIVERY_REPORT.md",
     "m1ProductionStorageP0RB1CosBucketDeliveryReport": "docs/blueprints/V2_M1_6_P0R_B1_COS_BUCKET_PROVISIONING_DELIVERY_REPORT.md",
     "m1ProductionStorageP0RB1BQualificationDeliveryReport": "docs/blueprints/V2_M1_6_P0R_B1B_OBJECT_LOCK_AND_AGE_VAULT_QUALIFICATION_DELIVERY_REPORT.md",
+    "m1ProductionStorageP0RB1CPreparationDeliveryReport": "docs/blueprints/V2_M1_6_P0R_B1C_OBJECT_LOCK_AGE_AND_TRANSPORT_PREPARATION_DELIVERY_REPORT.md",
     "m1ProductionStorageP0RD0NoCostCapacityDeliveryReport": "docs/blueprints/V2_M1_6_P0R_D0_NO_COST_CAPACITY_AND_SIX_HOUR_PARTITION_DELIVERY_REPORT.md",
     "m1ProductionStorageP0RD0NoCostCapacityEvidenceIndex": "docs/blueprints/V2_M1_6_P0R_D0_NO_COST_CAPACITY_EVIDENCE_INDEX.json",
     "m1ProductionStorageFreshP0CapacityAdmissionContract": "docs/architecture/v2/M1_6_FRESH_P0_CAPACITY_ADMISSION_CONTRACT_V1.md",
@@ -52,6 +53,8 @@
     "m2RightsAndHistoricalInstrumentEvidenceGate": "docs/architecture/v2/M2_2_B0_2_RIGHTS_AND_HISTORICAL_INSTRUMENT_EVIDENCE_GATE_V1.md",
     "m2FirstPartyForwardInstrumentCaptureContract": "docs/architecture/v2/M2_2_B0_2_C_FIRST_PARTY_FORWARD_INSTRUMENT_CAPTURE_V1.md",
     "m2ReleaseBoundForwardCaptureStartContract": "docs/architecture/v2/M2_2_B0_2_C1_RELEASE_BOUND_FORWARD_CAPTURE_START_V1.md",
+    "m3FinalDecisionAuthorityContract": "docs/architecture/v2/M3_0_FINAL_DECISION_AUTHORITY_CONTRACT_V1.md",
+    "m3FinalDecisionAuthorityDeliveryReport": "docs/blueprints/V2_M3_0_FINAL_DECISION_AUTHORITY_CONTRACT_DELIVERY_REPORT.md",
     "legacyEngineeringReference": "docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md",
     "legacyRuntimeReference": "docs/blueprints/MARKET_RADAR_PRODUCTION_RUNTIME_BLUEPRINT_V1.md",
     "legacyReadinessReference": "docs/superpowers/plans/2026-07-10-market-radar-practical-readiness-master-plan-v3.md"
@@ -70,7 +73,7 @@
   "currentBoundary": {
     "readiness": "R1",
     "status": "runnable_but_incomplete_not_practical_ready",
-    "v2ImplementationStatus": "m1_5_b1_complete_b1b1_execution_invalid_not_counted_b1b3_business_gate_pass_m1_6_p0_executed_blocked_capacity_and_recovery_p0r_six_hour_no_cost_capacity_and_fresh_p0_admission_local_engineering_pass_object_lock_whitelist_required_recovery_pending_m2_2_c1_forward_only_ready_external_rights_blocked_detectors_draft_candidate_emission_false_m1_not_complete",
+    "v2ImplementationStatus": "m1_5_b1_complete_m1_6_p0_blocked_p0r_object_lock_31d_age_vault_and_transport_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_m3_0_local_contract_pass_no_authority_external_rights_blocked_detectors_draft_candidate_emission_false_m1_not_complete",
     "v2ImplementationBranch": "codex/market-radar-v2-implementation",
     "v2ImplementationBaseCommit": "e5eb90026d8bfcd52b060359446515de5a5c32d6",
     "latestProductionFinalStatus": "storage_preflight_blocked_capacity_and_recovery_application_health_not_evaluated",
@@ -708,7 +711,7 @@
       "dependsOn": [
         "M0"
       ],
-    "status": "b1b3_early_shadow_business_gate_pass_m1_5_b1_complete_m1_6_p0_executed_blocked_p0r_local_recovery_engineering_pass_production_action_pending_m1_not_complete",
+      "status": "b1b3_early_shadow_business_gate_pass_m1_5_b1_complete_m1_6_p0_executed_blocked_p0r_object_lock_31d_age_vault_transport_pass_sts_and_production_recovery_pending_m1_not_complete",
       "workPackages": [
         {
           "id": "M1.5-B1-A",
@@ -735,21 +738,21 @@
           "name": "mark_price_same_policy_atomic_31_cycle_retest",
           "status": "pass_early_shadow_business_gate_host_restored"
         },
-      {
-        "id": "M1.6-P",
-        "name": "production_storage_staged_enablement",
-        "status": "p0_executed_blocked_p0r_capacity_and_fresh_admission_local_engineering_pass_external_recovery_current"
-      },
-      {
-        "id": "M1.6-P0",
-        "name": "production_storage_fresh_read_only_preflight",
-        "status": "executed_fact_capture_pass_admission_blocked_zero_production_mutation"
-      },
-      {
-        "id": "M1.6-P0R",
-        "name": "capacity_encrypted_off_host_backup_and_isolated_restore_remediation",
-        "status": "six_hour_no_cost_capacity_and_fresh_p0_admission_local_engineering_pass_object_lock_age_sts_and_recovery_pending"
-      },
+        {
+          "id": "M1.6-P",
+          "name": "production_storage_staged_enablement",
+          "status": "p0_executed_blocked_p0r_capacity_and_fresh_admission_local_engineering_pass_external_recovery_current"
+        },
+        {
+          "id": "M1.6-P0",
+          "name": "production_storage_fresh_read_only_preflight",
+          "status": "executed_fact_capture_pass_admission_blocked_zero_production_mutation"
+        },
+        {
+          "id": "M1.6-P0R",
+          "name": "capacity_encrypted_off_host_backup_and_isolated_restore_remediation",
+          "status": "six_hour_no_cost_capacity_and_fresh_p0_admission_local_engineering_pass_object_lock_31d_age_vault_transport_pass_sts_and_production_recovery_pending"
+        },
         {
           "id": "M1.7",
           "name": "sustained_24_hour_shadow_slo",
@@ -847,8 +850,22 @@
       "order": 3,
       "id": "M3",
       "name": "analysis_qualification_strategy_feasibility_risk",
+      "status": "m3_0_final_decision_authority_contract_local_pass_main_stage_incomplete",
       "dependsOn": [
         "M2"
+      ],
+      "subpackages": [
+        {
+          "id": "M3.0",
+          "name": "final_decision_authority_contract",
+          "status": "local_contract_pass_test_only_no_production_authority",
+          "directedTestsPassed": 15,
+          "directedTestsFailed": 0,
+          "m1ExitRequired": true,
+          "m2LifecycleGateRequired": true,
+          "candidateEmissionAllowed": false,
+          "productionAuthorityAllowed": false
+        }
       ]
     },
     {
@@ -924,17 +941,17 @@
     "legacyDeletionAllowed": false
   },
   "lastCompletedImplementationEntry": {
-    "id": "V2-M1.6-FRESH-P0-CAPACITY-ADMISSION-LOCAL-ENGINEERING",
-    "name": "fresh_read_only_preflight_and_six_hour_capacity_composition_admission",
-    "status": "local_engineering_pass_production_evidence_not_consumed_p0_still_blocked",
+    "id": "V2-M3.0-FINAL-DECISION-AUTHORITY-CONTRACT",
+    "name": "strict_final_decision_authority_lineage_and_action_state_contract",
+    "status": "local_contract_pass_test_only_no_production_authority",
     "productionMutationPerformed": false,
     "migrationPerformed": false,
     "legacyDeletionPerformed": false
   },
   "currentImplementationEntry": {
-    "id": "V2-M1.6-P0R-B1B-OBJECT-LOCK-WHITELIST-AND-AGE-VAULT-QUALIFICATION",
-    "name": "object_lock_whitelist_and_irreversible_action_qualification_off_host_age_vault_and_run_bound_sts",
-    "status": "object_lock_whitelist_required_support_ticket_drafted_not_submitted_age_vault_tool_local_pass_identity_and_sts_not_provisioned_upload_forbidden",
+    "id": "V2-M1.6-P0R-C-STS-ENCRYPTED-BACKUP-EXACT-RETRIEVAL-AND-ISOLATED-RESTORE",
+    "name": "exact_plan_sts_encrypted_backup_exact_version_retrieval_isolated_postgres16_restore_and_cleanup",
+    "status": "object_lock_31d_age_keychain_and_exact_transport_pass_sts_object_backup_retrieval_restore_pending",
     "productionMutationAllowed": false,
     "migrationAllowed": false,
     "legacyDeletionAllowed": false
@@ -1190,19 +1207,41 @@
   },
   "currentP0RB1BObjectLockAndAgeVaultQualification": {
     "id": "V2-M1.6-P0R-B1B-OBJECT-LOCK-WHITELIST-AND-AGE-VAULT-QUALIFICATION",
-    "observedAt": "2026-07-21T15:30:00+08:00",
-    "status": "BLOCKED_ON_OBJECT_LOCK_WHITELIST_AGE_VAULT_LOCAL_ENGINEERING_PASS",
-    "objectLockConsoleEntryPresent": false,
-    "objectLockWhitelistRequired": true,
+    "observedAt": "2026-07-21T23:05:04+08:00",
+    "status": "PASS_OBJECT_LOCK_31D_AND_AGE_IDENTITY_PROVISIONED",
+    "objectLockConsoleEntryPresent": true,
+    "objectLockWhitelistRequired": false,
+    "objectLockStatus": "ENABLED_COMPLIANCE_31_DAYS_VERIFIED",
     "supportTicketCategory": "COS_FUNCTION_CONSULTATION_VERSIONING",
     "supportTicketDrafted": true,
     "supportTicketSubmitted": false,
-    "supportTicketSubmissionBlocker": "ACCOUNT_CONTACT_PHONE_UNSET",
+    "supportTicketSubmissionBlocker": null,
     "ageVaultProvider": "MACOS_LOGIN_KEYCHAIN",
     "ageVaultToolLocalEngineeringStatus": "PASS",
     "p0rDirectedTestPassed": 41,
     "p0rDirectedTestFailed": 0,
-    "ageIdentityProvisioned": false,
+    "ageIdentityProvisioned": true,
+    "stsProvisioned": false,
+    "objectUploaded": false,
+    "productionRecoveryExecuted": false,
+    "productionMutationPerformed": false,
+    "migrationPerformed": false,
+    "candidateEmissionAllowed": false
+  },
+  "completedP0RB1CObjectLockAgeAndTransportPreparation": {
+    "id": "V2-M1.6-P0R-B1C-OBJECT-LOCK-AGE-AND-TRANSPORT-PREPARATION",
+    "status": "OBJECT_LOCK_31D_AGE_IDENTITY_AND_TRANSPORT_PASS_STS_AND_RECOVERY_PENDING",
+    "sourceCommit": "6a81e865e61569f7d2d7c3bb3be1d78db72a9eab",
+    "objectLockMode": "COMPLIANCE",
+    "defaultRetentionDays": 31,
+    "objectLockEnabledAndVerified": true,
+    "ageIdentityProvider": "MACOS_LOGIN_KEYCHAIN",
+    "ageIdentityProvisionedAndReadBack": true,
+    "transportBundleStatus": "PASS_P0R_PRODUCTION_TRANSPORT_BUNDLE",
+    "transportBundleSha256": "02e164cd90e26b449c741ddd8e8e1683426005613a85dbc80573cf67a76b0e04",
+    "transportManifestDigest": "sha256:9682c6a2e92c472219bfc221a2179cedaf288731bad27134e038d18fc894181b",
+    "transportContainsSecrets": false,
+    "transportContainsPrivateKey": false,
     "stsProvisioned": false,
     "objectUploaded": false,
     "productionRecoveryExecuted": false,
@@ -1212,12 +1251,13 @@
   },
   "currentProductionStorageGate": {
     "id": "V2-M1.6-P0R-CAPACITY-AND-RECOVERY-REMEDIATION",
-    "status": "six_hour_no_cost_capacity_and_fresh_p0_admission_local_engineering_pass_object_lock_whitelist_required_age_identity_sts_and_recovery_pending",
+    "status": "six_hour_no_cost_capacity_and_fresh_p0_admission_local_pass_object_lock_31d_age_vault_and_transport_pass_sts_and_recovery_pending",
     "localRecoveryEngineeringStatus": "PASS",
     "cloudPrerequisiteSafetyEngineeringStatus": "PASS",
     "cosExternalProvisioningStatus": "BUCKET_CREATED_PARTIAL",
-    "objectLockStatus": "WHITELIST_REQUIRED_NOT_ENABLED",
-    "ageIdentityStatus": "VAULT_TOOL_LOCAL_PASS_IDENTITY_NOT_PROVISIONED",
+    "objectLockStatus": "ENABLED_COMPLIANCE_31_DAYS_VERIFIED",
+    "ageIdentityStatus": "MACOS_KEYCHAIN_PROVISIONED_AND_READ_BACK",
+    "transportBundleStatus": "PASS_BOUND_TO_6A81E865E615",
     "stsStatus": "NOT_PROVISIONED",
     "productionRecoveryExecuted": false,
     "capacityRemediated": false,

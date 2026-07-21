@@ -1,0 +1,564 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import type { M3FinalDecisionBundle } from "./m3-final-decision-contract";
+import {
+  assessM3FinalDecisionBundle,
+  M3FinalDecisionBundleSchema,
+  M3_FINAL_DECISION_CONTRACT_VERSION,
+} from "./m3-final-decision-contract";
+
+const RELEASE = "release-m3-contract";
+const BASE = "2026-01-15T00:00:00.000Z";
+const CUTOFF = "2026-01-15T00:00:10.000Z";
+const DECIDED = "2026-01-15T00:00:30.000Z";
+
+type BundleOptions = {
+  authorized?: boolean;
+  triggerStatus?: "NOT_EVALUATED" | "PENDING" | "CONFIRMED" | "INVALIDATED" | "EXPIRED";
+  actionState?: "OBSERVE" | "WAIT" | "BLOCKED" | "TRADE_PLAN_READY";
+  evidenceGrade?: "A" | "B" | "C" | "INSUFFICIENT";
+  setupGrade?: "PREMIUM" | "QUALIFIED" | "MARGINAL" | "INVALID" | "UNKNOWN";
+};
+
+const fresh = { status: "FRESH", ageMs: 0, reasonCodes: [] } as const;
+const uncertainty = {
+  data: {
+    dimension: "data",
+    status: "LOW",
+    reasonCodes: [],
+    sampleSize: 100,
+    calibrationVersion: "calibration-m3.v1",
+    lastValidatedAt: BASE,
+  },
+  model: {
+    dimension: "model",
+    status: "LOW",
+    reasonCodes: [],
+    sampleSize: 100,
+    calibrationVersion: "calibration-m3.v1",
+    lastValidatedAt: BASE,
+  },
+  market: {
+    dimension: "market",
+    status: "LOW",
+    reasonCodes: [],
+    sampleSize: 100,
+    calibrationVersion: "calibration-m3.v1",
+    lastValidatedAt: BASE,
+  },
+  execution: {
+    dimension: "execution",
+    status: "LOW",
+    reasonCodes: [],
+    sampleSize: 100,
+    calibrationVersion: "calibration-m3.v1",
+    lastValidatedAt: BASE,
+  },
+} as const;
+
+function trace(
+  producerModule: string,
+  schemaVersion: string,
+  generatedAt = "2026-01-15T00:00:20.000Z",
+) {
+  return {
+    schemaVersion,
+    releaseId: RELEASE,
+    producerModule,
+    generatedAt,
+    sourceCutoff: CUTOFF,
+    contentHash: `sha256:${producerModule}-${schemaVersion}`,
+  };
+}
+
+function readyPlan() {
+  return {
+    planId: "plan-m3-one",
+    direction: "LONG",
+    entryTrigger: "retest holds after a close above resistance",
+    plannedEntryZone: {
+      lower: "100",
+      upper: "101",
+      sourceLevelIds: ["level-resistance"],
+    },
+    structuralInvalidation: "retest closes below reclaimed resistance",
+    structuralStop: "98",
+    targets: [
+      {
+        targetId: "target-prior-high",
+        price: "110",
+        allocationPercent: 100,
+        source: "PRIOR_EXTREME",
+        sourceLevelIds: ["level-prior-high"],
+      },
+    ],
+    structuralRewardRisk: 3.5,
+    estimatedNetRewardRisk: 3.2,
+    expiresAt: "2026-01-15T00:15:00.000Z",
+    noChaseCondition: "do not enter above 101",
+  } as const;
+}
+
+function fixtureDecisionReasonCodes(
+  authorized: boolean,
+  triggerStatus: NonNullable<BundleOptions["triggerStatus"]>,
+  evidenceGrade: NonNullable<BundleOptions["evidenceGrade"]>,
+  setupGrade: NonNullable<BundleOptions["setupGrade"]>,
+): string[] {
+  if (!authorized) {
+    return [
+      "candidate_emission_not_authorized",
+      "candidate_episode_not_promoted",
+      "final_decision_authority_not_enabled",
+      "m1_engineering_exit_not_passed",
+      "m2_lifecycle_gate_not_passed",
+      "test_only_scope_has_no_decision_authority",
+    ];
+  }
+  if (evidenceGrade === "INSUFFICIENT") {
+    return ["evidence_grade_insufficient"];
+  }
+  if (setupGrade === "INVALID") {
+    return ["setup_grade_invalid"];
+  }
+  if (setupGrade === "UNKNOWN") {
+    return ["setup_grade_unknown"];
+  }
+  if (evidenceGrade === "C" || setupGrade === "MARGINAL") {
+    return [
+      ...(evidenceGrade === "C" ? ["evidence_grade_c_observe"] : []),
+      ...(setupGrade === "MARGINAL" ? ["setup_grade_marginal_observe"] : []),
+    ];
+  }
+  if (triggerStatus === "NOT_EVALUATED") {
+    return ["entry_trigger_not_evaluated"];
+  }
+  if (triggerStatus === "INVALIDATED") {
+    return ["entry_trigger_invalidated"];
+  }
+  if (triggerStatus === "EXPIRED") {
+    return ["entry_trigger_expired"];
+  }
+  if (triggerStatus === "PENDING") {
+    return ["entry_trigger_pending"];
+  }
+  return ["all_final_decision_gates_passed"];
+}
+
+function bundle(
+  options: BundleOptions = {},
+): M3FinalDecisionBundle {
+  const authorized = options.authorized ?? true;
+  const triggerStatus = options.triggerStatus ?? "CONFIRMED";
+  const actionState = options.actionState ?? (authorized ? "TRADE_PLAN_READY" : "BLOCKED");
+  const evidenceGrade = options.evidenceGrade ?? "A";
+  const setupGrade = options.setupGrade ?? "PREMIUM";
+  const plan = readyPlan();
+  return M3FinalDecisionBundleSchema.parse({
+    schemaVersion: M3_FINAL_DECISION_CONTRACT_VERSION,
+    authorization: {
+      schemaVersion: "m3-decision-authorization.v1",
+      releaseId: RELEASE,
+      decisionScope: authorized ? "REPLAY" : "TEST_ONLY",
+      m1EngineeringExitStatus: authorized ? "PASS" : "BLOCKED",
+      m2LifecycleGateStatus: authorized ? "PASS" : "INSUFFICIENT",
+      candidateEmissionAllowed: authorized,
+      finalDecisionAuthorityEnabled: authorized,
+      productionWriteAuthorityEnabled: false,
+      authorizedAt: authorized ? "2026-01-15T00:00:05.000Z" : null,
+      evidenceIds: authorized ? ["m1-exit", "m2-audit"] : [],
+    },
+    episode: {
+      ...trace("candidate_lifecycle_opportunity_thesis", "candidate-episode.v2"),
+      episodeId: "episode-m3-one",
+      episodeKey: "episode-key-m3-one",
+      canonicalInstrumentId: "BINANCE_FUTURES:TESTUSDT:LINEAR_PERPETUAL:USDT",
+      underlyingGroupId: "TEST:USDT_LINEAR_PERPETUAL",
+      opportunityFamily: "BREAKOUT_RETEST",
+      opportunityPatterns: ["ROLE_FLIP_RETEST"],
+      directionHypothesis: "LONG",
+      episodeWindow: {
+        policyVersion: "episode-window.v1",
+        windowStart: BASE,
+        windowEnd: "2026-01-15T00:20:00.000Z",
+      },
+      lifecycle: authorized ? "PROMOTED" : "DISCOVERED",
+      previousLifecycle: authorized ? "EVIDENCE_READY" : null,
+      transitionKind: authorized ? "STATE_TRANSITION" : "CREATED",
+      priority: "P1",
+      priorityPolicyVersion: "priority.v1",
+      thesisId: "thesis-m3-one",
+      candidateIds: ["candidate-m3-one"],
+      firstSeenAt: "2026-01-15T00:00:11.000Z",
+      lastSeenAt: "2026-01-15T00:00:12.000Z",
+      expiresAt: "2026-01-15T00:20:00.000Z",
+      transitionedAt: "2026-01-15T00:00:20.000Z",
+      transitionReasonCodes: [authorized ? "evidence_promoted" : "candidate_created"],
+      rowVersion: authorized ? 2 : 1,
+      idempotencyKey: "episode-m3-one:2",
+      outboxEventId: "outbox-m3-one:2",
+    },
+    thesis: {
+      ...trace("candidate_lifecycle_opportunity_thesis", "opportunity-thesis.v2"),
+      thesisId: "thesis-m3-one",
+      episodeId: "episode-m3-one",
+      thesisVersion: 1,
+      thesisAuthority: "VALIDATION_HYPOTHESIS_ONLY",
+      canonicalInstrumentId: "BINANCE_FUTURES:TESTUSDT:LINEAR_PERPETUAL:USDT",
+      underlyingGroupId: "TEST:USDT_LINEAR_PERPETUAL",
+      opportunityFamily: "BREAKOUT_RETEST",
+      opportunityPatterns: ["ROLE_FLIP_RETEST"],
+      directionHypothesis: "LONG",
+      detectorSources: [
+        {
+          candidateId: "candidate-m3-one",
+          detectorId: "role-flip-retest-long",
+          detectorVersion: "role-flip-retest-long.v1",
+          detectorLifecycle: "REPLAY_VALIDATED",
+          emissionScope: "REPLAY",
+          opportunityPattern: "ROLE_FLIP_RETEST",
+          firstDetectedAt: "2026-01-15T00:00:11.000Z",
+          candidateSourceCutoff: CUTOFF,
+        },
+      ],
+      firstDetectedAt: "2026-01-15T00:00:11.000Z",
+      updatedAt: "2026-01-15T00:00:20.000Z",
+      supportingReasons: ["retest_hypothesis"],
+      conflictingReasons: [],
+      knownUnknowns: [],
+      uncertainty,
+    },
+    evidence: {
+      ...trace("deep_validation", "evidence-package.v1"),
+      evidencePackageId: "evidence-m3-one",
+      episodeId: "episode-m3-one",
+      thesisId: "thesis-m3-one",
+      tier: "A",
+      items: [
+        {
+          evidenceId: "evidence-item-m3-one",
+          category: "structure",
+          stance: "SUPPORTING",
+          factIds: ["fact-m3-one"],
+          featureIds: ["feature-m3-one"],
+          observedAt: "2026-01-15T00:00:10.000Z",
+          quality: fresh,
+          reasonCodes: ["role_flip_retest_confirmed"],
+        },
+      ],
+      completenessRatio: 1,
+      uncertainty,
+      quality: fresh,
+    },
+    analysis: {
+      ...trace("family_analysis", "analysis-snapshot.v1"),
+      analysisId: "analysis-m3-one",
+      episodeId: "episode-m3-one",
+      thesisId: "thesis-m3-one",
+      evidencePackageId: "evidence-m3-one",
+      analyzerVersion: "breakout-retest-analyzer.v1",
+      opportunityFamily: "BREAKOUT_RETEST",
+      directionBias: "LONG",
+      structureState: "ROLE_FLIP_RETEST",
+      marketStage: "EARLY_RETEST",
+      locationQuality: "GOOD",
+      structuralLevels: [
+        {
+          levelId: "level-resistance",
+          kind: "RESISTANCE",
+          price: "100",
+          timeframe: "15m",
+          sourceFactIds: ["fact-m3-one"],
+          reasonCodes: ["prior_resistance"],
+        },
+        {
+          levelId: "level-prior-high",
+          kind: "RESISTANCE",
+          price: "110",
+          timeframe: "1h",
+          sourceFactIds: ["fact-m3-two"],
+          reasonCodes: ["prior_extreme"],
+        },
+      ],
+      supportingReasons: ["retest_acceptance"],
+      counterEvidence: [],
+      lateRisk: "LOW",
+      fakeoutRisk: "LOW",
+      noiseRisk: "LOW",
+      uncertainty,
+    },
+    qualification: {
+      ...trace("signal_qualification", "signal-qualification.v1"),
+      qualificationId: "qualification-m3-one",
+      episodeId: "episode-m3-one",
+      evidencePackageId: "evidence-m3-one",
+      analysisId: "analysis-m3-one",
+      evidenceGrade,
+      setupGrade,
+      evidenceCalibration: {
+        calibrationVersion: "evidence-calibration.v1",
+        sampleSize: 100,
+        confidenceInterval: [0.7, 0.9],
+        abstainReasonCodes: [],
+      },
+      setupCalibration: {
+        calibrationVersion: "setup-calibration.v1",
+        sampleSize: 100,
+        confidenceInterval: [0.65, 0.85],
+        abstainReasonCodes: [],
+      },
+      reasonCodes: ["evidence_and_setup_independently_qualified"],
+    },
+    draft: {
+      ...trace("strategy_construction", "strategy-draft.v1"),
+      draftId: "draft-m3-one",
+      episodeId: "episode-m3-one",
+      analysisId: "analysis-m3-one",
+      qualificationId: "qualification-m3-one",
+      templateVersion: "breakout-retest-long.v1",
+      direction: plan.direction,
+      whyNow: ["retest_acceptance"],
+      whyNotNow: [],
+      entryTrigger: plan.entryTrigger,
+      plannedEntryZone: plan.plannedEntryZone,
+      structuralInvalidation: plan.structuralInvalidation,
+      structuralStop: plan.structuralStop,
+      structuralStopSourceLevelIds: ["level-resistance"],
+      targets: plan.targets,
+      grossRewardRisk: plan.structuralRewardRisk,
+      estimatedNetRewardRisk: plan.estimatedNetRewardRisk,
+      feeAssumptionBps: 4,
+      slippageAssumptionBps: 5,
+      fundingAssumptionBps: 1,
+      confirmationWindow: "15m",
+      expiresAt: plan.expiresAt,
+      noChaseCondition: plan.noChaseCondition,
+      counterEvidence: [],
+      blockers: [],
+    },
+    feasibility: {
+      ...trace("execution_feasibility_final_decision", "execution-feasibility-snapshot.v1", "2026-01-15T00:00:25.000Z"),
+      feasibilityId: "feasibility-m3-one",
+      draftId: "draft-m3-one",
+      status: "PASS",
+      checks: [
+        {
+          checkId: "spread-check",
+          status: "PASS",
+          observedValue: 3,
+          thresholdVersion: "execution-threshold.v1",
+          reasonCodes: ["spread_within_limit"],
+        },
+      ],
+      estimatedNetRewardRisk: plan.estimatedNetRewardRisk,
+      maximumExecutableNotional: "1000",
+      quality: fresh,
+      uncertainty,
+    },
+    trigger: {
+      schemaVersion: "m3-entry-trigger-observation.v1",
+      status: triggerStatus,
+      observedAt: "2026-01-15T00:00:26.000Z",
+      sourceCutoff: "2026-01-15T00:00:24.000Z",
+      factIds: triggerStatus === "CONFIRMED" ? ["trigger-fact-m3-one"] : [],
+      quality: fresh,
+      reasonCodes: [triggerStatus.toLowerCase()],
+    },
+    runtime: {
+      schemaVersion: "m3-runtime-decision-gate.v1",
+      releaseId: RELEASE,
+      status: "READY",
+      checkedAt: "2026-01-15T00:00:27.000Z",
+      sourceCutoff: "2026-01-15T00:00:24.000Z",
+      reasonCodes: ["runtime_ready"],
+    },
+    decision: {
+      ...trace("execution_feasibility_final_decision", "strategy-decision.v1", DECIDED),
+      sourceCutoff: "2026-01-15T00:00:24.000Z",
+      decisionId: "decision-m3-one",
+      episodeId: "episode-m3-one",
+      draftId: "draft-m3-one",
+      feasibilityId: "feasibility-m3-one",
+      reasonCodes: fixtureDecisionReasonCodes(
+        authorized,
+        triggerStatus,
+        evidenceGrade,
+        setupGrade,
+      ),
+      decidedAt: DECIDED,
+      actionState,
+      executablePlan: actionState === "TRADE_PLAN_READY" ? plan : null,
+    },
+  });
+}
+
+test("accepts an authorized replay READY only when every hard gate passes", () => {
+  const assessment = assessM3FinalDecisionBundle(bundle());
+  assert.equal(assessment.validationStatus, "PASS");
+  assert.equal(assessment.authorityStatus, "AUTHORIZED");
+  assert.equal(assessment.expectedActionState, "TRADE_PLAN_READY");
+  assert.equal(assessment.executablePlanExposureAllowed, true);
+  assert.deepEqual(assessment.issues, []);
+});
+
+test("keeps the current draft lifecycle test-only and planless", () => {
+  const assessment = assessM3FinalDecisionBundle(bundle({ authorized: false }));
+  assert.equal(assessment.validationStatus, "PASS");
+  assert.equal(assessment.authorityStatus, "NOT_AUTHORIZED");
+  assert.equal(assessment.expectedActionState, "BLOCKED");
+  assert.equal(assessment.executablePlanExposureAllowed, false);
+  assert.ok(assessment.reasonCodes.includes("m2_lifecycle_gate_not_passed"));
+  assert.ok(assessment.reasonCodes.includes("test_only_scope_has_no_decision_authority"));
+});
+
+test("rejects a forged READY while M1 and M2 authority remain closed", () => {
+  const forged = bundle({ authorized: false, actionState: "TRADE_PLAN_READY" });
+  const assessment = assessM3FinalDecisionBundle(forged);
+  assert.equal(assessment.validationStatus, "BLOCKED");
+  assert.equal(assessment.executablePlanExposureAllowed, false);
+  assert.ok(assessment.issues.some((item) => item.code === "decision_state_mismatch"));
+});
+
+test("rejects a DRAFT detector before it can enter the M3 contract", () => {
+  const invalid = structuredClone(bundle({ authorized: false }));
+  invalid.thesis.detectorSources[0]!.detectorLifecycle = "DRAFT";
+  const assessment = assessM3FinalDecisionBundle(invalid);
+  assert.equal(assessment.validationStatus, "BLOCKED");
+  assert.equal(assessment.expectedActionState, null);
+  assert.ok(assessment.reasonCodes.includes("bundle_schema_rejected"));
+});
+
+test("maps a pending trigger to WAIT without exposing a plan", () => {
+  const assessment = assessM3FinalDecisionBundle(bundle({
+    triggerStatus: "PENDING",
+    actionState: "WAIT",
+  }));
+  assert.equal(assessment.validationStatus, "PASS");
+  assert.equal(assessment.expectedActionState, "WAIT");
+  assert.equal(assessment.executablePlanExposureAllowed, false);
+});
+
+test("keeps C evidence or a marginal setup at OBSERVE", () => {
+  for (const input of [
+    bundle({ evidenceGrade: "C", actionState: "OBSERVE" }),
+    bundle({ setupGrade: "MARGINAL", actionState: "OBSERVE" }),
+  ]) {
+    const assessment = assessM3FinalDecisionBundle(input);
+    assert.equal(assessment.validationStatus, "PASS");
+    assert.equal(assessment.expectedActionState, "OBSERVE");
+    assert.equal(assessment.executablePlanExposureAllowed, false);
+  }
+});
+
+test("blocks invalid, unknown or insufficient qualification", () => {
+  for (const input of [
+    bundle({ evidenceGrade: "INSUFFICIENT", actionState: "BLOCKED" }),
+    bundle({ setupGrade: "INVALID", actionState: "BLOCKED" }),
+    bundle({ setupGrade: "UNKNOWN", actionState: "BLOCKED" }),
+  ]) {
+    const assessment = assessM3FinalDecisionBundle(input);
+    assert.equal(assessment.validationStatus, "PASS");
+    assert.equal(assessment.expectedActionState, "BLOCKED");
+  }
+});
+
+test("rejects a READY plan whose prices are altered after strategy construction", () => {
+  const valid = bundle();
+  const tampered = structuredClone(valid);
+  if (tampered.decision.executablePlan === null) {
+    throw new Error("fixture must be ready");
+  }
+  tampered.decision.executablePlan.targets[0]!.price = "120";
+  const assessment = assessM3FinalDecisionBundle(tampered);
+  assert.equal(assessment.validationStatus, "BLOCKED");
+  assert.ok(
+    assessment.issues.some((item) =>
+      item.code === "ready_plan_upstream_parity_mismatch"
+    ),
+  );
+});
+
+test("rejects release and artifact lineage splicing", () => {
+  const valid = bundle();
+  const spliced = structuredClone(valid);
+  spliced.evidence.releaseId = "another-release";
+  spliced.qualification.analysisId = "another-analysis";
+  const assessment = assessM3FinalDecisionBundle(spliced);
+  assert.equal(assessment.validationStatus, "BLOCKED");
+  assert.ok(
+    assessment.issues.some((item) => item.code === "cross_release_composition_forbidden"),
+  );
+  assert.ok(
+    assessment.issues.some((item) => item.code === "artifact_identity_lineage_mismatch"),
+  );
+});
+
+test("rejects decisions that predate their trigger or runtime gate", () => {
+  const valid = bundle();
+  const futureGate = structuredClone(valid);
+  futureGate.trigger.observedAt = "2026-01-15T00:01:00.000Z";
+  futureGate.runtime.checkedAt = "2026-01-15T00:01:00.000Z";
+  const assessment = assessM3FinalDecisionBundle(futureGate);
+  assert.equal(assessment.validationStatus, "BLOCKED");
+  assert.ok(
+    assessment.issues.some((item) => item.code === "decision_precedes_trigger_observation"),
+  );
+  assert.ok(
+    assessment.issues.some((item) => item.code === "decision_precedes_runtime_gate"),
+  );
+});
+
+test("rejects trigger and runtime gates that predate their upstream artifacts", () => {
+  const staleGates = structuredClone(bundle());
+  staleGates.trigger.observedAt = "2026-01-15T00:00:19.000Z";
+  staleGates.trigger.sourceCutoff = "2026-01-15T00:00:18.000Z";
+  staleGates.runtime.checkedAt = "2026-01-15T00:00:24.000Z";
+  staleGates.runtime.sourceCutoff = "2026-01-15T00:00:09.000Z";
+  const assessment = assessM3FinalDecisionBundle(staleGates);
+  assert.equal(assessment.validationStatus, "BLOCKED");
+  assert.ok(
+    assessment.issues.some((item) => item.code === "trigger_precedes_strategy_draft"),
+  );
+  assert.ok(
+    assessment.issues.some((item) => item.code === "runtime_gate_precedes_feasibility"),
+  );
+});
+
+test("rejects a decision that hides its derived gate reasons", () => {
+  const hiddenReasons = structuredClone(bundle({ triggerStatus: "PENDING", actionState: "WAIT" }));
+  hiddenReasons.decision.reasonCodes = ["generic_wait"];
+  const assessment = assessM3FinalDecisionBundle(hiddenReasons);
+  assert.equal(assessment.validationStatus, "BLOCKED");
+  assert.ok(
+    assessment.issues.some((item) => item.code === "decision_reason_codes_incomplete"),
+  );
+});
+
+test("rejects production write authority without final-decision authority", () => {
+  const contradictory = structuredClone(bundle({ authorized: false }));
+  contradictory.authorization.decisionScope = "PRODUCTION";
+  contradictory.authorization.productionWriteAuthorityEnabled = true;
+  const assessment = assessM3FinalDecisionBundle(contradictory);
+  assert.equal(assessment.validationStatus, "BLOCKED");
+  assert.equal(assessment.expectedActionState, null);
+  assert.ok(assessment.reasonCodes.includes("bundle_schema_rejected"));
+});
+
+test("strictly rejects unknown fields instead of silently accepting future material", () => {
+  const unknownField = {
+    ...bundle(),
+    futureOutcome: { mfe: 99 },
+  };
+  const assessment = assessM3FinalDecisionBundle(unknownField);
+  assert.equal(assessment.validationStatus, "BLOCKED");
+  assert.equal(assessment.expectedActionState, null);
+  assert.equal(assessment.reasonCodes[0], "bundle_schema_rejected");
+});
+
+test("assessment output is deterministic and deeply frozen", () => {
+  const first = assessM3FinalDecisionBundle(bundle());
+  const second = assessM3FinalDecisionBundle(bundle());
+  assert.equal(first.assessmentHash, second.assessmentHash);
+  assert.equal(Object.isFrozen(first), true);
+  assert.equal(Object.isFrozen(first.issues), true);
+});
