@@ -7,7 +7,7 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 export const P0R_COS_PROVISIONING_PLAN_SCHEMA_VERSION =
-  "v2-m1-production-storage-cos-provisioning-plan.v1";
+  "v2-m1-production-storage-cos-provisioning-plan.v2";
 export const P0R_COS_CREDENTIAL_SCHEMA_VERSION =
   "v2-m1-production-storage-cos-temporary-credentials.v2";
 export const P0R_STS_DURATION_SECONDS = 7_200;
@@ -85,7 +85,8 @@ function commonCondition(sourceIpCidr) {
 }
 
 function buildStsPolicy({ appId, bucket, objectKey, region, sourceIpCidr }) {
-  const bucketResource = `qcs::cos:${region}:uid/${appId}:${bucket}/*`;
+  const bucketRootResource = `qcs::cos:${region}:uid/${appId}:${bucket}/`;
+  const bucketWildcardResource = `${bucketRootResource}*`;
   const objectResource = `qcs::cos:${region}:uid/${appId}:${bucket}/${objectKey}`;
   return {
     statement: [
@@ -99,7 +100,7 @@ function buildStsPolicy({ appId, bucket, objectKey, region, sourceIpCidr }) {
         ],
         condition: commonCondition(sourceIpCidr),
         effect: "allow",
-        resource: [bucketResource],
+        resource: [bucketRootResource, bucketWildcardResource],
       },
       {
         action: [

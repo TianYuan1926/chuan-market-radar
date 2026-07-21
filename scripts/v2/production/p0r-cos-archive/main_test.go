@@ -200,6 +200,32 @@ func TestAuthorizationMatchesTencentSDKFixedVector(t *testing.T) {
 	}
 }
 
+func TestHeadBucketAuthorizationMatchesTencentGoSDKV0_7_74(t *testing.T) {
+	// Provenance: tencentyun/cos-go-sdk-v5 v0.7.74, commit
+	// 755c84be261e5a7dac3d1aaeb68594d090441519, auth.go SHA-256
+	// f3015db270791109049e9dd7d8b22a6889750870b5da777d6b63e2ec1a1e27fd.
+	request, err := http.NewRequest(
+		http.MethodHead,
+		"https://examplebucket-1250000000.cos.ap-hongkong.myqcloud.com/",
+		nil,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Host = "examplebucket-1250000000.cos.ap-hongkong.myqcloud.com"
+	request.Header.Set("x-cos-security-token", "temporary-session-token-conformance")
+	credentials := credentialEnvelope{
+		SecretID:  "AKIDtemporary-conformance",
+		SecretKey: "temporary-secret-key-conformance",
+	}
+	start := time.Unix(1785000000, 0)
+	end := time.Unix(1785000900, 0)
+	want := "q-sign-algorithm=sha1&q-ak=AKIDtemporary-conformance&q-sign-time=1785000000;1785000900&q-key-time=1785000000;1785000900&q-header-list=host;x-cos-security-token&q-url-param-list=&q-signature=47cbf3fa25fa7b014f7ddfb094f717a59a06697c"
+	if got := authorization(credentials, request, start, end); got != want {
+		t.Fatalf("Tencent Go SDK conformance mismatch\ngot:  %s\nwant: %s", got, want)
+	}
+}
+
 func TestArchiveSchemasRemainExplicit(t *testing.T) {
 	if credentialSchema == archiveSchema || credentialSchema == "" || archiveSchema == "" {
 		t.Fatal("credential and archive facts must use distinct explicit schemas")
@@ -332,6 +358,50 @@ func TestArchiveRejectsPreexistingObjectWithoutUpload(t *testing.T) {
 	}
 	if putCount != 0 {
 		t.Fatal("archive uploaded after detecting a preexisting object")
+	}
+}
+
+func TestArchivePreflightIsReadOnlyAndChecksExactObjectAbsence(t *testing.T) {
+	requestCount := 0
+	server := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		requestCount++
+		if request.Method != http.MethodHead && request.Method != http.MethodGet {
+			t.Errorf("preflight attempted a mutating request: %s", request.Method)
+			writer.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		query := request.URL.Query()
+		switch {
+		case request.Method == http.MethodHead && request.URL.Path == "/":
+			writer.Header().Set("x-cos-bucket-region", "ap-hongkong")
+		case request.Method == http.MethodGet && request.URL.Path == "/" && query.Has("acl"):
+			fmt.Fprint(writer, `<AccessControlPolicy><Owner><ID>owner</ID></Owner><AccessControlList><Grant><Grantee><ID>owner</ID></Grantee><Permission>FULL_CONTROL</Permission></Grant></AccessControlList></AccessControlPolicy>`)
+		case request.Method == http.MethodGet && request.URL.Path == "/" && query.Has("policy"):
+			writer.WriteHeader(http.StatusNotFound)
+			fmt.Fprint(writer, `<Error><Code>NoSuchBucketPolicy</Code></Error>`)
+		case request.Method == http.MethodGet && request.URL.Path == "/" && query.Has("versioning"):
+			fmt.Fprint(writer, `<VersioningConfiguration><Status>Enabled</Status></VersioningConfiguration>`)
+		case request.Method == http.MethodGet && request.URL.Path == "/" && query.Has("object-lock"):
+			fmt.Fprint(writer, `<ObjectLockConfiguration><ObjectLockEnabled>Enabled</ObjectLockEnabled><Rule><DefaultRetention><Mode>COMPLIANCE</Mode><Days>31</Days></DefaultRetention></Rule></ObjectLockConfiguration>`)
+		case request.Method == http.MethodHead && request.URL.Path != "/":
+			writer.WriteHeader(http.StatusNotFound)
+		default:
+			t.Errorf("unexpected preflight request: %s %s", request.Method, request.URL.String())
+			writer.WriteHeader(http.StatusBadRequest)
+		}
+	}))
+	defer server.Close()
+
+	now := time.Date(2026, 7, 21, 12, 0, 0, 0, time.UTC)
+	credentials := validCredentials(now)
+	endpoint, _ := url.Parse(server.URL)
+	client := &cosClient{credentials: credentials, endpoint: endpoint, http: server.Client()}
+	proof, err := archivePreflightWithClient(context.Background(), client, credentials, validPlan(now))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !proof.PreUploadObjectAbsent || requestCount != 6 {
+		t.Fatalf("preflight proof is incomplete: absent=%t requests=%d", proof.PreUploadObjectAbsent, requestCount)
 	}
 }
 

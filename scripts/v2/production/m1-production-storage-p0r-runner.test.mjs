@@ -13,6 +13,7 @@ test("plan exposes the exact no-mutation and isolated-restore boundary", () => {
   assert.equal(plan.offHostVersioning, "ENABLED");
   assert.equal(plan.offHostRetention, "COMPLIANCE_30D_MINIMUM");
   assert.equal(plan.offHostObjectKey, "HIGH_ENTROPY_RUN_BOUND");
+  assert.equal(plan.offHostReadOnlyPreflightBeforeDatabaseCapture, true);
   assert.equal(plan.preUploadAbsenceRequired, true);
   assert.equal(plan.stsPolicyPlanBound, true);
   assert.equal(plan.restoreNetworkMode, "none");
@@ -64,12 +65,18 @@ test("runner encodes hard cleanup, digest binding and no-source-sync invariants"
     "P0R_COS_PROVISIONING_PLAN_SHA256",
     "P0R_COS_PROVISIONING_TOOL_SHA256",
     "m1-production-storage-p0r-cos-provisioning.mjs\" verify-plan",
+    '"${RUNTIME_DIRECTORY}/p0r-cos-archive" preflight',
     '--provisioning-plan "${RUNTIME_DIRECTORY}/cos-provisioning-plan.json"',
     '--run-id "${RUN_ID}"',
     "EXPECTED_SOURCE_DIRECTORY",
     "EXPECTED_OUTPUT_DIRECTORY",
     '"/dev/shm/market-radar-v2-p0r-${RUN_ID}.age-identity.txt"',
   ]) assert.ok(combined.includes(required), `missing runner invariant: ${required}`);
+  assert.ok(
+    source.indexOf('"${RUNTIME_DIRECTORY}/p0r-cos-archive" preflight')
+      < source.indexOf('m1-production-storage-backup-capture.mjs" capture'),
+    "COS authorization preflight must run before production database capture",
+  );
   for (const forbidden of [
     "git pull",
     "git checkout",

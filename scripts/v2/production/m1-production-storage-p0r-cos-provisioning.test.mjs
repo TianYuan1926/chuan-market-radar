@@ -71,6 +71,30 @@ test("builds a deterministic single-AZ immutable COS plan with exact object scop
   assert.match(policyText, /cos:object-lock-mode/u);
   assert.match(policyText, /203\.0\.113\.24\/32/u);
   assert.doesNotMatch(policyText, /DeleteObject|resource":"\*"/u);
+
+  const bucketStatement = value.stsRequest.policy.statement.find((statement) =>
+    statement.action.includes("name/cos:HeadBucket"));
+  assert.ok(bucketStatement, "bucket-control statement is missing");
+  const appId = value.credentialGrant.bucket.split("-").at(-1);
+  const bucketRootResource = `${
+    `qcs::cos:${value.credentialGrant.region}:uid/${appId}:`
+  }${value.credentialGrant.bucket}/`;
+  assert.deepEqual(bucketStatement.resource, [
+    bucketRootResource,
+    `${bucketRootResource}*`,
+  ]);
+  assert.deepEqual(bucketStatement.action, [
+    "name/cos:GetBucketACL",
+    "name/cos:GetBucketObjectLockConfiguration",
+    "name/cos:GetBucketPolicy",
+    "name/cos:GetBucketVersioning",
+    "name/cos:HeadBucket",
+  ]);
+
+  const objectResource = `${bucketRootResource}${value.credentialGrant.objectKey}`;
+  for (const statement of value.stsRequest.policy.statement.slice(1)) {
+    assert.deepEqual(statement.resource, [objectResource]);
+  }
 });
 
 test("high-entropy run ID binds timestamp and exactly 128 random bits", () => {

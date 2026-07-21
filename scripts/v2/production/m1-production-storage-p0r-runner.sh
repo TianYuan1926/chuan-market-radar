@@ -32,7 +32,7 @@ fail() {
 
 print_plan() {
   cat <<'JSON'
-{"schemaVersion":"v2-m1-production-storage-p0r-runner-plan.v2","mode":"plan","sourceTransaction":"REPEATABLE_READ_READ_ONLY","plaintextDumpCreated":false,"encryption":"AGE_X25519","offHostProvider":"TENCENT_COS","offHostAvailabilityZoneType":"SINGLE_AZ_REQUIRED","offHostVersioning":"ENABLED","offHostRetention":"COMPLIANCE_30D_MINIMUM","offHostObjectKey":"HIGH_ENTROPY_RUN_BOUND","preUploadAbsenceRequired":true,"stsPolicyPlanBound":true,"restorePostgresMajor":16,"restoreNetworkMode":"none","restoreCpuNano":1500000000,"restoreMemoryBytes":2147483648,"restoreMemorySwapBytes":3221225472,"restorePidsLimit":256,"hostPortsPublished":false,"productionNetworksAttached":false,"productionVolumesMounted":false,"productionCredentialsMounted":false,"productionDatabaseMutation":false,"productionServiceMutation":false,"productionRepositoryMutation":false,"migrationAllowed":false,"capacityMutationAllowed":false,"automaticTradingAllowed":false}
+{"schemaVersion":"v2-m1-production-storage-p0r-runner-plan.v3","mode":"plan","sourceTransaction":"REPEATABLE_READ_READ_ONLY","plaintextDumpCreated":false,"encryption":"AGE_X25519","offHostProvider":"TENCENT_COS","offHostAvailabilityZoneType":"SINGLE_AZ_REQUIRED","offHostVersioning":"ENABLED","offHostRetention":"COMPLIANCE_30D_MINIMUM","offHostObjectKey":"HIGH_ENTROPY_RUN_BOUND","offHostReadOnlyPreflightBeforeDatabaseCapture":true,"preUploadAbsenceRequired":true,"stsPolicyPlanBound":true,"restorePostgresMajor":16,"restoreNetworkMode":"none","restoreCpuNano":1500000000,"restoreMemoryBytes":2147483648,"restoreMemorySwapBytes":3221225472,"restorePidsLimit":256,"hostPortsPublished":false,"productionNetworksAttached":false,"productionVolumesMounted":false,"productionCredentialsMounted":false,"productionDatabaseMutation":false,"productionServiceMutation":false,"productionRepositoryMutation":false,"migrationAllowed":false,"capacityMutationAllowed":false,"automaticTradingAllowed":false}
 JSON
 }
 
@@ -304,6 +304,12 @@ sudo -n "${RUNTIME_DIRECTORY}/age" --decrypt \
 sudo -n cmp --silent "${CANARY_PLAINTEXT}" "${CANARY_DECRYPTED}" \
   || fail "age recovery identity does not match the recipient"
 sudo -n rm -f "${CANARY_PLAINTEXT}" "${CANARY_ENCRYPTED}" "${CANARY_DECRYPTED}"
+
+# Prove the exact temporary grant against COS before touching the production database.
+sudo -n timeout 5m "${RUNTIME_DIRECTORY}/p0r-cos-archive" preflight \
+  --credentials "${COS_CREDENTIAL_FILE}" \
+  --provisioning-plan "${RUNTIME_DIRECTORY}/cos-provisioning-plan.json" \
+  --run-id "${RUN_ID}" >/dev/null
 
 sudo -n docker inspect "${POSTGRES_CONTAINER}" \
   | jq -er --arg socketDirectory "${POSTGRES_SOCKET_SOURCE}" '

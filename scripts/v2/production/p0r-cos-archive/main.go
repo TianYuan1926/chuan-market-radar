@@ -28,7 +28,7 @@ import (
 
 const (
 	credentialSchema = "v2-m1-production-storage-cos-temporary-credentials.v2"
-	planSchema       = "v2-m1-production-storage-cos-provisioning-plan.v1"
+	planSchema       = "v2-m1-production-storage-cos-provisioning-plan.v2"
 	archiveSchema    = "v2-m1-production-storage-cos-archive-facts.v2"
 	maximumObject    = int64(5 * 1024 * 1024 * 1024)
 	minimumRemaining = 75 * time.Minute
@@ -887,9 +887,35 @@ func archive(ctx context.Context, credentials credentialEnvelope, plan provision
 	return archiveWithClient(ctx, client, credentials, plan, encryptedPath, retrievedPath)
 }
 
+func archivePreflightWithClient(ctx context.Context, client *cosClient, credentials credentialEnvelope, plan provisioningPlan) (controlPlaneProof, error) {
+	proof, err := verifyBucket(ctx, client, credentials, plan)
+	if err != nil {
+		return proof, err
+	}
+	if _, err := client.head(ctx, credentials.Grant.ObjectKey, ""); err == nil {
+		return proof, errors.New("COS object key already exists before upload")
+	} else if !isMissingObject(err) {
+		return proof, fmt.Errorf("verify COS object absence: %w", err)
+	}
+	proof.PreUploadObjectAbsent = true
+	return proof, nil
+}
+
+func archivePreflight(ctx context.Context, credentials credentialEnvelope, plan provisioningPlan) (string, error) {
+	client, err := newClient(credentials)
+	if err != nil {
+		return "", err
+	}
+	proof, err := archivePreflightWithClient(ctx, client, credentials, plan)
+	if err != nil {
+		return "", err
+	}
+	return digestJSON(proof)
+}
+
 func archiveWithClient(ctx context.Context, client *cosClient, credentials credentialEnvelope, plan provisioningPlan, encryptedPath string, retrievedPath string) (archiveEvidence, error) {
 	var evidence archiveEvidence
-	proof, err := verifyBucket(ctx, client, credentials, plan)
+	proof, err := archivePreflightWithClient(ctx, client, credentials, plan)
 	if err != nil {
 		return evidence, err
 	}
@@ -903,13 +929,6 @@ func archiveWithClient(ctx context.Context, client *cosClient, credentials crede
 	if _, err := os.Lstat(retrievedPath); !errors.Is(err, os.ErrNotExist) {
 		return evidence, errors.New("retrieved backup path must not already exist")
 	}
-	if _, err := client.head(ctx, credentials.Grant.ObjectKey, ""); err == nil {
-		return evidence, errors.New("COS object key already exists before upload")
-	} else if !isMissingObject(err) {
-		return evidence, fmt.Errorf("verify COS object absence: %w", err)
-	}
-	proof.PreUploadObjectAbsent = true
-
 	uploadStarted := time.Now().UTC()
 	retentionUntil := uploadStarted.Add(retentionPeriod).Format("2006-01-02T15:04:05.000Z")
 	extraHeaders := make(http.Header)
@@ -1123,25 +1142,33 @@ func writeEvidence(path string, value archiveEvidence) error {
 }
 
 func run() error {
-	if len(os.Args) < 2 || os.Args[1] != "archive" {
-		return errors.New("command must be archive")
+	if len(os.Args) < 2 || (os.Args[1] != "archive" && os.Args[1] != "preflight") {
+		return errors.New("command must be archive or preflight")
 	}
+	command := os.Args[1]
 	options, err := parseArgs(os.Args[2:])
 	if err != nil {
 		return err
 	}
-	for _, name := range []string{"--credentials", "--encrypted-backup", "--output", "--provisioning-plan", "--retrieved-backup", "--run-id"} {
+	for _, name := range []string{"--credentials", "--provisioning-plan", "--run-id"} {
 		if options[name] == "" {
 			return fmt.Errorf("%s is required", name)
 		}
 	}
-	if len(options) != 6 {
-		return errors.New("unknown archive argument")
+	if command == "preflight" && len(options) != 3 {
+		return errors.New("unknown preflight argument")
+	}
+	if command == "archive" {
+		for _, name := range []string{"--encrypted-backup", "--output", "--retrieved-backup"} {
+			if options[name] == "" {
+				return fmt.Errorf("%s is required", name)
+			}
+		}
+		if len(options) != 6 {
+			return errors.New("unknown archive argument")
+		}
 	}
 	if err := requireRegular(options["--credentials"], "credentials"); err != nil {
-		return err
-	}
-	if err := requireRegular(options["--encrypted-backup"], "encrypted backup"); err != nil {
 		return err
 	}
 	if err := requireRegular(options["--provisioning-plan"], "provisioning plan"); err != nil {
@@ -1159,6 +1186,19 @@ func run() error {
 		return err
 	}
 	if err := validateCredentials(credentials, plan, time.Now()); err != nil {
+		return err
+	}
+	if command == "preflight" {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+		proofDigest, err := archivePreflight(ctx, credentials, plan)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("{\"containsSecret\":false,\"preflightProofDigest\":%q,\"productionDatabaseRead\":false,\"status\":\"PASS_COS_ARCHIVE_PREFLIGHT\"}\n", proofDigest)
+		return nil
+	}
+	if err := requireRegular(options["--encrypted-backup"], "encrypted backup"); err != nil {
 		return err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Minute)
