@@ -105,11 +105,27 @@ export async function loadOfficialAgeArchive(path) {
   };
 }
 
-async function buildCosArchiveBinary(root, output) {
+export function buildP0RGoEnvironments(environment = process.env) {
+  const hostEnvironment = { ...environment };
+  delete hostEnvironment.GOARCH;
+  delete hostEnvironment.GOOS;
+  return Object.freeze({
+    hostTest: Object.freeze({ ...hostEnvironment, CGO_ENABLED: "0" }),
+    linuxBuild: Object.freeze({
+      ...hostEnvironment,
+      CGO_ENABLED: "0",
+      GOARCH: "amd64",
+      GOOS: "linux",
+    }),
+  });
+}
+
+export async function buildCosArchiveBinary(root, output) {
   const directory = resolve(root, "scripts/v2/production/p0r-cos-archive");
+  const goEnvironments = buildP0RGoEnvironments();
   await execFileAsync("go", ["test", "./..."], {
     cwd: directory,
-    env: { ...process.env, CGO_ENABLED: "0", GOARCH: "amd64", GOOS: "linux" },
+    env: goEnvironments.hostTest,
     maxBuffer: 16 * 1024 * 1024,
     timeout: 120_000,
   });
@@ -121,7 +137,7 @@ async function buildCosArchiveBinary(root, output) {
     ".",
   ], {
     cwd: directory,
-    env: { ...process.env, CGO_ENABLED: "0", GOARCH: "amd64", GOOS: "linux" },
+    env: goEnvironments.linuxBuild,
     maxBuffer: 16 * 1024 * 1024,
     timeout: 120_000,
   });

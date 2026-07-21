@@ -7,6 +7,8 @@ import test from "node:test";
 import { promisify } from "node:util";
 import {
   assertLinuxAMD64ELF,
+  buildCosArchiveBinary,
+  buildP0RGoEnvironments,
   buildP0RTransportBundle,
   P0R_AGE_LINUX_AMD64_ARCHIVE_SHA256,
   P0R_AGE_LINUX_AMD64_ARCHIVE_URL,
@@ -143,4 +145,29 @@ test("rejects non-linux-amd64 executable substitution", () => {
   wrong.writeUInt16LE(183, 18);
   assert.throws(() => assertLinuxAMD64ELF(wrong), /linux\/amd64/u);
   assert.throws(() => assertLinuxAMD64ELF(Buffer.from("not-elf")));
+});
+
+test("runs Go tests on the host and cross-compiles only the release binary", () => {
+  const environments = buildP0RGoEnvironments({
+    PATH: process.env.PATH,
+    GOOS: "plan9",
+    GOARCH: "arm64",
+  });
+  assert.equal(environments.hostTest.GOOS, undefined);
+  assert.equal(environments.hostTest.GOARCH, undefined);
+  assert.equal(environments.hostTest.CGO_ENABLED, "0");
+  assert.equal(environments.linuxBuild.GOOS, "linux");
+  assert.equal(environments.linuxBuild.GOARCH, "amd64");
+  assert.equal(environments.linuxBuild.CGO_ENABLED, "0");
+});
+
+test("builds the real COS helper through the host-test and linux-build path", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "p0r-cos-helper-build-test-"));
+  try {
+    const output = join(directory, "p0r-cos-archive");
+    const binary = await buildCosArchiveBinary(process.cwd(), output);
+    assertLinuxAMD64ELF(binary, "real COS helper");
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
