@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "market-radar-v2-m1-p0r-d0-no-cost-capacity-evidence-index.v1",
+  "status": "LOCAL_CAPACITY_MODEL_PASS_EXTERNAL_PREREQUISITES_BLOCKED",
+  "conclusion": "PRODUCTION_CAPACITY_PASS_NOT_CLAIMED",
+  "assessedAt": "2026-07-21T10:36:03.026Z",
+  "sourceCommit": "15746813245744af4f4ba73f61a976b722ad9a21",
+  "sourceTree": "74fa17540031206a072dc379adff289701683f8c",
+  "migrations": [
+    {
+      "version": "v2-m1-partitioned-fact-store.v1",
+      "checksum": "sha256:9a507139b88efa86a5bb5d4593149881a4e8fad8081f27e5a7ada791c8ac7303"
+    },
+    {
+      "version": "v2-m1-partitioned-fact-store.v2",
+      "checksum": "sha256:17cf407811a3f3518cfd7bf15312dda771e0709d8eb23a62b8bcc56f7c14b68e"
+    }
+  ],
+  "calibration": {
+    "evidenceFileSha256": "d20c39ac952125e9225f2df898885e0aeea29092dc3977e09a966abd4d309286",
+    "calibrationDigest": "sha256:a735c3a925674cc969e7ba21a122af056a4404f505ec86b391564f3448dae706",
+    "postgresMajor": 16,
+    "cycles": 8,
+    "factsPerCycle": 1444,
+    "factRows": 11552,
+    "maximumCycleWallDurationMs": 33660,
+    "meanCycleWallDurationMs": 28170,
+    "factStorageBytesPerRowCeiling": 2773,
+    "incrementalFactStorageBytesPerRowCeiling": 2763,
+    "databaseGrowthBytesPerFactCeiling": 2809,
+    "walBytesPerFactCeiling": 3263
+  },
+  "capacityModel": {
+    "assessmentFileSha256": "8d7843ae9fa8e72174c2302af76b43dcc978de91db14623ebd8c039da5b59746",
+    "assessmentEvidenceDigest": "sha256:78a4db6afa3b943689105a68514aa06a8f38f2d5e676a399d9975e94368be99e",
+    "status": "PASS_LOCAL_NO_COST_MODEL",
+    "capacityModelBlockers": [],
+    "plannedFactsPerCycle": 1805,
+    "scanCycleIntervalMs": 60000,
+    "configuredRetentionHours": 30,
+    "partitionSpanHours": 6,
+    "maximumSweepLagHours": 1,
+    "physicalResidenceHours": 37,
+    "bufferedFactBytesPerRow": 4214,
+    "projectedFactRows": 4007100,
+    "projectedFactBytes": 16885919400,
+    "steadyProjectedDiskUsePercent": 59,
+    "peakProjectedDiskUsePercent": 67,
+    "maximumProjectedDiskUsePercent": 70
+  },
+  "externalPrerequisiteBlockers": [
+    "baseline_remote_bundle_digest_well_formed",
+    "production_recovery_evidence_present",
+    "production_topology_evidence_fresh"
+  ],
+  "productionBoundary": {
+    "productionConnected": false,
+    "productionDatabaseMutation": false,
+    "productionServiceMutation": false,
+    "productionRepositoryMutation": false,
+    "migrationPerformed": false,
+    "candidateEmissionAllowed": false,
+    "automaticTradingAllowed": false,
+    "productionCapacityPassClaimed": false
+  },
+  "nextAction": "COMPLETE_EXTERNAL_RECOVERY_PREREQUISITES_AND_REFRESH_PRODUCTION_TOPOLOGY_BEFORE_FRESH_P0"
+}

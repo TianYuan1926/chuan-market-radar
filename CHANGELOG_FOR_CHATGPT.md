@@ -2,6 +2,43 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-21 / V2 M1.6-P0R-D0 No-Cost Capacity and Six-Hour Partitions
+
+### 本轮目标
+
+在不付费扩容、不缩小全市场分母、不放慢一分钟 cadence 和不缩短 24 小时回看的前提下，用生产形状机器证据重新设计 M1 Fact 存储容量，并实现六小时分区 v2。
+
+### 修改范围
+
+- 保持 v1 partition migration checksum 不变，新增 additive v2 六小时 UTC 分区、小时级 cutoff 和非空 v1 拒绝升级门禁。
+- 新增隔离 PG16 容量校准和 no-cost evaluator，固定 1,805 Facts/周期、30h retention、1h sweep、1.5 倍字节成本和全部 reserve。
+- 更新 P0 exact migration 清单、V2 合同、机器证据索引、主蓝图、施工顺序和项目上下文。
+
+### 核心链路影响
+
+只加固 `全市场发现 -> Market Fact + Quality -> Runtime Truth` 的持久化、容量和恢复地基；不改变 Detector、Candidate、Analysis、Strategy、Backtest 或页面。
+
+### 测试结果
+
+- typecheck、定向 partition 7/7、V2 ops 103/103、隔离 PostgreSQL 16 迁移/restore/retention 1/1 PASS。
+- clean commit `15746813245744af4f4ba73f61a976b722ad9a21` 完成 8 周期/11,552 Fact，最大周期 33,660 ms。
+- 容量模型稳态 59%、峰值 67%、固定上限 70%，`PASS_LOCAL_NO_COST_MODEL`。
+- 完整 `ci:production` PASS：Legacy 965/0/4 skip、Worker 23/23、historical 4/4、V2 foundation 279/0/6 explicit skips、ops 103/103、M0 11/11、build、Golden 16/16 和 security 全部通过。
+
+### 是否部署
+
+未部署。生产 DB/Redis/env/migration/Feature Flag/服务/仓库/Candidate runtime/authority 零变更；未生成 age/STS、未上传对象、未执行生产恢复。
+
+### 风险与遗留问题
+
+- 本地容量模型 PASS 不等于 production P0 PASS；旧 topology 过期，旧远端 bundle 摘要长度不合法。
+- Object Lock 白名单、真实 age/STS、加密备份、exact retrieval、隔离恢复和 fresh P0 仍未完成。
+- P1 继续关闭。
+
+### 下一轮建议
+
+只完成外部恢复前置和真实 recovery evidence，然后刷新生产 topology 并完整重跑 P0。
+
 ## 2026-07-21 / V2 M1.6-P0R-B1B Object Lock and Age Vault Qualification
 
 ### 本轮目标
@@ -144,40 +181,3 @@
 ### 下一轮建议
 
 只继续 P0R 生产动作：真实备份/取回/隔离恢复证据先于扩容，生产健康恢复后完整重跑 P0；禁止直接进入 P1。
-
-## 2026-07-21 / V2 M1.6-P0 Production Storage Read-Only Preflight
-
-### 本轮目标
-
-以 exact source 和只读生产证据决定 M1.6 是否允许进入 P1 Add Schema，并在 BLOCKED 时插入正确整改步骤而不是降低门槛。
-
-### 修改范围
-
-- 新增 strict P0 report、只读 SQL probe、secret-file/临时 host runtime runner 和 22 个 anti-inflation 场景。
-- 在腾讯生产宿主机读取 PostgreSQL、schema、容量、Docker/Git before/after；数据库、服务、仓库和 migration 零变更。
-- 新增脱敏证据索引、P0 交付报告和 P0R 容量/恢复合同；施工入口改为 P0R。
-
-### 核心链路影响
-
-保护 `全市场发现 -> Market Fact + Quality -> Runtime Truth` 的生产存储地基；不产生 Detector、Candidate、Analysis、Strategy、页面或交易权限。
-
-### 测试结果
-
-- P0 定向 22/22、V2 ops 54/54、M0 PASS。
-- 完整 `ci:production` 退出码 0：Legacy 965/0/4 skip、Worker 23/23、Historical 4/4、V2 277/0/5 explicit skip、ops 54/54、build、Golden 16/16 和 security PASS。
-- fact capture=`PASS_READ_ONLY_FACT_CAPTURE`；admission=`BLOCKED`。PostgreSQL 16、schema=`ABSENT_CLEAN`、旧/新 Fact=0、connection use=2%。
-- P0 report `sha256:344ae4e05ec78e74ca97c92728fc06576f744e795bf4919d6eb3b76ee145769e`；远端 bundle `sha256:4d25adbd3247181cb526ded488b9b681d0563eadfcbb8109d8f5b15ee2b8e58`。
-
-### 是否部署
-
-未部署应用。只执行生产只读 probe；DB/Redis/env/migration/Feature Flag/服务/仓库/Candidate runtime/authority 零变更。
-
-### 风险与遗留问题
-
-- 120 GiB 系统盘预计使用率 90%，当前可用 70.02 GB 小于 87.09 GB 所需 headroom；文件系统硬门槛 161,643,694,113 bytes，推荐 180 GiB。
-- recovery evidence 缺失；data checksums、WAL archive、bootstrap 权限和默认时区仍为 advisory。
-- P0 已过期，整改后必须完整重跑，不能沿用或改写本轮报告。
-
-### 下一轮建议
-
-只执行 `V2-M1.6-P0R-CAPACITY-AND-RECOVERY-REMEDIATION`；取得加密离机备份、隔离恢复和容量整改后重跑 P0，禁止直接进入 P1。

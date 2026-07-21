@@ -44,8 +44,9 @@ Legacy G0 的七个生产出口继续作为历史安全义务，但它们不是 
 | 17 | [M1.5 Live No-Authority Collector 合同](../architecture/v2/M1_5_LIVE_NO_AUTHORITY_COLLECTOR_CONTRACT_V1.md) | checkpoint、调度、证据三态、live rehearsal 和独立生产 Gate |
 | 18 | [M1.5-B0 Shadow Release Safety 合同](../architecture/v2/M1_5_B0_SHADOW_RELEASE_SAFETY_CONTRACT_V1.md) | 最小权限身份、secret-file、完整 observation、有限 Shadow 与存储阻断 |
 | 19 | [M1.5-B0 交付报告](./V2_M1_5_B0_SHADOW_RELEASE_SAFETY_DELIVERY_REPORT.md) | 41 项定向证据、外部通道事实、Docker 未证明边界与新施工顺序 |
-| 20 | [M1.6 Partitioned Fact Storage 合同](../architecture/v2/M1_6_PARTITIONED_FACT_STORAGE_CONTRACT_V1.md) | 日分区、容量、最小权限、restore-verified retention 与生产未证明边界 |
+| 20 | [M1.6 Partitioned Fact Storage V2 合同](../architecture/v2/M1_6_PARTITIONED_FACT_STORAGE_CONTRACT_V2.md) | 六小时分区、无扩容容量模型、最小权限、restore-verified retention 与生产未证明边界 |
 | 21 | [M1.6 交付报告](./V2_M1_6_PARTITIONED_FACT_STORAGE_DELIVERY_REPORT.md) | 迁移兼容、PG16 跨分区、真实 dump/restore/replay 和清理审计证据 |
+| 21A | [M1.6-P0R-D0 无扩容容量交付报告](./V2_M1_6_P0R_D0_NO_COST_CAPACITY_AND_SIX_HOUR_PARTITION_DELIVERY_REPORT.md) | 8 周期机器校准、六小时 v2 迁移、59%/67% 容量模型和外部门禁 |
 | 22 | [M2.0 发现合同与黄金样本](../architecture/v2/M2_0_DISCOVERY_CONTRACTS_AND_GOLDEN_FIXTURES_V1.md) | 六族十四模式、双 cutoff、Candidate/Episode/Thesis、去重、运行漏斗与 future-leak 防线 |
 | 23 | [M2.0 交付报告](./V2_M2_0_DISCOVERY_CONTRACTS_DELIVERY_REPORT.md) | 发现合同、19 个 point-in-time fixture、完整门禁和 M1 runtime 阻断证据 |
 | 24 | [M2.1 DRAFT 回放内核合同](../architecture/v2/M2_1_DRAFT_REPLAY_KERNELS_CONTRACT_V1.md) | 五个独立内核、未校准阈值、方向/veto/unavailable、确定性和 Candidate 禁发边界 |
