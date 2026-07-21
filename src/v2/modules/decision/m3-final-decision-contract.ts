@@ -327,6 +327,20 @@ function addIdentityIssues(
       "a strategy direction requires the same explicit family-analysis direction",
     );
   }
+  const expectedEvidenceItemIds = evidence.items
+    .map((item) => item.evidenceId)
+    .sort();
+  if (
+    stableContentHash([...analysis.evidenceItemIds].sort()) !==
+      stableContentHash(expectedEvidenceItemIds)
+  ) {
+    issue(
+      issues,
+      "analysis_evidence_item_lineage_incomplete",
+      "analysis.evidenceItemIds",
+      "family analysis must account for every evidence item exactly once",
+    );
+  }
 }
 
 function authorizationReasons(bundle: M3FinalDecisionBundle): string[] {
@@ -366,6 +380,19 @@ function authorizationReasons(bundle: M3FinalDecisionBundle): string[] {
   }
   if (bundle.episode.lifecycle !== "PROMOTED") {
     reasons.add("candidate_episode_not_promoted");
+  }
+  const requiredAnalysisAuthority = {
+    REPLAY: "REPLAY_CALIBRATED",
+    SHADOW: "SHADOW_CALIBRATED",
+    LIMITED: "LIMITED_CALIBRATED",
+    PRODUCTION: "PRODUCTION_CALIBRATED",
+  } as const;
+  if (
+    authorization.decisionScope !== "TEST_ONLY" &&
+    bundle.analysis.analysisAuthority !==
+      requiredAnalysisAuthority[authorization.decisionScope]
+  ) {
+    reasons.add("family_analysis_authority_not_calibrated_for_scope");
   }
   return [...reasons].sort();
 }

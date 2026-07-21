@@ -47,7 +47,8 @@
 - [ ] **M2.2-C Registered Replay + Sensitivity + Untouched Holdout**：先在 validation 执行全部预登记 sensitivity trial 并报告失败，再单次打开 holdout，输出 overall/family/detector/direction/regime/liquidity 指标、Top20 late/noise、失败案例和 sealed result；每个实际 stratum 都必须登记并逐层过线，数据或样本不足必须 INSUFFICIENT。
 - [ ] **M2.2-D Independent Audit + Lifecycle Proposal**：独立复核来源权利、分母、future leak、trial completeness、custody ledger 和 Gate digest。只有 PASS 才可提出 REPLAY_VALIDATED；生命周期修改仍需独立 package，Candidate/runtime 仍封闭。
 - [ ] **M3 唯一决策纵向切片**：完成 family-specific Analysis、Evidence/Setup 双评级、StrategyDraft、Execution Feasibility 唯一终审、Personal/Portfolio Risk。验证：只有 Final Decision 能产生 READY，false READY=0，结构与净 RR 均不低于 3，所有关键缺失 fail closed。
-- [x] **M3.0 Final Decision Authority Contract（可并行本地）**：已冻结 upstream authority、same-release/id/time lineage、Evidence/Setup 独立状态、Draft/Feasibility/Trigger/Runtime Gate、Action State 优先级、READY plan parity 和派生原因完整性。定向 15/15、全 V2 294 pass / 0 fail / 6 explicit skip、完整 CI PASS。状态：`LOCAL_CONTRACT_PASS / TEST_ONLY_NO_PRODUCTION_AUTHORITY / M1_P0R_PENDING / M2_DETECTORS_DRAFT`；family Analysis、真实校准、Strategy template、live Feasibility、Personal/Portfolio Risk 和 M3 runtime 均未完成。
+- [x] **M3.0 Final Decision Authority Contract（可并行本地）**：已冻结 upstream authority、same-release/id/time lineage、Evidence/Setup 独立状态、Draft/Feasibility/Trigger/Runtime Gate、Action State 优先级、READY plan parity 和派生原因完整性。M3.1 后回归扩至 17/17，未校准 Analysis 或丢失反证均不得进入有权决策。状态：`LOCAL_CONTRACT_PASS / TEST_ONLY_NO_PRODUCTION_AUTHORITY / M1_P0R_PENDING / M2_DETECTORS_DRAFT`。
+- [x] **M3.1 Family Analysis + Evidence Interpretation（可并行本地）**：六族分别覆盖 long、short、失效/unavailable；EvidenceItem 必须恰好解释一次，反证不得丢失，Market Context 和结构位绑定 exact lineage，缺失/stale/冲突/未来读/标签漂白/Fib-only 均 fail closed 或降为 UNKNOWN。`AnalysisSnapshot v2` 增加 evidence ids、Market Context id 与校准 authority。M3.1 21/21、M3 合计 38/38、全 V2 317 pass / 0 fail / 6 explicit skip、完整 CI PASS。状态：`LOCAL_CONTRACT_PASS / TEST_ONLY_UNCALIBRATED / NO_STRATEGY_AUTHORITY / PRODUCTION_UNCHANGED`；真实 Deep Validation、双评级校准、Strategy、live Feasibility、Risk 和 M3 runtime 均未完成。
 - [ ] **M4 单一读模型与专业工作台**：先建立 DecisionSnapshot 和站内 Alert，再重建 Inbox、Token Workbench、Review、System。验证：页面零 provider/decision 调用，同一 snapshot 在所有视图一致，E2E、a11y、visual、performance 和注意力预算通过。
 - [ ] **M5 结果与研究治理**：从 M2 首个 Episode 起并行采集 Outcome，但只有冻结数据成熟后才评估；Research 与 Evaluation 物理分离。验证：future leak=0、Missed Movers/对照组完整、全部试验登记、Challenger 不能自批或自动晋级。
 - [ ] **M6-M7 受控切换与实战准入**：严格按 replay -> no-write shadow -> isolated write -> dual read -> read authority -> single write -> rollback retention -> Legacy retirement；最后完成 60 天 Shadow、30 天模拟决策、安全、恢复和外部审计。验证：每次只切一个 authority，R4 评分与一票否决全部过线后才允许声明“人工实战决策辅助准入”。
@@ -101,12 +102,13 @@ M2.2-B0.2-B external rights/source resolution
 
 ```text
 M0 engineering exit: LOCAL_PASS / PRODUCTION_UNCHANGED
-Last completed local package: V2-M3.0-FINAL-DECISION-AUTHORITY-CONTRACT
+Last completed local package: V2-M3.1-FAMILY-ANALYSIS-AND-EVIDENCE-INTERPRETATION
+Next local package: V2-M3.2-EVIDENCE-AND-SETUP-QUALIFICATION-CONTRACT
 Last production gate execution: V2-M1.6-P0-PRODUCTION-STORAGE-READ-ONLY-PREFLIGHT = BLOCKED
 Current execution entry: V2-M1.6-P0R-C-STS-ENCRYPTED-BACKUP-EXACT-RETRIEVAL-AND-ISOLATED-RESTORE; Object Lock 31d, age Keychain identity and exact transport bundle are complete
 Current blocked external entry: V2-M2.2-B0.2-B-EXACT-SOURCE-RIGHTS-AND-CAPABILITY-RESOLUTION
 Completed bounded shadow gate: V2-M1.5-B1-B-PASS_EARLY_SHADOW_BUSINESS_GATE
-Current status: M1.5-B1_COMPLETE / B1-B1_EXECUTION_INVALID_NOT_COUNTED / B1-B3_PASS / M1.6-P0_EXECUTED_BLOCKED_CAPACITY_AND_RECOVERY / M1.6-P0R_OBJECT_LOCK_31D_AGE_VAULT_AND_TRANSPORT_PASS_STS_AND_RECOVERY_PENDING / M3.0_LOCAL_CONTRACT_PASS_NO_AUTHORITY / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED / PRODUCTION_SERVICES_DATA_AND_AUTHORITY_UNCHANGED
+Current status: M1.5-B1_COMPLETE / B1-B1_EXECUTION_INVALID_NOT_COUNTED / B1-B3_PASS / M1.6-P0_EXECUTED_BLOCKED_CAPACITY_AND_RECOVERY / M1.6-P0R_OBJECT_LOCK_31D_AGE_VAULT_AND_TRANSPORT_PASS_STS_AND_RECOVERY_PENDING / M3.0_DECISION_CONTRACT_AND_M3.1_FAMILY_ANALYSIS_LOCAL_PASS_TEST_ONLY_UNCALIBRATED_NO_AUTHORITY / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED / PRODUCTION_SERVICES_DATA_AND_AUTHORITY_UNCHANGED
 ```
 
 M0 的减数只代表合同、运行时输入边界、Legacy 消费者地图和隔离门禁已经形成闭环；它不代表真实 Provider、全市场扫描、Detector、交易计划、页面或生产能力已经完成。

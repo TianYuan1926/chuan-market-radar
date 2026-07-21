@@ -340,7 +340,15 @@ export type AnalysisSnapshot = TraceEnvelope & {
   episodeId: string;
   thesisId: string;
   evidencePackageId: string;
+  evidenceItemIds: readonly string[];
+  marketContextSnapshotId: string;
   analyzerVersion: string;
+  analysisAuthority:
+    | "TEST_ONLY_UNCALIBRATED"
+    | "REPLAY_CALIBRATED"
+    | "SHADOW_CALIBRATED"
+    | "LIMITED_CALIBRATED"
+    | "PRODUCTION_CALIBRATED";
   opportunityFamily: OpportunityFamily;
   directionBias: DirectionHypothesis;
   structureState: string;

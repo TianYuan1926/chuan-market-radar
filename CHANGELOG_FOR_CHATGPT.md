@@ -2,6 +2,39 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-22 / V2 M3.1 Family Analysis and Evidence Interpretation
+
+### 本轮目标
+
+建立六类机会的独立 Analysis/Evidence 解释合同，完整保留反证、point-in-time lineage 和不确定性，同时禁止越权生成等级或计划。
+
+### 修改范围
+
+- 新增六族 long、short、失效/unavailable policy 与 21 项合同测试。
+- `AnalysisSnapshot v2` 新增 exact evidence ids、Market Context id 和 calibration authority。
+- M3.0 增加 EvidenceItem 全核算和 scope-matched Analysis authority 门禁，回归扩至 17 项。
+
+### 核心链路影响
+
+加固 `深扫验证 -> 结构分析 -> 后续双评级` 的来源和反证边界，不改变发现、策略或生产运行。
+
+### 测试结果
+
+- M3.1 21/21、M3.0 17/17，合计 38/38 PASS。
+- 完整 `ci:production` PASS：全 V2 317/0/6 explicit skip、ops 115/115、M0 11/11、build、Golden 16/16、security PASS；`test:market` PASS。
+
+### 是否部署
+
+未部署；生产服务、数据库、Redis、Worker、migration、数据和 authority 零变更。
+
+### 风险与遗留问题
+
+当前 policy 固定 `TEST_ONLY_UNCALIBRATED`；真实 Deep Validation、双评级校准、Strategy、Feasibility、Risk、holdout 和 runtime 均未完成。
+
+### 下一轮建议
+
+本地只进入 M3.2 Evidence/Setup Qualification 合同；生产线保持 P0R 单一 WIP。
+
 ## 2026-07-21 / V2 M1.6-P0R-B1C Object Lock, Age and Transport Preparation
 
 ### 本轮目标
@@ -131,33 +164,3 @@ M1 未退出、M2 Gate=INSUFFICIENT、Detector=DRAFT、Candidate 禁发；当前
 ### 下一轮建议
 
 与真实 recovery evidence、fresh topology 和 P0 组合验收。
-
-## 2026-07-21 / V2 M1.6-P0R-B1B Object Lock and Age Vault Qualification
-
-### 本轮目标
-
-确认 Object Lock 资格，并建立免费、受保护的 age X25519 Keychain 工具。
-
-### 修改范围
-
-- 当时控制台无 Object Lock 入口，状态如实为 `WHITELIST_REQUIRED`；实现官方 archive checksum、recipient 推导、Keychain readback、失败回滚和无私钥 attestation。
-
-### 核心链路影响
-
-只加固恢复地基。
-
-### 测试结果
-
-- age vault 6/6、P0R 41/41 和当轮完整 CI PASS。
-
-### 是否部署
-
-该历史轮未启用 Object Lock、未生成身份或 STS；更晚事实以本文件首条为准。
-
-### 风险与遗留问题
-
-该轮白名单 blocker 已由后续事实关闭，不能再当当前状态。
-
-### 下一轮建议
-
-已被 B1C 真实 Object Lock、age identity 和 transport preparation 取代。

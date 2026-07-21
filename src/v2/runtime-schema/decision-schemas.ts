@@ -694,7 +694,16 @@ export const AnalysisSnapshotSchema = z.strictObject({
   episodeId: NonEmptyStringSchema,
   thesisId: NonEmptyStringSchema,
   evidencePackageId: NonEmptyStringSchema,
+  evidenceItemIds: z.array(NonEmptyStringSchema).min(1),
+  marketContextSnapshotId: NonEmptyStringSchema,
   analyzerVersion: NonEmptyStringSchema,
+  analysisAuthority: z.enum([
+    "TEST_ONLY_UNCALIBRATED",
+    "REPLAY_CALIBRATED",
+    "SHADOW_CALIBRATED",
+    "LIMITED_CALIBRATED",
+    "PRODUCTION_CALIBRATED",
+  ]),
   opportunityFamily: z.enum(OPPORTUNITY_FAMILIES),
   directionBias: DirectionHypothesisSchema,
   structureState: NonEmptyStringSchema,
@@ -707,6 +716,14 @@ export const AnalysisSnapshotSchema = z.strictObject({
   fakeoutRisk: z.enum(["LOW", "MEDIUM", "HIGH", "UNKNOWN"]),
   noiseRisk: z.enum(["LOW", "MEDIUM", "HIGH", "UNKNOWN"]),
   uncertainty: UncertaintyVectorSchema,
+}).superRefine((analysis, context) => {
+  if (new Set(analysis.evidenceItemIds).size !== analysis.evidenceItemIds.length) {
+    context.addIssue({
+      code: "custom",
+      message: "analysis evidence item references must be unique",
+      path: ["evidenceItemIds"],
+    });
+  }
 }) satisfies z.ZodType<AnalysisSnapshot>;
 
 export const CalibrationReferenceSchema = z.strictObject({

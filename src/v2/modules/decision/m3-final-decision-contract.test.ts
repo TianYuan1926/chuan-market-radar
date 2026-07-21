@@ -251,12 +251,17 @@ function bundle(
       quality: fresh,
     },
     analysis: {
-      ...trace("family_analysis", "analysis-snapshot.v1"),
+      ...trace("family_analysis", "analysis-snapshot.v2"),
       analysisId: "analysis-m3-one",
       episodeId: "episode-m3-one",
       thesisId: "thesis-m3-one",
       evidencePackageId: "evidence-m3-one",
+      evidenceItemIds: ["evidence-item-m3-one"],
+      marketContextSnapshotId: "market-context-m3-one",
       analyzerVersion: "breakout-retest-analyzer.v1",
+      analysisAuthority: authorized
+        ? "REPLAY_CALIBRATED"
+        : "TEST_ONLY_UNCALIBRATED",
       opportunityFamily: "BREAKOUT_RETEST",
       directionBias: "LONG",
       structureState: "ROLE_FLIP_RETEST",
@@ -542,6 +547,46 @@ test("rejects production write authority without final-decision authority", () =
   assert.equal(assessment.validationStatus, "BLOCKED");
   assert.equal(assessment.expectedActionState, null);
   assert.ok(assessment.reasonCodes.includes("bundle_schema_rejected"));
+});
+
+test("rejects family analysis that silently drops counter evidence", () => {
+  const hiddenCounter = structuredClone(bundle());
+  hiddenCounter.evidence.items.push({
+    evidenceId: "evidence-item-hidden-counter",
+    category: "counter_structure",
+    stance: "CONTRADICTING",
+    factIds: ["fact-hidden-counter"],
+    featureIds: [],
+    observedAt: CUTOFF,
+    quality: { status: "FRESH", ageMs: 0, reasonCodes: [] },
+    reasonCodes: ["price_returned_inside_structure"],
+  });
+  const assessment = assessM3FinalDecisionBundle(hiddenCounter);
+  assert.equal(assessment.validationStatus, "BLOCKED");
+  assert.ok(
+    assessment.issues.some((item) =>
+      item.code === "analysis_evidence_item_lineage_incomplete"
+    ),
+  );
+});
+
+test("rejects uncalibrated family analysis in an authorized replay decision", () => {
+  const uncalibrated = structuredClone(bundle());
+  uncalibrated.analysis.analysisAuthority = "TEST_ONLY_UNCALIBRATED";
+  uncalibrated.decision.reasonCodes = [
+    "family_analysis_authority_not_calibrated_for_scope",
+  ];
+  uncalibrated.decision.actionState = "BLOCKED";
+  uncalibrated.decision.executablePlan = null;
+  const assessment = assessM3FinalDecisionBundle(uncalibrated);
+  assert.equal(assessment.validationStatus, "PASS");
+  assert.equal(assessment.authorityStatus, "NOT_AUTHORIZED");
+  assert.equal(assessment.expectedActionState, "BLOCKED");
+  assert.ok(
+    assessment.reasonCodes.includes(
+      "family_analysis_authority_not_calibrated_for_scope",
+    ),
+  );
 });
 
 test("strictly rejects unknown fields instead of silently accepting future material", () => {
