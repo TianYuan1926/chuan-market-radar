@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.12",
-  "status": "m1_5_b1_early_shadow_business_gate_pass_b1b1_execution_invalid_not_counted_b1b3_pass_m1_6_p0_current_m2_2_c1_forward_only_ready_external_rights_and_historical_source_blocked_m1_not_complete",
-  "generatedAt": "2026-07-21T05:49:35+08:00",
+  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.14",
+  "status": "m1_5_b1_early_shadow_business_gate_pass_b1b1_execution_invalid_not_counted_b1b3_pass_m1_6_p0_executed_blocked_capacity_and_recovery_p0r_local_recovery_engineering_pass_production_action_pending_m2_2_c1_forward_only_ready_external_rights_and_historical_source_blocked_m1_not_complete",
+  "generatedAt": "2026-07-21T09:07:43+08:00",
   "implementationAuthorized": true,
   "productionMutationAuthorized": false,
   "authority": {
@@ -10,7 +10,7 @@
     "index": "docs/blueprints/README.md",
     "currentFacts": "PROJECT_CONTEXT_FOR_CHATGPT.md",
     "recentChanges": "CHANGELOG_FOR_CHATGPT.md",
-    "deliveryReport": "docs/blueprints/V2_M1_5_B1_B3_MARK_PRICE_SAME_GATE_RETEST_DELIVERY_REPORT.md",
+    "deliveryReport": "docs/blueprints/V2_M1_6_P0R_RECOVERY_ENGINEERING_DELIVERY_REPORT.md",
     "buildSequence": "market-radar-v2-build-sequence.md",
     "baseManifest": "docs/architecture/v2/V2_BASE_MANIFEST.v1.json",
     "baselineDecision": "docs/architecture/v2/ADR-0001-CLEAN-BASELINE-AND-V2-ISOLATION.md",
@@ -30,6 +30,11 @@
     "m1EarlyShadowEvidenceContract": "docs/architecture/v2/M1_5_B1_B0_EARLY_SHADOW_EVIDENCE_CONTRACT_V1.md",
     "m1MarkPriceSnapshotSemanticsContract": "docs/architecture/v2/M1_5_B1_B2_MARK_PRICE_SNAPSHOT_SEMANTICS_CONTRACT_V1.md",
     "m1PartitionedFactStorageContract": "docs/architecture/v2/M1_6_PARTITIONED_FACT_STORAGE_CONTRACT_V1.md",
+    "m1ProductionStorageRemediationContract": "docs/architecture/v2/M1_6_P0R_CAPACITY_AND_RECOVERY_REMEDIATION_CONTRACT_V1.md",
+    "m1ProductionStorageP0DeliveryReport": "docs/blueprints/V2_M1_6_P0_PRODUCTION_STORAGE_READ_ONLY_PREFLIGHT_DELIVERY_REPORT.md",
+    "m1ProductionStorageP0EvidenceIndex": "docs/blueprints/V2_M1_6_P0_PRODUCTION_STORAGE_EVIDENCE_INDEX.json",
+    "m1ProductionStorageP0RDeliveryReport": "docs/blueprints/V2_M1_6_P0R_RECOVERY_ENGINEERING_DELIVERY_REPORT.md",
+    "m1ProductionStorageP0RRunbook": "docs/runbooks/V2_M1_6_P0R_PRODUCTION_RECOVERY_RUNBOOK.md",
     "m2DiscoveryContractsAndGoldenFixtures": "docs/architecture/v2/M2_0_DISCOVERY_CONTRACTS_AND_GOLDEN_FIXTURES_V1.md",
     "m2DraftReplayKernelsContract": "docs/architecture/v2/M2_1_DRAFT_REPLAY_KERNELS_CONTRACT_V1.md",
     "m2HistoricalReplayGateContract": "docs/architecture/v2/M2_2_HISTORICAL_REPLAY_AND_LIFECYCLE_GATE_CONTRACT_V1.md",
@@ -56,10 +61,10 @@
   "currentBoundary": {
     "readiness": "R1",
     "status": "runnable_but_incomplete_not_practical_ready",
-    "v2ImplementationStatus": "m1_5_b1b2_mark_price_semantics_local_engineering_exit_pass_b1b1_execution_invalid_not_counted_b1b3_same_gate_retest_pending_business_slo_unproven_m2_2_c1_forward_only_ready_external_rights_blocked_detectors_draft_candidate_emission_false_m1_not_complete",
+    "v2ImplementationStatus": "m1_5_b1_complete_b1b1_execution_invalid_not_counted_b1b3_business_gate_pass_m1_6_p0_executed_blocked_capacity_and_recovery_p0r_local_recovery_engineering_pass_production_action_pending_m2_2_c1_forward_only_ready_external_rights_blocked_detectors_draft_candidate_emission_false_m1_not_complete",
     "v2ImplementationBranch": "codex/market-radar-v2-implementation",
     "v2ImplementationBaseCommit": "e5eb90026d8bfcd52b060359446515de5a5c32d6",
-    "latestProductionFinalStatus": "unknown_until_fresh_read_only_verification",
+    "latestProductionFinalStatus": "storage_preflight_blocked_capacity_and_recovery_application_health_not_evaluated",
     "legacyProductionRole": [
       "temporary_research_baseline",
       "migration_source",
@@ -694,7 +699,7 @@
       "dependsOn": [
         "M0"
       ],
-      "status": "b1b3_early_shadow_business_gate_pass_m1_5_b1_complete_m1_6_p0_current_m1_not_complete",
+    "status": "b1b3_early_shadow_business_gate_pass_m1_5_b1_complete_m1_6_p0_executed_blocked_p0r_local_recovery_engineering_pass_production_action_pending_m1_not_complete",
       "workPackages": [
         {
           "id": "M1.5-B1-A",
@@ -721,11 +726,21 @@
           "name": "mark_price_same_policy_atomic_31_cycle_retest",
           "status": "pass_early_shadow_business_gate_host_restored"
         },
-        {
-          "id": "M1.6-P",
-          "name": "production_storage_staged_enablement",
-          "status": "p0_read_only_preflight_current"
-        },
+      {
+        "id": "M1.6-P",
+        "name": "production_storage_staged_enablement",
+        "status": "p0_executed_blocked_capacity_and_recovery_p0r_current"
+      },
+      {
+        "id": "M1.6-P0",
+        "name": "production_storage_fresh_read_only_preflight",
+        "status": "executed_fact_capture_pass_admission_blocked_zero_production_mutation"
+      },
+      {
+        "id": "M1.6-P0R",
+        "name": "capacity_encrypted_off_host_backup_and_isolated_restore_remediation",
+        "status": "local_recovery_engineering_pass_production_recovery_and_capacity_action_pending"
+      },
         {
           "id": "M1.7",
           "name": "sustained_24_hour_shadow_slo",
@@ -900,17 +915,17 @@
     "legacyDeletionAllowed": false
   },
   "lastCompletedImplementationEntry": {
-    "id": "V2-M1.5-B1-B3-MARK-PRICE-SAME-GATE-31-CYCLE-RETEST",
-    "name": "mark_price_same_policy_atomic_31_cycle_retest",
-    "status": "pass_early_shadow_business_gate_m1_5_b1_complete_production_unchanged",
+    "id": "V2-M1.6-P0R-LOCAL-RECOVERY-ENGINEERING",
+    "name": "production_storage_recovery_artifact_runner_verifier_and_failure_injection",
+    "status": "local_recovery_engineering_pass_production_recovery_not_executed",
     "productionMutationPerformed": false,
     "migrationPerformed": false,
     "legacyDeletionPerformed": false
   },
   "currentImplementationEntry": {
-    "id": "V2-M1.6-P0-PRODUCTION-STORAGE-READ-ONLY-PREFLIGHT-CONTRACT",
-    "name": "production_storage_fresh_read_only_preflight_contract_and_evidence",
-    "status": "current_local_engineering_entry_production_read_only_execution_pending",
+    "id": "V2-M1.6-P0R-CAPACITY-AND-RECOVERY-REMEDIATION",
+    "name": "production_storage_capacity_encrypted_off_host_backup_and_isolated_restore_remediation",
+    "status": "local_recovery_engineering_pass_production_recovery_and_capacity_action_pending",
     "productionMutationAllowed": false,
     "migrationAllowed": false,
     "legacyDeletionAllowed": false
@@ -1060,9 +1075,69 @@
     "productionMutationAllowed": false,
     "evidenceDigest": "sha256:58b5d118503def8287642b78e12eb895a26130ac0ecb12b52bbf06e82ce51860"
   },
-  "currentProductionStorageGate": {
+  "executedProductionStorageReadOnlyPreflight": {
     "id": "V2-M1.6-P0-PRODUCTION-STORAGE-READ-ONLY-PREFLIGHT-CONTRACT",
-    "status": "current_local_engineering_entry_production_read_only_execution_pending",
+    "status": "BLOCKED",
+    "readOnlyFactCapturePassed": true,
+    "sourceCommit": "d5dbc804be00c546624ab933bad6282228f983c4",
+    "productionHead": "cec0b6572bb09ae91ff9e013f8bb160f73c045e2",
+    "reportEvidenceDigest": "sha256:344ae4e05ec78e74ca97c92728fc06576f744e795bf4919d6eb3b76ee145769e",
+    "remoteBundleDigest": "sha256:4d25adbd3247181cb526ded488b9b681d0563eadfcbb8109d8f5b15ee2b8e58",
+    "schemaStage": "ABSENT_CLEAN",
+    "postgresMajor": 16,
+    "legacyFactCount": 0,
+    "partitionedFactCount": 0,
+    "filesystemTotalBytes": 126695636264,
+    "filesystemAvailableBytes": 70016385024,
+    "requiredHeadroomBytes": 87088269540,
+    "minimumFilesystemTotalBytes": 161643694113,
+    "projectedDiskUsePercent": 90,
+    "blockers": [
+      "primary_capacity_headroom_available",
+      "primary_projected_disk_use_below_70_percent",
+      "recovery_evidence_present"
+    ],
+    "p1AddSchemaAllowed": false,
+    "productionMutationPerformed": false,
+    "migrationPerformed": false,
+    "candidateEmissionAllowed": false
+  },
+  "completedP0RLocalRecoveryEngineering": {
+    "id": "V2-M1.6-P0R-LOCAL-RECOVERY-ENGINEERING",
+    "status": "LOCAL_RECOVERY_ENGINEERING_PASS",
+    "directedTestPassed": 28,
+    "directedTestFailed": 0,
+    "v2OpsTestPassed": 82,
+    "v2OpsTestFailed": 0,
+    "offHostProvider": "TENCENT_COS",
+    "encryption": "AGE_X25519_BEFORE_HOST_EXIT",
+    "plaintextDumpFileAllowed": false,
+    "sameSnapshotBackupAndFingerprintRequired": true,
+    "exactRemoteVersionRetrievalRequired": true,
+    "isolatedRestorePostgresMajor": 16,
+    "isolatedRestoreNetworkMode": "none",
+    "temporaryCredentialsRequired": true,
+    "productionRecoveryExecuted": false,
+    "capacityRemediated": false,
+    "freshP0Passed": false,
+    "productionMutationPerformed": false,
+    "migrationPerformed": false,
+    "candidateEmissionAllowed": false
+  },
+  "currentProductionStorageGate": {
+    "id": "V2-M1.6-P0R-CAPACITY-AND-RECOVERY-REMEDIATION",
+    "status": "local_recovery_engineering_pass_production_recovery_and_capacity_action_pending",
+    "localRecoveryEngineeringStatus": "PASS",
+    "productionRecoveryExecuted": false,
+    "capacityRemediated": false,
+    "freshP0Passed": false,
+    "p1AddSchemaAllowed": false,
+    "requiredFilesystemTotalBytes": 161643694113,
+    "recommendedSystemDiskGiB": 180,
+    "encryptedOffHostBackupRequired": true,
+    "isolatedPostgres16RestoreRequired": true,
+    "freshP0RerunRequired": true,
+    "financialActionRequiresUser": true,
     "productionMutationAllowed": false,
     "migrationAllowed": false,
     "legacyDeletionAllowed": false,

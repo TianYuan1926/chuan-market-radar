@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "market-radar-v2-m1-p0-evidence-index.v1",
+  "status": "BLOCKED",
+  "conclusion": "BLOCKED",
+  "evaluatedAt": "2026-07-20T23:30:13.000Z",
+  "expiresAt": "2026-07-20T23:45:13.000Z",
+  "sourceCommit": "d5dbc804be00c546624ab933bad6282228f983c4",
+  "productionHead": "cec0b6572bb09ae91ff9e013f8bb160f73c045e2",
+  "checksums": {
+    "probeSha256": "e623a622503c8946c2a64ddd7228a50a5a79db33d30795eb8253d587f9fc052d",
+    "databaseFactsSha256": "b918c1d4255bc5b8066cc5eae176675a051399fc863a5847172970b05f154369",
+    "hostFactsSha256": "74e082caf311d807f765a569e6e015c8b5f3531f0c0a681be95635376f226abf",
+    "reportEvidenceDigest": "sha256:344ae4e05ec78e74ca97c92728fc06576f744e795bf4919d6eb3b76ee145769e",
+    "remoteBundleSha256": "4d25adbd3247181cb526ded488b9b681d0563eadfcbb8109d8f5b15ee2b8e58"
+  },
+  "remoteEvidence": {
+    "directory": "/home/ubuntu/.cache/market-radar-v2/evidence/m1-p0-d5dbc804be00",
+    "bundle": "/home/ubuntu/.cache/market-radar-v2/evidence/m1-p0-d5dbc804be00.tar.gz",
+    "bundleBytes": 4636,
+    "containsSecret": false,
+    "localRawBundleCaptured": false,
+    "localRawBundleReason": "OrcaTerm SFTP enhancement was unavailable; installing or mutating the production host would have violated the read-only package boundary."
+  },
+  "database": {
+    "postgresMajor": 16,
+    "schemaStage": "ABSENT_CLEAN",
+    "migrationCount": 0,
+    "legacyFactCount": 0,
+    "partitionCount": 0,
+    "partitionedFactCount": 0,
+    "connectionUsePercent": 2
+  },
+  "storageTopology": {
+    "rootDevice": "/dev/vda2",
+    "rootFilesystem": "ext4",
+    "systemDiskBytes": 128849018880,
+    "filesystemTotalBytes": 126695636264,
+    "filesystemUsedBytes": 51401428992,
+    "filesystemAvailableBytes": 70016385024,
+    "postgresDockerVolume": "chuan-market-radar_postgres-data",
+    "postgresVolumeOnRootFilesystem": true,
+    "postgresDataBytes": 968072857,
+    "postgresWalBytes": 33554432
+  },
+  "capacity": {
+    "projectedFactRows": 2599200,
+    "projectedConsumptionBytes": 61749156887,
+    "requiredHeadroomBytes": 87088269540,
+    "requiredRestoreBytes": 51836979428,
+    "projectedDiskUsePercent": 90,
+    "maximumProjectedDiskUsePercent": 70,
+    "minimumFilesystemTotalBytes": 161643694113,
+    "recommendedSystemDiskGiB": 180
+  },
+  "blockers": [
+    "primary_capacity_headroom_available",
+    "primary_projected_disk_use_below_70_percent",
+    "recovery_evidence_present"
+  ],
+  "advisories": [
+    "postgres_data_checksums_disabled",
+    "continuous_wal_archiving_disabled",
+    "bootstrap_session_role_is_privileged_but_probe_statements_used_constrained_roles",
+    "database_default_timezone_is_not_utc_probe_was_forced_to_utc"
+  ],
+  "productionBoundary": {
+    "productionDatabaseMutation": false,
+    "productionServiceMutation": false,
+    "productionRepositoryMutation": false,
+    "migrationPerformed": false,
+    "candidateEmissionAllowed": false,
+    "automaticTradingAllowed": false
+  },
+  "nextAction": "V2-M1.6-P0R-CAPACITY-AND-RECOVERY-REMEDIATION"
+}

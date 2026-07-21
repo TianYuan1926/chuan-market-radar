@@ -119,13 +119,22 @@ pg_dump custom format
 - 未证明 Docker image、Compose merge、三 Venue live egress、30 分钟或 24 小时 Shadow SLO。
 - M1 仍未完成，M2 runtime 仍不得读取 M1 authority。
 
-## 12. 后续顺序
+## 12. 生产启用顺序（2026-07-21 事实更新）
 
 ```text
 M1.6 local exit
--> M1.5-B1 image + egress + bounded 30m Shadow
+-> M1.5-B1 bounded 30m Shadow PASS
+-> M1.6-P0 read-only preflight EXECUTED_BLOCKED
+-> P0R capacity + encrypted off-host backup + isolated restore
+-> fresh P0 rerun PASS
+-> P1 additive schema
+-> P2 least-privilege identities
+-> P3 partitions + dormant worker
+-> P4 bounded isolated-write shadow
 -> M1.7 same-release 24h sustained SLO + capacity + recovery
 -> M1 engineering exit
 ```
 
-等待外部 Gate 时，只允许并行构建 `M2.0 Opportunity Taxonomy + DiscoveryCandidate/CandidateEpisode/OpportunityThesis` 合同与 point-in-time 黄金样本；不得启动读取 M1 runtime 的 Detector。
+P0 report `sha256:344ae4e05ec78e74ca97c92728fc06576f744e795bf4919d6eb3b76ee145769e` 已证明生产 PostgreSQL 16、schema=`ABSENT_CLEAN`、旧/新 Fact=0 和零 mutation；同时确认 120 GiB 系统盘预计使用率 90%、headroom 不足且 recovery evidence 缺失。P0R 本地恢复工程已通过，但真实生产备份/恢复、容量整改和 fresh P0 均未执行；P0R 后必须完整重跑 P0，不能直接跳 P1。
+
+等待外部 Gate 时，只允许并行构建不读取 M1 production authority 的合同、fixture、测试和 no-authority 工具；不得启动 Detector、发 Candidate 或生成交易计划。

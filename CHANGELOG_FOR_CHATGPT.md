@@ -2,6 +2,79 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-21 / V2 M1.6-P0R Local Recovery Engineering
+
+### 本轮目标
+
+把 P0 暴露的 recovery evidence 缺口实现为可审计、fail-closed 的同快照加密备份、腾讯 COS 私有归档、隔离 PG16 恢复和 P0 evidence 工具链，同时保持生产与 P1 权限不变。
+
+### 修改范围
+
+- 新增无业务行 fingerprint、`pg_dump -> age X25519` 直接流式加密、strict recovery verifier 和计划/确认双模式 P0R runner。
+- 新增零第三方运行依赖的腾讯 COS REST helper，要求私有 bucket、versioning、COMPLIANCE retention、无覆盖上传和精确 version 取回复算。
+- 新增可复现脱敏 bundle、官方 age provenance、失败注入与 runner/source/checksum/隔离/清理约束；新增离机私钥保管与生产操作 runbook，更新 P0R 合同、蓝图、矩阵和施工顺序。
+
+### 核心链路影响
+
+保护 `全市场发现 -> Market Fact + Quality -> Runtime Truth` 的生产数据地基；不产生 Detector、Candidate、Analysis、Strategy、页面或交易权限。
+
+### 测试结果
+
+- P0R 定向 28/28、V2 ops 82/82、M0 11/11 PASS；Go COS helper 与 mock HTTPS 全流程 PASS。
+- 完整 `ci:production` PASS：typecheck、lint、market、V2 277/0/5 explicit skips、ops 82/82、build、Golden 16/16 和 security 全部通过。
+- 官方 age v1.3.1 Linux amd64 archive、ELF 和 checksum 已验证；Go Linux amd64 静态构建两次 digest 一致。
+
+### 是否部署
+
+未部署，未执行真实 COS 备份/取回、隔离恢复或扩容；生产 DB/Redis/env/migration/Feature Flag/服务/仓库/Candidate runtime/authority 零变更。
+
+### 风险与遗留问题
+
+- 本地 recovery 工程 PASS 不等于生产可恢复；P0 仍因真实 recovery evidence 和容量 BLOCKED。
+- 需要专用私有 COS、versioning、COMPLIANCE retention、一次性 age 身份和短期最小权限凭证后才能真实执行。
+- 根文件系统仍低于 161,643,694,113 bytes 硬门槛；推荐 180 GiB，付费与关机必须由用户确认。
+
+### 下一轮建议
+
+只继续 P0R 生产动作：真实备份/取回/隔离恢复证据先于扩容，生产健康恢复后完整重跑 P0；禁止直接进入 P1。
+
+## 2026-07-21 / V2 M1.6-P0 Production Storage Read-Only Preflight
+
+### 本轮目标
+
+以 exact source 和只读生产证据决定 M1.6 是否允许进入 P1 Add Schema，并在 BLOCKED 时插入正确整改步骤而不是降低门槛。
+
+### 修改范围
+
+- 新增 strict P0 report、只读 SQL probe、secret-file/临时 host runtime runner 和 22 个 anti-inflation 场景。
+- 在腾讯生产宿主机读取 PostgreSQL、schema、容量、Docker/Git before/after；数据库、服务、仓库和 migration 零变更。
+- 新增脱敏证据索引、P0 交付报告和 P0R 容量/恢复合同；施工入口改为 P0R。
+
+### 核心链路影响
+
+保护 `全市场发现 -> Market Fact + Quality -> Runtime Truth` 的生产存储地基；不产生 Detector、Candidate、Analysis、Strategy、页面或交易权限。
+
+### 测试结果
+
+- P0 定向 22/22、V2 ops 54/54、M0 PASS。
+- 完整 `ci:production` 退出码 0：Legacy 965/0/4 skip、Worker 23/23、Historical 4/4、V2 277/0/5 explicit skip、ops 54/54、build、Golden 16/16 和 security PASS。
+- fact capture=`PASS_READ_ONLY_FACT_CAPTURE`；admission=`BLOCKED`。PostgreSQL 16、schema=`ABSENT_CLEAN`、旧/新 Fact=0、connection use=2%。
+- P0 report `sha256:344ae4e05ec78e74ca97c92728fc06576f744e795bf4919d6eb3b76ee145769e`；远端 bundle `sha256:4d25adbd3247181cb526ded488b9b681d0563eadfcbb8109d8f5b15ee2b8e58`。
+
+### 是否部署
+
+未部署应用。只执行生产只读 probe；DB/Redis/env/migration/Feature Flag/服务/仓库/Candidate runtime/authority 零变更。
+
+### 风险与遗留问题
+
+- 120 GiB 系统盘预计使用率 90%，当前可用 70.02 GB 小于 87.09 GB 所需 headroom；文件系统硬门槛 161,643,694,113 bytes，推荐 180 GiB。
+- recovery evidence 缺失；data checksums、WAL archive、bootstrap 权限和默认时区仍为 advisory。
+- P0 已过期，整改后必须完整重跑，不能沿用或改写本轮报告。
+
+### 下一轮建议
+
+只执行 `V2-M1.6-P0R-CAPACITY-AND-RECOVERY-REMEDIATION`；取得加密离机备份、隔离恢复和容量整改后重跑 P0，禁止直接进入 P1。
+
 ## 2026-07-21 / V2 M1.5-B1-B3 Mark Price Same-Gate 31-Cycle Retest
 
 ### 本轮目标
@@ -109,77 +182,3 @@
 ### 下一轮建议
 
 只执行 `V2-M1.5-B1-B1-31-CYCLE-EMPIRICAL-CAPTURE`：绑定 B1-B0 exact commit，在腾讯隔离 Runner 原样运行并接受独立业务 Gate 的 PASS/FAIL。
-
-## 2026-07-21 / V2 M1.5-B1-A Reachable Docker Runner Preflight
-
-### 本轮目标
-
-在可达隔离 Docker Runner 构建 exact source 的 M1 no-authority image，真实验证三 Venue Collector 分母、持久化、业务 readiness、证据重算与宿主机恢复。
-
-### 修改范围
-
-- 将技术 Runner PASS 与业务 readiness/SLO PASS 彻底分开；technical package 不得遮蔽周期 `NOT_READY`。
-- preflight evidence 升级为 v2，绑定 source/image、两周期完整分母、质量原因、SLO、NO_AUTHORITY、清理与 baseline digest。
-- 增加 incomplete collection、partial freshness、缺失 NOT_READY 原因和 SLO FAIL 被弱化的 anti-inflation 测试。
-
-### 核心链路影响
-
-加固 `全市场发现 -> Market Fact + Quality` 的 live 运行证据；未生成 Candidate、Analysis、Strategy、Backtest、页面或生产 authority。
-
-### 测试结果
-
-- 腾讯隔离 Runner technical PASS；exact source `97f10e75ce296b07d933e9c362c40ba2be0997ea`，evidence `sha256:a44cab89b8a4bf291e7c8f67eb6de2b76f2637f4f8265d91ebb8f1224d2a40c2` 独立重算 PASS。
-- 两周期 eligible/collected 均 1,444/1,444，fresh 1,441 与 1,274，READY 0/2；业务 SLO 正确为 FAIL。
-- host cleanup PASS：11 containers / 4 networks / 5 volumes 的 baseline 与 post-cleanup digest 完全一致。
-- 完整 `ci:production` PASS：Legacy 965/0/4 skip、Worker 23/23、Historical 4/4、V2 267/0/5 explicit skip、M0 11/11、build、Golden 16/16、security PASS。
-
-### 是否部署
-
-未部署。使用生产宿主机隔离临时 Runner，但生产服务、数据、DB、Redis、env、migration、Feature Flag、Candidate runtime 和 authority 零变更；临时执行资源已清理。
-
-### 风险与遗留问题
-
-- B1-A 只证明 Runner 技术链路，业务 readiness 明确 FAIL；不得宣称 M1.5-B1 或全市场健康完成。
-- Binance 暴露逐 row stale/duplicate 与第二周期 fresh ratio 约 67.92%，固定节拍还有 missed start；需要 31 周期证据定性，不能先放宽门槛。
-- 生产应用健康仍未做新鲜只读验证，保持 UNKNOWN。
-
-### 下一轮建议
-
-只执行 `V2-M1.5-B1-B0-EARLY-SHADOW-EVIDENCE-CONTRACT`：冻结 31 周期完整证据、独立业务 Gate、可恢复 Runner 与宿主机精确清理，再按原门槛实测。
-
-## 2026-07-20 / V2 M2.2-B0.2-C1 Release-Bound Forward Capture Start
-
-### 本轮目标
-
-恢复可信公开市场 egress，修正真实目录暴露出的 identity/证据绑定缺口，并用同一冻结 release/config 建立两轮三 Venue 前向合约目录捕获起点。
-
-### 修改范围
-
-- Unicode provider identity 使用 NFC 与确定性 ASCII uppercase，不再把真实目标合约误判为 unresolved。
-- identity evidence 分为 canonical target、provider-native out-of-scope 和 unresolved；范围外 row 保留全分母但不阻断目标范围连续性。
-- Raw/Snapshot/Batch/Continuity/Artifact Reference/Journal 全部绑定 exact clean Git release 与冻结 config；runner 在请求前验证完整 journal chain 和 head artifact。
-
-### 核心链路影响
-
-加固 `全市场发现 -> Universe Registry` 的实时合约范围真值。没有进入 Candidate、Analysis、Strategy、Backtest、页面或生产 authority。
-
-### 测试结果
-
-- C1 定向：34/34 PASS。
-- 完整 `ci:production` PASS：Legacy 965/0/4 skip、Worker 23/23、Historical 4/4、V2 267/0/5 explicit skip、M0 10/10、build、Golden 16/16、禁文件/secret/security 全部通过。
-- release `4139cc631d3d760876c3e39404c494462541a910` 两轮 Batch 均 COMPLETE；Binance/OKX/Bybit 各 2/2 complete、跨度约 368.5 秒、gap/unresolved/conflict/blocker=0，全部 `FORWARD_ONLY_READY`。
-- 全链复核 14 个 normalized artifact、6 个 raw reference、5 个唯一 raw object，无 lock/partial 残留。
-
-### 是否部署
-
-未部署。代码已推 V2 实施分支；生产、DB、Redis、Worker、migration、env、Feature Flag、Candidate authority 和 secret 均未修改。
-
-### 风险与遗留问题
-
-- C1 只通过 forward capture start，不回填历史，不等于长期 SLO、historical source、Detector 或实战能力。
-- B0.2-B 外部人工权利与合格历史来源仍 blocked，bulk/cohort 仍关闭。
-- 本机无 Docker CLI；M1.5-B1 需在独立可达 runner 证明 exact image、Collector 四分母与有界 Shadow。
-
-### 下一轮建议
-
-只执行 `V2-M1.5-B1-A-REACHABLE-DOCKER-RUNNER-PREFLIGHT`：使用 branch-scoped GitHub-hosted no-authority runner 构建 exact source image 并验证三家 live Collector 四分母；PASS 后再单独启动固定 31 周期 Shadow。
