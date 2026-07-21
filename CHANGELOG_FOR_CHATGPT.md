@@ -2,6 +2,41 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-21 / V2 M1.6-P0R-B1 COS Bucket Provisioning
+
+### 本轮目标
+
+只创建并核验 P0R 的香港单 AZ 私有 COS 空桶，不把空桶包装成备份、恢复或 P0 PASS。
+
+### 修改范围
+
+- 创建 `market-radar-v2-p0r-1445289689`，地域 `ap-hongkong`、单 AZ、私有读写、versioning 与 SSE-COS 已开启。
+- 概览确认对象 0、存储 0 MB、外网流量 0 B、读请求 0；未开启日志、静态网站、CDN、全球加速或数据万象。
+- 更新权威蓝图、机器矩阵、施工顺序、项目上下文和本轮交付报告；交易与生产运行代码零变化。
+
+### 核心链路影响
+
+只为 `全市场发现 -> Market Fact + Quality -> Runtime Truth` 提供离机恢复目标的空容器；不产生 Candidate、Analysis、Strategy 或交易计划。
+
+### 测试结果
+
+- COS bucket/region/permission/versioning/encryption/empty usage 控制台核验 PASS。
+- 文档结构与 JSON 校验 PASS；`test:v2-m1-p0r` 35/35 PASS；完整 `ci:production` 退出码 0，覆盖 typecheck、lint、market、V2 277/0/5 explicit skips、ops 89/89、M0 11 项工程退出证明、build、Golden 16/16 和 security PASS。
+
+### 是否部署
+
+未部署应用；创建 1 个空 COS bucket。未启用 Object Lock、未生成 age/STS、未上传对象、未执行 backup/restore、未付费、未关机、未扩容；生产服务、数据和 authority 零变更。
+
+### 风险与遗留问题
+
+- P0 继续因容量与 recovery evidence BLOCKED；P1 关闭。
+- Object Lock COMPLIANCE 31 天不可逆，必须先证明支持并独立确认。
+- 用户拒绝付费扩容；零付费容量架构必须保留原门禁并取得机器证据，不能直接降低阈值。
+
+### 下一轮建议
+
+只执行 `V2-M1.6-P0R-B1B-OBJECT-LOCK-AGE-STS-QUALIFICATION`；任一安全前置不满足都保持空桶并禁止上传。
+
 ## 2026-07-21 / V2 M1.6-P0R-B Cloud Prerequisite Safety
 
 ### 本轮目标
@@ -147,38 +182,3 @@
 ### 下一轮建议
 
 只执行 `V2-M1.6-P0-PRODUCTION-STORAGE-READ-ONLY-PREFLIGHT-CONTRACT`；P0 未通过前禁止 Add Schema。
-
-## 2026-07-21 / V2 M1.5-B1-B2 Mark Price Snapshot Semantics Remediation
-
-### 本轮目标
-
-修正三 Venue 价格事实语义和 B1-B1 暴露的 Runner/validator 配置漂移，为同门槛 31 周期复测建立不可夸大的地基。
-
-### 修改范围
-
-- Binance/OKX/Bybit 统一改为公开 `MARK_PRICE / MARK_PRICE_SNAPSHOT`，Provider 快照时间和本机 knowledge time 分离。
-- Collector、Worker、SLO 和 evidence 升级为 providerObserved/accounted/eligible/collected/usablePrice/fresh 六计数，新增 100% price-usability 门槛。
-- Runner 与 validator 共用唯一 environment builder；旧 schema、聚合不等于 Venue 求和、技术 PASS 冒充业务 PASS 均 fail closed。
-
-### 核心链路影响
-
-加固 `全市场发现 -> Market Fact + Quality -> Point-in-Time Feature`。未生成 Candidate、Analysis、Strategy、Backtest、页面或生产 authority。
-
-### 测试结果
-
-- identity/fact 30/30、feature/context 17/17、collector/runner 70/70、ops 32/32 PASS。
-- 完整 `ci:production` 退出码 0：Legacy 965/0/4 skip、Worker 23/23、Historical 4/4、V2 277/0/5 explicit skip、ops 32/32、M0 11/11、build、Golden 16/16 和 security 全部通过。
-
-### 是否部署
-
-未部署。生产 DB、Redis、env、migration、Feature Flag、服务、仓库、Candidate runtime 和 authority 零变更。
-
-### 风险与遗留问题
-
-- B1-B1 的 31 周期因完整证据未保留只能记 `EXECUTION_INVALID_NOT_COUNTED`，不能从抽样画面推断业务结果。
-- mark price 不是成交、订单簿或可执行价格；未来仍需独立事实流。
-- B1-B3 新窗口未完成前，业务 SLO、M1.5-B1 和 M1 都未通过。
-
-### 下一轮建议
-
-完整门禁与 exact commit/push 后，只执行 `V2-M1.5-B1-B3-MARK-PRICE-SAME-GATE-31-CYCLE-RETEST`。

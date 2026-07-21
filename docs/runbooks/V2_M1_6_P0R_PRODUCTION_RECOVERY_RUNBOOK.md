@@ -22,12 +22,12 @@
 
 ## 2. 外部前置条件
 
-1. 专用腾讯 COS bucket：`ap-hongkong`、单可用区、ACL 只能是 owner `FULL_CONTROL`、无公开 bucket policy、versioning=`ENABLED`、SSE-COS AES256。当前控制台 inventory=0，尚未创建。
+1. 专用腾讯 COS bucket `market-radar-v2-p0r-1445289689` 已按 `ap-hongkong`、单可用区、私有读写、versioning=`ENABLED`、SSE-COS 创建且当前对象 0；上传前仍必须由 helper 重新证明 owner 权限、无公开 bucket policy、region/单 AZ 和 exact key 不存在。
 2. Object Lock 已开启，默认 `COMPLIANCE` 31 天；对象上传仍显式设置 31 天 COMPLIANCE。腾讯当前要求白名单、不支持多 AZ、开启后不可关闭且 versioning 不可暂停；任一条件不满足就停止，不能降级成普通可删对象。
 3. 唯一对象 key 符合 `market-radar-v2/p0r/<date>/<run-id>.dump.age`，禁止复用旧 key。
 4. 腾讯 STS 使用当前 `GetFederationToken` API，固定 7200 秒。必须在签发后 5 分钟内编译，编译时至少剩 6600 秒；COS helper 开始时至少剩 75 分钟。权限必须与 plan 要求的 10 个 action、唯一 bucket/key、源 IP `/32` 和请求条件完全一致。
 5. 独立 age X25519 恢复身份由用户在可信设备生成。私钥在与 COS 分离的加密保险库中保留至少到对象 retention 到期；生产机只接收 `/dev/shm` 临时副本，执行后自动删除。
-6. 腾讯系统盘存在可升级到至少 161,643,694,113 bytes 文件系统容量的选项，推荐 180 GiB；付费与关机尚不在本步骤执行。
+6. 用户拒绝付费扩容；真实恢复证据封存后必须进入独立 P0R-D0 零付费容量重设计。该包必须在现有 120 GiB 上用实测增长、WAL/索引上界、Detector 最大 lookback、分区保留和磁盘水位证明稳态不超过 60%、worst-case 不超过 70%，不得减少 eligible 分母、扫描 cadence 或恢复防线。
 
 ## 3. 禁止材料
 
@@ -183,10 +183,10 @@ PASS 必须同时具备：
 - 临时 COS credential、生产机 age identity、副本、container、volume 和 runtime 全部删除。
 - Docker baseline、生产 Git HEAD/worktree、数据库和服务零 mutation。
 
-任一项失败都保持 `BLOCKED`。失败后优先确认临时 secret 和隔离资源清理，不得继续扩容或 P1。
+任一项失败都保持 `BLOCKED`。失败后优先确认临时 secret 和隔离资源清理，不得继续 P0R-D0 或 P1。
 
-## 9. 扩容与重验
+## 9. 零付费容量重设计与重验
 
-只有恢复证据封存且离机对象与保险库私钥均可用后，用户才在腾讯控制台确认 180 GiB 系统盘升级和必要关机。实例恢复后按 P0R 合同验证 boot/filesystem、Docker、PostgreSQL、Redis、应用 health、Git 身份，再完整重跑 fresh P0。
+只有恢复证据封存且离机对象与保险库私钥均可用后，才允许实施独立 P0R-D0。P0R-D0 只重划生产在线工作集、长期研究数据和离机恢复职责，不得降低全市场覆盖、实时 Fact 质量、Detector lookback 或安全门禁。应用后按 P0R 合同验证 filesystem 增长、水位、Docker、PostgreSQL、Redis、应用 health、Git 身份，再完整重跑 fresh P0。
 
 P0R PASS 不是 P1 PASS。只有 fresh P0 同时确认容量、恢复证据、旧 Fact=0、schema 状态和零漂移，才允许单独申请 P1 Add Schema。
