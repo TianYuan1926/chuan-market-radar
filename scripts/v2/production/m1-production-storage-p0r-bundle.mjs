@@ -17,6 +17,9 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
+import {
+  validateP0RCosProvisioningPlan,
+} from "./m1-production-storage-p0r-cos-provisioning.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -37,6 +40,7 @@ const MAXIMUM_ARCHIVE_BYTES = 128 * 1024 * 1024;
 const TRANSPORT_SOURCES = Object.freeze([
   "scripts/v2/production/m1-production-storage-backup-capture.mjs",
   "scripts/v2/production/m1-production-storage-database-fingerprint.mjs",
+  "scripts/v2/production/m1-production-storage-p0r-cos-provisioning.mjs",
   "scripts/v2/production/m1-production-storage-p0r-runner.sh",
   "scripts/v2/production/m1-production-storage-read-only-preflight.mjs",
   "scripts/v2/production/m1-production-storage-recovery-evidence.mjs",
@@ -150,6 +154,8 @@ function bindings(sourceCommit, files) {
     `P0R_AGE_SHA256=${byName.age}`,
     `P0R_AGE_RECIPIENT_SHA256=${byName["age-recipient.txt"]}`,
     `P0R_COS_ARCHIVE_SHA256=${byName["p0r-cos-archive"]}`,
+    `P0R_COS_PROVISIONING_PLAN_SHA256=${byName["cos-provisioning-plan.json"] ?? ""}`,
+    `P0R_COS_PROVISIONING_TOOL_SHA256=${byName["m1-production-storage-p0r-cos-provisioning.mjs"]}`,
     `P0R_BACKUP_CAPTURE_SHA256=${byName["m1-production-storage-backup-capture.mjs"]}`,
     `P0R_FINGERPRINT_SHA256=${byName["m1-production-storage-database-fingerprint.mjs"]}`,
     `P0R_PREFLIGHT_LIBRARY_SHA256=${byName["m1-production-storage-read-only-preflight.mjs"]}`,
@@ -172,8 +178,19 @@ export async function buildP0RTransportBundle(input) {
     );
     assert.equal(input.ageProvenance.sourceUrl, P0R_AGE_LINUX_AMD64_ARCHIVE_URL);
     assert.equal(input.ageProvenance.version, P0R_AGE_VERSION);
+    validateP0RCosProvisioningPlan(input.cosProvisioningPlan);
+    assert.equal(
+      input.cosProvisioningPlan.sourceCommit,
+      input.sourceCommit,
+      "COS provisioning plan source commit mismatch",
+    );
   } else {
     assert.equal(input.sourceCommit, null, "ineligible template must not claim a source commit");
+    assert.equal(
+      input.cosProvisioningPlan ?? null,
+      null,
+      "ineligible template must not carry an execution plan",
+    );
   }
   assertLinuxAMD64ELF(input.ageBinary, "age binary");
   assertLinuxAMD64ELF(input.cosArchiveBinary, "COS archive binary");
@@ -200,6 +217,14 @@ export async function buildP0RTransportBundle(input) {
       { bytes: input.ageLicense, mode: 0o400, name: "AGE-LICENSE", sourcePath: null },
       { bytes: input.cosArchiveBinary, mode: 0o700, name: "p0r-cos-archive", sourcePath: "scripts/v2/production/p0r-cos-archive" },
     );
+    if (input.cosProvisioningPlan) {
+      fileBytes.push({
+        bytes: Buffer.from(`${JSON.stringify(input.cosProvisioningPlan, null, 2)}\n`),
+        mode: 0o600,
+        name: "cos-provisioning-plan.json",
+        sourcePath: null,
+      });
+    }
     fileBytes.sort((left, right) => left.name.localeCompare(right.name));
     const fileManifest = fileBytes.map((file) => ({
       name: file.name,
@@ -234,6 +259,11 @@ export async function buildP0RTransportBundle(input) {
       containsPersistentCredentials: false,
       containsPrivateKey: false,
       containsSecrets: false,
+      containsSensitiveDestinationMetadata: Boolean(input.cosProvisioningPlan),
+      cosProvisioningPlan: input.cosProvisioningPlan ? {
+        planDigest: input.cosProvisioningPlan.planDigest,
+        runId: input.cosProvisioningPlan.credentialGrant.runId,
+      } : null,
       files: fileManifest,
       migrationAllowed: false,
       productionDatabaseMutationAllowed: false,
@@ -324,6 +354,17 @@ async function main() {
     const cosPath = join(temporary, "p0r-cos-archive");
     const cosArchiveBinary = await buildCosArchiveBinary(root, cosPath);
     const sourceCommit = clean ? head : null;
+    const cosProvisioningPlan = clean
+      ? validateP0RCosProvisioningPlan(await (async () => {
+        assert.ok(
+          options["cos-provisioning-plan"],
+          "--cos-provisioning-plan is required for a clean production bundle",
+        );
+        const planPath = resolve(options["cos-provisioning-plan"]);
+        await requireRegular(planPath, "COS provisioning plan", 256 * 1024);
+        return JSON.parse(await readFile(planPath, "utf8"));
+      })())
+      : null;
     const output = resolve(options.output ?? join(
       root,
       "reports/v2-m1-6-p0r",
@@ -336,6 +377,7 @@ async function main() {
       ageRecipient: recipient,
       approvalEligible: clean,
       cosArchiveBinary,
+      cosProvisioningPlan,
       output,
       root,
       sourceCommit,

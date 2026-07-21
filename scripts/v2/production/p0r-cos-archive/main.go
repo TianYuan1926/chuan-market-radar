@@ -18,6 +18,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"sort"
 	"strconv"
@@ -26,19 +27,25 @@ import (
 )
 
 const (
-	credentialSchema = "v2-m1-production-storage-cos-temporary-credentials.v1"
-	archiveSchema    = "v2-m1-production-storage-cos-archive-facts.v1"
+	credentialSchema = "v2-m1-production-storage-cos-temporary-credentials.v2"
+	planSchema       = "v2-m1-production-storage-cos-provisioning-plan.v1"
+	archiveSchema    = "v2-m1-production-storage-cos-archive-facts.v2"
 	maximumObject    = int64(5 * 1024 * 1024 * 1024)
-	minimumRemaining = 2 * time.Hour
-	maximumLifetime  = 36 * time.Hour
+	minimumRemaining = 75 * time.Minute
+	credentialLife   = 2 * time.Hour
 	retentionPeriod  = 31 * 24 * time.Hour
 )
 
 var (
-	bucketPattern   = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,48}-[0-9]{5,20}$`)
-	regionPattern   = regexp.MustCompile(`^ap-[a-z0-9-]{2,32}$`)
-	keyPattern      = regexp.MustCompile(`^market-radar-v2/p0r/[a-z0-9][a-z0-9._/-]{15,240}\.dump\.age$`)
-	requiredActions = []string{
+	bucketPattern       = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,48}-[0-9]{5,20}$`)
+	regionPattern       = regexp.MustCompile(`^ap-[a-z0-9-]{2,32}$`)
+	digestPattern       = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
+	keyPattern          = regexp.MustCompile(`^market-radar-v2/p0r/[0-9]{4}-[0-9]{2}-[0-9]{2}/p0r-[0-9]{8}t[0-9]{6}z-[0-9a-f]{32}\.dump\.age$`)
+	requestPattern      = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+	runIDPattern        = regexp.MustCompile(`^p0r-[0-9]{8}t[0-9]{6}z-[0-9a-f]{32}$`)
+	sourceCommitPattern = regexp.MustCompile(`^[0-9a-f]{40}$`)
+	sourceIPPattern     = regexp.MustCompile(`^[0-9]{1,3}(\.[0-9]{1,3}){3}/32$`)
+	requiredActions     = []string{
 		"cos:GetBucketACL",
 		"cos:GetBucketObjectLockConfiguration",
 		"cos:GetBucketPolicy",
@@ -46,55 +53,119 @@ var (
 		"cos:GetObject",
 		"cos:GetObjectACL",
 		"cos:GetObjectRetention",
+		"cos:HeadBucket",
 		"cos:HeadObject",
 		"cos:PutObject",
 	}
 )
 
 type credentialGrant struct {
-	Actions   []string `json:"actions"`
-	Bucket    string   `json:"bucket"`
-	ObjectKey string   `json:"objectKey"`
-	Region    string   `json:"region"`
+	Actions      []string `json:"actions"`
+	Bucket       string   `json:"bucket"`
+	ObjectKey    string   `json:"objectKey"`
+	Region       string   `json:"region"`
+	RunID        string   `json:"runId"`
+	SourceIPCIDR string   `json:"sourceIpCidr"`
+}
+
+type credentialIssuance struct {
+	DurationSeconds int    `json:"durationSeconds"`
+	Method          string `json:"method"`
+	PlanDigest      string `json:"planDigest"`
+	PolicyDigest    string `json:"policyDigest"`
+	RequestDigest   string `json:"requestDigest"`
+	RequestID       string `json:"requestId"`
 }
 
 type credentialEnvelope struct {
-	ExpiresAt     string          `json:"expiresAt"`
-	Grant         credentialGrant `json:"grant"`
-	IssuedAt      string          `json:"issuedAt"`
-	SchemaVersion string          `json:"schemaVersion"`
-	SecretID      string          `json:"secretId"`
-	SecretKey     string          `json:"secretKey"`
-	SessionToken  string          `json:"sessionToken"`
+	ExpiresAt     string             `json:"expiresAt"`
+	Grant         credentialGrant    `json:"grant"`
+	Issuance      credentialIssuance `json:"issuance"`
+	IssuedAt      string             `json:"issuedAt"`
+	SchemaVersion string             `json:"schemaVersion"`
+	SecretID      string             `json:"secretId"`
+	SecretKey     string             `json:"secretKey"`
+	SessionToken  string             `json:"sessionToken"`
+}
+
+type bucketConfiguration struct {
+	AccessControl        string `json:"accessControl"`
+	AvailabilityZoneType string `json:"availabilityZoneType"`
+	DefaultEncryption    string `json:"defaultEncryption"`
+	ObjectLock           struct {
+		DefaultRetentionDays int    `json:"defaultRetentionDays"`
+		Mode                 string `json:"mode"`
+		Permanent            bool   `json:"permanent"`
+	} `json:"objectLock"`
+	Versioning string `json:"versioning"`
+}
+
+type overwriteProtection struct {
+	ForbidOverwriteHeaderEffectiveWithVersioning bool   `json:"forbidOverwriteHeaderEffectiveWithVersioning"`
+	Mode                                         string `json:"mode"`
+	PreUploadAbsenceRequired                     bool   `json:"preUploadAbsenceRequired"`
+}
+
+type stsRequest struct {
+	Action          string `json:"action"`
+	DurationSeconds int    `json:"durationSeconds"`
+	Endpoint        string `json:"endpoint"`
+	Name            string `json:"name"`
+	Policy          any    `json:"policy"`
+	Version         string `json:"version"`
+}
+
+type provisioningPlan struct {
+	BucketConfiguration bucketConfiguration `json:"bucketConfiguration"`
+	CredentialGrant     credentialGrant     `json:"credentialGrant"`
+	OverwriteProtection overwriteProtection `json:"overwriteProtection"`
+	PlanDigest          string              `json:"planDigest"`
+	PlannedAt           string              `json:"plannedAt"`
+	SchemaVersion       string              `json:"schemaVersion"`
+	SourceCommit        string              `json:"sourceCommit"`
+	STSRequest          stsRequest          `json:"stsRequest"`
 }
 
 type controlPlaneProof struct {
-	BucketAclPrivate      bool   `json:"bucketAclPrivate"`
-	BucketPolicyPublic    bool   `json:"bucketPolicyPublicAccess"`
-	CredentialGrantDigest string `json:"credentialGrantDigest"`
-	DefaultRetentionDays  int    `json:"defaultRetentionDays"`
-	DefaultRetentionMode  string `json:"defaultRetentionMode"`
-	DestinationDigest     string `json:"destinationIdentityDigest"`
-	ObjectAclPrivate      bool   `json:"objectAclPrivate"`
-	ObjectLockEnabled     bool   `json:"objectLockEnabled"`
-	VersioningStatus      string `json:"versioningStatus"`
+	AvailabilityZoneType   string `json:"availabilityZoneType"`
+	BucketAclPrivate       bool   `json:"bucketAclPrivate"`
+	BucketPolicyPublic     bool   `json:"bucketPolicyPublicAccess"`
+	BucketRegion           string `json:"bucketRegion"`
+	CredentialGrantDigest  string `json:"credentialGrantDigest"`
+	CredentialPolicyDigest string `json:"credentialPolicyDigest"`
+	DefaultRetentionDays   int    `json:"defaultRetentionDays"`
+	DefaultRetentionMode   string `json:"defaultRetentionMode"`
+	DestinationDigest      string `json:"destinationIdentityDigest"`
+	ObjectAclPrivate       bool   `json:"objectAclPrivate"`
+	ObjectLockEnabled      bool   `json:"objectLockEnabled"`
+	PreUploadObjectAbsent  bool   `json:"preUploadObjectAbsent"`
+	ProvisioningPlanDigest string `json:"provisioningPlanDigest"`
+	VersioningStatus       string `json:"versioningStatus"`
 }
 
 type offHostFacts struct {
+	AvailabilityZoneType        string `json:"availabilityZoneType"`
 	ArchiveVerified             bool   `json:"archiveVerified"`
 	BucketAclPrivate            bool   `json:"bucketAclPrivate"`
 	BucketPolicyPublicAccess    bool   `json:"bucketPolicyPublicAccess"`
 	ChecksumVerified            bool   `json:"checksumVerified"`
 	ControlPlaneEvidenceDigest  string `json:"controlPlaneEvidenceDigest"`
 	CredentialExpiresAt         string `json:"credentialExpiresAt"`
+	CredentialPolicyDigest      string `json:"credentialPolicyDigest"`
+	CredentialRequestDigest     string `json:"credentialRequestDigest"`
+	CredentialRequestIDDigest   string `json:"credentialRequestIdDigest"`
 	DestinationIdentityDigest   string `json:"destinationIdentityDigest"`
 	ObjectIdentityDigest        string `json:"objectIdentityDigest"`
 	ObjectLockEnabled           bool   `json:"objectLockEnabled"`
 	ObjectRetentionMode         string `json:"objectRetentionMode"`
 	ObjectRetentionUntil        string `json:"objectRetentionUntil"`
 	ObjectVersionIdentityDigest string `json:"objectVersionIdentityDigest"`
+	OverwriteProtectionMode     string `json:"overwriteProtectionMode"`
+	PreUploadObjectAbsent       bool   `json:"preUploadObjectAbsent"`
 	PrivateAccessVerified       bool   `json:"privateAccessVerified"`
 	Provider                    string `json:"provider"`
+	ProvisioningPlanDigest      string `json:"provisioningPlanDigest"`
+	Region                      string `json:"region"`
 	RetrievedAt                 string `json:"retrievedAt"`
 	RetrievedBytes              int64  `json:"retrievedBytes"`
 	RetrievedDigest             string `json:"retrievedDigest"`
@@ -232,7 +303,119 @@ func readCredentialFile(path string) (credentialEnvelope, error) {
 	return value, nil
 }
 
-func validateCredentials(value credentialEnvelope, now time.Time) error {
+func readProvisioningPlan(path string) (provisioningPlan, error) {
+	var value provisioningPlan
+	info, err := os.Lstat(path)
+	if err != nil {
+		return value, err
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+		return value, errors.New("provisioning plan must be a regular non-symlink file")
+	}
+	if info.Size() <= 0 || info.Size() > 256*1024 {
+		return value, errors.New("provisioning plan size is invalid")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return value, err
+	}
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&value); err != nil {
+		return value, fmt.Errorf("provisioning plan is invalid: %w", err)
+	}
+	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		return value, errors.New("provisioning plan must contain one JSON object")
+	}
+	var unsigned map[string]any
+	rawDecoder := json.NewDecoder(bytes.NewReader(data))
+	rawDecoder.UseNumber()
+	if err := rawDecoder.Decode(&unsigned); err != nil {
+		return value, errors.New("provisioning plan cannot be normalized")
+	}
+	declared, ok := unsigned["planDigest"].(string)
+	if !ok {
+		return value, errors.New("provisioning plan digest is absent")
+	}
+	delete(unsigned, "planDigest")
+	computed, err := digestJSON(unsigned)
+	if err != nil {
+		return value, err
+	}
+	if declared != computed {
+		return value, errors.New("provisioning plan digest mismatch")
+	}
+	return value, nil
+}
+
+func validatePlan(value provisioningPlan, runID string) error {
+	if value.SchemaVersion != planSchema || !digestPattern.MatchString(value.PlanDigest) {
+		return errors.New("provisioning plan identity is invalid")
+	}
+	if !sourceCommitPattern.MatchString(value.SourceCommit) {
+		return errors.New("provisioning plan source commit is invalid")
+	}
+	if !runIDPattern.MatchString(runID) || value.CredentialGrant.RunID != runID {
+		return errors.New("provisioning plan run ID mismatch")
+	}
+	plannedAt, err := canonicalTime(value.PlannedAt, "plannedAt")
+	if err != nil {
+		return err
+	}
+	compact := strings.ToLower(plannedAt.Format("20060102t150405z"))
+	if !strings.HasPrefix(runID, "p0r-"+compact+"-") {
+		return errors.New("provisioning plan run timestamp mismatch")
+	}
+	expectedKey := fmt.Sprintf("market-radar-v2/p0r/%s/%s.dump.age", plannedAt.Format("2006-01-02"), runID)
+	if value.CredentialGrant.ObjectKey != expectedKey {
+		return errors.New("provisioning plan object key is not exact")
+	}
+	if value.CredentialGrant.Region != "ap-hongkong" ||
+		!bucketPattern.MatchString(value.CredentialGrant.Bucket) ||
+		!sourceIPPattern.MatchString(value.CredentialGrant.SourceIPCIDR) {
+		return errors.New("provisioning plan destination scope is invalid")
+	}
+	ip, network, err := net.ParseCIDR(value.CredentialGrant.SourceIPCIDR)
+	if err != nil || ip.To4() == nil {
+		return errors.New("provisioning plan source IP is invalid")
+	}
+	ones, bits := network.Mask.Size()
+	if ones != 32 || bits != 32 {
+		return errors.New("provisioning plan source IP must be one IPv4 address")
+	}
+	actions := append([]string(nil), value.CredentialGrant.Actions...)
+	sort.Strings(actions)
+	expected := append([]string(nil), requiredActions...)
+	sort.Strings(expected)
+	if strings.Join(actions, "\n") != strings.Join(expected, "\n") {
+		return errors.New("provisioning plan action scope is not exact")
+	}
+	configuration := value.BucketConfiguration
+	if configuration.AccessControl != "PRIVATE" ||
+		configuration.AvailabilityZoneType != "SINGLE_AZ" ||
+		configuration.DefaultEncryption != "SSE_COS_AES256" ||
+		configuration.Versioning != "ENABLED" ||
+		configuration.ObjectLock.Mode != "COMPLIANCE" ||
+		configuration.ObjectLock.DefaultRetentionDays != 31 ||
+		!configuration.ObjectLock.Permanent {
+		return errors.New("provisioning plan bucket controls are incomplete")
+	}
+	overwrite := value.OverwriteProtection
+	if overwrite.ForbidOverwriteHeaderEffectiveWithVersioning ||
+		overwrite.Mode != "HIGH_ENTROPY_UNIQUE_KEY_PLUS_PREUPLOAD_ABSENCE_CHECK" ||
+		!overwrite.PreUploadAbsenceRequired {
+		return errors.New("provisioning plan overstates overwrite protection")
+	}
+	request := value.STSRequest
+	if request.Action != "GetFederationToken" || request.DurationSeconds != int(credentialLife/time.Second) ||
+		request.Endpoint != "sts.tencentcloudapi.com" || request.Name != "MarketRadarRecovery" ||
+		request.Version != "2018-08-13" || request.Policy == nil {
+		return errors.New("provisioning plan STS request is invalid")
+	}
+	return nil
+}
+
+func validateCredentials(value credentialEnvelope, plan provisioningPlan, now time.Time) error {
 	if value.SchemaVersion != credentialSchema {
 		return errors.New("credential schema version mismatch")
 	}
@@ -253,16 +436,17 @@ func validateCredentials(value credentialEnvelope, now time.Time) error {
 		return err
 	}
 	now = now.UTC()
-	if issuedAt.After(now) || expiresAt.Sub(now) < minimumRemaining {
+	if issuedAt.After(now.Add(time.Minute)) || expiresAt.Sub(now) < minimumRemaining {
 		return errors.New("temporary credentials do not cover the recovery window")
 	}
-	if expiresAt.Sub(issuedAt) <= 0 || expiresAt.Sub(issuedAt) > maximumLifetime {
+	if expiresAt.Sub(issuedAt) != credentialLife {
 		return errors.New("temporary credential lifetime is invalid")
 	}
 	if !bucketPattern.MatchString(value.Grant.Bucket) || !regionPattern.MatchString(value.Grant.Region) {
 		return errors.New("COS destination identity is invalid")
 	}
-	if !keyPattern.MatchString(value.Grant.ObjectKey) || strings.Contains(value.Grant.ObjectKey, "..") {
+	if !keyPattern.MatchString(value.Grant.ObjectKey) || strings.Contains(value.Grant.ObjectKey, "..") ||
+		!runIDPattern.MatchString(value.Grant.RunID) || !sourceIPPattern.MatchString(value.Grant.SourceIPCIDR) {
 		return errors.New("COS object key is outside the P0R namespace")
 	}
 	actions := append([]string(nil), value.Grant.Actions...)
@@ -271,6 +455,26 @@ func validateCredentials(value credentialEnvelope, now time.Time) error {
 	sort.Strings(expected)
 	if strings.Join(actions, "\n") != strings.Join(expected, "\n") {
 		return errors.New("temporary credential action declaration is not exact")
+	}
+	if !reflect.DeepEqual(value.Grant, plan.CredentialGrant) {
+		return errors.New("temporary credential grant does not match provisioning plan")
+	}
+	issuance := value.Issuance
+	if issuance.DurationSeconds != int(credentialLife/time.Second) ||
+		issuance.Method != "TENCENT_STS_GET_FEDERATION_TOKEN" ||
+		issuance.PlanDigest != plan.PlanDigest ||
+		!requestPattern.MatchString(issuance.RequestID) ||
+		!digestPattern.MatchString(issuance.PolicyDigest) ||
+		!digestPattern.MatchString(issuance.RequestDigest) {
+		return errors.New("temporary credential issuance binding is invalid")
+	}
+	policyDigest, err := digestJSON(plan.STSRequest.Policy)
+	if err != nil || policyDigest != issuance.PolicyDigest {
+		return errors.New("temporary credential policy digest mismatch")
+	}
+	requestDigest, err := digestJSON(plan.STSRequest)
+	if err != nil || requestDigest != issuance.RequestDigest {
+		return errors.New("temporary credential request digest mismatch")
 	}
 	return nil
 }
@@ -340,6 +544,15 @@ func isMissingPolicy(err error) bool {
 		return false
 	}
 	return response.StatusCode == http.StatusNotFound || response.Code == "NoSuchBucketPolicy"
+}
+
+func isMissingObject(err error) bool {
+	var response *cosHTTPError
+	if !errors.As(err, &response) {
+		return false
+	}
+	return response.StatusCode == http.StatusNotFound &&
+		(response.Code == "" || response.Code == "NoSuchKey")
 }
 
 func encodeURIComponent(value string) string {
@@ -556,7 +769,20 @@ func (client *cosClient) putFile(ctx context.Context, key string, path string, h
 }
 
 func (client *cosClient) head(ctx context.Context, key string, versionID string) (http.Header, error) {
-	response, err := client.request(ctx, http.MethodHead, "/"+key, url.Values{"versionId": {versionID}}, nil, nil, -1)
+	query := url.Values(nil)
+	if versionID != "" {
+		query = url.Values{"versionId": {versionID}}
+	}
+	response, err := client.request(ctx, http.MethodHead, "/"+key, query, nil, nil, -1)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+	return response.Header.Clone(), nil
+}
+
+func (client *cosClient) headBucket(ctx context.Context) (http.Header, error) {
+	response, err := client.request(ctx, http.MethodHead, "/", nil, nil, nil, -1)
 	if err != nil {
 		return nil, err
 	}
@@ -594,8 +820,20 @@ func (client *cosClient) download(ctx context.Context, key string, versionID str
 	return nil
 }
 
-func verifyBucket(ctx context.Context, client *cosClient, credentials credentialEnvelope) (controlPlaneProof, error) {
+func verifyBucket(ctx context.Context, client *cosClient, credentials credentialEnvelope, plan provisioningPlan) (controlPlaneProof, error) {
 	var proof controlPlaneProof
+	headHeaders, err := client.headBucket(ctx)
+	if err != nil {
+		return proof, fmt.Errorf("head bucket: %w", err)
+	}
+	proof.BucketRegion = strings.TrimSpace(headHeaders.Get("x-cos-bucket-region"))
+	if proof.BucketRegion != credentials.Grant.Region {
+		return proof, errors.New("COS bucket region does not match the provisioning plan")
+	}
+	if strings.TrimSpace(headHeaders.Get("x-cos-bucket-az-type")) != "" {
+		return proof, errors.New("COS multi-AZ bucket is incompatible with immutable P0R storage")
+	}
+	proof.AvailabilityZoneType = "SINGLE_AZ"
 	var bucketACL aclDocument
 	if err := client.getXML(ctx, "/", url.Values{"acl": {""}}, &bucketACL); err != nil {
 		return proof, fmt.Errorf("get bucket ACL: %w", err)
@@ -623,6 +861,8 @@ func verifyBucket(ctx context.Context, client *cosClient, credentials credential
 		return proof, err
 	}
 	proof.CredentialGrantDigest = grantDigest
+	proof.CredentialPolicyDigest = credentials.Issuance.PolicyDigest
+	proof.ProvisioningPlanDigest = plan.PlanDigest
 	proof.DestinationDigest, err = digestJSON(map[string]string{
 		"bucket":   credentials.Grant.Bucket,
 		"endpoint": fmt.Sprintf("cos.%s.myqcloud.com", credentials.Grant.Region),
@@ -631,23 +871,25 @@ func verifyBucket(ctx context.Context, client *cosClient, credentials credential
 	if err != nil {
 		return proof, err
 	}
-	if !proof.BucketAclPrivate || proof.BucketPolicyPublic || proof.VersioningStatus != "ENABLED" || !objectLockMeetsPolicy(objectLock) {
+	if proof.AvailabilityZoneType != plan.BucketConfiguration.AvailabilityZoneType ||
+		!proof.BucketAclPrivate || proof.BucketPolicyPublic || proof.VersioningStatus != "ENABLED" ||
+		!objectLockMeetsPolicy(objectLock) {
 		return proof, errors.New("COS destination does not satisfy private versioned COMPLIANCE retention policy")
 	}
 	return proof, nil
 }
 
-func archive(ctx context.Context, credentials credentialEnvelope, encryptedPath string, retrievedPath string) (archiveEvidence, error) {
+func archive(ctx context.Context, credentials credentialEnvelope, plan provisioningPlan, encryptedPath string, retrievedPath string) (archiveEvidence, error) {
 	client, err := newClient(credentials)
 	if err != nil {
 		return archiveEvidence{}, err
 	}
-	return archiveWithClient(ctx, client, credentials, encryptedPath, retrievedPath)
+	return archiveWithClient(ctx, client, credentials, plan, encryptedPath, retrievedPath)
 }
 
-func archiveWithClient(ctx context.Context, client *cosClient, credentials credentialEnvelope, encryptedPath string, retrievedPath string) (archiveEvidence, error) {
+func archiveWithClient(ctx context.Context, client *cosClient, credentials credentialEnvelope, plan provisioningPlan, encryptedPath string, retrievedPath string) (archiveEvidence, error) {
 	var evidence archiveEvidence
-	proof, err := verifyBucket(ctx, client, credentials)
+	proof, err := verifyBucket(ctx, client, credentials, plan)
 	if err != nil {
 		return evidence, err
 	}
@@ -661,6 +903,12 @@ func archiveWithClient(ctx context.Context, client *cosClient, credentials crede
 	if _, err := os.Lstat(retrievedPath); !errors.Is(err, os.ErrNotExist) {
 		return evidence, errors.New("retrieved backup path must not already exist")
 	}
+	if _, err := client.head(ctx, credentials.Grant.ObjectKey, ""); err == nil {
+		return evidence, errors.New("COS object key already exists before upload")
+	} else if !isMissingObject(err) {
+		return evidence, fmt.Errorf("verify COS object absence: %w", err)
+	}
+	proof.PreUploadObjectAbsent = true
 
 	uploadStarted := time.Now().UTC()
 	retentionUntil := uploadStarted.Add(retentionPeriod).Format("2006-01-02T15:04:05.000Z")
@@ -756,20 +1004,27 @@ func archiveWithClient(ctx context.Context, client *cosClient, credentials crede
 	}
 	evidence = archiveEvidence{
 		OffHost: offHostFacts{
+			AvailabilityZoneType:        "SINGLE_AZ",
 			ArchiveVerified:             true,
 			BucketAclPrivate:            true,
 			BucketPolicyPublicAccess:    false,
 			ChecksumVerified:            true,
 			ControlPlaneEvidenceDigest:  controlDigest,
 			CredentialExpiresAt:         credentials.ExpiresAt,
+			CredentialPolicyDigest:      credentials.Issuance.PolicyDigest,
+			CredentialRequestDigest:     credentials.Issuance.RequestDigest,
 			DestinationIdentityDigest:   proof.DestinationDigest,
 			ObjectIdentityDigest:        objectDigest,
 			ObjectLockEnabled:           true,
 			ObjectRetentionMode:         "COMPLIANCE",
 			ObjectRetentionUntil:        retainedUntil.UTC().Format("2006-01-02T15:04:05.000Z"),
 			ObjectVersionIdentityDigest: versionDigest,
+			OverwriteProtectionMode:     plan.OverwriteProtection.Mode,
+			PreUploadObjectAbsent:       true,
 			PrivateAccessVerified:       true,
 			Provider:                    "TENCENT_COS",
+			ProvisioningPlanDigest:      plan.PlanDigest,
+			Region:                      credentials.Grant.Region,
 			RetrievedAt:                 retrievedAt.Format("2006-01-02T15:04:05.000Z"),
 			RetrievedBytes:              retrievedBytes,
 			RetrievedDigest:             retrievedDigest,
@@ -779,6 +1034,12 @@ func archiveWithClient(ctx context.Context, client *cosClient, credentials crede
 			VersioningStatus:            "ENABLED",
 		},
 		SchemaVersion: archiveSchema,
+	}
+	evidence.OffHost.CredentialRequestIDDigest, err = digestJSON(map[string]string{
+		"requestId": credentials.Issuance.RequestID,
+	})
+	if err != nil {
+		return archiveEvidence{}, err
 	}
 	unsigned := struct {
 		OffHost       offHostFacts `json:"offHost"`
@@ -869,12 +1130,12 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	for _, name := range []string{"--credentials", "--encrypted-backup", "--retrieved-backup", "--output"} {
+	for _, name := range []string{"--credentials", "--encrypted-backup", "--output", "--provisioning-plan", "--retrieved-backup", "--run-id"} {
 		if options[name] == "" {
 			return fmt.Errorf("%s is required", name)
 		}
 	}
-	if len(options) != 4 {
+	if len(options) != 6 {
 		return errors.New("unknown archive argument")
 	}
 	if err := requireRegular(options["--credentials"], "credentials"); err != nil {
@@ -883,16 +1144,26 @@ func run() error {
 	if err := requireRegular(options["--encrypted-backup"], "encrypted backup"); err != nil {
 		return err
 	}
+	if err := requireRegular(options["--provisioning-plan"], "provisioning plan"); err != nil {
+		return err
+	}
+	plan, err := readProvisioningPlan(options["--provisioning-plan"])
+	if err != nil {
+		return err
+	}
+	if err := validatePlan(plan, options["--run-id"]); err != nil {
+		return err
+	}
 	credentials, err := readCredentialFile(options["--credentials"])
 	if err != nil {
 		return err
 	}
-	if err := validateCredentials(credentials, time.Now()); err != nil {
+	if err := validateCredentials(credentials, plan, time.Now()); err != nil {
 		return err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Minute)
 	defer cancel()
-	evidence, err := archive(ctx, credentials, options["--encrypted-backup"], options["--retrieved-backup"])
+	evidence, err := archive(ctx, credentials, plan, options["--encrypted-backup"], options["--retrieved-backup"])
 	if err != nil {
 		_ = os.Remove(options["--retrieved-backup"])
 		return err

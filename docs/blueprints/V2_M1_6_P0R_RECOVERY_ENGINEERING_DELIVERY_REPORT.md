@@ -1,6 +1,8 @@
 # 本轮交付报告
 
-状态：`LOCAL_RECOVERY_ENGINEERING_PASS / PRODUCTION_RECOVERY_NOT_EXECUTED / CAPACITY_NOT_REMEDIATED / P0_STILL_BLOCKED`
+状态：`HISTORICAL_LOCAL_RECOVERY_ENGINEERING_PASS / SUPERSEDED_IN_PART_BY_P0R_B_CLOUD_PREREQUISITE_HARDENING / PRODUCTION_RECOVERY_NOT_EXECUTED / P0_STILL_BLOCKED`
+
+更正说明：本报告形成后重新核对腾讯官方 `PUT Object` 合同，确认 versioning 启用时 `x-cos-forbid-overwrite` 不生效。本报告不得再被解读为已经具备服务端无覆盖保证；现行权威改为高熵唯一 key、上传前对象不存在证明和 exact versionId 取回，详见 P0R-B 交付报告与运行手册。
 
 ## 1. 本轮目标
 
@@ -23,7 +25,7 @@
 - `scripts/v2/production/m1-production-storage-p0r-bundle.mjs`：构建可复现、脱敏、内容绑定的 Linux amd64 执行包。
 - `scripts/v2/production/m1-production-storage-p0r-bundle.test.mjs`：覆盖 bundle 字节可复现、官方 age provenance 和错误二进制拒绝。
 - `scripts/v2/production/p0r-cos-archive/go.mod`：声明零第三方运行依赖的 Go helper module。
-- `scripts/v2/production/p0r-cos-archive/main.go`：实现腾讯 COS REST 签名、owner-only ACL、versioned/COMPLIANCE 对象上传和精确取回；禁用环境代理继承并要求 TLS 1.2+。
+- `scripts/v2/production/p0r-cos-archive/main.go`：当时实现腾讯 COS REST 签名、owner-only ACL、versioned/COMPLIANCE 对象上传和精确取回；其中 overwrite 请求头后来确认在 versioning 下无效，已由 P0R-B 替换为不夸大的唯一键合同。
 - `scripts/v2/production/p0r-cos-archive/main_test.go`：覆盖官方签名向量、额外账户 ACL/弱保留模式拒绝和 mock HTTPS 端到端对象流程。
 - `package.json`：把 P0R 定向门禁和 Go 测试接入 V2 ops/生产 CI，并增加 bundle/plan 命令。
 - `docs/architecture/v2/M1_6_P0R_CAPACITY_AND_RECOVERY_REMEDIATION_CONTRACT_V1.md`：冻结容量、恢复、顺序和外部动作边界。
@@ -49,7 +51,7 @@
 ## 6. 风险说明
 
 - 本地测试和 mock COS 只能证明工具约束，不能证明腾讯生产数据已可恢复。
-- 真实执行前仍需专用私有 COS bucket、versioning=`ENABLED`、Object Lock=`COMPLIANCE` 至少 30 天、专用 age X25519 身份和 2-36 小时最小权限临时凭证；私钥原件必须与 COS 分离保存在加密保险库，生产机只放临时副本。
+- 真实执行前仍需专用单 AZ 私有 COS bucket、versioning=`ENABLED`、Object Lock=`COMPLIANCE` 至少 30 天、专用 age X25519 身份和按当前 P0R-B 运行计划签发的 7200 秒最小权限临时凭证；私钥原件必须与 COS 分离保存在加密保险库，生产机只放临时副本。
 - 当前根文件系统仍为 126,695,636,264 bytes，低于 161,643,694,113 bytes 硬门槛；推荐扩至 180 GiB。
 - 扩容涉及费用及可能的强制关机，只能由用户在腾讯控制台确认。
 - P0 仍为 `BLOCKED`；任何 P1 Add Schema、身份创建、分区预建或 Worker 启动都必须继续拒绝。

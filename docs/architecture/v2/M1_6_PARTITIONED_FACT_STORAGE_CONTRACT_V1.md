@@ -135,6 +135,6 @@ M1.6 local exit
 -> M1 engineering exit
 ```
 
-P0 report `sha256:344ae4e05ec78e74ca97c92728fc06576f744e795bf4919d6eb3b76ee145769e` 已证明生产 PostgreSQL 16、schema=`ABSENT_CLEAN`、旧/新 Fact=0 和零 mutation；同时确认 120 GiB 系统盘预计使用率 90%、headroom 不足且 recovery evidence 缺失。P0R 本地恢复工程已通过，但真实生产备份/恢复、容量整改和 fresh P0 均未执行；P0R 后必须完整重跑 P0，不能直接跳 P1。
+P0 report `sha256:344ae4e05ec78e74ca97c92728fc06576f744e795bf4919d6eb3b76ee145769e` 已证明生产 PostgreSQL 16、schema=`ABSENT_CLEAN`、旧/新 Fact=0 和零 mutation；同时确认 120 GiB 系统盘预计使用率 90%、headroom 不足且 recovery evidence 缺失。P0R 本地恢复与 P0R-B 云资源前置安全工程已通过，但当前 COS inventory=0，真实 bucket/密钥/STS、生产备份/恢复、容量整改和 fresh P0 均未执行；P0R 后必须完整重跑 P0，不能直接跳 P1。
 
 等待外部 Gate 时，只允许并行构建不读取 M1 production authority 的合同、fixture、测试和 no-authority 工具；不得启动 Detector、发 Candidate 或生成交易计划。

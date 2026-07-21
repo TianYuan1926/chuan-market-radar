@@ -1,6 +1,6 @@
 # V2 M1.6-P0R 生产恢复运行手册
 
-状态：`READY_FOR_CONTROLLED_USE / PRODUCTION_RECOVERY_NOT_EXECUTED / P0_BLOCKED`
+状态：`READY_FOR_CONTROLLED_USE_AFTER_EXTERNAL_RESOURCE_CONFIRMATION / PRODUCTION_RECOVERY_NOT_EXECUTED / P0_BLOCKED`
 
 ## 1. 唯一目标
 
@@ -11,7 +11,7 @@
 ```text
 准备私有 COS 与独立密钥保管
 -> 构建并核验 exact clean-commit transport bundle
--> 上传脱敏 bundle 与临时 secret 副本
+-> 上传无 secret、含受限目标元数据的 checksum-bound bundle 与临时 secret 副本
 -> 执行真实 backup / retrieval / isolated restore
 -> 封存脱敏 evidence，确认临时 secret 与容器/volume 已清理
 -> 用户执行系统盘升级
@@ -22,10 +22,10 @@
 
 ## 2. 外部前置条件
 
-1. 专用腾讯 COS bucket：ACL 只能是 owner `FULL_CONTROL`，无公开 bucket policy，versioning=`ENABLED`。
-2. Object Lock 已开启，默认 `COMPLIANCE` 至少 30 天；对象上传仍显式设置 31 天 COMPLIANCE。若账户未获白名单或 bucket 不满足限制，停止，不得改成普通可删对象。
+1. 专用腾讯 COS bucket：`ap-hongkong`、单可用区、ACL 只能是 owner `FULL_CONTROL`、无公开 bucket policy、versioning=`ENABLED`、SSE-COS AES256。当前控制台 inventory=0，尚未创建。
+2. Object Lock 已开启，默认 `COMPLIANCE` 31 天；对象上传仍显式设置 31 天 COMPLIANCE。腾讯当前要求白名单、不支持多 AZ、开启后不可关闭且 versioning 不可暂停；任一条件不满足就停止，不能降级成普通可删对象。
 3. 唯一对象 key 符合 `market-radar-v2/p0r/<date>/<run-id>.dump.age`，禁止复用旧 key。
-4. 腾讯 STS 临时凭证总寿命 2-36 小时，执行开始时至少剩余 2 小时；权限声明必须与 runner 要求的 9 个 action 和唯一 bucket/key 完全一致。
+4. 腾讯 STS 使用当前 `GetFederationToken` API，固定 7200 秒。必须在签发后 5 分钟内编译，编译时至少剩 6600 秒；COS helper 开始时至少剩 75 分钟。权限必须与 plan 要求的 10 个 action、唯一 bucket/key、源 IP `/32` 和请求条件完全一致。
 5. 独立 age X25519 恢复身份由用户在可信设备生成。私钥在与 COS 分离的加密保险库中保留至少到对象 retention 到期；生产机只接收 `/dev/shm` 临时副本，执行后自动删除。
 6. 腾讯系统盘存在可升级到至少 161,643,694,113 bytes 文件系统容量的选项，推荐 180 GiB；付费与关机尚不在本步骤执行。
 
@@ -40,25 +40,53 @@ SecretId / SecretKey / session token
 DATABASE_URL
 数据库业务行
 原始 pg_dump 明文
-COS bucket 名和 object key 明文证据
+COS bucket 名和 object key 出现在公开报告或聊天
 ```
 
 ## 4. 本地构建
 
-必须从 clean commit 构建；dirty worktree 只能产生 `LOCAL_TEMPLATE_ONLY`，不得上传执行。
+必须先从 clean commit 生成运行级 provisioning plan。`run-id` 默认带 128-bit 随机熵；`source-ip-cidr` 必须是生产宿主公网出口的单个 `/32`：
+
+```bash
+npm run v2:m1:p0r:cos-plan -- \
+  --app-id '<APPID>' \
+  --bucket-base-name market-radar-v2-p0r \
+  --source-commit '<clean-HEAD>' \
+  --source-ip-cidr '<production-public-ip>/32' \
+  --output /absolute/restricted/path/cos-provisioning-plan.json
+```
+
+计划不含 secret，但包含 bucket/object 目标元数据，必须 mode 600、限制传播。dirty worktree 只能产生 `LOCAL_TEMPLATE_ONLY`，不得上传执行。生产 bundle 必须额外绑定 plan：
 
 ```bash
 npm run v2:m1:p0r:bundle -- \
   --age-archive /absolute/path/age-v1.3.1-linux-amd64.tar.gz \
   --age-recipient /absolute/path/age-recipient.txt \
+  --cos-provisioning-plan /absolute/restricted/path/cos-provisioning-plan.json \
   --output /absolute/path/p0r-transport.tar.gz
 ```
 
-验收输出必须为 `PASS_P0R_PRODUCTION_TRANSPORT_BUNDLE`，并独立记录 source commit、bundle SHA-256、manifest digest 和 size。私钥不得传入 builder。
+验收输出必须为 `PASS_P0R_PRODUCTION_TRANSPORT_BUNDLE`，并独立记录 source commit、bundle SHA-256、manifest digest 和 size。manifest 必须写明 `containsSecrets=false`、`containsSensitiveDestinationMetadata=true`。私钥不得传入 builder。
 
 ## 5. 临时凭证合同
 
-credential file 必须是 mode 600 的单一 JSON 对象，字段只能如下；尖括号内容只能在 `/dev/shm` 临时文件中替换，不能保存为仓库文件：
+不得手工编 credential JSON。必须在腾讯 API Explorer 中逐字使用 plan 的 `stsRequest`；API policy 不含 `principal`，由源 IP、HTTPS、TLS、private ACL、Content-Type、COMPLIANCE retention 和唯一 resource 约束。腾讯返回的原始 JSON 只能暂存为 `/dev/shm/...sts-response.json` mode 600，再由 bundle 内工具编译。生产宿主不依赖系统 Node，必须复用正在运行的 Web 容器内已验证 Node 二进制：
+
+```bash
+WEB_CONTAINER="$(sudo docker compose \
+  --env-file /home/ubuntu/apps/chuan-market-radar/.env.production \
+  -f /home/ubuntu/apps/chuan-market-radar/docker-compose.yml ps -q web)"
+WEB_PID="$(sudo docker inspect -f '{{.State.Pid}}' "${WEB_CONTAINER}")"
+HOST_NODE="/proc/${WEB_PID}/root/usr/local/bin/node"
+sudo test -x "${HOST_NODE}"
+sudo "${HOST_NODE}" --preserve-symlinks \
+  <source>/m1-production-storage-p0r-cos-provisioning.mjs compile-credentials \
+  --plan <source>/cos-provisioning-plan.json \
+  --sts-response /dev/shm/market-radar-v2-p0r-<run-id>.sts-response.json \
+  --output /dev/shm/market-radar-v2-p0r-<run-id>.cos-credentials.json
+```
+
+编译器成功或失败都会删除 raw STS response。credential file 是 mode 600 的单一 JSON 对象，schema 为 v2，除临时三元组外还绑定运行计划与签发证据：
 
 ```json
 {
@@ -72,26 +100,39 @@ credential file 必须是 mode 600 的单一 JSON 对象，字段只能如下；
       "cos:GetObject",
       "cos:GetObjectACL",
       "cos:GetObjectRetention",
+      "cos:HeadBucket",
       "cos:HeadObject",
       "cos:PutObject"
     ],
     "bucket": "<private-bucket-appid>",
     "objectKey": "market-radar-v2/p0r/<date>/<run-id>.dump.age",
-    "region": "ap-<region>"
+    "region": "ap-hongkong",
+    "runId": "<run-id>",
+    "sourceIpCidr": "<production-public-ip>/32"
+  },
+  "issuance": {
+    "durationSeconds": 7200,
+    "method": "TENCENT_STS_GET_FEDERATION_TOKEN",
+    "planDigest": "sha256:<hex>",
+    "policyDigest": "sha256:<hex>",
+    "requestDigest": "sha256:<hex>",
+    "requestId": "<tencent-request-uuid>"
   },
   "issuedAt": "YYYY-MM-DDTHH:mm:ss.000Z",
-  "schemaVersion": "v2-m1-production-storage-cos-temporary-credentials.v1",
+  "schemaVersion": "v2-m1-production-storage-cos-temporary-credentials.v2",
   "secretId": "<temporary-secret-id>",
   "secretKey": "<temporary-secret-key>",
   "sessionToken": "<temporary-session-token>"
 }
 ```
 
-声明 action 精确并不能单独证明 STS 实际策略最小；签发时必须把 resource 限制到该唯一 bucket/key，并使用 COS object-lock mode/retention 条件键。无法证明实际策略时停止。
+plan/request/policy digest 与 RequestId 证明本次工具使用的申请材料和腾讯响应身份，但不能从 token 内部反解服务端 policy。无法在 API Explorer 核对实际请求参数时停止，不得仅凭 credential 声明通过。
+
+注意：腾讯官方 `PUT Object` 文档明确写明 versioning 开启后 `x-cos-forbid-overwrite` 不生效。它仍必须携带，但不得称为防覆盖。helper 会先 HEAD 唯一高熵 key，只有 404 才上传；发现已有对象立即停止，成功后只按腾讯返回的 exact versionId 进行 ACL、retention、HEAD 和 GET 验证。
 
 ## 6. 生产 staging
 
-选择一个合法 `run-id`，所有路径必须与它逐字一致：
+读取 provisioning plan 中已经生成的 `credentialGrant.runId`；禁止另选、缩写或重建 `run-id`。所有路径必须与该值逐字一致：
 
 ```text
 source: /home/ubuntu/.cache/market-radar-v2/p0r/staging/<run-id>
@@ -100,7 +141,7 @@ COS credential: /dev/shm/market-radar-v2-p0r-<run-id>.cos-credentials.json
 age identity: /dev/shm/market-radar-v2-p0r-<run-id>.age-identity.txt
 ```
 
-staging/evidence 根目录和 source 目录必须是实际目录，不得是 symlink。解包后必须核验 transport bundle SHA-256、manifest、所有 file checksum 和 source commit。只上传 bundle、临时 credential file 与临时 age identity；不得同步源码仓库或生产 env。
+staging/evidence 根目录和 source 目录必须是实际目录，不得是 symlink。解包后必须核验 transport bundle SHA-256、manifest、所有 file checksum 和 source commit。只上传 checksum-bound bundle、临时 credential file 与临时 age identity；不得同步源码仓库或生产 env。bundle 无 secret，但含受限 COS 目标元数据，执行后 staging 必须清理。
 
 ## 7. 执行
 
@@ -133,6 +174,8 @@ PASS 必须同时具备：
 - 同一 `REPEATABLE READ READ ONLY` snapshot 的 source fingerprint 与加密 backup。
 - 明文 dump 从未落盘；密文离机前已 age X25519 加密。
 - bucket/object owner-only ACL、无公开 policy、versioning、COMPLIANCE retention、AES256 SSE。
+- bucket region=`ap-hongkong` 且 HEAD Bucket 未返回 multi-AZ 标记；provisioning plan、STS policy/request 与 run-id 摘要一致。
+- 上传前 exact key 确认为不存在；防碰撞结论明确是高熵唯一 key + absence check，不是无效的 versioning overwrite header。
 - exact object version 的 HEAD、GET、bytes 和 SHA-256 一致。
 - `network none`、无 host port、无生产 network/volume/credential 的 PG16 restore。
 - source/restore structural digest 与 verification digest 一致。

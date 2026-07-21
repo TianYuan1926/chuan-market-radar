@@ -9,8 +9,12 @@ test("plan exposes the exact no-mutation and isolated-restore boundary", () => {
   const plan = JSON.parse(execFileSync("bash", [RUNNER, "plan"], { encoding: "utf8" }));
   assert.equal(plan.sourceTransaction, "REPEATABLE_READ_READ_ONLY");
   assert.equal(plan.plaintextDumpCreated, false);
+  assert.equal(plan.offHostAvailabilityZoneType, "SINGLE_AZ_REQUIRED");
   assert.equal(plan.offHostVersioning, "ENABLED");
   assert.equal(plan.offHostRetention, "COMPLIANCE_30D_MINIMUM");
+  assert.equal(plan.offHostObjectKey, "HIGH_ENTROPY_RUN_BOUND");
+  assert.equal(plan.preUploadAbsenceRequired, true);
+  assert.equal(plan.stsPolicyPlanBound, true);
   assert.equal(plan.restoreNetworkMode, "none");
   assert.equal(plan.restoreCpuNano, 1_500_000_000);
   assert.equal(plan.restoreMemoryBytes, 2 * 1024 ** 3);
@@ -57,6 +61,11 @@ test("runner encodes hard cleanup, digest binding and no-source-sync invariants"
     "migrationPerformed: false",
     "executed runner path is not the checksum-bound staging file",
     "P0R_AGE_RECIPIENT_SHA256",
+    "P0R_COS_PROVISIONING_PLAN_SHA256",
+    "P0R_COS_PROVISIONING_TOOL_SHA256",
+    "m1-production-storage-p0r-cos-provisioning.mjs\" verify-plan",
+    '--provisioning-plan "${RUNTIME_DIRECTORY}/cos-provisioning-plan.json"',
+    '--run-id "${RUN_ID}"',
     "EXPECTED_SOURCE_DIRECTORY",
     "EXPECTED_OUTPUT_DIRECTORY",
     '"/dev/shm/market-radar-v2-p0r-${RUN_ID}.age-identity.txt"',

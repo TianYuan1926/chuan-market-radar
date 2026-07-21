@@ -24,7 +24,7 @@
 - [x] **M1.6 Partitioned Fact Storage + Retention Governance 本地出口**：已建立专用 UTC 日分区、无 DEFAULT fail-closed 路由、有界活动身份注册表、旧账本新 Fact 禁写、容量水位、独立 Audit/Retention 身份、restore-verified DROP 与不可变事件。定向 5/5、隔离 PG16 1/1，真实 `pg_dump -> pg_restore` 后 replay parity PASS/deterministic true；迁移前旧 Fact 可读，2 个分区跨日读取，保留中/活跃 replay 均阻断清理，到期后原子删除 1 分区/2 Fact 且拒绝重灌；全 V2 141/0/5 explicit skips 与完整 `ci:production` PASS。状态：`LOCAL_ENGINEERING_AND_POSTGRES16_PASS / PRODUCTION_MIGRATION_NOT_RUN`。
 - [ ] **M1.6-P Production Storage 分阶段启用**：B1-B 已通过，当前开始分阶段启用；每步独立 checksum、备份/恢复、回滚和生产验证，不与业务逻辑整改混发。
 - [x] **M1.6-P0 新鲜只读预检合同与现场证明**：exact source `d5dbc804be00c546624ab933bad6282228f983c4` 已完成 22 项定向、54 项 ops、完整 `ci:production` 和生产只读执行。Fact capture=`PASS`，admission=`BLOCKED`：V2 schema=`ABSENT_CLEAN`、旧/新 Fact=0、数据库/服务/仓库 mutation=0，但当前 120 GiB 系统盘按冻结模型预计使用率 90%，可用 70.02 GB 小于所需 87.09 GB，且无合格 recovery evidence。状态：`EXECUTED_BLOCKED_NOT_READY_FOR_P1`。
-- [ ] **M1.6-P0R Capacity + Recovery Remediation**：recovery verifier、同快照加密 backup、数据库 fingerprint、私有 COS 归档、隔离 PG16 restore runner、可复现 bundle 和失败注入已本地通过；真实生产仍须取得加密离机备份、远端 version retrieval、独立 restore parity 与 RPO/RTO 证据，再把根文件系统提升到至少 161,643,694,113 bytes，推荐 180 GiB，并验证完整生产恢复。P0R 只允许重跑 P0，不能直接授权 P1。当前状态：`LOCAL_RECOVERY_ENGINEERING_PASS / PRODUCTION_RECOVERY_AND_CAPACITY_ACTION_PENDING`。
+- [ ] **M1.6-P0R Capacity + Recovery Remediation**：P0R-A recovery 工具链与 P0R-B 云资源前置安全合同已本地通过；当前腾讯 COS inventory=0，尚未创建 bucket。固定剩余顺序为 `P0R-B1 单 AZ 私有 COS + versioning + SSE-COS + 永久 Object Lock COMPLIANCE 31d -> P0R-B2 离机 age 身份与运行级 STS -> P0R-C 同快照加密 backup / 远端精确 version retrieval / 独立 PG16 restore -> P0R-D 用户确认 180 GiB 付费关机升级 -> P0R-E boot/filesystem/Docker/Postgres/Redis/app health -> fresh P0`。P0R 只允许重跑 P0，不能直接授权 P1。当前状态：`LOCAL_RECOVERY_AND_CLOUD_PREREQUISITE_ENGINEERING_PASS / EXTERNAL_COS_RECOVERY_AND_CAPACITY_ACTION_PENDING`。
 - [ ] **M1.6-P1 Add Schema**：仅在 P0 PASS 和独立 migration 授权后，事务性应用 checksum 固定的 additive schema；禁止 backfill、身份切换、Worker 启动和其他服务变更。
 - [ ] **M1.6-P2 最小权限身份与会话证明**：独立创建/绑定 migration、writer、reader、replay、audit、retention 权限，验证越权拒绝；不启动 Worker。
 - [ ] **M1.6-P3 分区与 dormant no-authority Worker**：按容量门槛预建有界 UTC 分区，部署 dormant Worker，默认不写入；只做身份、镜像、配置、rollback 和 absence 证明。
@@ -102,10 +102,10 @@ M2.2-B0.2-B external rights/source resolution
 M0 engineering exit: LOCAL_PASS / PRODUCTION_UNCHANGED
 Last completed package: V2-M1.5-B1-B3-MARK-PRICE-SAME-GATE-31-CYCLE-RETEST
 Last production gate execution: V2-M1.6-P0-PRODUCTION-STORAGE-READ-ONLY-PREFLIGHT = BLOCKED
-Current execution entry: V2-M1.6-P0R-CAPACITY-AND-RECOVERY-REMEDIATION
+Current execution entry: V2-M1.6-P0R-B1-COS-KEY-STS-EXTERNAL-PROVISIONING
 Current blocked external entry: V2-M2.2-B0.2-B-EXACT-SOURCE-RIGHTS-AND-CAPABILITY-RESOLUTION
 Completed bounded shadow gate: V2-M1.5-B1-B-PASS_EARLY_SHADOW_BUSINESS_GATE
-Current status: M1.5-B1_COMPLETE / B1-B1_EXECUTION_INVALID_NOT_COUNTED / B1-B3_PASS / M1.6-P0_EXECUTED_BLOCKED_CAPACITY_AND_RECOVERY / M1.6-P0R_LOCAL_RECOVERY_ENGINEERING_PASS_PRODUCTION_ACTION_PENDING / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED / PRODUCTION_SERVICES_DATA_AND_AUTHORITY_UNCHANGED
+Current status: M1.5-B1_COMPLETE / B1-B1_EXECUTION_INVALID_NOT_COUNTED / B1-B3_PASS / M1.6-P0_EXECUTED_BLOCKED_CAPACITY_AND_RECOVERY / M1.6-P0R_LOCAL_RECOVERY_AND_CLOUD_PREREQUISITE_ENGINEERING_PASS_EXTERNAL_ACTION_PENDING / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED / PRODUCTION_SERVICES_DATA_AND_AUTHORITY_UNCHANGED
 ```
 
 M0 的减数只代表合同、运行时输入边界、Legacy 消费者地图和隔离门禁已经形成闭环；它不代表真实 Provider、全市场扫描、Detector、交易计划、页面或生产能力已经完成。

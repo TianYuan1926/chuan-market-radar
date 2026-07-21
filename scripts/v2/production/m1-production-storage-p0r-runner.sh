@@ -17,6 +17,8 @@ MINIMUM_TARGET_BYTES=51836979428
 AGE_SHA256="${P0R_AGE_SHA256:-}"
 AGE_RECIPIENT_SHA256="${P0R_AGE_RECIPIENT_SHA256:-}"
 COS_ARCHIVE_SHA256="${P0R_COS_ARCHIVE_SHA256:-}"
+COS_PROVISIONING_PLAN_SHA256="${P0R_COS_PROVISIONING_PLAN_SHA256:-}"
+COS_PROVISIONING_TOOL_SHA256="${P0R_COS_PROVISIONING_TOOL_SHA256:-}"
 BACKUP_CAPTURE_SHA256="${P0R_BACKUP_CAPTURE_SHA256:-}"
 FINGERPRINT_SHA256="${P0R_FINGERPRINT_SHA256:-}"
 PREFLIGHT_LIBRARY_SHA256="${P0R_PREFLIGHT_LIBRARY_SHA256:-}"
@@ -30,7 +32,7 @@ fail() {
 
 print_plan() {
   cat <<'JSON'
-{"schemaVersion":"v2-m1-production-storage-p0r-runner-plan.v1","mode":"plan","sourceTransaction":"REPEATABLE_READ_READ_ONLY","plaintextDumpCreated":false,"encryption":"AGE_X25519","offHostProvider":"TENCENT_COS","offHostVersioning":"ENABLED","offHostRetention":"COMPLIANCE_30D_MINIMUM","restorePostgresMajor":16,"restoreNetworkMode":"none","restoreCpuNano":1500000000,"restoreMemoryBytes":2147483648,"restoreMemorySwapBytes":3221225472,"restorePidsLimit":256,"hostPortsPublished":false,"productionNetworksAttached":false,"productionVolumesMounted":false,"productionCredentialsMounted":false,"productionDatabaseMutation":false,"productionServiceMutation":false,"productionRepositoryMutation":false,"migrationAllowed":false,"capacityMutationAllowed":false,"automaticTradingAllowed":false}
+{"schemaVersion":"v2-m1-production-storage-p0r-runner-plan.v2","mode":"plan","sourceTransaction":"REPEATABLE_READ_READ_ONLY","plaintextDumpCreated":false,"encryption":"AGE_X25519","offHostProvider":"TENCENT_COS","offHostAvailabilityZoneType":"SINGLE_AZ_REQUIRED","offHostVersioning":"ENABLED","offHostRetention":"COMPLIANCE_30D_MINIMUM","offHostObjectKey":"HIGH_ENTROPY_RUN_BOUND","preUploadAbsenceRequired":true,"stsPolicyPlanBound":true,"restorePostgresMajor":16,"restoreNetworkMode":"none","restoreCpuNano":1500000000,"restoreMemoryBytes":2147483648,"restoreMemorySwapBytes":3221225472,"restorePidsLimit":256,"hostPortsPublished":false,"productionNetworksAttached":false,"productionVolumesMounted":false,"productionCredentialsMounted":false,"productionDatabaseMutation":false,"productionServiceMutation":false,"productionRepositoryMutation":false,"migrationAllowed":false,"capacityMutationAllowed":false,"automaticTradingAllowed":false}
 JSON
 }
 
@@ -107,6 +109,8 @@ RUNNER_SOURCE="${SOURCE_DIRECTORY}/m1-production-storage-p0r-runner.sh"
 AGE_BINARY_SOURCE="${SOURCE_DIRECTORY}/age"
 AGE_RECIPIENT_SOURCE="${SOURCE_DIRECTORY}/age-recipient.txt"
 COS_ARCHIVE_SOURCE="${SOURCE_DIRECTORY}/p0r-cos-archive"
+COS_PROVISIONING_PLAN_SOURCE="${SOURCE_DIRECTORY}/cos-provisioning-plan.json"
+COS_PROVISIONING_TOOL_SOURCE="${SOURCE_DIRECTORY}/m1-production-storage-p0r-cos-provisioning.mjs"
 
 verify_source() {
   local path="$1" expected="$2" label="$3"
@@ -122,6 +126,8 @@ verify_source "${RECOVERY_EVIDENCE_SOURCE}" "${RECOVERY_EVIDENCE_SHA256}" "recov
 verify_source "${RUNNER_SOURCE}" "${RUNNER_SHA256}" "P0R runner"
 verify_source "${AGE_BINARY_SOURCE}" "${AGE_SHA256}" "age binary"
 verify_source "${COS_ARCHIVE_SOURCE}" "${COS_ARCHIVE_SHA256}" "COS archive binary"
+verify_source "${COS_PROVISIONING_PLAN_SOURCE}" "${COS_PROVISIONING_PLAN_SHA256}" "COS provisioning plan"
+verify_source "${COS_PROVISIONING_TOOL_SOURCE}" "${COS_PROVISIONING_TOOL_SHA256}" "COS provisioning tool"
 verify_source "${AGE_RECIPIENT_SOURCE}" "${AGE_RECIPIENT_SHA256}" "age recipient"
 [[ "$(stat -c '%s' "${AGE_RECIPIENT_SOURCE}")" -le 8192 ]] \
   || fail "age recipient source is too large"
@@ -268,6 +274,7 @@ sudo -n test -S "${POSTGRES_SOCKET_SOURCE}/.s.PGSQL.5432" \
 
 for source in \
   "${BACKUP_CAPTURE_SOURCE}" \
+  "${COS_PROVISIONING_TOOL_SOURCE}" \
   "${FINGERPRINT_SOURCE}" \
   "${PREFLIGHT_LIBRARY_SOURCE}" \
   "${RECOVERY_EVIDENCE_SOURCE}"; do
@@ -276,7 +283,14 @@ done
 install -m 500 "${AGE_BINARY_SOURCE}" "${RUNTIME_DIRECTORY}/age"
 install -m 500 "${COS_ARCHIVE_SOURCE}" "${RUNTIME_DIRECTORY}/p0r-cos-archive"
 install -m 400 "${AGE_RECIPIENT_SOURCE}" "${RUNTIME_DIRECTORY}/age-recipient.txt"
+install -m 400 "${COS_PROVISIONING_PLAN_SOURCE}" "${RUNTIME_DIRECTORY}/cos-provisioning-plan.json"
 ln -s "${HOST_NODE_MODULES}" "${HOST_RUNTIME_DIRECTORY}/node_modules"
+
+sudo -n "${HOST_NODE_BINARY}" --preserve-symlinks \
+  "${HOST_RUNTIME_DIRECTORY}/m1-production-storage-p0r-cos-provisioning.mjs" verify-plan \
+    --input "${RUNTIME_DIRECTORY}/cos-provisioning-plan.json" \
+    --run-id "${RUN_ID}" \
+    --source-commit "${SOURCE_COMMIT}" >/dev/null
 
 # A memory-only canary proves the supplied private identity matches the public recipient.
 sudo -n head -c 64 /dev/urandom > "${CANARY_PLAINTEXT}"
@@ -330,8 +344,10 @@ DATABASE_CONNECTION_REMOVED=true
 sudo -n timeout 35m "${RUNTIME_DIRECTORY}/p0r-cos-archive" archive \
   --credentials "${COS_CREDENTIAL_FILE}" \
   --encrypted-backup "${LOCAL_ENCRYPTED}" \
+  --output "${ARCHIVE_FACTS}" \
+  --provisioning-plan "${RUNTIME_DIRECTORY}/cos-provisioning-plan.json" \
   --retrieved-backup "${RETRIEVED_ENCRYPTED}" \
-  --output "${ARCHIVE_FACTS}" >/dev/null
+  --run-id "${RUN_ID}" >/dev/null
 adopt_evidence "${ARCHIVE_FACTS}"
 sudo -n rm -f "${COS_CREDENTIAL_FILE}"
 COS_CREDENTIAL_REMOVED=true

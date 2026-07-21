@@ -2,6 +2,42 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-21 / V2 M1.6-P0R-B Cloud Prerequisite Safety
+
+### 本轮目标
+
+把真实 COS/STS 外部动作收口为运行级、最小权限、可校验且不夸大防覆盖能力的生产前置合同。
+
+### 修改范围
+
+- 新增高熵 run-id、香港单 AZ bucket、源 IP `/32`、唯一 object key 与精确 STS policy 的 provisioning plan，以及只在 `/dev/shm` 编译 credential 的工具。
+- bundle/runner/helper 全链绑定 plan/source/run-id；COS helper 新增 region/单 AZ、上传前 key absent、exact version 证据，拒绝 multi-AZ 和已存在对象。
+- recovery evidence 升级 v2；按腾讯官方合同作废旧“versioning 下 forbid-overwrite 可防覆盖”的误述。
+- 腾讯控制台只读确认 COS bucket=0；180GB 套餐可选但涉及费用与强制关机，本轮未执行任何外部动作。
+
+### 核心链路影响
+
+加固 `全市场发现 -> Market Fact + Quality -> Runtime Truth` 的生产恢复地基；不改变交易逻辑或生产 authority。
+
+### 测试结果
+
+- P0R 35/35、V2 ops 89/89、M0 11/11 PASS。
+- 完整 `ci:production` PASS：typecheck、lint、market、V2 277/0/5 explicit skips、build、Golden 16/16 和 security 全部通过。
+
+### 是否部署
+
+未部署；未创建 COS、未签发 STS、未生成/传输私钥、未执行生产恢复、未付费、未关机、未扩容。生产 DB/Redis/env/migration/Feature Flag/服务/仓库/Candidate runtime/authority 零变更。
+
+### 风险与遗留问题
+
+- P0 仍因真实 recovery evidence 与容量 `BLOCKED`，P1 关闭。
+- Object Lock 不可撤销且不支持 multi-AZ；外部创建必须按 action-time 安全确认执行。
+- 真实剩余为 COS/age/STS -> backup/retrieval/isolated restore -> 用户扩容 -> health -> fresh P0。
+
+### 下一轮建议
+
+只执行 `V2-M1.6-P0R-B1-COS-KEY-STS-EXTERNAL-PROVISIONING`，完成后用同一 run-id 立即进入 P0R-C；禁止混入 P1。
+
 ## 2026-07-21 / V2 M1.6-P0R Local Recovery Engineering
 
 ### 本轮目标
@@ -11,8 +47,8 @@
 ### 修改范围
 
 - 新增无业务行 fingerprint、`pg_dump -> age X25519` 直接流式加密、strict recovery verifier 和计划/确认双模式 P0R runner。
-- 新增零第三方运行依赖的腾讯 COS REST helper，要求私有 bucket、versioning、COMPLIANCE retention、无覆盖上传和精确 version 取回复算。
-- 新增可复现脱敏 bundle、官方 age provenance、失败注入与 runner/source/checksum/隔离/清理约束；新增离机私钥保管与生产操作 runbook，更新 P0R 合同、蓝图、矩阵和施工顺序。
+- 新增零第三方运行依赖的腾讯 COS REST helper，要求私有 bucket、versioning、COMPLIANCE retention 和精确 version 取回复算；其当时依赖的 overwrite 请求头后来确认在 versioning 下无效，已由 P0R-B 替换。
+- 新增可复现无 secret bundle、官方 age provenance、失败注入与 runner/source/checksum/隔离/清理约束；新增离机私钥保管与生产操作 runbook，更新 P0R 合同、蓝图、矩阵和施工顺序。
 
 ### 核心链路影响
 
@@ -146,39 +182,3 @@
 ### 下一轮建议
 
 完整门禁与 exact commit/push 后，只执行 `V2-M1.5-B1-B3-MARK-PRICE-SAME-GATE-31-CYCLE-RETEST`。
-
-## 2026-07-21 / V2 M1.5-B1-B0 Early Shadow Evidence Contract
-
-### 本轮目标
-
-冻结一个不可拼接、内容寻址、业务 Gate 独立且可精确恢复宿主 Docker 基线的 31 周期 no-authority Early Shadow 合同和腾讯隔离 Runner。
-
-### 修改范围
-
-- 新增 strict process summary 和原子 31 周期 evidence builder，拒绝短包、跨进程/config 拼接、非 canonical JSONL、错误 cadence 和状态夸大。
-- SLO 新增 100% collection coverage 独立门槛；eligible、collected、fresh 与 READY 不再互相替代。
-- 新增 pinned toolchain、临时 PG、storage/egress 双网络、secret-file、只读非 root Worker、内容寻址 artifact、自动清理和宿主精确恢复 Runner。
-
-### 核心链路影响
-
-加固 `全市场发现 -> Market Fact + Quality` 的 31 周期实测地基；未生成 Candidate、Analysis、Strategy、Backtest、页面或生产 authority。
-
-### 测试结果
-
-- M1 专用 68/68、全 V2 274/0/5 explicit external-dependency skip、V2 ops 31/31。
-- 完整 `ci:production` PASS：Legacy 965/0/4 skip、Worker 23/23、Historical 4/4、M0 11/11、build、Golden 16/16、security PASS。
-- anti-inflation 覆盖 short/stitched/noisy/cadence drift、collection/freshness 缺口、direct DB capability、report tamper、失败原因和宿主残留。
-
-### 是否部署
-
-未部署。未执行 31 周期真实捕获；生产服务、数据、DB、Redis、env、migration、Feature Flag、Candidate runtime 和 authority 零变更。
-
-### 风险与遗留问题
-
-- B1-B0 只证明合同和 Runner，本身不证明业务 SLO；当前唯一入口是 B1-B1 原始实测。
-- B1-A 已暴露 freshness/duplicate/missed-start，实测 FAIL 必须保留，不能先放宽门槛。
-- 中断不能续接；必须清理后从第 1 周期整轮重跑。
-
-### 下一轮建议
-
-只执行 `V2-M1.5-B1-B1-31-CYCLE-EMPIRICAL-CAPTURE`：绑定 B1-B0 exact commit，在腾讯隔离 Runner 原样运行并接受独立业务 Gate 的 PASS/FAIL。

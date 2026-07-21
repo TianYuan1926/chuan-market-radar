@@ -22,16 +22,63 @@ func (function roundTripFunc) RoundTrip(request *http.Request) (*http.Response, 
 	return function(request)
 }
 
-func validCredentials(now time.Time) credentialEnvelope {
-	return credentialEnvelope{
-		ExpiresAt: now.Add(3 * time.Hour).UTC().Format("2006-01-02T15:04:05.000Z"),
-		Grant: credentialGrant{
-			Actions:   append([]string(nil), requiredActions...),
-			Bucket:    "market-radar-backup-1250000000",
-			ObjectKey: "market-radar-v2/p0r/2026/07/run-aaaaaaaaaaaaaaaa.dump.age",
-			Region:    "ap-hongkong",
+func validPlan(now time.Time) provisioningPlan {
+	now = now.UTC().Truncate(time.Second)
+	runID := "p0r-" + strings.ToLower(now.Format("20060102t150405z")) + "-" + strings.Repeat("a", 32)
+	grant := credentialGrant{
+		Actions:      append([]string(nil), requiredActions...),
+		Bucket:       "market-radar-backup-1250000000",
+		ObjectKey:    "market-radar-v2/p0r/" + now.Format("2006-01-02") + "/" + runID + ".dump.age",
+		Region:       "ap-hongkong",
+		RunID:        runID,
+		SourceIPCIDR: "203.0.113.24/32",
+	}
+	plan := provisioningPlan{
+		CredentialGrant: grant,
+		OverwriteProtection: overwriteProtection{
+			ForbidOverwriteHeaderEffectiveWithVersioning: false,
+			Mode:                     "HIGH_ENTROPY_UNIQUE_KEY_PLUS_PREUPLOAD_ABSENCE_CHECK",
+			PreUploadAbsenceRequired: true,
 		},
-		IssuedAt:      now.Add(-time.Minute).UTC().Format("2006-01-02T15:04:05.000Z"),
+		PlanDigest:    "sha256:" + strings.Repeat("1", 64),
+		PlannedAt:     now.Format("2006-01-02T15:04:05.000Z"),
+		SchemaVersion: planSchema,
+		SourceCommit:  strings.Repeat("b", 40),
+		STSRequest: stsRequest{
+			Action:          "GetFederationToken",
+			DurationSeconds: 7200,
+			Endpoint:        "sts.tencentcloudapi.com",
+			Name:            "MarketRadarRecovery",
+			Policy:          map[string]any{"version": "2.0"},
+			Version:         "2018-08-13",
+		},
+	}
+	plan.BucketConfiguration.AccessControl = "PRIVATE"
+	plan.BucketConfiguration.AvailabilityZoneType = "SINGLE_AZ"
+	plan.BucketConfiguration.DefaultEncryption = "SSE_COS_AES256"
+	plan.BucketConfiguration.ObjectLock.DefaultRetentionDays = 31
+	plan.BucketConfiguration.ObjectLock.Mode = "COMPLIANCE"
+	plan.BucketConfiguration.ObjectLock.Permanent = true
+	plan.BucketConfiguration.Versioning = "ENABLED"
+	return plan
+}
+
+func validCredentials(now time.Time) credentialEnvelope {
+	plan := validPlan(now)
+	policyDigest, _ := digestJSON(plan.STSRequest.Policy)
+	requestDigest, _ := digestJSON(plan.STSRequest)
+	return credentialEnvelope{
+		ExpiresAt: now.Add(2 * time.Hour).UTC().Format("2006-01-02T15:04:05.000Z"),
+		Grant:     plan.CredentialGrant,
+		Issuance: credentialIssuance{
+			DurationSeconds: 7200,
+			Method:          "TENCENT_STS_GET_FEDERATION_TOKEN",
+			PlanDigest:      plan.PlanDigest,
+			PolicyDigest:    policyDigest,
+			RequestDigest:   requestDigest,
+			RequestID:       "59a5e07e-4147-4d2e-a808-dca76ac5b3fd",
+		},
+		IssuedAt:      now.UTC().Format("2006-01-02T15:04:05.000Z"),
 		SchemaVersion: credentialSchema,
 		SecretID:      "AKIDtemporary123456",
 		SecretKey:     "temporary-secret-key-material",
@@ -41,8 +88,20 @@ func validCredentials(now time.Time) credentialEnvelope {
 
 func TestValidateCredentialsAcceptsExactTemporaryScope(t *testing.T) {
 	now := time.Date(2026, 7, 21, 12, 0, 0, 0, time.UTC)
-	if err := validateCredentials(validCredentials(now), now); err != nil {
+	if err := validateCredentials(validCredentials(now), validPlan(now), now); err != nil {
 		t.Fatalf("valid credentials rejected: %v", err)
+	}
+}
+
+func TestValidatePlanRejectsInvalidSourceCommit(t *testing.T) {
+	now := time.Date(2026, 7, 21, 12, 0, 0, 0, time.UTC)
+	plan := validPlan(now)
+	if err := validatePlan(plan, plan.CredentialGrant.RunID); err != nil {
+		t.Fatalf("valid plan rejected: %v", err)
+	}
+	plan.SourceCommit = "dirty-or-abbreviated"
+	if err := validatePlan(plan, plan.CredentialGrant.RunID); err == nil {
+		t.Fatal("invalid source commit unexpectedly passed")
 	}
 }
 
@@ -58,11 +117,12 @@ func TestValidateCredentialsRejectsScopeAndLifetimeInflation(t *testing.T) {
 			value.ExpiresAt = now.Add(37 * time.Hour).Format("2006-01-02T15:04:05.000Z")
 		},
 		func(value *credentialEnvelope) { value.SessionToken = "" },
+		func(value *credentialEnvelope) { value.Issuance.PlanDigest = "sha256:" + strings.Repeat("9", 64) },
 	}
 	for index, mutate := range tests {
 		value := validCredentials(now)
 		mutate(&value)
-		if err := validateCredentials(value, now); err == nil {
+		if err := validateCredentials(value, validPlan(now), now); err == nil {
 			t.Fatalf("case %d unexpectedly passed", index)
 		}
 	}
@@ -202,8 +262,76 @@ func TestArchiveEvidenceDigestExcludesDigestFieldAndUsesCanonicalOrder(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	if digest != "sha256:4e7a52fc59e820eb335103362311831677604d74a1e6b73c22ad759c4ebf6c38" {
+	if digest != "sha256:95693fe5baec51764c84f3b20432cfae886b401b20ad97bd253e705a63060232" {
 		t.Fatalf("canonical archive digest drifted: %s", digest)
+	}
+}
+
+func TestBucketVerificationRejectsMultiAZ(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.Method != http.MethodHead || request.URL.Path != "/" {
+			t.Errorf("unexpected request after multi-AZ detection: %s %s", request.Method, request.URL.Path)
+			writer.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		writer.Header().Set("x-cos-bucket-region", "ap-hongkong")
+		writer.Header().Set("x-cos-bucket-az-type", "MAZ")
+	}))
+	defer server.Close()
+
+	now := time.Date(2026, 7, 21, 12, 0, 0, 0, time.UTC)
+	credentials := validCredentials(now)
+	endpoint, _ := url.Parse(server.URL)
+	client := &cosClient{credentials: credentials, endpoint: endpoint, http: server.Client()}
+	_, err := verifyBucket(context.Background(), client, credentials, validPlan(now))
+	if err == nil || !strings.Contains(err.Error(), "multi-AZ") {
+		t.Fatalf("multi-AZ bucket was not rejected: %v", err)
+	}
+}
+
+func TestArchiveRejectsPreexistingObjectWithoutUpload(t *testing.T) {
+	putCount := 0
+	server := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		query := request.URL.Query()
+		switch {
+		case request.Method == http.MethodHead && request.URL.Path == "/":
+			writer.Header().Set("x-cos-bucket-region", "ap-hongkong")
+		case request.Method == http.MethodGet && request.URL.Path == "/" && query.Has("acl"):
+			fmt.Fprint(writer, `<AccessControlPolicy><Owner><ID>owner</ID></Owner><AccessControlList><Grant><Grantee><ID>owner</ID></Grantee><Permission>FULL_CONTROL</Permission></Grant></AccessControlList></AccessControlPolicy>`)
+		case request.Method == http.MethodGet && request.URL.Path == "/" && query.Has("policy"):
+			writer.WriteHeader(http.StatusNotFound)
+			fmt.Fprint(writer, `<Error><Code>NoSuchBucketPolicy</Code></Error>`)
+		case request.Method == http.MethodGet && request.URL.Path == "/" && query.Has("versioning"):
+			fmt.Fprint(writer, `<VersioningConfiguration><Status>Enabled</Status></VersioningConfiguration>`)
+		case request.Method == http.MethodGet && request.URL.Path == "/" && query.Has("object-lock"):
+			fmt.Fprint(writer, `<ObjectLockConfiguration><ObjectLockEnabled>Enabled</ObjectLockEnabled><Rule><DefaultRetention><Mode>COMPLIANCE</Mode><Days>31</Days></DefaultRetention></Rule></ObjectLockConfiguration>`)
+		case request.Method == http.MethodHead:
+			writer.Header().Set("Content-Length", "1")
+		case request.Method == http.MethodPut:
+			putCount++
+		default:
+			t.Errorf("unexpected COS request: %s %s", request.Method, request.URL.String())
+			writer.WriteHeader(http.StatusBadRequest)
+		}
+	}))
+	defer server.Close()
+
+	now := time.Date(2026, 7, 21, 12, 0, 0, 0, time.UTC)
+	credentials := validCredentials(now)
+	endpoint, _ := url.Parse(server.URL)
+	client := &cosClient{credentials: credentials, endpoint: endpoint, http: server.Client()}
+	directory := t.TempDir()
+	input := filepath.Join(directory, "production.dump.age")
+	output := filepath.Join(directory, "retrieved.dump.age")
+	if err := os.WriteFile(input, []byte("encrypted"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := archiveWithClient(context.Background(), client, credentials, validPlan(now), input, output)
+	if err == nil || !strings.Contains(err.Error(), "already exists") {
+		t.Fatalf("preexisting object was not rejected: %v", err)
+	}
+	if putCount != 0 {
+		t.Fatal("archive uploaded after detecting a preexisting object")
 	}
 }
 
@@ -253,6 +381,8 @@ func TestArchiveWithClientVerifiesExactPrivateVersionedRetentionRoundTrip(t *tes
 		}
 		query := request.URL.Query()
 		switch {
+		case request.Method == http.MethodHead && request.URL.Path == "/":
+			writer.Header().Set("x-cos-bucket-region", "ap-hongkong")
 		case request.Method == http.MethodGet && request.URL.Path == "/" && query.Has("acl"):
 			fmt.Fprint(writer, `<AccessControlPolicy><Owner><ID>owner</ID></Owner><AccessControlList><Grant><Grantee><ID>owner</ID></Grantee><Permission>FULL_CONTROL</Permission></Grant></AccessControlList></AccessControlPolicy>`)
 		case request.Method == http.MethodGet && request.URL.Path == "/" && query.Has("policy"):
@@ -262,6 +392,8 @@ func TestArchiveWithClientVerifiesExactPrivateVersionedRetentionRoundTrip(t *tes
 			fmt.Fprint(writer, `<VersioningConfiguration><Status>Enabled</Status></VersioningConfiguration>`)
 		case request.Method == http.MethodGet && request.URL.Path == "/" && query.Has("object-lock"):
 			fmt.Fprint(writer, `<ObjectLockConfiguration><ObjectLockEnabled>Enabled</ObjectLockEnabled><Rule><DefaultRetention><Mode>COMPLIANCE</Mode><Days>31</Days></DefaultRetention></Rule></ObjectLockConfiguration>`)
+		case request.Method == http.MethodHead && request.URL.Path != "/" && !query.Has("versionId"):
+			writer.WriteHeader(http.StatusNotFound)
 		case request.Method == http.MethodPut:
 			if request.Header.Get("x-cos-acl") != "private" ||
 				request.Header.Get("x-cos-forbid-overwrite") != "true" ||
@@ -301,6 +433,7 @@ func TestArchiveWithClientVerifiesExactPrivateVersionedRetentionRoundTrip(t *tes
 
 	now := time.Now().UTC()
 	credentials := validCredentials(now)
+	plan := validPlan(now)
 	endpoint, err := url.Parse(server.URL)
 	if err != nil {
 		t.Fatal(err)
@@ -312,13 +445,16 @@ func TestArchiveWithClientVerifiesExactPrivateVersionedRetentionRoundTrip(t *tes
 	if err := os.WriteFile(input, payload, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	evidence, err := archiveWithClient(context.Background(), client, credentials, input, output)
+	evidence, err := archiveWithClient(context.Background(), client, credentials, plan, input, output)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !evidence.OffHost.ArchiveVerified || !evidence.OffHost.ChecksumVerified ||
 		evidence.OffHost.ObjectRetentionMode != "COMPLIANCE" ||
-		evidence.OffHost.ObjectVersionIdentityDigest == "" {
+		evidence.OffHost.ObjectVersionIdentityDigest == "" ||
+		evidence.OffHost.AvailabilityZoneType != "SINGLE_AZ" ||
+		!evidence.OffHost.PreUploadObjectAbsent ||
+		evidence.OffHost.ProvisioningPlanDigest != plan.PlanDigest {
 		t.Fatalf("archive evidence is incomplete: %+v", evidence.OffHost)
 	}
 	retrieved, err := os.ReadFile(output)

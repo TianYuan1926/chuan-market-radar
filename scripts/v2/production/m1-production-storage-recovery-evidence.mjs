@@ -10,11 +10,11 @@ import {
 } from "./m1-production-storage-read-only-preflight.mjs";
 
 export const P0R_BACKUP_FACTS_SCHEMA_VERSION =
-  "v2-m1-production-storage-backup-artifact-facts.v1";
+  "v2-m1-production-storage-backup-artifact-facts.v2";
 export const P0R_RESTORE_FACTS_SCHEMA_VERSION =
   "v2-m1-production-storage-isolated-restore-facts.v1";
 export const P0R_COS_ARCHIVE_FACTS_SCHEMA_VERSION =
-  "v2-m1-production-storage-cos-archive-facts.v1";
+  "v2-m1-production-storage-cos-archive-facts.v2";
 export const P0R_BACKUP_CAPTURE_SCHEMA_VERSION =
   "v2-m1-production-storage-backup-capture.v1";
 
@@ -244,20 +244,28 @@ function normalizeBackupFacts(value) {
     "plaintextDumpRemoved",
   ], "backupFacts.encryption");
   exactKeys(value.offHost, [
+    "availabilityZoneType",
     "archiveVerified",
     "bucketAclPrivate",
     "bucketPolicyPublicAccess",
     "checksumVerified",
     "controlPlaneEvidenceDigest",
     "credentialExpiresAt",
+    "credentialPolicyDigest",
+    "credentialRequestDigest",
+    "credentialRequestIdDigest",
     "destinationIdentityDigest",
     "objectLockEnabled",
     "objectIdentityDigest",
     "objectRetentionMode",
     "objectRetentionUntil",
     "objectVersionIdentityDigest",
+    "overwriteProtectionMode",
+    "preUploadObjectAbsent",
     "privateAccessVerified",
     "provider",
+    "provisioningPlanDigest",
+    "region",
     "retrievedAt",
     "retrievedBytes",
     "retrievedDigest",
@@ -297,6 +305,11 @@ function normalizeBackupFacts(value) {
     evidenceDigest: value.evidenceDigest,
     format: text(value.format, "backupFacts.format", /^PG_DUMP_CUSTOM$/u),
     offHost: {
+      availabilityZoneType: text(
+        value.offHost.availabilityZoneType,
+        "backupFacts.offHost.availabilityZoneType",
+        /^SINGLE_AZ$/u,
+      ),
       archiveVerified: bool(value.offHost.archiveVerified, "backupFacts.offHost.archiveVerified"),
       bucketAclPrivate: bool(value.offHost.bucketAclPrivate, "backupFacts.offHost.bucketAclPrivate"),
       bucketPolicyPublicAccess: bool(
@@ -311,6 +324,18 @@ function normalizeBackupFacts(value) {
       credentialExpiresAt: iso(
         value.offHost.credentialExpiresAt,
         "backupFacts.offHost.credentialExpiresAt",
+      ),
+      credentialPolicyDigest: digest(
+        value.offHost.credentialPolicyDigest,
+        "backupFacts.offHost.credentialPolicyDigest",
+      ),
+      credentialRequestDigest: digest(
+        value.offHost.credentialRequestDigest,
+        "backupFacts.offHost.credentialRequestDigest",
+      ),
+      credentialRequestIdDigest: digest(
+        value.offHost.credentialRequestIdDigest,
+        "backupFacts.offHost.credentialRequestIdDigest",
       ),
       destinationIdentityDigest: digest(
         value.offHost.destinationIdentityDigest,
@@ -337,11 +362,25 @@ function normalizeBackupFacts(value) {
         value.offHost.objectVersionIdentityDigest,
         "backupFacts.offHost.objectVersionIdentityDigest",
       ),
+      overwriteProtectionMode: text(
+        value.offHost.overwriteProtectionMode,
+        "backupFacts.offHost.overwriteProtectionMode",
+        /^HIGH_ENTROPY_UNIQUE_KEY_PLUS_PREUPLOAD_ABSENCE_CHECK$/u,
+      ),
+      preUploadObjectAbsent: bool(
+        value.offHost.preUploadObjectAbsent,
+        "backupFacts.offHost.preUploadObjectAbsent",
+      ),
       privateAccessVerified: bool(
         value.offHost.privateAccessVerified,
         "backupFacts.offHost.privateAccessVerified",
       ),
       provider: text(value.offHost.provider, "backupFacts.offHost.provider", /^TENCENT_COS$/u),
+      provisioningPlanDigest: digest(
+        value.offHost.provisioningPlanDigest,
+        "backupFacts.offHost.provisioningPlanDigest",
+      ),
+      region: text(value.offHost.region, "backupFacts.offHost.region", /^ap-hongkong$/u),
       retrievedAt: iso(value.offHost.retrievedAt, "backupFacts.offHost.retrievedAt"),
       retrievedBytes: integer(value.offHost.retrievedBytes, "backupFacts.offHost.retrievedBytes", { positive: true }),
       retrievedDigest: digest(value.offHost.retrievedDigest, "backupFacts.offHost.retrievedDigest"),
@@ -563,6 +602,7 @@ export function buildM1ProductionStorageRecoveryEvidence(input) {
   assert.equal(backup.encryption.appliedBeforeOffHostTransfer, true, "backup was not encrypted before transfer");
   assert.equal(backup.encryption.plaintextDumpRemoved, true, "backup plaintext was retained");
   assert.equal(backup.offHost.privateAccessVerified, true, "off-host object is not private");
+  assert.equal(backup.offHost.availabilityZoneType, "SINGLE_AZ", "off-host bucket is not single-AZ");
   assert.equal(backup.offHost.bucketAclPrivate, true, "off-host bucket ACL is not private");
   assert.equal(backup.offHost.bucketPolicyPublicAccess, false, "off-host bucket policy permits public access");
   assert.equal(backup.offHost.versioningStatus, "ENABLED", "off-host versioning is not enabled");
@@ -576,6 +616,12 @@ export function buildM1ProductionStorageRecoveryEvidence(input) {
   assert.equal(backup.offHost.temporaryCredentials, true, "off-host credentials are not temporary");
   assert.equal(backup.offHost.checksumVerified, true, "off-host checksum was not verified");
   assert.equal(backup.offHost.archiveVerified, true, "off-host retrieval was not verified");
+  assert.equal(backup.offHost.preUploadObjectAbsent, true, "off-host object key was not proven absent before upload");
+  assert.equal(
+    backup.offHost.overwriteProtectionMode,
+    "HIGH_ENTROPY_UNIQUE_KEY_PLUS_PREUPLOAD_ABSENCE_CHECK",
+    "off-host overwrite protection is invalid",
+  );
   assert.equal(
     backup.offHost.retrievedDigest,
     backup.encryption.encryptedBackupDigest,
