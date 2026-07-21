@@ -28,7 +28,7 @@
 - 每条存储成本必须使用实测较大口径并乘至少 1.5 安全系数。
 - 不得把明文备份、恢复库或历史研究 bulk 放在生产根文件系统。
 - 不得降低 4 GiB 非 Fact、2 GiB WAL、2 GiB migration、5 GiB rollback 和 2 GiB runtime/log reserve。
-- 稳态和施工峰值磁盘使用率都不得超过 70%。
+- 稳态磁盘使用率不得超过 60%，施工峰值不得超过 70%。
 
 ## 4. 六小时物理模型
 
@@ -121,7 +121,13 @@ Clean source：`15746813245744af4f4ba73f61a976b722ad9a21`。
 - migration/WAL/rollback 同时占用时峰值新增：32,992,046,760 bytes，预计根盘使用率 67%。
 - 本地容量模型：`PASS_LOCAL_NO_COST_MODEL`。
 
-## 11. 仍未通过的生产门禁
+## 11. Fresh P0 组合准入
+
+`m1-production-storage-fresh-capacity-admission.mjs` 已把旧 P0 的只读现场真值与六小时容量模型组合为本地通过的 fail-closed 判定器：旧报告必须能由原始 database/host/recovery evidence 精确重建，所有非容量 blocker 原样继承，只允许用新模型替代旧日分区的 primary headroom、projected use 和 restore target 三项计算。新模型另行要求隔离 restore target 容纳当前数据库、完整稳态数据集和 WAL reserve，并执行稳态 `<=60%`、峰值 `<=70%` 双门槛。
+
+该工具本地 PASS 不代表已生成生产准入；完整合同见 `M1_6_FRESH_P0_CAPACITY_ADMISSION_CONTRACT_V1.md`。
+
+## 12. 仍未通过的生产门禁
 
 - 旧 P0 topology 已过期，必须重新只读采集。
 - 旧 evidence index 的远端 bundle 摘要长度不合法，不能继续作为 fresh 生产证据。
@@ -131,14 +137,15 @@ Clean source：`15746813245744af4f4ba73f61a976b722ad9a21`。
 
 因此当前结论只能是：`LOCAL_CAPACITY_MODEL_PASS / BLOCKED_EXTERNAL_PREREQUISITES / PRODUCTION_CAPACITY_PASS_NOT_CLAIMED`。
 
-## 12. 后续顺序
+## 13. 后续顺序
 
 ```text
 Object Lock whitelist + action-time COMPLIANCE confirmation
 -> real age vault + 7200s exact STS
 -> encrypted off-host backup + exact retrieval + isolated PG16 restore
 -> fresh boot/filesystem/Docker/Postgres/Redis/app health and topology capture
--> fresh P0 read-only preflight
+-> exact clean release capacity recalibration
+-> fresh P0 read-only preflight + six-hour capacity admission
 -> only if P0 PASS: P1 v1+v2 additive schema
 -> P2 identities
 -> P3 six-hour partitions + dormant worker

@@ -37,6 +37,7 @@ export const P0R_NO_COST_CAPACITY_POLICY = Object.freeze({
   factStorageSafetyMultiplierBasisPoints: 15_000,
   maximumPartitionSpanHours: 6,
   maximumProjectedDiskUsePercent: 70,
+  maximumSteadyProjectedDiskUsePercent: 60,
   maximumScanCycleIntervalMs: 60_000,
   maximumSweepLagHours: 1,
   migrationReserveBytes: 2 * GIB,
@@ -552,31 +553,65 @@ function clonePlan(overrides = {}) {
   return { ...P0R_NO_COST_CAPACITY_PLAN, ...overrides };
 }
 
-export function buildM1P0RNoCostCapacityAssessment(input) {
+function normalizeCapacityTopology(value) {
+  exactKeys(value, [
+    "filesystemAvailableBytes",
+    "filesystemTotalBytes",
+    "filesystemUsedBytes",
+  ], "topology");
+  const topology = {
+    filesystemAvailableBytes: integer(
+      value.filesystemAvailableBytes,
+      "topology.filesystemAvailableBytes",
+      { positive: true },
+    ),
+    filesystemTotalBytes: integer(
+      value.filesystemTotalBytes,
+      "topology.filesystemTotalBytes",
+      { positive: true },
+    ),
+    filesystemUsedBytes: integer(
+      value.filesystemUsedBytes,
+      "topology.filesystemUsedBytes",
+      { positive: true },
+    ),
+  };
+  assert.ok(
+    topology.filesystemAvailableBytes < topology.filesystemTotalBytes,
+    "filesystem available bytes must be below total bytes",
+  );
+  assert.ok(
+    topology.filesystemUsedBytes < topology.filesystemTotalBytes,
+    "filesystem used bytes must be below total bytes",
+  );
+  return topology;
+}
+
+export function evaluateM1NoCostCapacityModel(input) {
   exactKeys(input, [
     "assessedAt",
     "calibrationEvidence",
-    "calibrationFileDigest",
     "expectedSourceCommit",
     "expectedSourceTree",
-    "p0EvidenceFileDigest",
-    "p0EvidenceIndex",
     "plan",
-  ], "input");
-  const assessedAt = iso(input.assessedAt, "assessedAt");
-  const expectedSourceCommit = commit(input.expectedSourceCommit, "expectedSourceCommit");
-  const expectedSourceTree = commit(input.expectedSourceTree, "expectedSourceTree");
-  const calibrationFileDigest = digest(input.calibrationFileDigest, "calibrationFileDigest");
+    "topology",
+  ], "capacityModelInput");
+  const assessedAt = iso(input.assessedAt, "capacityModelInput.assessedAt");
+  const expectedSourceCommit = commit(
+    input.expectedSourceCommit,
+    "capacityModelInput.expectedSourceCommit",
+  );
+  const expectedSourceTree = commit(
+    input.expectedSourceTree,
+    "capacityModelInput.expectedSourceTree",
+  );
   const calibration = validateP0RCapacityCalibration(input.calibrationEvidence, {
     assessedAt,
     expectedSourceCommit,
     expectedSourceTree,
   });
-  const baseline = validateP0EvidenceIndex(
-    input.p0EvidenceIndex,
-    input.p0EvidenceFileDigest,
-  );
   const plan = normalizePlan(input.plan);
+  const topology = normalizeCapacityTopology(input.topology);
   const policy = P0R_NO_COST_CAPACITY_POLICY;
   const requiredPlannedFactsPerCycle = Math.ceil(
     policy.calibrationFactsPerCycle
@@ -642,7 +677,6 @@ export function buildM1P0RNoCostCapacityAssessment(input) {
     + effectiveReserves.migrationReserveBytes
     + effectiveReserves.rollbackReserveBytes
     + plan.localPlaintextBackupBytes;
-  const topology = baseline.topology;
   const steadyProjectedUsedBytes = topology.filesystemUsedBytes + steadyAdditionalBytes;
   const peakProjectedUsedBytes = topology.filesystemUsedBytes + peakAdditionalBytes;
   const steadyProjectedDiskUsePercent = percentage(
@@ -653,7 +687,6 @@ export function buildM1P0RNoCostCapacityAssessment(input) {
     peakProjectedUsedBytes,
     topology.filesystemTotalBytes,
   );
-
   const capacityChecks = {
     calibrated_throughput_within_one_minute:
       calibration.calibration.maximumCycleWallDurationMs
@@ -696,8 +729,8 @@ export function buildM1P0RNoCostCapacityAssessment(input) {
       plan.runtimeAndLogReserveBytes >= policy.runtimeAndLogReserveBytes,
     scan_cadence_not_reduced:
       plan.scanCycleIntervalMs <= policy.maximumScanCycleIntervalMs,
-    steady_projected_disk_use_below_or_equal_70_percent:
-      steadyProjectedDiskUsePercent <= policy.maximumProjectedDiskUsePercent,
+    steady_projected_disk_use_below_or_equal_60_percent:
+      steadyProjectedDiskUsePercent <= policy.maximumSteadyProjectedDiskUsePercent,
     sweep_lag_bounded:
       plan.maximumSweepLagHours <= policy.maximumSweepLagHours,
     wal_reserve_not_reduced:
@@ -707,6 +740,87 @@ export function buildM1P0RNoCostCapacityAssessment(input) {
     .filter(([, passed]) => !passed)
     .map(([id]) => id)
     .sort();
+  return {
+    calibratedRates: {
+      bufferedFactBytesPerRow,
+      databaseGrowthBytesPerFactCeiling,
+      factStorageBytesPerRowCeiling: measurements.factStorageBytesPerRowCeiling,
+      incrementalFactStorageBytesPerRowCeiling:
+        measurements.incrementalFactStorageBytesPerRowCeiling,
+      measuredFactBytesPerRowCeiling,
+      safetyMultiplierBasisPoints: effectiveStorageMultiplierBasisPoints,
+      walBytesPerFactCeiling: measurements.walBytesPerFactCeiling,
+    },
+    calibration,
+    capacity: {
+      effectiveCycleIntervalMs,
+      effectiveFactsPerCycle,
+      effectiveReserves,
+      effectiveRetentionHours,
+      filesystemAvailableBytes: topology.filesystemAvailableBytes,
+      filesystemTotalBytes: topology.filesystemTotalBytes,
+      filesystemUsedBytes: topology.filesystemUsedBytes,
+      peakAdditionalBytes,
+      peakProjectedDiskUsePercent,
+      peakProjectedUsedBytes,
+      physicalResidenceHours,
+      projectedFactBytes,
+      projectedFactRows,
+      steadyAdditionalBytes,
+      steadyProjectedDiskUsePercent,
+      steadyProjectedUsedBytes,
+    },
+    capacityChecks,
+    capacityMathStatus: capacityModelBlockers.length === 0
+      ? "PASS_LOCAL_NO_COST_MODEL"
+      : "FAIL_LOCAL_NO_COST_MODEL",
+    capacityModelBlockers,
+    plan,
+    policy,
+  };
+}
+
+export function buildM1P0RNoCostCapacityAssessment(input) {
+  exactKeys(input, [
+    "assessedAt",
+    "calibrationEvidence",
+    "calibrationFileDigest",
+    "expectedSourceCommit",
+    "expectedSourceTree",
+    "p0EvidenceFileDigest",
+    "p0EvidenceIndex",
+    "plan",
+  ], "input");
+  const assessedAt = iso(input.assessedAt, "assessedAt");
+  const expectedSourceCommit = commit(input.expectedSourceCommit, "expectedSourceCommit");
+  const expectedSourceTree = commit(input.expectedSourceTree, "expectedSourceTree");
+  const calibrationFileDigest = digest(input.calibrationFileDigest, "calibrationFileDigest");
+  const baseline = validateP0EvidenceIndex(
+    input.p0EvidenceIndex,
+    input.p0EvidenceFileDigest,
+  );
+  const model = evaluateM1NoCostCapacityModel({
+    assessedAt,
+    calibrationEvidence: input.calibrationEvidence,
+    expectedSourceCommit,
+    expectedSourceTree,
+    plan: input.plan,
+    topology: {
+      filesystemAvailableBytes: baseline.topology.filesystemAvailableBytes,
+      filesystemTotalBytes: baseline.topology.filesystemTotalBytes,
+      filesystemUsedBytes: baseline.topology.filesystemUsedBytes,
+    },
+  });
+  const {
+    calibratedRates,
+    calibration,
+    capacity,
+    capacityChecks,
+    capacityMathStatus,
+    capacityModelBlockers,
+    plan,
+    policy,
+  } = model;
   const topologyFresh = Date.parse(assessedAt) <= Date.parse(input.p0EvidenceIndex.expiresAt);
   const recoveryEvidencePresent = !baseline.blockers.includes("recovery_evidence_present");
   const externalPrerequisiteChecks = {
@@ -719,9 +833,6 @@ export function buildM1P0RNoCostCapacityAssessment(input) {
     .filter(([, passed]) => !passed)
     .map(([id]) => id)
     .sort();
-  const capacityMathStatus = capacityModelBlockers.length === 0
-    ? "PASS_LOCAL_NO_COST_MODEL"
-    : "FAIL_LOCAL_NO_COST_MODEL";
   const canRerunP0 = capacityModelBlockers.length === 0
     && externalPrerequisiteBlockers.length === 0;
   const status = capacityModelBlockers.length > 0
@@ -741,34 +852,8 @@ export function buildM1P0RNoCostCapacityAssessment(input) {
       productionServiceMutation: false,
       syntheticCalibrationOnly: true,
     },
-    calibratedRates: {
-      bufferedFactBytesPerRow,
-      databaseGrowthBytesPerFactCeiling,
-      factStorageBytesPerRowCeiling: measurements.factStorageBytesPerRowCeiling,
-      incrementalFactStorageBytesPerRowCeiling:
-        measurements.incrementalFactStorageBytesPerRowCeiling,
-      measuredFactBytesPerRowCeiling,
-      safetyMultiplierBasisPoints: effectiveStorageMultiplierBasisPoints,
-      walBytesPerFactCeiling: measurements.walBytesPerFactCeiling,
-    },
-    capacity: {
-      effectiveCycleIntervalMs,
-      effectiveFactsPerCycle,
-      effectiveReserves,
-      effectiveRetentionHours,
-      filesystemAvailableBytes: topology.filesystemAvailableBytes,
-      filesystemTotalBytes: topology.filesystemTotalBytes,
-      filesystemUsedBytes: topology.filesystemUsedBytes,
-      peakAdditionalBytes,
-      peakProjectedDiskUsePercent,
-      peakProjectedUsedBytes,
-      physicalResidenceHours,
-      projectedFactBytes,
-      projectedFactRows,
-      steadyAdditionalBytes,
-      steadyProjectedDiskUsePercent,
-      steadyProjectedUsedBytes,
-    },
+    calibratedRates,
+    capacity,
     capacityChecks,
     capacityModelBlockers,
     capacityMathStatus,

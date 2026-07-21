@@ -130,7 +130,10 @@ test("six-hour no-cost plan passes capacity math but cannot claim production rea
   assert.equal(value.capacityMathStatus, "PASS_LOCAL_NO_COST_MODEL");
   assert.equal(value.status, "BLOCKED_EXTERNAL_PREREQUISITES");
   assert.equal(value.capacity.physicalResidenceHours, 37);
-  assert.ok(value.capacity.steadyProjectedDiskUsePercent <= 70);
+  assert.equal(value.policy.maximumSteadyProjectedDiskUsePercent, 60);
+  assert.equal(value.policy.maximumProjectedDiskUsePercent, 70);
+  assert.equal(value.capacityChecks.steady_projected_disk_use_below_or_equal_60_percent, true);
+  assert.ok(value.capacity.steadyProjectedDiskUsePercent <= 60);
   assert.ok(value.capacity.peakProjectedDiskUsePercent <= 70);
   assert.equal(value.decision.canStartLocalSixHourPartitionImplementation, true);
   assert.equal(value.decision.canApplyProduction, false);
@@ -156,7 +159,7 @@ test("seven-day retention cannot fit the existing production root", async () => 
   const value = await assessment({ plan: { configuredRetentionHours: 7 * 24 } });
   assert.equal(value.capacityMathStatus, "FAIL_LOCAL_NO_COST_MODEL");
   assert.ok(value.blockers.includes("peak_headroom_available"));
-  assert.ok(value.blockers.includes("steady_projected_disk_use_below_or_equal_70_percent"));
+  assert.ok(value.blockers.includes("steady_projected_disk_use_below_or_equal_60_percent"));
 });
 
 test("cannot manufacture a pass by shrinking coverage, cadence, lookback or margin", async () => {

@@ -56,7 +56,7 @@ npm run ci:production
 - V2 ops：103/103 PASS。
 - 隔离 PostgreSQL 16 迁移/恢复/淘汰演练：1/1 PASS。
 - 六小时正式容量校准：8 周期、11,552 Facts、最大周期 33,660 ms，PASS。
-- no-cost capacity：稳态 59%、峰值 67%、上限 70%，`PASS_LOCAL_NO_COST_MODEL`。
+- no-cost capacity：稳态 59%（上限 60%）、峰值 67%（上限 70%），`PASS_LOCAL_NO_COST_MODEL`。
 - `npm run lint`：PASS。
 - `npm run test:market`：Legacy 965/0/4 explicit skips，Worker 23/23，historical smoke 4/4，PASS。
 - `npm run test:v2-foundation`：279/0/6 explicit external-dependency skips，PASS。

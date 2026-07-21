@@ -65,8 +65,8 @@ Runtime / Security / Release Control 贯穿全链。
 
 当前唯一设计权威：
 
-- `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`，内容版本 v1.15。
-- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.17。
+- `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`，内容版本 v1.17。
+- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.19。
 - `docs/blueprints/README.md`，权威解析入口。
 - `market-radar-v2-build-sequence.md`，当前正确施工依赖与减数规则。
 
@@ -91,6 +91,7 @@ M1.5B1_COMPLETE
 M1.6_PARTITIONED_FACT_STORAGE_LOCAL_POSTGRES16_PASS
 M1.6P0_PRODUCTION_STORAGE_READ_ONLY_PREFLIGHT_EXECUTED_BLOCKED
 M1.6P0R_SIX_HOUR_NO_COST_CAPACITY_LOCAL_MACHINE_PROOF_PASS_OBJECT_LOCK_WHITELIST_REQUIRED_RECOVERY_PENDING
+M1.6_FRESH_P0_CAPACITY_ADMISSION_LOCAL_ENGINEERING_PASS_PRODUCTION_EVIDENCE_PENDING
 M2.0_DISCOVERY_CONTRACTS_LOCAL_PASS
 M2.1_DRAFT_REPLAY_KERNELS_LOCAL_PASS
 M2.2A_HISTORICAL_REPLAY_GATE_HARNESS_LOCAL_PASS
@@ -314,6 +315,12 @@ Cycle final
 
 ## 14. 最近三次关键事件
 
+### 2026-07-21 / V2 M1.6 Fresh P0 Capacity Admission
+
+- 新组合判定器要求旧 P0 报告由 raw database/host/recovery evidence 精确重建；所有非容量 blocker 原样继承，只替代三个旧日分区容量计算。
+- 容量门禁纠正为稳态 `<=60%`、峰值 `<=70%`；隔离 restore target 必须容纳当前数据库、完整稳态数据集与 WAL reserve，61% 稳态反例明确 BLOCKED。
+- 定向 10/10、P0R 59/59、ops 113/113、完整 `ci:production` PASS；未消费 fresh 生产证据，P0/P1 状态不变。
+
 ### 2026-07-21 / V2 M1.6-P0R-D0 No-Cost Capacity and Six-Hour Partitions
 
 - v1 partition checksum 保持 `sha256:9a507139b88efa86a5bb5d4593149881a4e8fad8081f27e5a7ada791c8ac7303`；新增 v2 checksum `sha256:17cf407811a3f3518cfd7bf15312dda771e0709d8eb23a62b8bcc56f7c14b68e`。
@@ -324,19 +331,13 @@ Cycle final
 
 - Edge 只读确认桶仍为空且新旧控制台均无 Object Lock 入口；按官方白名单要求保持 `WHITELIST_REQUIRED`。
 - 腾讯工单已按版本控制模块填写脱敏草稿，但账号手机号未设置，未提交；未传 bucket 标识或联系方式。
-- macOS Keychain age vault 工具 6/6、新 P0R 总门禁 41/41 PASS；真实私钥、STS、对象和恢复均未执行。
-
-### 2026-07-21 / V2 M1.6-P0 Production Storage Read-Only Preflight
-
-- read-only fact capture PASS；P0 admission BLOCKED，三个 blocker 为主盘 headroom、预计使用率和 recovery evidence。
-- 根盘 `/dev/vda2` 与 PostgreSQL volume 同在 120 GiB 系统盘；文件系统可用 70,016,385,024 bytes，所需 headroom 87,088,269,540 bytes，预计使用率 90%，硬门槛总量 161,643,694,113 bytes，推荐 180 GiB。
-- 定向 22/22、ops 54/54、完整 `ci:production` PASS；远端脱敏 bundle `sha256:4d25adbd3247181cb526ded488b9b681d0563eadfcbb8109d8f5b15ee2b8e58`，生产 mutation=0。
+- macOS Keychain age vault 工具 6/6、新 P0R 总门禁当轮 41/41 PASS；真实私钥、STS、对象和恢复均未执行。
 
 ## 15. 当前风险
 
 ### P0
 
-- M1.6-P0 存储准入仍为 BLOCKED；六小时无扩容模型只有本地机器 PASS，不能替代 fresh topology 和真实恢复。COS 空桶对象仍为 0，P1 严禁启动。
+- M1.6-P0 存储准入仍为 BLOCKED；六小时容量和 fresh admission 只有本地工程 PASS，不能替代 fresh topology、exact-release calibration 和真实恢复。COS 空桶对象仍为 0，P1 严禁启动。
 - 一旦发现 mock/fallback 冒充真值、WAIT 冒充 READY、future leak、secret、数据库损坏或错误交易计划，立即停止其他开发。
 
 ### P1
@@ -361,7 +362,7 @@ Cycle final
 
 下一轮审计优先检查：
 
-1. 已建 COS 是否继续保持单 AZ/私有/versioned/SSE-COS/空桶；Object Lock 是否先证明支持再独立确认；age/STS、加密离机备份、上传前 key absent、exact version retrieval、独立 PG16 restore、无明文 dump 和临时 secret 清理是否真实通过；零付费容量重设计是否用机器证据满足原门禁，而非改阈值跳 P1。
+1. 已建 COS 是否继续保持单 AZ/私有/versioned/SSE-COS/空桶；Object Lock 是否先证明支持再独立确认；age/STS、加密离机备份、上传前 key absent、exact version retrieval、独立 PG16 restore、无明文 dump 和临时 secret 清理是否真实通过；fresh P0 是否只替代三个旧容量计算、继承全部非容量 blocker，并同时满足稳态 60% / 峰值 70%，而非改阈值跳 P1。
 2. C1 正式证据是否继续保持 exact release/config、两轮完整 raw、冻结 cadence、active gap=0 和无 identity conflict；前向 capture 永远不能伪装历史回填或长期 SLO。
 3. M1.6 production Gate 是否绑定旧 Fact=0、migration checksum、预建窗口、容量阈值、备份恢复和 Audit/Retention 分权。
 4. Candidate/Evidence/Setup/Action/User Fit 是否越层。
@@ -388,7 +389,7 @@ Cycle final
 V2-M1.6-P0R-B1B-OBJECT-LOCK-WHITELIST-AND-AGE-VAULT-QUALIFICATION
 ```
 
-B1-B3 已关闭 M1.5-B1；P0 已执行并因容量与 recovery evidence BLOCKED。P0R-D0 六小时无扩容本地机器证明已 PASS，但这不改写旧 P0。香港单 AZ 私有 COS 空桶已创建；当前必须先补齐账号联系方式并提交/通过 Object Lock 白名单，再动作时确认 COMPLIANCE 31 天、生成真实离机 age 身份与运行级 STS，执行加密备份/精确取回/隔离恢复，随后刷新完整生产健康与 topology 并重跑 fresh P0。只有新 P0 PASS 才能进入 `P1 v1+v2 schema -> P2 identities -> P3 six-hour partitions+dormant Worker -> P4 isolated-write Shadow -> M1.7 24h`。关键外部门 B0.2-B 仍需账户所有者/合格法律审查者和可验证历史来源；未解决前 historical bulk、真实 cohort、holdout、Detector lifecycle 和 runtime 一律关闭。
+B1-B3 已关闭 M1.5-B1；P0 已执行并因容量与 recovery evidence BLOCKED。P0R-D0 六小时机器证明和 fresh P0 组合准入工具已本地 PASS，但这不改写旧 P0。香港单 AZ 私有 COS 空桶已创建；当前必须先补齐账号联系方式并提交/通过 Object Lock 白名单，再动作时确认 COMPLIANCE 31 天、生成真实离机 age 身份与运行级 STS，执行加密备份/精确取回/隔离恢复，随后刷新完整生产健康与 topology，在 exact clean release 重跑校准并执行 fresh P0。只有新 P0 PASS 才能进入 `P1 v1+v2 schema -> P2 identities -> P3 six-hour partitions+dormant Worker -> P4 isolated-write Shadow -> M1.7 24h`。关键外部门 B0.2-B 仍需账户所有者/合格法律审查者和可验证历史来源；未解决前 historical bulk、真实 cohort、holdout、Detector lifecycle 和 runtime 一律关闭。
 
 ## 19. 活跃记忆维护规则
 

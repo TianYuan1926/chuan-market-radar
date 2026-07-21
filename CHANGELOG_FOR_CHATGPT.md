@@ -2,6 +2,41 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-21 / V2 M1.6 Fresh P0 Capacity Admission
+
+### 本轮目标
+
+让 future fresh P0 使用六小时实测容量模型，同时完整继承旧 P0 的只读、身份、恢复、拓扑、schema 和零 mutation 门禁。
+
+### 修改范围
+
+- 抽出唯一 no-cost capacity pure model；新增 raw evidence 可重建的 fresh P0 composition admission 和受限 CLI。
+- 只替代三个旧日分区容量计算，其他旧 blocker 全部继承；隔离 restore target 必须容纳当前数据库、完整稳态数据集和 WAL reserve。
+- 修复稳态阈值误用 70% 的漂移，恢复合同的稳态 60% / 峰值 70%，并加入 61% 稳态反例。
+
+### 核心链路影响
+
+只加固 `全市场发现 -> Market Fact + Quality -> Runtime Truth` 的生产存储准入；不改变 Detector、Candidate、Analysis、Strategy、Backtest、页面或交易权限。
+
+### 测试结果
+
+- fresh admission 10/10、P0R 59/59、V2 ops 113/113、M0 11/11 PASS。
+- 完整 `ci:production` PASS：typecheck、lint、Legacy 965/0/4 explicit skip、Worker 23/23、historical 4/4、V2 279/0/6 explicit external skip、build、Golden 16/16 和 security PASS。
+- `backtest:formal` 未运行，且本轮不应运行。
+
+### 是否部署
+
+未部署；未采集 fresh production evidence，数据库、Redis、Worker、服务、仓库和 authority 零变更。
+
+### 风险与遗留问题
+
+- 工具本地 PASS 不等于 production capacity PASS；真实 recovery、fresh topology 和 exact-release 校准仍未组合执行。
+- Object Lock 白名单、age/STS、真实 backup/retrieval/restore 仍是外部硬前置，P1 继续关闭。
+
+### 下一轮建议
+
+只完成 Object Lock 与真实恢复前置；之后重跑 exact-release 校准和 fresh P0 组合准入。
+
 ## 2026-07-21 / V2 M1.6-P0R-D0 No-Cost Capacity and Six-Hour Partitions
 
 ### 本轮目标
@@ -22,7 +57,7 @@
 
 - typecheck、定向 partition 7/7、V2 ops 103/103、隔离 PostgreSQL 16 迁移/restore/retention 1/1 PASS。
 - clean commit `15746813245744af4f4ba73f61a976b722ad9a21` 完成 8 周期/11,552 Fact，最大周期 33,660 ms。
-- 容量模型稳态 59%、峰值 67%、固定上限 70%，`PASS_LOCAL_NO_COST_MODEL`。
+- 容量模型稳态 59%（上限 60%）、峰值 67%（上限 70%），`PASS_LOCAL_NO_COST_MODEL`。
 - 完整 `ci:production` PASS：Legacy 965/0/4 skip、Worker 23/23、historical 4/4、V2 foundation 279/0/6 explicit skips、ops 103/103、M0 11/11、build、Golden 16/16 和 security 全部通过。
 
 ### 是否部署
@@ -140,44 +175,8 @@
 
 - P0 仍因真实 recovery evidence 与容量 `BLOCKED`，P1 关闭。
 - Object Lock 不可撤销且不支持 multi-AZ；外部创建必须按 action-time 安全确认执行。
-- 真实剩余为 COS/age/STS -> backup/retrieval/isolated restore -> 用户扩容 -> health -> fresh P0。
+- 该轮的付费扩容路径已被后续六小时无扩容方案替代；当前剩余以最新条目为准。
 
 ### 下一轮建议
 
-只执行 `V2-M1.6-P0R-B1-COS-KEY-STS-EXTERNAL-PROVISIONING`，完成后用同一 run-id 立即进入 P0R-C；禁止混入 P1。
-
-## 2026-07-21 / V2 M1.6-P0R Local Recovery Engineering
-
-### 本轮目标
-
-把 P0 暴露的 recovery evidence 缺口实现为可审计、fail-closed 的同快照加密备份、腾讯 COS 私有归档、隔离 PG16 恢复和 P0 evidence 工具链，同时保持生产与 P1 权限不变。
-
-### 修改范围
-
-- 新增无业务行 fingerprint、`pg_dump -> age X25519` 直接流式加密、strict recovery verifier 和计划/确认双模式 P0R runner。
-- 新增零第三方运行依赖的腾讯 COS REST helper，要求私有 bucket、versioning、COMPLIANCE retention 和精确 version 取回复算；其当时依赖的 overwrite 请求头后来确认在 versioning 下无效，已由 P0R-B 替换。
-- 新增可复现无 secret bundle、官方 age provenance、失败注入与 runner/source/checksum/隔离/清理约束；新增离机私钥保管与生产操作 runbook，更新 P0R 合同、蓝图、矩阵和施工顺序。
-
-### 核心链路影响
-
-保护 `全市场发现 -> Market Fact + Quality -> Runtime Truth` 的生产数据地基；不产生 Detector、Candidate、Analysis、Strategy、页面或交易权限。
-
-### 测试结果
-
-- P0R 定向 28/28、V2 ops 82/82、M0 11/11 PASS；Go COS helper 与 mock HTTPS 全流程 PASS。
-- 完整 `ci:production` PASS：typecheck、lint、market、V2 277/0/5 explicit skips、ops 82/82、build、Golden 16/16 和 security 全部通过。
-- 官方 age v1.3.1 Linux amd64 archive、ELF 和 checksum 已验证；Go Linux amd64 静态构建两次 digest 一致。
-
-### 是否部署
-
-未部署，未执行真实 COS 备份/取回、隔离恢复或扩容；生产 DB/Redis/env/migration/Feature Flag/服务/仓库/Candidate runtime/authority 零变更。
-
-### 风险与遗留问题
-
-- 本地 recovery 工程 PASS 不等于生产可恢复；P0 仍因真实 recovery evidence 和容量 BLOCKED。
-- 需要专用私有 COS、versioning、COMPLIANCE retention、一次性 age 身份和短期最小权限凭证后才能真实执行。
-- 根文件系统仍低于 161,643,694,113 bytes 硬门槛；推荐 180 GiB，付费与关机必须由用户确认。
-
-### 下一轮建议
-
-只继续 P0R 生产动作：真实备份/取回/隔离恢复证据先于扩容，生产健康恢复后完整重跑 P0；禁止直接进入 P1。
+该轮建议已由后续 Object Lock 白名单和六小时 fresh P0 路线取代；禁止沿用旧付费扩容入口。
