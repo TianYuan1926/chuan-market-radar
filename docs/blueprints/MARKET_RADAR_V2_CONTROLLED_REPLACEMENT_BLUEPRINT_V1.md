@@ -1401,7 +1401,15 @@ M1.6-P0 fresh read-only preflight
 
 不触碰生产 authority 的工程并行：M2 historical tooling、M3 strict decision contracts、M4 DecisionSnapshot/workbench contracts、Runtime/Security/Release tests。并行产物只能停留在合同、fixture、测试和 no-authority 工具层，M1 exit 与真实历史 Gate 通过前不得发 Candidate、生成 READY/交易计划或接入生产页面。
 
-### 17.6 现实工期口径
+### 17.6 固定生产执行通道
+
+普通无 secret 的生产包采用签名 pull-only 运输：本机完成完整门禁、生成脱敏 Bundle 和 exact approval request，以仓库外 Ed25519 私钥签名后推送专用 `production-dispatch` ref；腾讯服务器固定 timer 每 20 秒拉取到独立 bare mirror。agent 只允许一个 pending commit，并在启动前验证 canonical envelope、90 分钟窗口、source-ref reachability、Bundle/request/entrypoint SHA-256、路径与 tar 安全、production WIP=1 和 session-independent/rollback 强制位；租约不确定时只等待，claim 先持久化再启动，无效单任务隔离后推进 cursor，安装器自身纳入 source-set 且首次半安装可精确回收。
+
+这个通道不接受 shell command/arguments，不把 GitHub 变成生产 shell，不开放新端口，不运输 `.env`、Token、数据库 URL、COS STS、私钥或业务数据，也不修改应用生产 worktree。它只替代“OrcaTerm 上传并启动”这一段；真实变更、lease/fencing、mutation checkpoint、health/contract、rollback 和 evidence 仍由 exact package runner 负责。
+
+截至 2026-07-22，本地实现和隔离端到端测试已通过，生产尚未安装，因此当前运输仍不能宣称自动化。V2 M1.6 P0R 的腾讯 STS/MFA 必须继续通过 `/dev/shm` 短期凭证边界处理，不得进入 signed Git Bundle；旧 `approved_orcaterm_bundle_upload` 包必须显式升级为 `signed_git_bundle` 后才能使用固定通道。
+
+### 17.7 现实工期口径
 
 以下是单一主工程流、允许无冲突本地并行时的初始估算，不是日历承诺：
 

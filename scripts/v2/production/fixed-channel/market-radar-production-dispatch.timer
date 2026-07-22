@@ -1,0 +1,13 @@
+[Unit]
+Description=Poll for one signed Market Radar production dispatch
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=20s
+AccuracySec=2s
+RandomizedDelaySec=3s
+Persistent=true
+Unit=market-radar-production-dispatch.service
+
+[Install]
+WantedBy=timers.target

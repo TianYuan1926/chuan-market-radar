@@ -2,6 +2,40 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-22 / G0 Signed Pull-Only Production Dispatch Local Engineering
+
+### 本轮目标
+
+消除普通生产 Bundle 对 OrcaTerm 人工上传和前台会话的依赖，同时保留精确授权、production WIP=1、session-independent runner、自动回滚和证据门禁。
+
+### 修改范围
+
+- 在 V2 控制面新增 Ed25519 canonical dispatch、脱敏四文件 Outbox、本地签名/发布、服务器 pull-only agent、独立 bare mirror、持久化一次性 claim 和 20 秒 systemd timer；agent 及其 Node 子进程以 `--jitless` 配合 systemd `MemoryDenyWriteExecute`，Legacy protected source 保持零漂移。
+- 新增绑定安装器自身的 exact-hash 一次性安装器、半安装自动回收、机器治理合同、运行手册和 GitHub quality gate；异常租约只等待，不会放行，无效单任务会隔离并推进 cursor，避免永久堵队列。
+- 不修改 scan、analysis、strategy、backtest、前端、业务 API、DB、Redis、Worker、Feature Flag 或生产应用服务。
+
+### 核心链路影响
+
+只加固整条核心链路的 Runtime Control / Deployment 地基；不改变机会发现、判断、计划或排序能力。
+
+### 测试结果
+
+- 定向测试 12/12、自治 31/31 PASS：签名篡改、窗口、必需审批绑定、任意命令、tar/path/secret、合法路径内凭证内容拒绝、source reachability、WIP/异常租约 defer、持久化 exactly-once、坏任务隔离、installer rollback、systemd 和 GitHub quality-only boundary。
+- 初版因放入 Legacy deploy 层导致 M0 正确失败；迁入 `scripts/v2/production/fixed-channel/` 并恢复 Legacy workflow 后，consumer map 回到 539/109、M0 PASS。
+- 完整 `ci:production` PASS：typecheck/lint/Market、V2 317/0/6 explicit skip、ops 115/115、M0、build、Golden 16/16 和 security PASS。
+
+### 是否部署
+
+未部署腾讯生产。当前状态固定为 `LOCAL_IMPLEMENTED_TESTED_NOT_INSTALLED`；普通运输尚未自动化，P0R STS/MFA 仍通过 `/dev/shm` 独立处理。
+
+### 风险与遗留问题
+
+旧 request 声明 `approved_orcaterm_bundle_upload` 时固定通道必须拒绝；后续 package builder 需明确生成 `signed_git_bundle`，禁止谎报运输事实。生产安装还需独立 exact bundle、动态预检和安装后零业务变更验证。
+
+### 下一轮建议
+
+完成完整门禁并准备一次性脱敏安装包；不得与当前 P0R secret 运输混包。
+
 ## 2026-07-22 / V2 M3.1 Family Analysis and Evidence Interpretation
 
 ### 本轮目标
@@ -132,35 +166,3 @@ M1 未退出、M2 Gate=INSUFFICIENT、Detector=DRAFT、Candidate 禁发；当前
 ### 下一轮建议
 
 完成真实恢复后重跑 exact-release calibration 和 fresh P0。
-
-## 2026-07-21 / V2 M1.6-P0R-D0 No-Cost Capacity and Six-Hour Partitions
-
-### 本轮目标
-
-不付费扩容、不缩小市场分母、不放慢一分钟 cadence，重设计 Fact 存储容量并实现六小时分区 v2。
-
-### 修改范围
-
-- 保持 v1 checksum 不变，新增 additive v2 六小时 UTC 分区、小时 cutoff 和非空 v1 拒绝升级。
-- 新增隔离 PG16 容量校准，固定 1,805 Facts/周期、30h retention、1h sweep、1.5 倍字节成本和 reserve。
-
-### 核心链路影响
-
-加固 Market Fact 持久化、容量和恢复地基，不改变 Detector、Strategy 或页面。
-
-### 测试结果
-
-- clean source `15746813245744af4f4ba73f61a976b722ad9a21` 完成 8 周期/11,552 Fact；稳态/峰值 59%/67%，本地模型 PASS。
-- partition 7/7、ops 103/103、隔离 PG16 和当轮完整 CI PASS。
-
-### 是否部署
-
-未部署；production DB/Redis/env/migration/服务/authority 零变更。
-
-### 风险与遗留问题
-
-本地容量模型不等于 fresh P0，P1 继续关闭。
-
-### 下一轮建议
-
-与真实 recovery evidence、fresh topology 和 P0 组合验收。

@@ -1,0 +1,32 @@
+[Unit]
+Description=Market Radar signed production dispatch poller
+Documentation=file:/opt/market-radar-production-dispatch/README.md
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/etc/market-radar-production-dispatch.json
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+UMask=0077
+ExecStart=/usr/bin/node --jitless /opt/market-radar-production-dispatch/production-dispatch.mjs agent-once --config /etc/market-radar-production-dispatch.json
+TimeoutStartSec=180
+StandardOutput=journal
+StandardError=journal
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/market-radar-ops/production-dispatch
+ReadWritePaths=/home/ubuntu/.cache/market-radar-ops
+ReadWritePaths=/home/ubuntu/.cache/market-radar-v2
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SystemCallArchitectures=native

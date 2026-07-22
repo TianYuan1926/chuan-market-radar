@@ -1,0 +1,79 @@
+{
+  "schemaVersion": "market-radar-production-fixed-dispatch-contract.v1",
+  "status": "local_implemented_production_not_installed",
+  "mission": {
+    "statement": "快速对全市场覆盖性扫描，发现机会，给出策略，自我提升。",
+    "contributionType": "supporting",
+    "boundary": "runtime_control_and_deployment_only"
+  },
+  "cost": {
+    "additionalPaidServiceRequired": false,
+    "usesExistingGitRemote": true,
+    "usesExistingTencentHost": true
+  },
+  "transport": {
+    "method": "signed_git_bundle",
+    "dispatchRef": "refs/heads/production-dispatch",
+    "pollSeconds": 20,
+    "opensInboundPort": false,
+    "files": [
+      "approval-request.json",
+      "bundle.tar.gz",
+      "dispatch.json",
+      "dispatch.sig"
+    ],
+    "maximumCompressedBytes": 67108864,
+    "maximumUncompressedBytes": 134217728,
+    "secretsAllowed": false
+  },
+  "trust": {
+    "signatureAlgorithm": "Ed25519",
+    "privateKeyLocation": "local_host_outside_repository_only",
+    "publicKeyLocation": "/opt/market-radar-production-dispatch/dispatch-public.pem",
+    "canonicalEnvelopeRequired": true,
+    "signatureCoversBundleAndApprovalRequestHashes": true
+  },
+  "execution": {
+    "arbitraryCommandAllowed": false,
+    "commandArgumentsAllowed": false,
+    "allowlistedEntrypointRequired": true,
+    "targetCommitReachabilityRequired": true,
+    "approvalWindowMaximumMinutes": 90,
+    "maximumExecutions": 1,
+    "productionWipLimit": 1,
+    "externalLeaseDeferralRequired": true,
+    "uncertainLeaseDeferralRequired": true,
+    "sessionIndependentRunnerRequired": true,
+    "automaticRollbackRequired": true,
+    "durableClaimRequiredBeforeLaunch": true,
+    "invalidSingleDispatchQuarantineRequired": true,
+    "launchWorkingDirectory": "exact_staging_root",
+    "nodeChildJitlessRequired": true,
+    "dispatchQueueDepthMaximum": 1,
+    "nonFastForwardHistoryAllowed": false,
+    "productionWorktreeTransportMutationAllowed": false
+  },
+  "installation": {
+    "oneTimeConsoleBootstrapRequired": true,
+    "sourceSetChecksumRequired": true,
+    "installerIncludedInSourceSet": true,
+    "publicKeyChecksumRequired": true,
+    "existingInstallOverwriteAllowed": false,
+    "partialFirstInstallRollbackRequired": true,
+    "systemdTimer": "market-radar-production-dispatch.timer",
+    "systemdService": "market-radar-production-dispatch.service"
+  },
+  "exceptions": [
+    {
+      "package": "V2_M1_P0R",
+      "reason": "Tencent STS requires MFA and credentials must remain in server /dev/shm; the signed channel forbids secret transport",
+      "mayBypassCloudMfa": false,
+      "mayTransportStsCredential": false
+    },
+    {
+      "packageClass": "legacy_orcaterm_transport_contract",
+      "reason": "A package declaring approved_orcaterm_bundle_upload must be regenerated under signed_git_bundle before using this channel",
+      "mayMisreportTransport": false
+    }
+  ]
+}

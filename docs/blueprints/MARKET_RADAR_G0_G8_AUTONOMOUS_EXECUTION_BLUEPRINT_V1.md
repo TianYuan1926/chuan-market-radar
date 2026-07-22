@@ -198,7 +198,9 @@ Gate 只允许顺序 PASS。后续 Gate 的本地准备可以提前一个完整 
 
 - GitHub main 是长期代码正本；生产不现场开发。
 - 每次 release 绑定 commit、tree、image digest、Compose、env 指纹、migration status、release record 和 rollback target。
-- 默认通过服务器自拉、self-hosted runner 或固定脚本，不反复临时 SSH。
+- 普通无 secret Bundle 的目标通道固定为 Ed25519 签名的 pull-only `production-dispatch`：服务器 20 秒轮询专用 ref，使用独立 bare mirror，逐项验证 90 分钟时效、签名、commit reachability、Bundle/request/entrypoint hash、production WIP=1 和 allowlisted entrypoint 后，只启动原 package runner；异常租约只等待，启动前 claim 持久化，坏任务隔离但不堵死后续队列，首次半安装只回收本轮新建固定路径。
+- 固定通道不得接收任意命令、命令参数、`.env`、Token、数据库 URL、COS STS 或私钥，不开放入站端口，也不得取代 package runner 自身的 lease/fencing、checkpoint、rollback 和 evidence；生产未安装前只能写本地实现，不能写通道可用。
+- OrcaTerm 只保留首次固定通道安装、云平台 MFA/secret rotation 和紧急救援；P0R 的腾讯 STS 仍是 `/dev/shm` secret 例外，禁止通过 Git 运输。旧包声明 `approved_orcaterm_bundle_upload` 时必须重生成 `signed_git_bundle` 合同，不得谎报运输事实。
 - migration 只允许 additive、精确 checksum、独立 identity、fresh backup、隔离 restore 和 single-writer。
 - rollback 必须证明 schema 兼容；无法安全 rollback 的动作不自动执行。
 - health、contract、worker、Redis、Postgres、release identity 任一失败都不能写生产正常。
