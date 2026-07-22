@@ -16,7 +16,7 @@ This directory contains the pull-only production dispatch channel.
 
 ## Runtime
 
-`market-radar-production-dispatch.timer` starts a one-shot poll every 20 seconds. The agent fetches only into a dedicated bare mirror under `/var/lib/market-radar-ops/production-dispatch`; it does not fetch into or check out the production worktree.
+`market-radar-production-dispatch.timer` starts a one-shot poll every 20 seconds. The agent fetches only into the dedicated, service-owned `/var/lib/market-radar-production-dispatch` root; it does not fetch into or check out the production worktree or depend on permissions of a shared operations directory.
 
 The installation downloads the checksum-pinned official Node.js `v24.18.0` Linux x64 archive directly from `https://nodejs.org`, validates the published archive SHA-256 plus the extracted binary and license SHA-256 values before any install mutation, then places only the runtime binary and license under `/opt/market-radar-production-dispatch/runtime/`. It does not require a host Node installation, does not install npm, and does not modify the global `PATH`.
 

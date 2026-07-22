@@ -603,6 +603,8 @@ test("installer plan is non-mutating and install remains exact-hash gated", asyn
   assert.match(installer, /curl --fail --location --proto '=https'/u);
   assert.match(installer, /Node runtime archive checksum mismatch/u);
   assert.match(installer, /pinned Node runtime requires x86_64/);
+  assert.match(installer, /STATE_ROOT="\/var\/lib\/market-radar-production-dispatch"/u);
+  assert.doesNotMatch(installer, /STATE_ROOT="\/var\/lib\/market-radar-ops/u);
   assert.ok(installer.indexOf("curl --fail") < installer.indexOf("INSTALL_STARTED=true"));
   assert.ok(installer.indexOf("Node runtime version binding mismatch")
     < installer.indexOf("INSTALL_STARTED=true"));
@@ -778,6 +780,8 @@ test("systemd poller is timer-bound, least-write and does not load production se
   assert.match(service, /^ProtectHome=read-only$/mu);
   assert.match(service, /^PrivateDevices=true$/mu);
   assert.match(service, /^MemoryDenyWriteExecute=true$/mu);
+  assert.match(service, /^ReadWritePaths=\/var\/lib\/market-radar-production-dispatch$/mu);
+  assert.doesNotMatch(service, /\/var\/lib\/market-radar-ops/u);
   assert.match(service,
     /\/opt\/market-radar-production-dispatch\/runtime\/node --jitless .*agent-once --config/);
   assert.doesNotMatch(service, /EnvironmentFile|\.env|DATABASE_URL|TOKEN|PASSWORD/u);
