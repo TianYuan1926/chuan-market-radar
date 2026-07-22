@@ -1,0 +1,197 @@
+{
+  "schemaVersion": "market-radar-recurrence-root-cause-registry.v1",
+  "policy": {
+    "triggerOccurrence": 2,
+    "repeatedWorkaroundForbidden": true,
+    "emergencyWorkaroundLimitAfterTrigger": 1,
+    "historicalUnmeasuredCutoffDate": "2026-07-23",
+    "requiredClosureEvidence": [
+      "fingerprint",
+      "rootCause",
+      "permanentFix",
+      "regression",
+      "runtimeGate",
+      "realTargetAcceptance",
+      "workaroundAccounting",
+      "remainingRisks"
+    ]
+  },
+  "incidents": [
+    {
+      "id": "REC-2026-07-22-ORCATERM-INPUT-INTEGRITY",
+      "faultClass": "orcaterm.terminal.input_integrity",
+      "affectedChannel": "tencent_orcaterm_browser_terminal",
+      "status": "REMEDIATION_IN_PROGRESS",
+      "recurrenceCount": 2,
+      "firstObservedDate": "2026-07-22",
+      "lastObservedDate": "2026-07-22",
+      "affectedOperations": [
+        "orcaterm_long_environment_command",
+        "orcaterm_manual_special_character_command"
+      ],
+      "prohibitedOperations": [
+        "orcaterm_long_environment_command",
+        "orcaterm_manual_special_character_command"
+      ],
+      "remediationOperations": [
+        "fixed_dispatch_bootstrap_install"
+      ],
+      "fingerprint": {
+        "signature": "Terminal input silently omits underscore, colon or pipe characters from long commands while the session remains connected.",
+        "stableConditions": [
+          "The command is entered through the OrcaTerm browser terminal input path.",
+          "The intended command contains shell-sensitive punctuation or long environment bindings."
+        ],
+        "observedEvidence": [
+          "The rendered server-side command differs from the intended command.",
+          "Repeating or repasting the same command does not prove input integrity."
+        ]
+      },
+      "rootCause": {
+        "boundary": "external_browser_terminal_input_transport",
+        "conclusion": "The OrcaTerm browser input path is not a trustworthy transport for long shell commands with special characters.",
+        "confidence": "CONTROLLED_A_B",
+        "evidence": [
+          "Short alphanumeric launcher commands arrive intact.",
+          "Long environment-bound commands showed silent punctuation loss."
+        ]
+      },
+      "permanentFix": {
+        "status": "PARTIAL",
+        "authorityPaths": [
+          "scripts/v2/production/fixed-channel/install-production-dispatch-launcher.sh",
+          "scripts/v2/production/fixed-channel/install-production-dispatch.sh"
+        ],
+        "workaroundDisposition": "RETIRED_AFTER_BOOTSTRAP",
+        "evidence": [
+          "The short launcher reads exact values from a checksum-bound facts file.",
+          "The launcher revalidates the complete source set before any mutation."
+        ]
+      },
+      "regression": {
+        "status": "PASS",
+        "redCase": "A manually entered long environment command can be silently changed before server execution.",
+        "greenCommand": "npm run test:production-dispatch",
+        "evidence": [
+          "The fixed-channel suite passes 13 of 13 cases.",
+          "A changed README or manifest byte is rejected before mutation."
+        ]
+      },
+      "runtimeGate": {
+        "status": "PARTIAL",
+        "evidence": [
+          "The production host returned PASS_EXACT_INSTALL_PACKAGE_VERIFIED_NO_MUTATION through the short verify command.",
+          "The persistent timer and service are not installed yet."
+        ]
+      },
+      "realTargetAcceptance": {
+        "status": "PENDING",
+        "evidence": [
+          "Production verify-only passed for source commit 1411618d44eccd88b8714bf04df2a99a47f471dd.",
+          "Production install and post-install acceptance remain pending."
+        ]
+      },
+      "workaroundAccounting": {
+        "attemptCount": 2,
+        "postTriggerEmergencyWorkaroundCount": 0,
+        "durationMeasurement": "HISTORICAL_NOT_INSTRUMENTED",
+        "durationSeconds": null,
+        "unknownReason": "Elapsed-time instrumentation was introduced after the repeated input failures had already occurred."
+      },
+      "remainingRisks": [
+        "The external vendor input implementation is not observable.",
+        "OrcaTerm remains necessary for the one-time fixed-channel bootstrap and cloud MFA exceptions."
+      ]
+    },
+    {
+      "id": "REC-2026-07-23-ORCATERM-ZERO-BYTE-UPLOAD",
+      "faultClass": "orcaterm.file_upload.stale_session_zero_byte",
+      "affectedChannel": "tencent_orcaterm_browser_file_manager",
+      "status": "REMEDIATION_IN_PROGRESS",
+      "recurrenceCount": 2,
+      "firstObservedDate": "2026-07-23",
+      "lastObservedDate": "2026-07-23",
+      "affectedOperations": [
+        "ordinary_orcaterm_bundle_transport",
+        "orcaterm_repeated_bundle_upload"
+      ],
+      "prohibitedOperations": [
+        "ordinary_orcaterm_bundle_transport",
+        "orcaterm_repeated_bundle_upload"
+      ],
+      "remediationOperations": [
+        "fixed_dispatch_bootstrap_install"
+      ],
+      "fingerprint": {
+        "signature": "The OrcaTerm file manager immediately reports 0B of the expected size and the destination file is absent on the server.",
+        "stableConditions": [
+          "The terminal session remains connected.",
+          "The same source bytes fail from both a hidden cache path and a short visible path."
+        ],
+        "observedEvidence": [
+          "Two uploads reported 0B of 18.7KB.",
+          "Server sha256sum returned ENOENT after both failed uploads.",
+          "The host had 66GB free, ruling out target disk exhaustion."
+        ]
+      },
+      "rootCause": {
+        "boundary": "external_orcaterm_browser_upload_session",
+        "conclusion": "The browser file-upload session was stale independently of the still-connected terminal session.",
+        "confidence": "STRONG_BOUNDARY_INFERENCE",
+        "evidence": [
+          "Changing source path length, visibility and extended attributes did not change the 0B failure.",
+          "Reloading the OrcaTerm site and reconnecting transferred the exact same 19156 bytes in one second.",
+          "The server-side SHA-256 matched 80e0932a64feb0347dd41a7e4361cc90d0e64497a526cc16ad58148317479cdd."
+        ]
+      },
+      "permanentFix": {
+        "status": "PARTIAL",
+        "authorityPaths": [
+          "scripts/v2/production/fixed-channel/production-dispatch.mjs",
+          "scripts/v2/production/fixed-channel/install-production-dispatch.sh",
+          "scripts/v2/production/fixed-channel/install-production-dispatch-launcher.sh"
+        ],
+        "workaroundDisposition": "RETIRED_AFTER_BOOTSTRAP",
+        "evidence": [
+          "Routine non-secret packages move to an Ed25519 signed pull-only Git channel.",
+          "The production host will poll without browser upload sessions or inbound ports."
+        ]
+      },
+      "regression": {
+        "status": "PASS",
+        "redCase": "A connected terminal can coexist with a stale upload session that transfers zero bytes.",
+        "greenCommand": "npm run test:recurrence-gate && npm run test:production-dispatch",
+        "evidence": [
+          "The recurrence gate retires repeated OrcaTerm bundle transport.",
+          "The fixed channel validates signed exact bundles and rejects tampering."
+        ]
+      },
+      "runtimeGate": {
+        "status": "PARTIAL",
+        "evidence": [
+          "The exact bootstrap archive uploaded only after session reload and reconnect.",
+          "The server-side package verify returned PASS_EXACT_INSTALL_PACKAGE_VERIFIED_NO_MUTATION.",
+          "The fixed pull-only timer is not installed yet."
+        ]
+      },
+      "realTargetAcceptance": {
+        "status": "PENDING",
+        "evidence": [
+          "The exact bootstrap archive exists on the Tencent production host with the expected SHA-256.",
+          "Persistent channel installation and one real signed dispatch acceptance remain pending."
+        ]
+      },
+      "workaroundAccounting": {
+        "attemptCount": 2,
+        "postTriggerEmergencyWorkaroundCount": 1,
+        "durationMeasurement": "HISTORICAL_NOT_INSTRUMENTED",
+        "durationSeconds": null,
+        "unknownReason": "Elapsed-time instrumentation was introduced after the two controlled upload failures."
+      },
+      "remainingRisks": [
+        "Tencent does not expose the internal upload-session token state.",
+        "The browser upload path remains an emergency bootstrap dependency until the fixed timer passes production acceptance."
+      ]
+    }
+  ]
+}

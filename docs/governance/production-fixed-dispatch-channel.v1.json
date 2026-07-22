@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-production-fixed-dispatch-contract.v1",
-  "status": "local_implemented_production_not_installed",
+  "status": "production_bootstrap_verified_not_installed",
   "mission": {
     "statement": "快速对全市场覆盖性扫描，发现机会，给出策略，自我提升。",
     "contributionType": "supporting",
@@ -74,6 +74,27 @@
     "partialFirstInstallRollbackRequired": true,
     "systemdTimer": "market-radar-production-dispatch.timer",
     "systemdService": "market-radar-production-dispatch.service"
+  },
+  "bootstrapEvidence": {
+    "sourceCommit": "1411618d44eccd88b8714bf04df2a99a47f471dd",
+    "archiveSha256": "80e0932a64feb0347dd41a7e4361cc90d0e64497a526cc16ad58148317479cdd",
+    "sourceSetSha256": "92a629309c8e043ed9717b1e4f518242ea4fa208744f5570596a5a8be9a10dcb",
+    "publicKeySha256": "dc1030528911cfb0027bc1237562f84cb0c8c155cdb8bf55d0dacfe6b32ceb93",
+    "targetVerifyMarker": "PASS_EXACT_INSTALL_PACKAGE_VERIFIED_NO_MUTATION",
+    "productionMutation": false,
+    "persistentServiceInstalled": false
+  },
+  "recurrenceRootCauseGate": {
+    "registryPath": "docs/governance/recurrence-root-cause-registry.v1.json",
+    "requiredForEveryActivePackage": true,
+    "currentOpenIncidentCount": 2,
+    "allowedBootstrapOperation": "fixed_dispatch_bootstrap_install",
+    "retiredOperations": [
+      "ordinary_orcaterm_bundle_transport",
+      "orcaterm_repeated_bundle_upload",
+      "orcaterm_long_environment_command",
+      "orcaterm_manual_special_character_command"
+    ]
   },
   "exceptions": [
     {

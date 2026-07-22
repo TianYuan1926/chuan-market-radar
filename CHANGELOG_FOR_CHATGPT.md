@@ -2,7 +2,7 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
-## 2026-07-22 / G0 Signed Pull-Only Production Dispatch Local Engineering
+## 2026-07-23 / G0 Signed Pull-Only Production Dispatch Bootstrap Verify
 
 ### 本轮目标
 
@@ -14,7 +14,9 @@
 - 新增绑定安装器自身的 exact-hash 一次性安装器、半安装自动回收、机器治理合同、运行手册和 GitHub quality gate；异常租约只等待，不会放行，无效单任务会隔离并推进 cursor，避免永久堵队列。
 - 腾讯只读预检发现生产主机无 Node，旧 `/usr/bin/node` 入口未执行；安装器改为从 Node.js 官方 HTTPS 固定下载 `v24.18.0` Linux x64，在任何 mutation 前校验官方 archive SHA、binary SHA、license SHA、架构和版本，只安装独立 runtime，不上传 30MB 二进制、不安装 npm、不改全局 PATH。
 - 新增 `RECURRENCE_ROOT_CAUSE_GATE`：同类问题第二次出现后禁止继续堆重试和人工 workaround，必须用复现指纹、根因、永久修复、回归测试、运行门禁和真实目标验收收口；OrcaTerm 反复会话/输入/上传问题是首个适用实例。
+- 门禁已从文字升级为机器注册表与 active-package operation 检查；普通 OrcaTerm Bundle 运输和长命令重输按策略拒绝并退出码 2，唯一固定通道 bootstrap 根治动作退出码 0。两项事件仍为 `REMEDIATION_IN_PROGRESS`，真实安装验收前不能关闭。
 - OrcaTerm 会静默丢失 `_`、`:`、`|` 等特殊字符，旧长环境变量安装命令已从操作路径移除；新增 source-set 绑定的短 `verify/install` 入口，从严格事实包读取全部批准值并再次经过原安装器门禁，包内任一文件被改写即在 mutation 前拒绝。
+- 文件上传连续两次 `0B/18.7KB`；短路径、无扩展属性和 66GB 可用磁盘排除后，刷新站点并重连使同一 19156-byte 文件 1 秒上传，服务器 SHA-256 精确匹配。该证据将根因边界收敛为 stale upload session，不再允许第三次盲重试。
 - 不修改 scan、analysis、strategy、backtest、前端、业务 API、DB、Redis、Worker、Feature Flag 或生产应用服务。
 
 ### 核心链路影响
@@ -24,12 +26,13 @@
 ### 测试结果
 
 - 固定 runtime 与短安装入口修正后定向测试 13/13 PASS：签名篡改、窗口、必需审批绑定、任意命令、tar/path/secret、合法路径内凭证内容拒绝、source reachability、WIP/异常租约 defer、持久化 exactly-once、坏任务隔离、installer rollback、安装包篡改拒绝、systemd 和 GitHub quality-only boundary。
-- 初版因放入 Legacy deploy 层导致 M0 正确失败；迁入 `scripts/v2/production/fixed-channel/` 并恢复 Legacy workflow 后，consumer map 回到 539/109、M0 PASS。
+- 复发门禁 9/9、Legacy 自治 31/31 PASS；实际注册表 2 项 open incident、结构违规 0，未声明 recurrence operation 的 active package 会失败。
+- 初版因放入 Legacy deploy 层导致 M0 正确失败；迁入 `scripts/v2/production/fixed-channel/` 并恢复 Legacy workflow 后，consumer map 回到 539 source / 273 runtime edges、M0 PASS。
 - 固定 runtime 与短安装入口修正后的完整 `ci:production` 已重新 PASS：定向 13/13、typecheck/lint、Market 965/0/4 explicit skip、Worker 23/23、Historical 4/4、V2 foundation 317/0/6 explicit skip、ops 115/115、M0、build、Golden 16/16 和 security 全通过。
 
 ### 是否部署
 
-未部署腾讯生产。当前状态固定为 `LOCAL_IMPLEMENTED_TESTED_NOT_INSTALLED`；普通运输尚未自动化，P0R STS/MFA 仍通过 `/dev/shm` 独立处理。
+未安装腾讯生产服务。exact archive 已上传目标机、服务器 SHA 一致并通过 `PASS_EXACT_INSTALL_PACKAGE_VERIFIED_NO_MUTATION`；当前状态固定为 `PRODUCTION_BOOTSTRAP_VERIFIED_NOT_INSTALLED`，普通运输尚未自动化，P0R STS/MFA 仍通过 `/dev/shm` 独立处理。
 
 ### 风险与遗留问题
 
@@ -37,7 +40,7 @@
 
 ### 下一轮建议
 
-完成完整门禁并准备一次性脱敏安装包；不得与当前 P0R secret 运输混包。
+取得动作时确认后安装固定通道并完成 timer/runtime/零业务变更验收；不得与当前 P0R secret 运输混包。
 
 ## 2026-07-22 / V2 M3.1 Family Analysis and Evidence Interpretation
 

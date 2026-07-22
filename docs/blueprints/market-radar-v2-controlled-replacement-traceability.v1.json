@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.21",
+  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.22",
   "status": "m1_5_b1_pass_m1_6_p0_blocked_p0r_object_lock_31d_age_vault_and_transport_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_m3_0_decision_contract_and_m3_1_family_analysis_local_pass_test_only_uncalibrated_no_authority_external_historical_source_blocked_m1_not_complete",
-  "generatedAt": "2026-07-22T00:24:25+08:00",
+  "generatedAt": "2026-07-23T00:56:18+08:00",
   "implementationAuthorized": true,
   "productionMutationAuthorized": false,
   "authority": {
@@ -57,6 +57,10 @@
     "m3FinalDecisionAuthorityDeliveryReport": "docs/blueprints/V2_M3_0_FINAL_DECISION_AUTHORITY_CONTRACT_DELIVERY_REPORT.md",
     "m3FamilyAnalysisAndEvidenceInterpretationContract": "docs/architecture/v2/M3_1_FAMILY_ANALYSIS_AND_EVIDENCE_INTERPRETATION_CONTRACT_V1.md",
     "m3FamilyAnalysisAndEvidenceInterpretationDeliveryReport": "docs/blueprints/V2_M3_1_FAMILY_ANALYSIS_AND_EVIDENCE_INTERPRETATION_DELIVERY_REPORT.md",
+    "productionFixedDispatchContract": "docs/governance/production-fixed-dispatch-channel.v1.json",
+    "productionFixedDispatchDeliveryReport": "docs/blueprints/G0_PRODUCTION_FIXED_DISPATCH_CHANNEL_DELIVERY_REPORT.md",
+    "recurrenceRootCauseRegistry": "docs/governance/recurrence-root-cause-registry.v1.json",
+    "recurrenceRootCauseGate": "scripts/v2/production/fixed-channel/recurrence-root-cause-gate.mjs",
     "legacyEngineeringReference": "docs/blueprints/MARKET_RADAR_ENGINEERING_BUILD_BLUEPRINT_V1.md",
     "legacyRuntimeReference": "docs/blueprints/MARKET_RADAR_PRODUCTION_RUNTIME_BLUEPRINT_V1.md",
     "legacyReadinessReference": "docs/superpowers/plans/2026-07-10-market-radar-practical-readiness-master-plan-v3.md"

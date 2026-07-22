@@ -686,7 +686,7 @@ test("governance contract matches the executable transport and truth boundary", 
     "docs/governance/production-fixed-dispatch-channel.v1.json",
     "utf8",
   ));
-  assert.equal(contract.status, "local_implemented_production_not_installed");
+  assert.equal(contract.status, "production_bootstrap_verified_not_installed");
   assert.equal(contract.cost.additionalPaidServiceRequired, false);
   assert.equal(contract.transport.method, "signed_git_bundle");
   assert.deepEqual(contract.transport.files, DISPATCH_FILES);
@@ -714,6 +714,22 @@ test("governance contract matches the executable transport and truth boundary", 
   assert.equal(contract.installation.runtimeGlobalInstallAllowed, false);
   assert.equal(contract.installation.existingInstallOverwriteAllowed, false);
   assert.equal(contract.installation.partialFirstInstallRollbackRequired, true);
+  assert.equal(contract.bootstrapEvidence.sourceCommit,
+    "1411618d44eccd88b8714bf04df2a99a47f471dd");
+  assert.equal(contract.bootstrapEvidence.archiveSha256,
+    "80e0932a64feb0347dd41a7e4361cc90d0e64497a526cc16ad58148317479cdd");
+  assert.equal(contract.bootstrapEvidence.sourceSetSha256,
+    "92a629309c8e043ed9717b1e4f518242ea4fa208744f5570596a5a8be9a10dcb");
+  assert.equal(contract.bootstrapEvidence.publicKeySha256,
+    "dc1030528911cfb0027bc1237562f84cb0c8c155cdb8bf55d0dacfe6b32ceb93");
+  assert.equal(contract.bootstrapEvidence.targetVerifyMarker,
+    "PASS_EXACT_INSTALL_PACKAGE_VERIFIED_NO_MUTATION");
+  assert.equal(contract.bootstrapEvidence.productionMutation, false);
+  assert.equal(contract.bootstrapEvidence.persistentServiceInstalled, false);
+  assert.equal(contract.recurrenceRootCauseGate.requiredForEveryActivePackage, true);
+  assert.equal(contract.recurrenceRootCauseGate.currentOpenIncidentCount, 2);
+  assert.equal(contract.recurrenceRootCauseGate.allowedBootstrapOperation,
+    "fixed_dispatch_bootstrap_install");
   assert.equal(contract.exceptions[0].mayBypassCloudMfa, false);
   assert.equal(contract.exceptions[1].mayMisreportTransport, false);
 });
@@ -724,6 +740,7 @@ test("V2 GitHub workflow has quality authority only", async () => {
     "utf8",
   );
   assert.match(workflow, /npm run test:production-dispatch/u);
+  assert.match(workflow, /npm run test:recurrence-gate/u);
   assert.match(workflow, /runs-on: ubuntu-24\.04/u);
   assert.match(workflow, /contents: read/u);
   assert.match(workflow, /production_execution=false/u);

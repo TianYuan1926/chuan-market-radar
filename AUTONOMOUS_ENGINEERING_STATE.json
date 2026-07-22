@@ -157,7 +157,9 @@
       "docs/blueprints/G0_PRODUCTION_FIXED_DISPATCH_CHANNEL_DELIVERY_REPORT.md",
       "docs/blueprints/MARKET_RADAR_G0_G8_AUTONOMOUS_EXECUTION_BLUEPRINT_V1.md",
       "docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md",
+      "docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json",
       "docs/governance/production-fixed-dispatch-channel.v1.json",
+      "docs/governance/recurrence-root-cause-registry.v1.json",
       "docs/runbooks/PRODUCTION_FIXED_DISPATCH_CHANNEL_V1.md",
       "scripts/v2/production/fixed-channel/**",
       "docs/governance/wp-g0-2-candidate-activation-production-execution.v1.json",
@@ -223,7 +225,9 @@
       "docs/blueprints/G0_PRODUCTION_FIXED_DISPATCH_CHANNEL_DELIVERY_REPORT.md",
       "docs/blueprints/MARKET_RADAR_G0_G8_AUTONOMOUS_EXECUTION_BLUEPRINT_V1.md",
       "docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md",
+      "docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json",
       "docs/governance/production-fixed-dispatch-channel.v1.json",
+      "docs/governance/recurrence-root-cause-registry.v1.json",
       "docs/runbooks/PRODUCTION_FIXED_DISPATCH_CHANNEL_V1.md",
       "scripts/v2/production/fixed-channel/README.md",
       "scripts/v2/production/fixed-channel/install-production-dispatch.sh",
@@ -231,6 +235,8 @@
       "scripts/v2/production/fixed-channel/market-radar-production-dispatch.timer",
       "scripts/v2/production/fixed-channel/production-dispatch.mjs",
       "scripts/v2/production/fixed-channel/production-dispatch.test.mjs",
+      "scripts/v2/production/fixed-channel/recurrence-root-cause-gate.mjs",
+      "scripts/v2/production/fixed-channel/recurrence-root-cause-gate.test.mjs",
       "docs/governance/wp-g0-2-candidate-activation-production-execution.v1.json",
       "scripts/governance/candidate-activation-runner.mjs",
       "scripts/governance/candidate-activation-runner.test.mjs",
@@ -270,6 +276,7 @@
     "gateProfile": {
       "targeted": [
         "test:autonomy",
+        "test:recurrence-gate",
         "test:production-dispatch",
         "candidate:activation-release:validate",
         "test:candidate-activation-runner",
@@ -305,6 +312,12 @@
       "canonical_write、dual_read、canonical_read、review_read、migration、DDL、业务DML、phase自动推进、scan排序、analysis、strategy、backtest、frontend和API业务合同不得改变；本轮仅允许修复全量instrument identity解析、shadow失败隔离、heartbeat真实错误保持和回滚执行缺陷",
       "backtest:formal禁止运行；自动交易、自动调权、RR/Risk Gate放宽和future outcome生产回写继续禁止"
     ],
+    "recurrenceRootCauseGate": {
+      "registryPath": "docs/governance/recurrence-root-cause-registry.v1.json",
+      "operations": [
+        "fixed_dispatch_bootstrap_install"
+      ]
+    },
     "gate": "G0",
     "actionClass": "shadow_capture_activation",
     "missionAlignment": {

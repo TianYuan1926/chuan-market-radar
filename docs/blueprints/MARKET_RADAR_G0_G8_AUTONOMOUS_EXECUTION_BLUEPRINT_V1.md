@@ -222,6 +222,8 @@ Gate 只允许顺序 PASS。后续 Gate 的本地准备可以提前一个完整 
 
 任一答案不完整，状态不得为 PASS。
 
+重复故障另由 `docs/governance/recurrence-root-cause-registry.v1.json` 和 V2 控制面 `scripts/v2/production/fixed-channel/recurrence-root-cause-gate.mjs` 机器执行：每个 active package 必须声明 operation；第二次同类故障后，未关闭 affected operation 与已退役 workaround 均 fail closed，只有注册表明确列出的根治 operation 可以继续。文字说明、重试成功或重启成功不能关闭该门禁，必须有真实目标验收；门禁不得修改或扩张冻结的 Legacy 运行图。
+
 ## 11. 自动推进与停止
 
 自动推进只发生在当前包 `EXIT_PASS + EVIDENCE_CLOSED` 后。`PARTIAL` 允许修复当前包，`BLOCKED` 允许推进不依赖该外部条件的本地准备，均不允许生产越级。
