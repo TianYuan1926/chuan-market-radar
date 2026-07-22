@@ -25,6 +25,7 @@ export const ACCEPTANCE_ENTRYPOINT = "scripts/v2/production/fixed-channel-accept
 export const ACCEPTANCE_RUNNER = "scripts/v2/production/fixed-channel/production-dispatch-acceptance.mjs";
 export const ACCEPTANCE_MANIFEST = "dispatch-acceptance-manifest.json";
 export const ACCEPTANCE_SUCCESS_MARKER = "PASS_FIXED_DISPATCH_FIRST_SIGNED_ACCEPTANCE";
+export const ACCEPTANCE_DOCKER_READ_ACCESS_MODE = "sudo_noninteractive_exact_read_only";
 
 export const DEFAULT_ACCEPTANCE_POLICY = Object.freeze({
   dispatchStateRoot: "/var/lib/market-radar-production-dispatch",
@@ -44,6 +45,7 @@ const REQUEST_KEYS = Object.freeze([
   "databaseMutationAllowed",
   "dispatchId",
   "dispatchStateRoot",
+  "dockerReadAccessMode",
   "expectedContainerCount",
   "expectedContainerIds",
   "expectedHealth",
@@ -189,6 +191,8 @@ export function validateAcceptanceRequest(request, {
   ensure(SHA256.test(request.artifactManifestSha256), "acceptance_manifest_sha256_invalid");
   ensure(request.transportMethod === "signed_git_bundle", "acceptance_transport_method_invalid");
   ensure(request.transportContainsSecrets === false, "acceptance_secret_transport_forbidden");
+  ensure(request.dockerReadAccessMode === ACCEPTANCE_DOCKER_READ_ACCESS_MODE,
+    "acceptance_docker_read_access_mode_invalid");
   ensure(request.productionMutationScope === "dispatch_state_staging_and_evidence_only",
     "acceptance_mutation_scope_invalid");
   for (const key of [
@@ -307,14 +311,55 @@ async function validateDispatchBinding(stagingDirectory, request, requestRaw, bu
   return sha256(raw);
 }
 
-async function defaultCommandRunner(command, args) {
-  const { stdout } = await execFileAsync(command, args, {
-    encoding: "utf8",
-    timeout: 30_000,
-    maxBuffer: 4 * 1024 * 1024,
-  });
-  return stdout.trim();
+const PRODUCTION_COMMAND_PATHS = Object.freeze({
+  curl: "/usr/bin/curl",
+  docker: "/usr/bin/docker",
+  git: "/usr/bin/git",
+  ss: "/usr/bin/ss",
+  sudo: "/usr/bin/sudo",
+  systemctl: "/usr/bin/systemctl",
+});
+
+function sameArgs(actual, expected) {
+  return actual.length === expected.length
+    && actual.every((value, index) => value === expected[index]);
 }
+
+export function productionCommandInvocation(command, args) {
+  ensure(Array.isArray(args)
+    && args.every((value) => typeof value === "string" && !value.includes("\0")),
+  "acceptance_command_arguments_invalid");
+  ensure(["curl", "docker", "git", "ss", "systemctl"].includes(command),
+    "acceptance_command_not_allowlisted");
+  if (command === "docker") {
+    const inventory = ["ps", "--no-trunc", "--format", "{{.ID}}"];
+    const redisPing = ["exec", DEFAULT_ACCEPTANCE_POLICY.expectedRedisContainer, "redis-cli", "ping"];
+    ensure(sameArgs(args, inventory) || sameArgs(args, redisPing),
+      "acceptance_docker_command_not_read_only");
+    return {
+      args: ["-n", "--", PRODUCTION_COMMAND_PATHS.docker, ...args],
+      executable: PRODUCTION_COMMAND_PATHS.sudo,
+    };
+  }
+  return { args: [...args], executable: PRODUCTION_COMMAND_PATHS[command] };
+}
+
+export async function runProductionCommand(command, args, { execute = execFileAsync } = {}) {
+  const invocation = productionCommandInvocation(command, args);
+  try {
+    const { stdout } = await execute(invocation.executable, invocation.args, {
+      encoding: "utf8",
+      timeout: 30_000,
+      maxBuffer: 4 * 1024 * 1024,
+    });
+    return stdout.trim();
+  } catch (error) {
+    if (error instanceof AcceptanceError) throw error;
+    throw new AcceptanceError(`acceptance_command_${command}_failed`);
+  }
+}
+
+const defaultCommandRunner = runProductionCommand;
 
 function parseJsonObject(raw, reason) {
   let value;
@@ -478,6 +523,7 @@ export async function runAcceptance({
     containerCount: after.containerIds.length,
     containerIdentitySha256: sha256(`${after.containerIds.join("\n")}\n`),
     databaseMutationAttempted: false,
+    dockerReadAccessMode: request.dockerReadAccessMode,
     dispatchEnvelopeSha256,
     dispatchId: request.dispatchId,
     frontendContract: { bytes: Buffer.byteLength(frontend), sha256: sha256(frontend) },

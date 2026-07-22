@@ -7,6 +7,7 @@ import { promisify } from "node:util";
 import test from "node:test";
 import {
   ACCEPTANCE_ENTRYPOINT,
+  ACCEPTANCE_DOCKER_READ_ACCESS_MODE,
   ACCEPTANCE_MANIFEST,
   ACCEPTANCE_MANIFEST_SCHEMA,
   ACCEPTANCE_PACKAGE_ID,
@@ -16,7 +17,9 @@ import {
   ACCEPTANCE_SUCCESS_MARKER,
   assertAcceptanceIdentity,
   canonicalJson,
+  productionCommandInvocation,
   runAcceptance,
+  runProductionCommand,
   sha256,
   validateAcceptanceRequest,
 } from "./production-dispatch-acceptance.mjs";
@@ -38,6 +41,7 @@ function fixtureRequest(policy, now = new Date("2026-07-23T04:00:00.000Z")) {
     databaseMutationAllowed: false,
     dispatchId,
     dispatchStateRoot: policy.dispatchStateRoot,
+    dockerReadAccessMode: ACCEPTANCE_DOCKER_READ_ACCESS_MODE,
     expectedContainerCount: 11,
     expectedContainerIds: CONTAINER_IDS,
     expectedHealth: {
@@ -95,6 +99,38 @@ test("acceptance request freezes no-secret read-only production boundaries", () 
     () => validateAcceptanceRequest({ ...request, transportMethod: "approved_orcaterm_bundle_upload" },
       { now, policy }),
     /acceptance_transport_method_invalid/,
+  );
+  assert.throws(
+    () => validateAcceptanceRequest({ ...request, dockerReadAccessMode: "direct_socket" },
+      { now, policy }),
+    /acceptance_docker_read_access_mode_invalid/,
+  );
+});
+
+test("production command invocation scopes sudo to exact read-only Docker calls", async () => {
+  const inventory = ["ps", "--no-trunc", "--format", "{{.ID}}"];
+  assert.deepEqual(productionCommandInvocation("docker", inventory), {
+    args: ["-n", "--", "/usr/bin/docker", ...inventory],
+    executable: "/usr/bin/sudo",
+  });
+  const redisPing = ["exec", "chuan-market-radar-redis-1", "redis-cli", "ping"];
+  assert.deepEqual(productionCommandInvocation("docker", redisPing), {
+    args: ["-n", "--", "/usr/bin/docker", ...redisPing],
+    executable: "/usr/bin/sudo",
+  });
+  assert.throws(
+    () => productionCommandInvocation("docker", ["compose", "up"]),
+    /acceptance_docker_command_not_read_only/,
+  );
+  assert.deepEqual(productionCommandInvocation("git", ["status"]), {
+    args: ["status"],
+    executable: "/usr/bin/git",
+  });
+  await assert.rejects(
+    runProductionCommand("docker", inventory, {
+      execute: async () => { throw new Error("permission denied"); },
+    }),
+    /acceptance_command_docker_failed/,
   );
 });
 
@@ -224,6 +260,7 @@ test("acceptance runner verifies exact dispatch and writes content-addressed zer
     assert.equal(result.productionHeadAfter, PRODUCTION_HEAD);
     assert.equal(result.containerCount, 11);
     assert.equal(result.databaseMutationAttempted, false);
+    assert.equal(result.dockerReadAccessMode, ACCEPTANCE_DOCKER_READ_ACCESS_MODE);
     assert.match(result.evidenceSha256, /^[a-f0-9]{64}$/);
     const persisted = JSON.parse(await readFile(request.resultPath, "utf8"));
     assert.deepEqual(persisted, result);

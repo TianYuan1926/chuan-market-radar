@@ -8,6 +8,7 @@ import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import {
   ACCEPTANCE_ENTRYPOINT,
+  ACCEPTANCE_DOCKER_READ_ACCESS_MODE,
   ACCEPTANCE_MANIFEST,
   ACCEPTANCE_MANIFEST_SCHEMA,
   ACCEPTANCE_PACKAGE_ID,
@@ -123,6 +124,7 @@ export async function buildAcceptanceBundle({
       databaseMutationAllowed: false,
       dispatchId,
       dispatchStateRoot: DEFAULT_ACCEPTANCE_POLICY.dispatchStateRoot,
+      dockerReadAccessMode: ACCEPTANCE_DOCKER_READ_ACCESS_MODE,
       expectedContainerCount: DEFAULT_ACCEPTANCE_POLICY.expectedContainerCount,
       expectedContainerIds: [...expectedContainerIds].sort(),
       expectedHealth: {
