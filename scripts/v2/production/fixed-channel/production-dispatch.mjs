@@ -576,6 +576,16 @@ async function runGit(repo, args, options = {}) {
   return stdout.trim();
 }
 
+function safeChildFailureDetails(error) {
+  const details = {};
+  if (typeof error?.code === "number" || typeof error?.code === "string") {
+    details.code = String(error.code).slice(0, 80);
+  }
+  if (typeof error?.signal === "string") details.signal = error.signal.slice(0, 40);
+  if (error?.stderr !== undefined) details.stderrSha256 = sha256(String(error.stderr));
+  return details;
+}
+
 async function runFileWithInput(command, args, input) {
   return await new Promise((resolvePromise, rejectPromise) => {
     const child = spawn(command, args, { stdio: ["pipe", "pipe", "pipe"] });
@@ -718,7 +728,7 @@ async function fetchOptionalRef(config, sourceRef, trackingRef) {
   } catch (error) {
     const stderr = String(error?.stderr ?? "");
     if (/couldn't find remote ref|not found/iu.test(stderr)) return false;
-    throw error;
+    throw new DispatchPolicyError("dispatch_agent_remote_fetch_failed", safeChildFailureDetails(error));
   }
 }
 
@@ -738,25 +748,30 @@ async function readJson(path, reason) {
 
 export async function initializeAgent(configInput) {
   const config = validateAgentConfig(configInput);
-  await mkdir(config.stateRoot, { recursive: true, mode: 0o700 });
-  await mkdir(join(config.stateRoot, "claims"), { recursive: true, mode: 0o700 });
-  await mkdir(join(config.stateRoot, "results"), { recursive: true, mode: 0o700 });
-  await ensureBareMirror(config);
-  const cursorPath = join(config.stateRoot, "cursor.json");
-  await access(cursorPath, fsConstants.F_OK).then(
-    () => { throw new DispatchPolicyError("dispatch_agent_cursor_already_exists"); },
-    (error) => { if (error?.code !== "ENOENT") throw error; },
-  );
-  const exists = await fetchOptionalRef(config, config.dispatchRef, config.dispatchTrackingRef);
-  const cursor = exists ? await runGit(config.mirrorPath, ["rev-parse", config.dispatchTrackingRef]) : null;
-  const state = {
-    schemaVersion: AGENT_STATE_SCHEMA,
-    initializedAt: new Date().toISOString(),
-    lastDispatchCommit: cursor,
-    status: "initialized_no_replay",
-  };
-  await atomicWrite(cursorPath, `${JSON.stringify(state, null, 2)}\n`);
-  return state;
+  try {
+    await mkdir(config.stateRoot, { recursive: true, mode: 0o700 });
+    await mkdir(join(config.stateRoot, "claims"), { recursive: true, mode: 0o700 });
+    await mkdir(join(config.stateRoot, "results"), { recursive: true, mode: 0o700 });
+    await ensureBareMirror(config);
+    const cursorPath = join(config.stateRoot, "cursor.json");
+    await access(cursorPath, fsConstants.F_OK).then(
+      () => { throw new DispatchPolicyError("dispatch_agent_cursor_already_exists"); },
+      (error) => { if (error?.code !== "ENOENT") throw error; },
+    );
+    const exists = await fetchOptionalRef(config, config.dispatchRef, config.dispatchTrackingRef);
+    const cursor = exists ? await runGit(config.mirrorPath, ["rev-parse", config.dispatchTrackingRef]) : null;
+    const state = {
+      schemaVersion: AGENT_STATE_SCHEMA,
+      initializedAt: new Date().toISOString(),
+      lastDispatchCommit: cursor,
+      status: "initialized_no_replay",
+    };
+    await atomicWrite(cursorPath, `${JSON.stringify(state, null, 2)}\n`);
+    return state;
+  } catch (error) {
+    if (error instanceof DispatchPolicyError) throw error;
+    throw new DispatchPolicyError("dispatch_agent_initialize_failed", safeChildFailureDetails(error));
+  }
 }
 
 async function acquireAgentLock(stateRoot) {

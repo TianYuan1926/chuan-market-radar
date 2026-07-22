@@ -8,6 +8,8 @@ FACTS_PATH="${SOURCE_ROOT}/INSTALL_FACTS.json"
 MANIFEST_PATH="${SOURCE_ROOT}/SHA256SUMS"
 PUBLIC_KEY_SOURCE="${SOURCE_ROOT}/ed25519-public.pem"
 INSTALLER_SOURCE="${SOURCE_ROOT}/install-production-dispatch.sh"
+KNOWN_HOSTS_SOURCE="${SOURCE_ROOT}/github-known-hosts"
+DEPLOY_KEY_SOURCE="${SOURCE_ROOT}/github-deploy-key"
 
 fail() {
   printf 'BLOCKED_PRODUCTION_DISPATCH_LAUNCHER %s\n' "$1" >&2
@@ -35,6 +37,8 @@ expected_manifest_names="$(printf '%s\n' \
   INSTALL_FACTS.json \
   README.md \
   ed25519-public.pem \
+  git-ssh-dispatch.sh \
+  github-known-hosts \
   install-production-dispatch-launcher.sh \
   install-production-dispatch.sh \
   market-radar-production-dispatch.service \
@@ -61,13 +65,14 @@ jq -e '
     "nodeRuntime",
     "productionMutationPrepared",
     "publicKeySha256",
+    "repositoryAccess",
     "schemaVersion",
     "sourceCommit",
     "sourceRef",
     "sourceSetSha256",
     "transportContainsSecrets"
   ]
-  and .schemaVersion == "market-radar-production-dispatch-install-facts.v2"
+  and .schemaVersion == "market-radar-production-dispatch-install-facts.v3"
   and (.generatedAt | type == "string")
   and (.sourceCommit | type == "string" and test("^[a-f0-9]{40}$"))
   and (.sourceRef == "refs/heads/main"
@@ -77,6 +82,20 @@ jq -e '
   and .transportContainsSecrets == false
   and .productionMutationPrepared == false
   and .hostNodeRequired == false
+  and (.repositoryAccess | keys | sort) == [
+    "authentication",
+    "deployPublicKeySha256",
+    "dispatchRemoteUrl",
+    "knownHostsSha256",
+    "privateKeyIncludedInArchive",
+    "writeAccessAllowed"
+  ]
+  and .repositoryAccess.authentication == "github_read_only_deploy_key"
+  and (.repositoryAccess.deployPublicKeySha256 | type == "string" and test("^[a-f0-9]{64}$"))
+  and .repositoryAccess.dispatchRemoteUrl == "git@github.com:TianYuan1926/chuan-market-radar.git"
+  and (.repositoryAccess.knownHostsSha256 | type == "string" and test("^[a-f0-9]{64}$"))
+  and .repositoryAccess.privateKeyIncludedInArchive == false
+  and .repositoryAccess.writeAccessAllowed == false
   and (.nodeRuntime | keys | sort) == [
     "archiveSha256",
     "binarySha256",
@@ -100,12 +119,17 @@ public_key_sha256="$(jq -er '.publicKeySha256' "${FACTS_PATH}")"
 node_archive_sha256="$(jq -er '.nodeRuntime.archiveSha256' "${FACTS_PATH}")"
 node_binary_sha256="$(jq -er '.nodeRuntime.binarySha256' "${FACTS_PATH}")"
 node_license_sha256="$(jq -er '.nodeRuntime.licenseSha256' "${FACTS_PATH}")"
+deploy_public_key_sha256="$(jq -er '.repositoryAccess.deployPublicKeySha256' "${FACTS_PATH}")"
+dispatch_remote_url="$(jq -er '.repositoryAccess.dispatchRemoteUrl' "${FACTS_PATH}")"
+known_hosts_sha256="$(jq -er '.repositoryAccess.knownHostsSha256' "${FACTS_PATH}")"
 [[ "$(sha256sum "${PUBLIC_KEY_SOURCE}" | awk '{print $1}')" == "${public_key_sha256}" ]] \
   || fail "public key checksum does not match install facts"
 grep -q '^-----BEGIN PUBLIC KEY-----$' "${PUBLIC_KEY_SOURCE}" \
   || fail "public key format is invalid"
 grep -q '^-----END PUBLIC KEY-----$' "${PUBLIC_KEY_SOURCE}" \
   || fail "public key format is invalid"
+[[ "$(sha256sum "${KNOWN_HOSTS_SOURCE}" | awk '{print $1}')" == "${known_hosts_sha256}" ]] \
+  || fail "GitHub known-hosts checksum does not match install facts"
 
 install_plan="$(bash "${INSTALLER_SOURCE}" plan)" \
   || fail "installer plan could not be generated"
@@ -115,12 +139,17 @@ jq -e \
   --arg nodeArchiveSha256 "${node_archive_sha256}" \
   --arg nodeBinarySha256 "${node_binary_sha256}" \
   --arg nodeLicenseSha256 "${node_license_sha256}" \
+  --arg dispatchRemoteUrl "${dispatch_remote_url}" \
   '
     .schemaVersion == "market-radar-production-dispatch-install-plan.v1"
     and .mode == "plan"
     and .productionMutation == false
     and .opensInboundPort == false
     and .transportsSecret == false
+    and .credentialBootstrapRequired == true
+    and .credentialIncludedInArchive == false
+    and .credentialScope == "single_repository_read_only_deploy_key"
+    and .dispatchRemoteUrl == $dispatchRemoteUrl
     and .arbitraryCommandAllowed == false
     and .hostNodeRequired == false
     and .sourceSetSha256 == $sourceSetSha256
@@ -147,8 +176,26 @@ if [[ "${MODE}" == "verify" ]]; then
   exit 0
 fi
 
+for command_name in ssh-keygen stat; do
+  command -v "${command_name}" >/dev/null 2>&1 \
+    || fail "required credential command is unavailable: ${command_name}"
+done
+[[ -f "${DEPLOY_KEY_SOURCE}" && ! -L "${DEPLOY_KEY_SOURCE}" ]] \
+  || fail "server-generated deploy key is missing"
+[[ "$(stat -c '%a' "${DEPLOY_KEY_SOURCE}")" == "600" ]] \
+  || fail "server-generated deploy key must be mode 600"
+derived_deploy_public_key="$(ssh-keygen -y -f "${DEPLOY_KEY_SOURCE}" 2>/dev/null)" \
+  || fail "server-generated deploy key is invalid"
+[[ "${derived_deploy_public_key}" == ssh-ed25519\ * \
+  && "$(printf '%s\n' "${derived_deploy_public_key}" | sha256sum | awk '{print $1}')" == "${deploy_public_key_sha256}" ]] \
+  || fail "server-generated deploy key does not match approved public identity"
+
 exec env \
+  DISPATCH_DEPLOY_KEY_SOURCE="${DEPLOY_KEY_SOURCE}" \
+  DISPATCH_REMOTE_URL="${dispatch_remote_url}" \
   DISPATCH_PUBLIC_KEY_SOURCE="${PUBLIC_KEY_SOURCE}" \
+  EXPECTED_DISPATCH_DEPLOY_PUBLIC_KEY_SHA256="${deploy_public_key_sha256}" \
+  EXPECTED_DISPATCH_KNOWN_HOSTS_SHA256="${known_hosts_sha256}" \
   EXPECTED_DISPATCH_PUBLIC_KEY_SHA256="${public_key_sha256}" \
   EXPECTED_DISPATCH_SOURCE_SET_SHA256="${source_set_sha256}" \
   EXPECTED_DISPATCH_NODE_ARCHIVE_SHA256="${node_archive_sha256}" \

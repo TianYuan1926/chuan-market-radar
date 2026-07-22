@@ -516,6 +516,30 @@ test("agent quarantines one invalid dispatch commit instead of deadlocking the q
   }
 });
 
+test("agent reports a stable policy reason when its remote cannot be read", async () => {
+  const root = await mkdtemp(join(tmpdir(), "dispatch-agent-remote-failure-"));
+  try {
+    const config = {
+      dispatchRef: "refs/heads/production-dispatch-test",
+      dispatchTrackingRef: "refs/market-radar-dispatch/incoming-test",
+      mirrorPath: join(root, "agent", "mirror.git"),
+      publicKeyPath: join(root, "public.pem"),
+      remoteUrl: join(root, "missing-remote.git"),
+      schemaVersion: AGENT_CONFIG_SCHEMA,
+      sourceRefs: ["refs/heads/main"],
+      stagingRoots: [join(root, "staging")],
+      stateRoot: join(root, "agent"),
+      trustRoot: join(root, "trust"),
+    };
+    await assert.rejects(
+      initializeAgent(config),
+      policyReason("dispatch_agent_remote_fetch_failed"),
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("agent service source contains no browser, SSH, arbitrary command or secret transport", async () => {
   const source = await readFile("scripts/v2/production/fixed-channel/production-dispatch.mjs", "utf8");
   assert.doesNotMatch(source, /execFile(?:Async)?\(\s*["'](?:ssh|scp)["']|OrcaTerm|playwright|computer-use/iu);
@@ -542,6 +566,10 @@ test("installer plan is non-mutating and install remains exact-hash gated", asyn
   assert.equal(plan.productionMutation, false);
   assert.equal(plan.opensInboundPort, false);
   assert.equal(plan.transportsSecret, false);
+  assert.equal(plan.credentialBootstrapRequired, true);
+  assert.equal(plan.credentialIncludedInArchive, false);
+  assert.equal(plan.credentialScope, "single_repository_read_only_deploy_key");
+  assert.equal(plan.dispatchRemoteUrl, "git@github.com:TianYuan1926/chuan-market-radar.git");
   assert.equal(plan.arbitraryCommandAllowed, false);
   assert.equal(plan.pollSeconds, 20);
   assert.equal(plan.hostNodeRequired, false);
@@ -566,6 +594,9 @@ test("installer plan is non-mutating and install remains exact-hash gated", asyn
   assert.match(installer, /EXPECTED_DISPATCH_NODE_SHA256/);
   assert.match(installer, /EXPECTED_DISPATCH_NODE_ARCHIVE_SHA256/);
   assert.match(installer, /EXPECTED_DISPATCH_NODE_LICENSE_SHA256/);
+  assert.match(installer, /EXPECTED_DISPATCH_DEPLOY_PUBLIC_KEY_SHA256/);
+  assert.match(installer, /EXPECTED_DISPATCH_KNOWN_HOSTS_SHA256/);
+  assert.match(installer, /read-only deploy key cannot read the pinned private repository/);
   assert.match(installer, /PINNED_NODE_VERSION="v24\.18\.0"/);
   assert.match(installer,
     /NODE_ARCHIVE_URL="https:\/\/nodejs\.org\/dist\/v24\.18\.0\/\$\{NODE_ARCHIVE_NAME\}"/u);
@@ -575,12 +606,14 @@ test("installer plan is non-mutating and install remains exact-hash gated", asyn
   assert.ok(installer.indexOf("curl --fail") < installer.indexOf("INSTALL_STARTED=true"));
   assert.ok(installer.indexOf("Node runtime version binding mismatch")
     < installer.indexOf("INSTALL_STARTED=true"));
+  assert.ok(installer.indexOf("git ls-remote --exit-code")
+    < installer.indexOf("INSTALL_STARTED=true"));
   assert.match(installer, /INSTALLER_SOURCE/);
   assert.match(installer, /LAUNCHER_SOURCE/);
   assert.match(installer, /agent-initialize/);
   assert.match(installer, /systemctl enable --now/);
   assert.match(installer, /ROLLBACK_PRODUCTION_DISPATCH_PARTIAL_INSTALL/);
-  assert.doesNotMatch(installer, /\b(?:ssh|scp)\s/u);
+  assert.doesNotMatch(installer, /\bscp\b/u);
   assert.doesNotMatch(installer, /docker compose|git checkout|git pull|\.env\.production/u);
 });
 
@@ -590,6 +623,8 @@ test("short installer launcher verifies exact package facts and rejects tamperin
   const sourceRoot = "scripts/v2/production/fixed-channel";
   const sourceFiles = [
     "README.md",
+    "git-ssh-dispatch.sh",
+    "github-known-hosts",
     "install-production-dispatch-launcher.sh",
     "install-production-dispatch.sh",
     "market-radar-production-dispatch.service",
@@ -609,7 +644,7 @@ test("short installer launcher verifies exact package facts and rejects tamperin
     const publicKey = "-----BEGIN PUBLIC KEY-----\nTEST-ONLY-PUBLIC-KEY\n-----END PUBLIC KEY-----\n";
     await writeFile(join(packageRoot, "ed25519-public.pem"), publicKey);
     const facts = {
-      schemaVersion: "market-radar-production-dispatch-install-facts.v2",
+      schemaVersion: "market-radar-production-dispatch-install-facts.v3",
       generatedAt: "2026-07-22T00:00:00Z",
       sourceCommit: "a".repeat(40),
       sourceRef: "refs/heads/codex/market-radar-v2-implementation",
@@ -618,6 +653,14 @@ test("short installer launcher verifies exact package facts and rejects tamperin
       transportContainsSecrets: false,
       productionMutationPrepared: false,
       hostNodeRequired: false,
+      repositoryAccess: {
+        authentication: "github_read_only_deploy_key",
+        deployPublicKeySha256: "b".repeat(64),
+        dispatchRemoteUrl: "git@github.com:TianYuan1926/chuan-market-radar.git",
+        knownHostsSha256: sha256(await readFile(join(packageRoot, "github-known-hosts"))),
+        privateKeyIncludedInArchive: false,
+        writeAccessAllowed: false,
+      },
       nodeRuntime: {
         provisioning: "pinned_official_https_download",
         distribution: "official_nodejs_linux_x64",
@@ -645,6 +688,14 @@ test("short installer launcher verifies exact package facts and rejects tamperin
     assert.equal(result.productionMutation, false);
     assert.equal(result.sourceSetSha256, plan.sourceSetSha256);
 
+    await assert.rejects(
+      execFileAsync("bash", [
+        join(packageRoot, "install-production-dispatch-launcher.sh"),
+        "install",
+      ], { encoding: "utf8" }),
+      /server-generated deploy key is missing/u,
+    );
+
     await writeFile(join(packageRoot, "README.md"), "tampered\n");
     await assert.rejects(
       execFileAsync("bash", [
@@ -669,6 +720,8 @@ test("systemd poller is timer-bound, least-write and does not load production se
   );
   assert.match(service, /^User=ubuntu$/mu);
   assert.match(service, /^UMask=0077$/mu);
+  assert.match(service,
+    /^Environment=GIT_SSH_COMMAND=\/opt\/market-radar-production-dispatch\/git-ssh-dispatch\.sh$/mu);
   assert.match(service, /^ProtectSystem=strict$/mu);
   assert.match(service, /^ProtectHome=read-only$/mu);
   assert.match(service, /^PrivateDevices=true$/mu);
@@ -679,6 +732,21 @@ test("systemd poller is timer-bound, least-write and does not load production se
   assert.match(timer, /^OnUnitActiveSec=20s$/mu);
   assert.match(timer, /^Persistent=true$/mu);
   assert.match(timer, /^Unit=market-radar-production-dispatch\.service$/mu);
+  const wrapper = await readFile(
+    "scripts/v2/production/fixed-channel/git-ssh-dispatch.sh",
+    "utf8",
+  );
+  const knownHosts = await readFile(
+    "scripts/v2/production/fixed-channel/github-known-hosts",
+    "utf8",
+  );
+  assert.match(wrapper, /exec \/usr\/bin\/ssh/u);
+  assert.match(wrapper, /BatchMode=yes/u);
+  assert.match(wrapper, /IdentitiesOnly=yes/u);
+  assert.match(wrapper, /StrictHostKeyChecking=yes/u);
+  assert.doesNotMatch(wrapper, /eval|StrictHostKeyChecking=no/u);
+  assert.match(knownHosts,
+    /^github\.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl\n$/u);
 });
 
 test("governance contract matches the executable transport and truth boundary", async () => {
