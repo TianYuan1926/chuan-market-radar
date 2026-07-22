@@ -19,12 +19,14 @@ OrcaTerm 从日常运输通道降级为：首次安装、云平台 MFA、secret 
 
 ## 2. 当前真实状态
 
-截至 2026-07-22：
+截至 2026-07-23：
 
-- 固定执行通道代码、本地签名链和隔离 Git 端到端测试已实现。
-- 尚未安装到腾讯生产服务器，所以当前不能声称已经消除 OrcaTerm。
+- 固定执行通道已安装到腾讯生产服务器；`market-radar-production-dispatch.timer` 为 enabled/active，固定 Node `v24.18.0`、公钥、agent 和 source-set 哈希均通过目标机校验。
+- agent 首次状态为 `initialized_no_replay`，随后持续返回 `IDLE_NO_DISPATCH_REF`；这证明安装后保持空闲且没有回放旧任务。
+- 生产应用仓库仍为 clean `cec0b6572bb09ae91ff9e013f8bb160f73c045e2`，11 个容器 ID 全部未变，health=`ready`、scan=`ready/fresh`、Redis=`PONG`，没有新增入站监听端口。
+- 首个真实签名派发尚未发布、拉取和启动，因此当前只能写“通道已安装，日常运输验收待首单”，不能写整条生产发布闭环完成。
 - 当前 P0R 使用 7200 秒腾讯 STS 和 `/dev/shm` 临时凭证，仍属于云平台凭证例外；V1 通道禁止运输 secret，也不伪装成能够绕过腾讯 MFA。
-- 安装完成后，普通无 secret 的生产 Bundle 不再需要浏览器逐文件上传和前台保持连接。
+- 首个真实 signed dispatch 验收通过后，普通无 secret 的生产 Bundle 才正式退出浏览器逐文件上传和前台保持连接路径。
 - 旧包若仍声明 `approved_orcaterm_bundle_upload`，固定通道会拒绝；只有合同和 request 明确声明 `signed_git_bundle` 的新包才可进入，禁止运输事实与报告不一致。
 
 ## 3. 安全模型
@@ -39,6 +41,7 @@ OrcaTerm 从日常运输通道降级为：首次安装、云平台 MFA、secret 
 - 一次性：claim 在 entrypoint 启动前同步到文件和目录；单个结构损坏任务只会被隔离、记失败并推进 cursor，不执行，也不永久堵住后续队列。
 - 运行沙箱：agent 与 entrypoint 启动的 Node 子进程使用 `--jitless` 配合 `MemoryDenyWriteExecute`，entrypoint 的 cwd 固定为 staging 根目录。
 - 运行时：生产主机无需预装 Node。安装器只从 Node.js 官方 HTTPS 地址下载固定 `v24.18.0` Linux x64 归档，在任何 install mutation 前核对官方归档 SHA-256、解包后二进制 SHA-256、许可证 SHA-256、`x86_64` 和版本；只安装独立 binary/license，不安装 npm，不改全局 PATH。
+- 状态目录：agent 只写 service-owned `/var/lib/market-radar-production-dispatch`（`0700 ubuntu:ubuntu`），不依赖共享 `/var/lib/market-radar-ops` 的权限。
 
 ### 3.2 强制拒绝
 
@@ -92,6 +95,15 @@ bash install-production-dispatch-launcher.sh install
 ```
 
 短入口先核对 `SHA256SUMS` 的精确文件集合与全部内容、严格 `INSTALL_FACTS.json` schema、公钥、source-set 和固定 runtime 事实，再把这些值作为参数交给原安装器；它不包含 secret，也不能跳过原安装确认与哈希门禁。安装器在目标已存在时拒绝覆盖。官方下载、三层哈希、架构、版本、公钥、source-set、远端和生成配置全部在首次 install mutation 前验证。首次安装中途失败时，它只回收本次预检确认原本不存在的 install root、state root、config 和 systemd unit；不会删除生产仓库、staging 根、应用、容器或数据。后续升级必须生成新的精确升级包，不能静默覆盖固定 agent。
+
+本次生产安装绑定：
+
+```text
+source commit = 7a59e45b1c277907475f093a25cbb310b7287e12
+archive sha256 = cf05305b3d8e869375e2c9cb37db9a79cedc3b426c71ba4793b405a80b4d8337
+source-set sha256 = 39387c3a01cae0ce1532e5cd9f065c3629a4bdd0651c8396b5f1a6b392bb998c
+install result = PASS_SIGNED_PULL_ONLY_PRODUCTION_DISPATCH_INSTALLED
+```
 
 ### 4.4 安装验收
 
@@ -164,4 +176,4 @@ node scripts/v2/production/fixed-channel/production-dispatch.mjs publish \
 
 ## 7. 速度目标
 
-安装后，正常 Bundle 的“运输并启动”目标从人工 20-60 分钟降为 1-3 分钟；完整生产耗时仍由 build、数据库安全、健康验证和必要观察窗口决定，这些质量门禁不缩短。
+首个真实签名派发验收后，正常 Bundle 的“运输并启动”目标从人工 20-60 分钟降为 1-3 分钟；完整生产耗时仍由 build、数据库安全、健康验证和必要观察窗口决定，这些质量门禁不缩短。

@@ -173,7 +173,7 @@ test("duplicate open fault classes and duplicate operations are rejected", () =>
   ));
 });
 
-test("the real registry rejects retired transport and allows only the active remediation", async () => {
+test("the real registry closes input remediation but keeps first signed transport acceptance open", async () => {
   const [state, registry] = await Promise.all([
     readFile(new URL("../../../../AUTONOMOUS_ENGINEERING_STATE.json", import.meta.url), "utf8")
       .then(JSON.parse),
@@ -181,7 +181,15 @@ test("the real registry rejects retired transport and allows only the active rem
       .then(JSON.parse),
   ]);
   assert.deepEqual(validateActiveStateDeclaration(state, registry), []);
+  const summary = summarizeRecurrenceRegistry(registry, ["fixed_dispatch_first_signed_acceptance"]);
+  assert.equal(summary.openIncidentCount, 1);
+  assert.equal(summary.incidents[0].status, "CLOSED_VERIFIED");
+  assert.equal(summary.incidents[1].status, "REMEDIATION_IN_PROGRESS");
   assert.deepEqual(evaluateRecurrenceOperations(registry, ["fixed_dispatch_bootstrap_install"]), []);
+  assert.deepEqual(evaluateRecurrenceOperations(
+    registry,
+    ["fixed_dispatch_first_signed_acceptance"],
+  ), []);
   assert.deepEqual(
     evaluateRecurrenceOperations(registry, ["ordinary_orcaterm_bundle_transport"]),
     [

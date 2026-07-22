@@ -810,7 +810,7 @@ test("governance contract matches the executable transport and truth boundary", 
     "docs/governance/production-fixed-dispatch-channel.v1.json",
     "utf8",
   ));
-  assert.equal(contract.status, "production_bootstrap_verified_not_installed");
+  assert.equal(contract.status, "production_installed_acceptance_pending_first_signed_dispatch");
   assert.equal(contract.cost.additionalPaidServiceRequired, false);
   assert.equal(contract.transport.method, "signed_git_bundle");
   assert.deepEqual(contract.transport.files, DISPATCH_FILES);
@@ -833,27 +833,44 @@ test("governance contract matches the executable transport and truth boundary", 
   assert.equal(contract.installation.runtimeBundled, false);
   assert.equal(contract.installation.runtimeProvisioning, "pinned_official_https_download");
   assert.equal(contract.installation.runtimeVersion, "v24.18.0");
+  assert.equal(contract.installation.stateRoot, "/var/lib/market-radar-production-dispatch");
   assert.equal(contract.installation.runtimeBinarySha256,
     "41a74efb34cbde5c7632cdac0cf8bd1a14d0b8d73dc1e82755014d9a9ce70f5c");
   assert.equal(contract.installation.runtimeGlobalInstallAllowed, false);
   assert.equal(contract.installation.existingInstallOverwriteAllowed, false);
   assert.equal(contract.installation.partialFirstInstallRollbackRequired, true);
   assert.equal(contract.bootstrapEvidence.sourceCommit,
-    "1411618d44eccd88b8714bf04df2a99a47f471dd");
+    "7a59e45b1c277907475f093a25cbb310b7287e12");
   assert.equal(contract.bootstrapEvidence.archiveSha256,
-    "80e0932a64feb0347dd41a7e4361cc90d0e64497a526cc16ad58148317479cdd");
+    "cf05305b3d8e869375e2c9cb37db9a79cedc3b426c71ba4793b405a80b4d8337");
   assert.equal(contract.bootstrapEvidence.sourceSetSha256,
-    "92a629309c8e043ed9717b1e4f518242ea4fa208744f5570596a5a8be9a10dcb");
+    "39387c3a01cae0ce1532e5cd9f065c3629a4bdd0651c8396b5f1a6b392bb998c");
   assert.equal(contract.bootstrapEvidence.publicKeySha256,
     "dc1030528911cfb0027bc1237562f84cb0c8c155cdb8bf55d0dacfe6b32ceb93");
   assert.equal(contract.bootstrapEvidence.targetVerifyMarker,
     "PASS_EXACT_INSTALL_PACKAGE_VERIFIED_NO_MUTATION");
-  assert.equal(contract.bootstrapEvidence.productionMutation, false);
-  assert.equal(contract.bootstrapEvidence.persistentServiceInstalled, false);
+  assert.equal(contract.bootstrapEvidence.installMarker,
+    "PASS_SIGNED_PULL_ONLY_PRODUCTION_DISPATCH_INSTALLED");
+  assert.equal(contract.bootstrapEvidence.productionMutation, true);
+  assert.equal(contract.bootstrapEvidence.persistentServiceInstalled, true);
+  assert.equal(contract.bootstrapEvidence.timerEnabled, true);
+  assert.equal(contract.bootstrapEvidence.timerActive, true);
+  assert.equal(contract.bootstrapEvidence.firstAgentState, "initialized_no_replay");
+  assert.equal(contract.bootstrapEvidence.steadyAgentStatus, "IDLE_NO_DISPATCH_REF");
+  assert.equal(contract.bootstrapEvidence.productionHeadBeforeAfter,
+    "cec0b6572bb09ae91ff9e013f8bb160f73c045e2");
+  assert.equal(contract.bootstrapEvidence.containerIdentityUnchanged, true);
+  assert.equal(contract.bootstrapEvidence.productionHealthLevel, "ready");
+  assert.equal(contract.bootstrapEvidence.scanFreshness, "fresh");
+  assert.equal(contract.bootstrapEvidence.opensInboundPort, false);
+  assert.equal(contract.bootstrapEvidence.stagingCleaned, true);
+  assert.equal(contract.bootstrapEvidence.firstSignedDispatchAccepted, false);
   assert.equal(contract.recurrenceRootCauseGate.requiredForEveryActivePackage, true);
-  assert.equal(contract.recurrenceRootCauseGate.currentOpenIncidentCount, 2);
+  assert.equal(contract.recurrenceRootCauseGate.currentOpenIncidentCount, 1);
   assert.equal(contract.recurrenceRootCauseGate.allowedBootstrapOperation,
     "fixed_dispatch_bootstrap_install");
+  assert.equal(contract.recurrenceRootCauseGate.nextRequiredOperation,
+    "fixed_dispatch_first_signed_acceptance");
   assert.equal(contract.exceptions[0].mayBypassCloudMfa, false);
   assert.equal(contract.exceptions[1].mayMisreportTransport, false);
 });

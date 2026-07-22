@@ -21,7 +21,7 @@
       "id": "REC-2026-07-22-ORCATERM-INPUT-INTEGRITY",
       "faultClass": "orcaterm.terminal.input_integrity",
       "affectedChannel": "tencent_orcaterm_browser_terminal",
-      "status": "REMEDIATION_IN_PROGRESS",
+      "status": "CLOSED_VERIFIED",
       "recurrenceCount": 2,
       "firstObservedDate": "2026-07-22",
       "lastObservedDate": "2026-07-22",
@@ -57,7 +57,7 @@
         ]
       },
       "permanentFix": {
-        "status": "PARTIAL",
+        "status": "PASS",
         "authorityPaths": [
           "scripts/v2/production/fixed-channel/install-production-dispatch-launcher.sh",
           "scripts/v2/production/fixed-channel/install-production-dispatch.sh"
@@ -65,7 +65,8 @@
         "workaroundDisposition": "RETIRED_AFTER_BOOTSTRAP",
         "evidence": [
           "The short launcher reads exact values from a checksum-bound facts file.",
-          "The launcher revalidates the complete source set before any mutation."
+          "The launcher revalidates the complete source set before any mutation.",
+          "The production install completed through the short verify/install interface without a long environment command."
         ]
       },
       "regression": {
@@ -73,22 +74,22 @@
         "redCase": "A manually entered long environment command can be silently changed before server execution.",
         "greenCommand": "npm run test:production-dispatch",
         "evidence": [
-          "The fixed-channel suite passes 13 of 13 cases.",
+          "The fixed-channel suite passes 14 of 14 cases.",
           "A changed README or manifest byte is rejected before mutation."
         ]
       },
       "runtimeGate": {
-        "status": "PARTIAL",
+        "status": "PASS",
         "evidence": [
           "The production host returned PASS_EXACT_INSTALL_PACKAGE_VERIFIED_NO_MUTATION through the short verify command.",
-          "The persistent timer and service are not installed yet."
+          "The timer is enabled and active, and the one-shot service repeatedly exits successfully with IDLE_NO_DISPATCH_REF."
         ]
       },
       "realTargetAcceptance": {
-        "status": "PENDING",
+        "status": "PASS",
         "evidence": [
-          "Production verify-only passed for source commit 1411618d44eccd88b8714bf04df2a99a47f471dd.",
-          "Production install and post-install acceptance remain pending."
+          "Production install returned PASS_SIGNED_PULL_ONLY_PRODUCTION_DISPATCH_INSTALLED for source commit 7a59e45b1c277907475f093a25cbb310b7287e12.",
+          "The short command path preserved exact package identity, enabled the timer and left the application worktree and all container identities unchanged."
         ]
       },
       "workaroundAccounting": {
@@ -100,7 +101,7 @@
       },
       "remainingRisks": [
         "The external vendor input implementation is not observable.",
-        "OrcaTerm remains necessary for the one-time fixed-channel bootstrap and cloud MFA exceptions."
+        "OrcaTerm remains necessary for cloud MFA, secret rotation and emergency recovery exceptions."
       ]
     },
     {
@@ -120,7 +121,8 @@
         "orcaterm_repeated_bundle_upload"
       ],
       "remediationOperations": [
-        "fixed_dispatch_bootstrap_install"
+        "fixed_dispatch_bootstrap_install",
+        "fixed_dispatch_first_signed_acceptance"
       ],
       "fingerprint": {
         "signature": "The OrcaTerm file manager immediately reports 0B of the expected size and the destination file is absent on the server.",
@@ -167,18 +169,18 @@
         ]
       },
       "runtimeGate": {
-        "status": "PARTIAL",
+        "status": "PASS",
         "evidence": [
           "The exact bootstrap archive uploaded only after session reload and reconnect.",
           "The server-side package verify returned PASS_EXACT_INSTALL_PACKAGE_VERIFIED_NO_MUTATION.",
-          "The fixed pull-only timer is not installed yet."
+          "The fixed pull-only timer is enabled and active and repeatedly reports IDLE_NO_DISPATCH_REF."
         ]
       },
       "realTargetAcceptance": {
-        "status": "PENDING",
+        "status": "PARTIAL",
         "evidence": [
-          "The exact bootstrap archive exists on the Tencent production host with the expected SHA-256.",
-          "Persistent channel installation and one real signed dispatch acceptance remain pending."
+          "Persistent channel installation and zero-business-change post-install verification passed.",
+          "One real signed dispatch must still be published, pulled, launched and accepted before this incident can close."
         ]
       },
       "workaroundAccounting": {
@@ -190,7 +192,7 @@
       },
       "remainingRisks": [
         "Tencent does not expose the internal upload-session token state.",
-        "The browser upload path remains an emergency bootstrap dependency until the fixed timer passes production acceptance."
+        "The first real signed dispatch has not yet proved that routine Bundle transport no longer depends on the browser upload path."
       ]
     }
   ]

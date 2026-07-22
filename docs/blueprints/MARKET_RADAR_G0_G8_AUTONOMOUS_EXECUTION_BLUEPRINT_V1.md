@@ -199,8 +199,8 @@ Gate 只允许顺序 PASS。后续 Gate 的本地准备可以提前一个完整 
 - GitHub main 是长期代码正本；生产不现场开发。
 - 每次 release 绑定 commit、tree、image digest、Compose、env 指纹、migration status、release record 和 rollback target。
 - 普通无 secret Bundle 的目标通道固定为 Ed25519 签名的 pull-only `production-dispatch`：服务器 20 秒轮询专用 ref，使用独立 bare mirror，逐项验证 90 分钟时效、签名、commit reachability、Bundle/request/entrypoint hash、production WIP=1 和 allowlisted entrypoint 后，只启动原 package runner；异常租约只等待，启动前 claim 持久化，坏任务隔离但不堵死后续队列，首次半安装只回收本轮新建固定路径。生产主机无需预装 Node；安装器仅从 Node.js 官方 HTTPS 下载固定 Linux x64 runtime，并在 mutation 前完成 archive/binary/license SHA、架构和版本验证，不改全局 PATH。首次 OrcaTerm 安装只使用 source-set 绑定的短 `verify/install` 入口，从严格事实包读取批准值，禁止手输长环境变量命令。
-- 固定通道不得接收任意命令、命令参数、`.env`、Token、数据库 URL、COS STS 或私钥，不开放入站端口，也不得取代 package runner 自身的 lease/fencing、checkpoint、rollback 和 evidence；生产未安装前只能写本地实现，不能写通道可用。
-- OrcaTerm 只保留首次固定通道安装、云平台 MFA/secret rotation 和紧急救援；P0R 的腾讯 STS 仍是 `/dev/shm` secret 例外，禁止通过 Git 运输。旧包声明 `approved_orcaterm_bundle_upload` 时必须重生成 `signed_git_bundle` 合同，不得谎报运输事实。
+- 固定通道不得接收任意命令、命令参数、`.env`、Token、数据库 URL、COS STS 或私钥，不开放入站端口，也不得取代 package runner 自身的 lease/fencing、checkpoint、rollback 和 evidence；生产 timer 已安装且空闲验收通过，但首个真实 signed dispatch 未验收，不能提前写日常运输闭环完成。
+- OrcaTerm 只保留云平台 MFA/secret rotation、紧急救援和尚未迁移的明确例外；P0R 的腾讯 STS 仍是 `/dev/shm` secret 例外，禁止通过 Git 运输。旧包声明 `approved_orcaterm_bundle_upload` 时必须重生成 `signed_git_bundle` 合同，不得谎报运输事实。
 - migration 只允许 additive、精确 checksum、独立 identity、fresh backup、隔离 restore 和 single-writer。
 - rollback 必须证明 schema 兼容；无法安全 rollback 的动作不自动执行。
 - health、contract、worker、Redis、Postgres、release identity 任一失败都不能写生产正常。

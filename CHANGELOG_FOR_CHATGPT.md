@@ -2,11 +2,11 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
-## 2026-07-23 / G0 Signed Pull-Only Production Dispatch Bootstrap Verify
+## 2026-07-23 / G0 Signed Pull-Only Production Dispatch Installed
 
 ### 本轮目标
 
-消除普通生产 Bundle 对 OrcaTerm 人工上传和前台会话的依赖，同时保留精确授权、production WIP=1、session-independent runner、自动回滚和证据门禁。
+安装签名 pull-only 固定生产派发通道，并证明安装本身没有改变生产应用、数据、业务容器或 authority；首个真实签名派发继续保持独立验收门槛。
 
 ### 修改范围
 
@@ -14,10 +14,11 @@
 - 新增绑定安装器自身的 exact-hash 一次性安装器、半安装自动回收、机器治理合同、运行手册和 GitHub quality gate；异常租约只等待，不会放行，无效单任务会隔离并推进 cursor，避免永久堵队列。
 - 腾讯只读预检发现生产主机无 Node，旧 `/usr/bin/node` 入口未执行；安装器改为从 Node.js 官方 HTTPS 固定下载 `v24.18.0` Linux x64，在任何 mutation 前校验官方 archive SHA、binary SHA、license SHA、架构和版本，只安装独立 runtime，不上传 30MB 二进制、不安装 npm、不改全局 PATH。
 - 新增 `RECURRENCE_ROOT_CAUSE_GATE`：同类问题第二次出现后禁止继续堆重试和人工 workaround，必须用复现指纹、根因、永久修复、回归测试、运行门禁和真实目标验收收口；OrcaTerm 反复会话/输入/上传问题是首个适用实例。
-- 门禁已从文字升级为机器注册表与 active-package operation 检查；普通 OrcaTerm Bundle 运输和长命令重输按策略拒绝并退出码 2，唯一固定通道 bootstrap 根治动作退出码 0。两项事件仍为 `REMEDIATION_IN_PROGRESS`，真实安装验收前不能关闭。
+- 门禁已从文字升级为机器注册表与 active-package operation 检查；普通 OrcaTerm Bundle 运输和长命令重输按策略永久拒绝。短入口已在真实目标机完成安装，输入完整性事故为 `CLOSED_VERIFIED`；stale upload 事故仍等首个真实 signed dispatch，open incident=1。
 - OrcaTerm 会静默丢失 `_`、`:`、`|` 等特殊字符，旧长环境变量安装命令已从操作路径移除；新增 source-set 绑定的短 `verify/install` 入口，从严格事实包读取全部批准值并再次经过原安装器门禁，包内任一文件被改写即在 mutation 前拒绝。
 - 文件上传连续两次 `0B/18.7KB`；短路径、无扩展属性和 66GB 可用磁盘排除后，刷新站点并重连使同一 19156-byte 文件 1 秒上传，服务器 SHA-256 精确匹配。该证据将根因边界收敛为 stale upload session，不再允许第三次盲重试。
-- 不修改 scan、analysis、strategy、backtest、前端、业务 API、DB、Redis、Worker、Feature Flag 或生产应用服务。
+- `471a226` 首次安装在 mutation 前暴露 Deploy Key 注释参与哈希的 canonicalization 缺陷；`966bc60` 第二次安装暴露共享 root `0700` 状态目录导致 agent `EACCES`，半安装自动回滚。最终修复使用 service-owned `/var/lib/market-radar-production-dispatch`，没有放宽共享目录权限。
+- final source `7a59e45b1c277907475f093a25cbb310b7287e12`、archive `cf05305b3d8e869375e2c9cb37db9a79cedc3b426c71ba4793b405a80b4d8337`、source-set `39387c3a01cae0ce1532e5cd9f065c3629a4bdd0651c8396b5f1a6b392bb998c` 安装 PASS；不修改 scan、analysis、strategy、backtest、前端、业务 API、DB、Redis、Worker 或 Feature Flag。
 
 ### 核心链路影响
 
@@ -25,22 +26,21 @@
 
 ### 测试结果
 
-- 固定 runtime 与短安装入口修正后定向测试 13/13 PASS：签名篡改、窗口、必需审批绑定、任意命令、tar/path/secret、合法路径内凭证内容拒绝、source reachability、WIP/异常租约 defer、持久化 exactly-once、坏任务隔离、installer rollback、安装包篡改拒绝、systemd 和 GitHub quality-only boundary。
-- 复发门禁 9/9、Legacy 自治 31/31 PASS；实际注册表 2 项 open incident、结构违规 0，未声明 recurrence operation 的 active package 会失败。
+- 固定通道 14/14、复发门禁 9/9、Legacy 自治 31/31 PASS；实际注册表 1 CLOSED / 1 open、结构违规 0，active package 已切换到 `fixed_dispatch_first_signed_acceptance`。
 - 初版因放入 Legacy deploy 层导致 M0 正确失败；迁入 `scripts/v2/production/fixed-channel/` 并恢复 Legacy workflow 后，consumer map 回到 539 source / 273 runtime edges、M0 PASS。
-- 固定 runtime 与短安装入口修正后的完整 `ci:production` 已重新 PASS：定向 13/13、typecheck/lint、Market 965/0/4 explicit skip、Worker 23/23、Historical 4/4、V2 foundation 317/0/6 explicit skip、ops 115/115、M0、build、Golden 16/16 和 security 全通过。
+- 固定 runtime 与短安装入口修正后的完整 `ci:production` 已重新 PASS：定向 14/14、typecheck/lint、Market 965/0/4 explicit skip、Worker 23/23、Historical 4/4、V2 foundation 317/0/6 explicit skip、ops 115/115、M0、build、Golden 16/16 和 security 全通过。
 
 ### 是否部署
 
-未安装腾讯生产服务。exact archive 已上传目标机、服务器 SHA 一致并通过 `PASS_EXACT_INSTALL_PACKAGE_VERIFIED_NO_MUTATION`；当前状态固定为 `PRODUCTION_BOOTSTRAP_VERIFIED_NOT_INSTALLED`，普通运输尚未自动化，P0R STS/MFA 仍通过 `/dev/shm` 独立处理。
+已安装腾讯生产 Runtime Control：timer enabled/active，agent `initialized_no_replay -> IDLE_NO_DISPATCH_REF`；生产应用 HEAD/clean worktree、11 个容器、health/scan/Redis 和监听端口保持基线，全部暂存已清理。当前状态为 `PRODUCTION_INSTALLED_ACCEPTANCE_PENDING_FIRST_SIGNED_DISPATCH`，P0R STS/MFA 仍通过 `/dev/shm` 独立处理。
 
 ### 风险与遗留问题
 
-旧 request 声明 `approved_orcaterm_bundle_upload` 时固定通道必须拒绝；后续 package builder 需明确生成 `signed_git_bundle`，禁止谎报运输事实。生产安装还需独立 exact bundle、动态预检和安装后零业务变更验证。
+旧 request 声明 `approved_orcaterm_bundle_upload` 时固定通道必须拒绝；首个真实 package 必须重生为 `signed_git_bundle`，完成 publish/pull/launch/runner acceptance 后才能关闭 stale-upload 事故。
 
 ### 下一轮建议
 
-取得动作时确认后安装固定通道并完成 timer/runtime/零业务变更验收；不得与当前 P0R secret 运输混包。
+只执行首个无 secret、可自动回滚的真实 signed dispatch 验收；不得与 P0R STS/secret 运输混包。
 
 ## 2026-07-22 / V2 M3.1 Family Analysis and Evidence Interpretation
 
