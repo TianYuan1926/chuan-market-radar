@@ -58,7 +58,7 @@
     "production:dispatch": "node scripts/v2/production/fixed-channel/production-dispatch.mjs",
     "production:dispatch:install-plan": "bash scripts/v2/production/fixed-channel/install-production-dispatch.sh plan",
     "production:dispatch:build-install-package": "node scripts/v2/production/fixed-channel/build-install-package.mjs",
-    "test:production-dispatch": "node --test scripts/v2/production/fixed-channel/production-dispatch.test.mjs",
+    "test:production-dispatch": "node --test scripts/v2/production/fixed-channel/production-dispatch.test.mjs scripts/v2/production/fixed-channel/production-dispatch-acceptance.test.mjs",
     "recurrence:status": "node scripts/v2/production/fixed-channel/recurrence-root-cause-gate.mjs status",
     "test:recurrence-gate": "node --test scripts/v2/production/fixed-channel/recurrence-root-cause-gate.test.mjs && node scripts/v2/production/fixed-channel/recurrence-root-cause-gate.mjs status",
     "autonomy:status": "node scripts/governance/autonomous-engineering.mjs status",
