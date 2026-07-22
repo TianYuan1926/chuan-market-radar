@@ -1415,7 +1415,7 @@ M1.6-P0 fresh read-only preflight
 
 ### 17.7 固定生产执行通道
 
-普通无 secret 的生产包采用签名 pull-only 运输：本机完成完整门禁、生成脱敏 Bundle 和 exact approval request，以仓库外 Ed25519 私钥签名后推送专用 `production-dispatch` ref；腾讯服务器固定 timer 每 20 秒拉取到独立 bare mirror。agent 只允许一个 pending commit，并在启动前验证 canonical envelope、90 分钟窗口、source-ref reachability、Bundle/request/entrypoint SHA-256、路径与 tar 安全、production WIP=1 和 session-independent/rollback 强制位；租约不确定时只等待，claim 先持久化再启动，无效单任务隔离后推进 cursor，安装器自身纳入 source-set 且首次半安装可精确回收。生产 Node 不是外部前置条件：安装器只从 Node.js 官方 HTTPS 固定下载 Linux x64 runtime，archive/binary/license SHA、架构和版本必须在任何 mutation 前一致，且不得安装 npm 或修改全局 PATH。
+普通无 secret 的生产包采用签名 pull-only 运输：本机完成完整门禁、生成脱敏 Bundle 和 exact approval request，以仓库外 Ed25519 私钥签名后推送专用 `production-dispatch` ref；腾讯服务器固定 timer 每 20 秒拉取到独立 bare mirror。agent 只允许一个 pending commit，并在启动前验证 canonical envelope、90 分钟窗口、source-ref reachability、Bundle/request/entrypoint SHA-256、路径与 tar 安全、production WIP=1 和 session-independent/rollback 强制位；租约不确定时只等待，claim 先持久化再启动，无效单任务隔离后推进 cursor，安装器自身和短入口均纳入 source-set 且首次半安装可精确回收。生产 Node 不是外部前置条件：安装器只从 Node.js 官方 HTTPS 固定下载 Linux x64 runtime，archive/binary/license SHA、架构和版本必须在任何 mutation 前一致，且不得安装 npm 或修改全局 PATH。OrcaTerm 首装不得再手输长环境变量命令；短入口从严格事实包读取全部绑定值，先 verify 后 install，包内任一字节漂移都在 mutation 前拒绝。
 
 这个通道不接受 shell command/arguments，不把 GitHub 变成生产 shell，不开放新端口，不运输 `.env`、Token、数据库 URL、COS STS、私钥或业务数据，也不修改应用生产 worktree。它只替代“OrcaTerm 上传并启动”这一段；真实变更、lease/fencing、mutation checkpoint、health/contract、rollback 和 evidence 仍由 exact package runner 负责。
 

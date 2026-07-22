@@ -26,6 +26,7 @@ The first installation initializes a cursor at the current dispatch ref. Existin
 
 - `production-dispatch.mjs`: key generation, preparation, validation, publication, initialization, and one-shot polling.
 - `install-production-dispatch.sh`: exact-hash-gated, one-time systemd installation; its own bytes are included in the source-set hash, the pinned Node runtime and license have independent checksum gates, and a failed first install removes only paths created by that attempt.
+- `install-production-dispatch-launcher.sh`: short `verify`/`install` entrypoint for constrained consoles. It validates the exact manifest, strict install facts, public key, source-set, and pinned runtime facts before forwarding them to the installer; it contains no secret and cannot weaken an installer gate.
 - `market-radar-production-dispatch.service`: hardened one-shot poller.
 - `market-radar-production-dispatch.timer`: 20-second pull cadence.
 - `production-dispatch.test.mjs`: policy and isolated end-to-end tests.

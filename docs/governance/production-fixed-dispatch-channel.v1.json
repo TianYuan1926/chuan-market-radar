@@ -55,6 +55,8 @@
   },
   "installation": {
     "oneTimeConsoleBootstrapRequired": true,
+    "checksumBoundShortLauncherRequired": true,
+    "manualLongEnvironmentCommandRequired": false,
     "sourceSetChecksumRequired": true,
     "installerIncludedInSourceSet": true,
     "publicKeyChecksumRequired": true,

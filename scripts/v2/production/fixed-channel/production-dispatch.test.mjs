@@ -576,11 +576,86 @@ test("installer plan is non-mutating and install remains exact-hash gated", asyn
   assert.ok(installer.indexOf("Node runtime version binding mismatch")
     < installer.indexOf("INSTALL_STARTED=true"));
   assert.match(installer, /INSTALLER_SOURCE/);
+  assert.match(installer, /LAUNCHER_SOURCE/);
   assert.match(installer, /agent-initialize/);
   assert.match(installer, /systemctl enable --now/);
   assert.match(installer, /ROLLBACK_PRODUCTION_DISPATCH_PARTIAL_INSTALL/);
   assert.doesNotMatch(installer, /\b(?:ssh|scp)\s/u);
   assert.doesNotMatch(installer, /docker compose|git checkout|git pull|\.env\.production/u);
+});
+
+test("short installer launcher verifies exact package facts and rejects tampering", async () => {
+  const root = await mkdtemp(join(tmpdir(), "market-radar-dispatch-launcher-"));
+  const packageRoot = join(root, "package");
+  const sourceRoot = "scripts/v2/production/fixed-channel";
+  const sourceFiles = [
+    "README.md",
+    "install-production-dispatch-launcher.sh",
+    "install-production-dispatch.sh",
+    "market-radar-production-dispatch.service",
+    "market-radar-production-dispatch.timer",
+    "production-dispatch.mjs",
+  ];
+  try {
+    await mkdir(packageRoot);
+    for (const name of sourceFiles) {
+      await execFileAsync("cp", [join(sourceRoot, name), join(packageRoot, name)]);
+    }
+    const { stdout: planRaw } = await execFileAsync("bash", [
+      join(packageRoot, "install-production-dispatch.sh"),
+      "plan",
+    ], { encoding: "utf8" });
+    const plan = JSON.parse(planRaw);
+    const publicKey = "-----BEGIN PUBLIC KEY-----\nTEST-ONLY-PUBLIC-KEY\n-----END PUBLIC KEY-----\n";
+    await writeFile(join(packageRoot, "ed25519-public.pem"), publicKey);
+    const facts = {
+      schemaVersion: "market-radar-production-dispatch-install-facts.v2",
+      generatedAt: "2026-07-22T00:00:00Z",
+      sourceCommit: "a".repeat(40),
+      sourceRef: "refs/heads/codex/market-radar-v2-implementation",
+      sourceSetSha256: plan.sourceSetSha256,
+      publicKeySha256: sha256(publicKey),
+      transportContainsSecrets: false,
+      productionMutationPrepared: false,
+      hostNodeRequired: false,
+      nodeRuntime: {
+        provisioning: "pinned_official_https_download",
+        distribution: "official_nodejs_linux_x64",
+        version: plan.nodeRuntime.version,
+        archiveSha256: plan.nodeRuntime.archiveSha256,
+        binarySha256: plan.nodeRuntime.binarySha256,
+        licenseSha256: plan.nodeRuntime.licenseSha256,
+        globalInstallAllowed: false,
+      },
+    };
+    await writeFile(join(packageRoot, "INSTALL_FACTS.json"), `${JSON.stringify(facts, null, 2)}\n`);
+    const manifestFiles = ["INSTALL_FACTS.json", "ed25519-public.pem", ...sourceFiles].sort();
+    const manifestLines = [];
+    for (const name of manifestFiles) {
+      manifestLines.push(`${sha256(await readFile(join(packageRoot, name)))}  ${name}`);
+    }
+    await writeFile(join(packageRoot, "SHA256SUMS"), `${manifestLines.join("\n")}\n`);
+
+    const { stdout } = await execFileAsync("bash", [
+      join(packageRoot, "install-production-dispatch-launcher.sh"),
+      "verify",
+    ], { encoding: "utf8" });
+    const result = JSON.parse(stdout);
+    assert.equal(result.status, "PASS_EXACT_INSTALL_PACKAGE_VERIFIED_NO_MUTATION");
+    assert.equal(result.productionMutation, false);
+    assert.equal(result.sourceSetSha256, plan.sourceSetSha256);
+
+    await writeFile(join(packageRoot, "README.md"), "tampered\n");
+    await assert.rejects(
+      execFileAsync("bash", [
+        join(packageRoot, "install-production-dispatch-launcher.sh"),
+        "verify",
+      ], { encoding: "utf8" }),
+      /package checksum verification failed/u,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test("systemd poller is timer-bound, least-write and does not load production secrets", async () => {
@@ -628,6 +703,8 @@ test("governance contract matches the executable transport and truth boundary", 
   assert.equal(contract.execution.launchWorkingDirectory, "exact_staging_root");
   assert.equal(contract.execution.nodeChildJitlessRequired, true);
   assert.equal(contract.installation.installerIncludedInSourceSet, true);
+  assert.equal(contract.installation.checksumBoundShortLauncherRequired, true);
+  assert.equal(contract.installation.manualLongEnvironmentCommandRequired, false);
   assert.equal(contract.installation.hostNodeRequired, false);
   assert.equal(contract.installation.runtimeBundled, false);
   assert.equal(contract.installation.runtimeProvisioning, "pinned_official_https_download");

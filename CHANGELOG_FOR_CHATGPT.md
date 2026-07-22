@@ -14,6 +14,7 @@
 - 新增绑定安装器自身的 exact-hash 一次性安装器、半安装自动回收、机器治理合同、运行手册和 GitHub quality gate；异常租约只等待，不会放行，无效单任务会隔离并推进 cursor，避免永久堵队列。
 - 腾讯只读预检发现生产主机无 Node，旧 `/usr/bin/node` 入口未执行；安装器改为从 Node.js 官方 HTTPS 固定下载 `v24.18.0` Linux x64，在任何 mutation 前校验官方 archive SHA、binary SHA、license SHA、架构和版本，只安装独立 runtime，不上传 30MB 二进制、不安装 npm、不改全局 PATH。
 - 新增 `RECURRENCE_ROOT_CAUSE_GATE`：同类问题第二次出现后禁止继续堆重试和人工 workaround，必须用复现指纹、根因、永久修复、回归测试、运行门禁和真实目标验收收口；OrcaTerm 反复会话/输入/上传问题是首个适用实例。
+- OrcaTerm 会静默丢失 `_`、`:`、`|` 等特殊字符，旧长环境变量安装命令已从操作路径移除；新增 source-set 绑定的短 `verify/install` 入口，从严格事实包读取全部批准值并再次经过原安装器门禁，包内任一文件被改写即在 mutation 前拒绝。
 - 不修改 scan、analysis、strategy、backtest、前端、业务 API、DB、Redis、Worker、Feature Flag 或生产应用服务。
 
 ### 核心链路影响
@@ -22,9 +23,9 @@
 
 ### 测试结果
 
-- 固定 runtime 修正后定向测试 12/12 PASS：签名篡改、窗口、必需审批绑定、任意命令、tar/path/secret、合法路径内凭证内容拒绝、source reachability、WIP/异常租约 defer、持久化 exactly-once、坏任务隔离、installer rollback、systemd 和 GitHub quality-only boundary。
+- 固定 runtime 与短安装入口修正后定向测试 13/13 PASS：签名篡改、窗口、必需审批绑定、任意命令、tar/path/secret、合法路径内凭证内容拒绝、source reachability、WIP/异常租约 defer、持久化 exactly-once、坏任务隔离、installer rollback、安装包篡改拒绝、systemd 和 GitHub quality-only boundary。
 - 初版因放入 Legacy deploy 层导致 M0 正确失败；迁入 `scripts/v2/production/fixed-channel/` 并恢复 Legacy workflow 后，consumer map 回到 539/109、M0 PASS。
-- 固定 runtime 修正后的完整 `ci:production` 已重新 PASS：typecheck/lint、Market 965/0/4 explicit skip、Worker 23/23、Historical 4/4、V2 foundation 317/0/6 explicit skip、ops 115/115、M0、build、Golden 16/16 和 security 全通过。
+- 固定 runtime 与短安装入口修正后的完整 `ci:production` 已重新 PASS：定向 13/13、typecheck/lint、Market 965/0/4 explicit skip、Worker 23/23、Historical 4/4、V2 foundation 317/0/6 explicit skip、ops 115/115、M0、build、Golden 16/16 和 security 全通过。
 
 ### 是否部署
 

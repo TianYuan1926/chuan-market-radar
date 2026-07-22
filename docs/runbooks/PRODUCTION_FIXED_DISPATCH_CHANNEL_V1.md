@@ -74,7 +74,7 @@ node scripts/v2/production/fixed-channel/production-dispatch.mjs keygen \
 npm run production:dispatch:install-plan
 ```
 
-计划输出 `sourceSetSha256` 与固定 Node 运行时事实，不修改服务器。source-set 同时绑定 agent、installer 自身、README、service 和 timer；脱敏安装包只包含这些控制文件、公钥、`INSTALL_FACTS.json` 和 `SHA256SUMS`，不携带 Node 二进制。Node 由服务器直接从 `https://nodejs.org/dist/v24.18.0/` 下载，固定事实为：
+计划输出 `sourceSetSha256` 与固定 Node 运行时事实，不修改服务器。source-set 同时绑定 agent、installer 自身、短安装入口、README、service 和 timer；脱敏安装包只包含这些控制文件、公钥、`INSTALL_FACTS.json` 和 `SHA256SUMS`，不携带 Node 二进制。Node 由服务器直接从 `https://nodejs.org/dist/v24.18.0/` 下载，固定事实为：
 
 ```text
 archive sha256 = 55aa7153f9d88f28d765fcdad5ae6945b5c0f98a36881703817e4c450fa76742
@@ -84,20 +84,14 @@ license sha256 = 148eacf7863ef4329224a29398623077200a27194aa075569faf4a0a85566ca
 
 ### 4.3 腾讯服务器安装
 
-真实安装必须把本轮安装包 SHA-256、公钥 SHA-256、生产远端 URL 和 source-ref allowlist 写入独立执行记录。服务器命令必须以 `install ... plan` 先验证，再使用：
+真实安装必须把本轮安装包 SHA-256、公钥 SHA-256、生产远端 URL 和 source-ref allowlist 写入独立执行记录。上传归档的外层 SHA-256 先在服务器核对，然后只执行不含长环境变量和特殊字符的短入口：
 
 ```bash
-DISPATCH_PUBLIC_KEY_SOURCE=/secure/staging/ed25519-public.pem \
-EXPECTED_DISPATCH_PUBLIC_KEY_SHA256=<exact-public-key-sha256> \
-EXPECTED_DISPATCH_SOURCE_SET_SHA256=<exact-source-set-sha256> \
-EXPECTED_DISPATCH_NODE_ARCHIVE_SHA256=55aa7153f9d88f28d765fcdad5ae6945b5c0f98a36881703817e4c450fa76742 \
-EXPECTED_DISPATCH_NODE_SHA256=41a74efb34cbde5c7632cdac0cf8bd1a14d0b8d73dc1e82755014d9a9ce70f5c \
-EXPECTED_DISPATCH_NODE_LICENSE_SHA256=148eacf7863ef4329224a29398623077200a27194aa075569faf4a0a85566ca5 \
-CONFIRM_PRODUCTION_DISPATCH_INSTALL=INSTALL_SIGNED_PULL_ONLY_PRODUCTION_DISPATCH \
-bash install-production-dispatch.sh install
+bash install-production-dispatch-launcher.sh verify
+bash install-production-dispatch-launcher.sh install
 ```
 
-安装器在目标已存在时拒绝覆盖。官方下载、三层哈希、架构、版本、公钥、source-set、远端和生成配置全部在首次 install mutation 前验证。首次安装中途失败时，它只回收本次预检确认原本不存在的 install root、state root、config 和 systemd unit；不会删除生产仓库、staging 根、应用、容器或数据。后续升级必须生成新的精确升级包，不能静默覆盖固定 agent。
+短入口先核对 `SHA256SUMS` 的精确文件集合与全部内容、严格 `INSTALL_FACTS.json` schema、公钥、source-set 和固定 runtime 事实，再把这些值作为参数交给原安装器；它不包含 secret，也不能跳过原安装确认与哈希门禁。安装器在目标已存在时拒绝覆盖。官方下载、三层哈希、架构、版本、公钥、source-set、远端和生成配置全部在首次 install mutation 前验证。首次安装中途失败时，它只回收本次预检确认原本不存在的 install root、state root、config 和 systemd unit；不会删除生产仓库、staging 根、应用、容器或数据。后续升级必须生成新的精确升级包，不能静默覆盖固定 agent。
 
 ### 4.4 安装验收
 

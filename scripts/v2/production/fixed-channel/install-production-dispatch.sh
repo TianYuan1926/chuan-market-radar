@@ -39,6 +39,7 @@ SERVICE_SOURCE="${SOURCE_ROOT}/${SERVICE_NAME}"
 TIMER_SOURCE="${SOURCE_ROOT}/${TIMER_NAME}"
 README_SOURCE="${SOURCE_ROOT}/README.md"
 INSTALLER_SOURCE="${SOURCE_ROOT}/install-production-dispatch.sh"
+LAUNCHER_SOURCE="${SOURCE_ROOT}/install-production-dispatch-launcher.sh"
 INSTALL_STARTED=false
 INSTALL_SUCCEEDED=false
 temporary_config=""
@@ -73,7 +74,8 @@ for path in \
   "${SERVICE_SOURCE}" \
   "${TIMER_SOURCE}" \
   "${README_SOURCE}" \
-  "${INSTALLER_SOURCE}"; do
+  "${INSTALLER_SOURCE}" \
+  "${LAUNCHER_SOURCE}"; do
   [[ -f "${path}" && ! -L "${path}" ]] || fail "source file is missing or unsafe"
 done
 
@@ -84,6 +86,7 @@ source_set_sha256="$({
     "${TIMER_SOURCE}" \
     "${README_SOURCE}" \
     "${INSTALLER_SOURCE}" \
+    "${LAUNCHER_SOURCE}" \
     | awk '{print $1 "  " $2}' \
     | sed "s#${SOURCE_ROOT}/##"
 } | sha256sum | awk '{print $1}')"

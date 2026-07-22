@@ -1,32 +1,22 @@
 # Market Radar 项目当前上下文
-
 更新日期：2026-07-22
-
 用途：让 Codex、ChatGPT 和外部审计员在几分钟内获得当前真实状态、唯一蓝图、风险和下一入口。本文件只保存当前事实，不保存施工流水账，不包含 secret。
-
 ## 1. 项目一句话定义
-
 Market Radar 是面向山寨币合约市场的人工决策雷达：持续覆盖目标 CEX 的合格合约，尽可能提前发现主升/主跌前兆，同时识别其他高赔率结构机会，经过深度验证后给出严格计划，并用真实结果持续改进。
-
 它不是行情展示站、涨跌榜、喊单器或自动交易系统。
-
 ## 2. 唯一核心目标
 
 ```text
 快速对全市场覆盖性扫描，发现机会，给出策略，自我提升。
 ```
-
 优先顺序：
 
 1. 首要能力是爆发前尽可能早地发现异常。
 2. 同时覆盖突破回踩、趋势延续、关键位反转、区间边缘、相对强弱和衍生品资金流等机会。
 3. 发现要宽，深度验证和 READY 必须严。
 4. 系统只辅助人工决策，永久不自动下单。
-
 用户是高杠杆、小仓位风格，但杠杆只进入风险情景，不能放大信号等级、RR 或 READY 数量。
-
 ## 3. 核心链路
-
 业务语言保持七段：
 
 ```text
@@ -326,9 +316,9 @@ Cycle final
 ## 14. 最近三次关键事件
 
 ### 2026-07-22 / G0 Signed Pull-Only Production Dispatch Local Engineering
-- 新增 Ed25519 canonical envelope、四文件脱敏运输、独立 bare mirror、20 秒 timer、single pending commit、source-ref reachability、Bundle/request/entrypoint hash、tar/path/secret 防线和 production lease defer；systemd 以 `MemoryDenyWriteExecute` + `node --jitless` 运行，Node 子进程继承 `--jitless`，合法归档路径内出现凭证内容同样拒绝。异常租约只等待，无效单任务会被隔离后推进 cursor，claim 在启动前同步到磁盘，半安装自动回收且安装 source-set 包含安装器自身。生产预检证明主机没有 Node，旧 `/usr/bin/node` 假设已删除；安装器现只从 Node.js 官方 HTTPS 下载固定 `v24.18.0` Linux x64，并在任何 mutation 前校验 archive/binary/license SHA、架构和版本，独立安装且不改全局 PATH。
+- 新增 Ed25519 canonical envelope、四文件脱敏运输、独立 bare mirror、20 秒 timer、single pending commit、source-ref reachability、Bundle/request/entrypoint hash、tar/path/secret 防线和 production lease defer；systemd 以 `MemoryDenyWriteExecute` + `node --jitless` 运行，Node 子进程继承 `--jitless`，合法归档路径内出现凭证内容同样拒绝。异常租约只等待，无效单任务会被隔离后推进 cursor，claim 在启动前同步到磁盘，半安装自动回收且安装 source-set 包含安装器自身。生产预检证明主机没有 Node，旧 `/usr/bin/node` 假设已删除；安装器现只从 Node.js 官方 HTTPS 下载固定 `v24.18.0` Linux x64，并在任何 mutation 前校验 archive/binary/license SHA、架构和版本，独立安装且不改全局 PATH。针对 OrcaTerm 特殊字符静默丢失，新增 source-set 绑定的短 `verify/install` 入口；它从严格事实包读取批准值、先验完整包并再次通过原安装器全部门禁，不再人工输入长环境变量命令。
 - agent 不接受 shell command/arguments，不开放入站端口、不接触生产 `.env`、不修改应用 worktree，只启动原 session-independent package entrypoint；旧 OrcaTerm transport request 明确拒绝。
-- 初版因放在 Legacy deploy 层被 M0 正确拒绝；现已迁入 V2 control plane，Legacy consumer map 保持 539 source / 273 runtime edges、protected drift=0。固定 runtime 修正后定向 12/12、自治 31/31 和完整 CI PASS；腾讯生产尚未安装，不能写运输自动化已生效。P0R STS/MFA 仍为独立例外。
+- 初版因放在 Legacy deploy 层被 M0 正确拒绝；现已迁入 V2 control plane，Legacy consumer map 保持 539 source / 273 runtime edges、protected drift=0。固定 runtime 与短安装入口修正后定向回归 13/13、自治 31/31 和完整 CI PASS。腾讯生产尚未安装，不能写运输自动化已生效。P0R STS/MFA 仍为独立例外。
 
 ### 2026-07-21 / V2 M1.6-P0R-B1C Object Lock, Age and Transport Preparation
 - 用户动作级确认后，Microsoft Edge 已启用并回读 Object Lock=`COMPLIANCE` 31 天；真实 age X25519 身份只在 macOS Keychain，public attestation 不含私钥。
