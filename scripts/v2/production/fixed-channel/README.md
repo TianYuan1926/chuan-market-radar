@@ -18,12 +18,14 @@ This directory contains the pull-only production dispatch channel.
 
 `market-radar-production-dispatch.timer` starts a one-shot poll every 20 seconds. The agent fetches only into a dedicated bare mirror under `/var/lib/market-radar-ops/production-dispatch`; it does not fetch into or check out the production worktree.
 
+The installation downloads the checksum-pinned official Node.js `v24.18.0` Linux x64 archive directly from `https://nodejs.org`, validates the published archive SHA-256 plus the extracted binary and license SHA-256 values before any install mutation, then places only the runtime binary and license under `/opt/market-radar-production-dispatch/runtime/`. It does not require a host Node installation, does not install npm, and does not modify the global `PATH`.
+
 The first installation initializes a cursor at the current dispatch ref. Existing history is not replayed. After that, only one fast-forward dispatch commit may be pending. Invalid, expired, tampered, duplicate, non-reachable, secret-bearing, or out-of-scope requests fail closed before launch. The agent and Node children launched by the package entrypoint use `--jitless` under the systemd memory-execution restriction, and the entrypoint starts from the exact staging root.
 
 ## Files
 
 - `production-dispatch.mjs`: key generation, preparation, validation, publication, initialization, and one-shot polling.
-- `install-production-dispatch.sh`: exact-hash-gated, one-time systemd installation; its own bytes are included in the source-set hash and a failed first install removes only paths created by that attempt.
+- `install-production-dispatch.sh`: exact-hash-gated, one-time systemd installation; its own bytes are included in the source-set hash, the pinned Node runtime and license have independent checksum gates, and a failed first install removes only paths created by that attempt.
 - `market-radar-production-dispatch.service`: hardened one-shot poller.
 - `market-radar-production-dispatch.timer`: 20-second pull cadence.
 - `production-dispatch.test.mjs`: policy and isolated end-to-end tests.

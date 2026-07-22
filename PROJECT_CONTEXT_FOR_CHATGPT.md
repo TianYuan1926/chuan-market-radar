@@ -326,9 +326,9 @@ Cycle final
 ## 14. 最近三次关键事件
 
 ### 2026-07-22 / G0 Signed Pull-Only Production Dispatch Local Engineering
-- 新增 Ed25519 canonical envelope、四文件脱敏运输、独立 bare mirror、20 秒 timer、single pending commit、source-ref reachability、Bundle/request/entrypoint hash、tar/path/secret 防线和 production lease defer；systemd 以 `MemoryDenyWriteExecute` + `node --jitless` 运行，Node 子进程继承 `--jitless`，合法归档路径内出现凭证内容同样拒绝。异常租约只等待，无效单任务会被隔离后推进 cursor，claim 在启动前同步到磁盘，半安装自动回收且安装 source-set 包含安装器自身。
+- 新增 Ed25519 canonical envelope、四文件脱敏运输、独立 bare mirror、20 秒 timer、single pending commit、source-ref reachability、Bundle/request/entrypoint hash、tar/path/secret 防线和 production lease defer；systemd 以 `MemoryDenyWriteExecute` + `node --jitless` 运行，Node 子进程继承 `--jitless`，合法归档路径内出现凭证内容同样拒绝。异常租约只等待，无效单任务会被隔离后推进 cursor，claim 在启动前同步到磁盘，半安装自动回收且安装 source-set 包含安装器自身。生产预检证明主机没有 Node，旧 `/usr/bin/node` 假设已删除；安装器现只从 Node.js 官方 HTTPS 下载固定 `v24.18.0` Linux x64，并在任何 mutation 前校验 archive/binary/license SHA、架构和版本，独立安装且不改全局 PATH。
 - agent 不接受 shell command/arguments，不开放入站端口、不接触生产 `.env`、不修改应用 worktree，只启动原 session-independent package entrypoint；旧 OrcaTerm transport request 明确拒绝。
-- 初版因放在 Legacy deploy 层被 M0 正确拒绝；现已迁入 V2 control plane，Legacy consumer map 保持 539 source / 109 runtime entrypoints、protected drift=0。定向 12/12、自治 31/31 和完整 CI PASS；腾讯生产尚未安装，不能写运输自动化已生效。P0R STS/MFA 仍为独立例外。
+- 初版因放在 Legacy deploy 层被 M0 正确拒绝；现已迁入 V2 control plane，Legacy consumer map 保持 539 source / 273 runtime edges、protected drift=0。固定 runtime 修正后定向 12/12、自治 31/31 和完整 CI PASS；腾讯生产尚未安装，不能写运输自动化已生效。P0R STS/MFA 仍为独立例外。
 
 ### 2026-07-21 / V2 M1.6-P0R-B1C Object Lock, Age and Transport Preparation
 - 用户动作级确认后，Microsoft Edge 已启用并回读 Object Lock=`COMPLIANCE` 31 天；真实 age X25519 身份只在 macOS Keychain，public attestation 不含私钥。
@@ -388,6 +388,7 @@ Cycle final
 - 汇报使用中文大白话，同时给出可复核文件、命令和 PASS/FAIL。
 - 不用“已完成”替代证据；本地 PASS、已上传、已部署、观察中和生产 PASS 必须分开。
 - 每轮只做一个小而完整的问题；发现 P0/P1 时先报告并最小修复，不借机扩展无关模块。
+- 同一故障类别第二次出现即触发 `RECURRENCE_ROOT_CAUSE_GATE`：停止重复 workaround，必须交付复现指纹、具体根因、永久修复、先红后绿回归测试、运行防复发门禁和真实环境验收；重连、重试、重新上传、清缓存或重启本身不算解决。
 - 生产权限即使被长期批准，也不取消平台安全审批、精确身份、preflight、回滚和证据门禁。
 - 不创建自动审批 Agent 代替用户或平台授权。
 - 污染清理分三类：确定无引用且已有 replacement 的删除；用途不明的隔离；仍有消费者的登记到 Legacy Capability Atlas 后受控替换。

@@ -292,7 +292,8 @@
       ]
     },
     "completionBoundary": [
-      "固定执行通道本地实现不得冒充生产已安装；只允许signed_git_bundle、Ed25519验签、90分钟窗口、单任务队列、production WIP=1和allowlisted entrypoint，禁止secret运输、任意命令和旧OrcaTerm运输事实冒充新通道",
+      "固定执行通道本地实现不得冒充生产已安装；只允许signed_git_bundle、Ed25519验签、90分钟窗口、单任务队列、production WIP=1和allowlisted entrypoint，禁止secret运输、任意命令和旧OrcaTerm运输事实冒充新通道；生产Node必须来自固定官方HTTPS归档并在mutation前验证archive/binary/license SHA、x86_64和版本，禁止依赖不存在的host Node或修改全局PATH",
+      "同一故障类别第二次出现必须触发RECURRENCE_ROOT_CAUSE_GATE并停止重复workaround；没有复现指纹、具体根因、永久修复、先红后绿回归测试、运行防复发门禁和真实目标环境验收，不得标记解决或继续依赖该故障点的生产工作",
       "Runtime Identity 前置结果必须是 checksum-bound PASS_RUNTIME_IDENTITY_AND_PERMISSION；7样本和1851秒观察不能被缩短或改写",
       "可复现脱敏Bundle不得包含credentials、role-admin URL、env、secret、生产业务行或raw log，archive checksum和逐文件manifest必须精确绑定",
       "生产入口必须使用session-independent transient systemd unit、Restart=no、RuntimeMaxSec不超过5400、journald和退出后精确staging清理",

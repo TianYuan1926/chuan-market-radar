@@ -12,8 +12,8 @@
 
 - `scripts/v2/production/fixed-channel/production-dispatch.mjs`：实现 keygen、prepare、validate、publish、agent initialize 和 agent-once；扫描合法归档路径内的凭证内容，异常租约只等待，claim 启动前同步到磁盘，无效单任务隔离后推进 cursor。
 - `scripts/v2/production/fixed-channel/production-dispatch.test.mjs`：覆盖签名、篡改、时效、必需审批绑定、tar/path/secret、合法路径内凭证内容、commit reachability、WIP/异常租约、坏任务隔离和 exactly-once。
-- `scripts/v2/production/fixed-channel/install-production-dispatch.sh`：一次性 exact-hash 安装器，source-set 包含安装器自身，目标存在时拒绝覆盖，首次安装中途失败时只回收本轮新建的固定路径。
-- `scripts/v2/production/fixed-channel/*.service|*.timer|README.md`：20 秒 pull-only systemd 运行层和边界说明；agent 和它启动的 Node 子进程以 `--jitless` 配合 `MemoryDenyWriteExecute`，Bundle 从 staging 根目录启动。
+- `scripts/v2/production/fixed-channel/install-production-dispatch.sh`：一次性 exact-hash 安装器，source-set 包含安装器自身；因生产主机无 Node，安装器改为在 mutation 前从 Node.js 官方 HTTPS 下载固定 `v24.18.0` Linux x64，并验证官方归档、binary、license、架构和版本后只安装独立 runtime，不改全局 PATH。
+- `scripts/v2/production/fixed-channel/*.service|*.timer|README.md`：20 秒 pull-only systemd 运行层和边界说明；agent 使用 `/opt/market-radar-production-dispatch/runtime/node --jitless`，其 Node 子进程继承固定 runtime PATH 与 `--jitless`，Bundle 从 staging 根目录启动。
 - `docs/governance/production-fixed-dispatch-channel.v1.json`：机器可读合同。
 - `docs/runbooks/PRODUCTION_FIXED_DISPATCH_CHANNEL_V1.md`：安装、日常发布、判定和例外运行手册。
 - `.github/workflows/v2-production-dispatch-quality.yml`、`package.json`：把定向测试加入 V2 质量门禁，保持 GitHub-hosted job 无生产执行权；Legacy `production.yml` 未改变。
@@ -33,7 +33,7 @@
 
 ## 6. 风险说明
 
-固定 agent 只减少运输和启动时间，不缩短 build、恢复、健康、观察或回滚门禁。旧包若声明 `approved_orcaterm_bundle_upload` 必须拒绝，只有明确生成 `signed_git_bundle` 的新包可进入。当前尚未生产安装，因此不能声称 OrcaTerm 瓶颈已经关闭。
+固定 agent 只减少运输和启动时间，不缩短 build、恢复、健康、观察或回滚门禁。旧包若声明 `approved_orcaterm_bundle_upload` 必须拒绝，只有明确生成 `signed_git_bundle` 的新包可进入。生产主机没有 Node，因此旧版 `/usr/bin/node` 方案不可安装；现已改成固定官方 runtime。OrcaTerm 的重复会话、输入和上传失败已触发 `RECURRENCE_ROOT_CAUSE_GATE`，固定通道是永久修复，继续人工重试不再算进展；但当前仍未生产安装，不能声称瓶颈已经关闭。
 
 ## 7. 执行命令
 
@@ -52,8 +52,8 @@ npx eslint scripts/v2/production/fixed-channel/production-dispatch.mjs scripts/v
 
 ## 8. 测试结果
 
-- `test:production-dispatch`：PASS，12/12。
-- `test:autonomy`：PASS，31/31。
+- `test:production-dispatch`：固定 runtime 修正后 PASS，12/12。
+- `test:autonomy`：固定 runtime 与复发门禁登记后 PASS，31/31。
 - `autonomy:status`：PASS，scope violations=0。
 - `typecheck`：PASS。
 - `lint`：PASS。
@@ -69,7 +69,7 @@ npx eslint scripts/v2/production/fixed-channel/production-dispatch.mjs scripts/v
 
 ## 9. 失败项
 
-初次自治审计真实失败，原因是新增通道未登记到 active package 路径白名单；登记后 PASS。首次完整 CI 又真实失败：通道最初位于 `scripts/deploy/` 且修改 Legacy `production.yml`，M0 正确判定为 Legacy 冻结后新增入口。修复不是重签旧基线，而是把全部通道代码迁入 `scripts/v2/production/fixed-channel/`、恢复 Legacy workflow，并新增 V2 quality-only workflow；consumer map 回到 539 source / 109 runtime entrypoints，M0 与完整 CI 重跑 PASS。生产安装和生产验收仍未发生，不包装成完成。
+初次自治审计真实失败，原因是新增通道未登记到 active package 路径白名单；登记后 PASS。首次完整 CI 又真实失败：通道最初位于 `scripts/deploy/` 且修改 Legacy `production.yml`，M0 正确判定为 Legacy 冻结后新增入口。修复不是重签旧基线，而是把全部通道代码迁入 `scripts/v2/production/fixed-channel/`、恢复 Legacy workflow，并新增 V2 quality-only workflow；consumer map 回到 539 source / 273 runtime edges。腾讯只读预检随后再次抓到主机 `command_node=FAIL`，因此没有执行旧安装包；改为固定官方下载 runtime后，定向 12/12、自治 31/31 和完整 CI 均重新 PASS。生产安装和生产验收仍未发生，不包装成完成。
 
 ## 10. 是否更新 PROJECT_CONTEXT_FOR_CHATGPT.md
 

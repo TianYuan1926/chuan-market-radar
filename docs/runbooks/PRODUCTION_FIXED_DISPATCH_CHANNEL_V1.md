@@ -38,6 +38,7 @@ OrcaTerm 从日常运输通道降级为：首次安装、云平台 MFA、secret 
 - 生产互斥：发现仓库外 production lease 仍 active 时只返回 `DEFERRED_PRODUCTION_WIP_ACTIVE`；租约文件存在但格式、时间或路径不可信时返回 `DEFERRED_PRODUCTION_LEASE_UNCERTAIN`，不得当成空闲。
 - 一次性：claim 在 entrypoint 启动前同步到文件和目录；单个结构损坏任务只会被隔离、记失败并推进 cursor，不执行，也不永久堵住后续队列。
 - 运行沙箱：agent 与 entrypoint 启动的 Node 子进程使用 `--jitless` 配合 `MemoryDenyWriteExecute`，entrypoint 的 cwd 固定为 staging 根目录。
+- 运行时：生产主机无需预装 Node。安装器只从 Node.js 官方 HTTPS 地址下载固定 `v24.18.0` Linux x64 归档，在任何 install mutation 前核对官方归档 SHA-256、解包后二进制 SHA-256、许可证 SHA-256、`x86_64` 和版本；只安装独立 binary/license，不安装 npm，不改全局 PATH。
 
 ### 3.2 强制拒绝
 
@@ -73,7 +74,13 @@ node scripts/v2/production/fixed-channel/production-dispatch.mjs keygen \
 npm run production:dispatch:install-plan
 ```
 
-计划只输出 `sourceSetSha256`，不修改服务器。source-set 同时绑定 agent、installer 自身、README、service 和 timer；安装包只能包含这些文件和公钥。
+计划输出 `sourceSetSha256` 与固定 Node 运行时事实，不修改服务器。source-set 同时绑定 agent、installer 自身、README、service 和 timer；脱敏安装包只包含这些控制文件、公钥、`INSTALL_FACTS.json` 和 `SHA256SUMS`，不携带 Node 二进制。Node 由服务器直接从 `https://nodejs.org/dist/v24.18.0/` 下载，固定事实为：
+
+```text
+archive sha256 = 55aa7153f9d88f28d765fcdad5ae6945b5c0f98a36881703817e4c450fa76742
+binary sha256  = 41a74efb34cbde5c7632cdac0cf8bd1a14d0b8d73dc1e82755014d9a9ce70f5c
+license sha256 = 148eacf7863ef4329224a29398623077200a27194aa075569faf4a0a85566ca5
+```
 
 ### 4.3 腾讯服务器安装
 
@@ -83,11 +90,14 @@ npm run production:dispatch:install-plan
 DISPATCH_PUBLIC_KEY_SOURCE=/secure/staging/ed25519-public.pem \
 EXPECTED_DISPATCH_PUBLIC_KEY_SHA256=<exact-public-key-sha256> \
 EXPECTED_DISPATCH_SOURCE_SET_SHA256=<exact-source-set-sha256> \
+EXPECTED_DISPATCH_NODE_ARCHIVE_SHA256=55aa7153f9d88f28d765fcdad5ae6945b5c0f98a36881703817e4c450fa76742 \
+EXPECTED_DISPATCH_NODE_SHA256=41a74efb34cbde5c7632cdac0cf8bd1a14d0b8d73dc1e82755014d9a9ce70f5c \
+EXPECTED_DISPATCH_NODE_LICENSE_SHA256=148eacf7863ef4329224a29398623077200a27194aa075569faf4a0a85566ca5 \
 CONFIRM_PRODUCTION_DISPATCH_INSTALL=INSTALL_SIGNED_PULL_ONLY_PRODUCTION_DISPATCH \
 bash install-production-dispatch.sh install
 ```
 
-安装器在目标已存在时拒绝覆盖。首次安装中途失败时，它只回收本次预检确认原本不存在的 install root、state root、config 和 systemd unit；不会删除生产仓库、staging 根、应用、容器或数据。后续升级必须生成新的精确升级包，不能静默覆盖固定 agent。
+安装器在目标已存在时拒绝覆盖。官方下载、三层哈希、架构、版本、公钥、source-set、远端和生成配置全部在首次 install mutation 前验证。首次安装中途失败时，它只回收本次预检确认原本不存在的 install root、state root、config 和 systemd unit；不会删除生产仓库、staging 根、应用、容器或数据。后续升级必须生成新的精确升级包，不能静默覆盖固定 agent。
 
 ### 4.4 安装验收
 

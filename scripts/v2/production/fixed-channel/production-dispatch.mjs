@@ -841,7 +841,7 @@ async function defaultLaunch({ entrypoint, marker, requestPath }) {
         LC_ALL: "C.UTF-8",
         LOGNAME: "ubuntu",
         NODE_OPTIONS: "--jitless",
-        PATH: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        PATH: `${dirname(process.execPath)}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin`,
         REQUEST_FILE: requestPath,
         USER: "ubuntu",
       },

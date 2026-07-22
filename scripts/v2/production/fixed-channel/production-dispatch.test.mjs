@@ -526,6 +526,7 @@ test("agent service source contains no browser, SSH, arbitrary command or secret
   assert.match(source, /DEFERRED_PRODUCTION_LEASE_UNCERTAIN/);
   assert.match(source, /cwd: dirname\(requestPath\)/);
   assert.match(source, /NODE_OPTIONS: "--jitless"/);
+  assert.match(source, /dirname\(process\.execPath\)/);
   assert.match(source, /claimHandle\.sync\(\)/);
   assert.match(source, /merge-base/);
   assert.equal(canonicalJson({ z: 1, a: { y: 2, b: 3 } }),
@@ -543,6 +544,16 @@ test("installer plan is non-mutating and install remains exact-hash gated", asyn
   assert.equal(plan.transportsSecret, false);
   assert.equal(plan.arbitraryCommandAllowed, false);
   assert.equal(plan.pollSeconds, 20);
+  assert.equal(plan.hostNodeRequired, false);
+  assert.equal(plan.nodeRuntime.distribution, "official_nodejs_linux_x64");
+  assert.equal(plan.nodeRuntime.version, "v24.18.0");
+  assert.equal(plan.nodeRuntime.archiveSha256,
+    "55aa7153f9d88f28d765fcdad5ae6945b5c0f98a36881703817e4c450fa76742");
+  assert.equal(plan.nodeRuntime.binarySha256,
+    "41a74efb34cbde5c7632cdac0cf8bd1a14d0b8d73dc1e82755014d9a9ce70f5c");
+  assert.equal(plan.nodeRuntime.licenseSha256,
+    "148eacf7863ef4329224a29398623077200a27194aa075569faf4a0a85566ca5");
+  assert.equal(plan.nodeRuntime.globalInstallAllowed, false);
   assert.match(plan.sourceSetSha256, /^[a-f0-9]{64}$/u);
 
   const installer = await readFile(
@@ -552,11 +563,23 @@ test("installer plan is non-mutating and install remains exact-hash gated", asyn
   assert.match(installer, /INSTALL_SIGNED_PULL_ONLY_PRODUCTION_DISPATCH/);
   assert.match(installer, /EXPECTED_DISPATCH_SOURCE_SET_SHA256/);
   assert.match(installer, /EXPECTED_DISPATCH_PUBLIC_KEY_SHA256/);
+  assert.match(installer, /EXPECTED_DISPATCH_NODE_SHA256/);
+  assert.match(installer, /EXPECTED_DISPATCH_NODE_ARCHIVE_SHA256/);
+  assert.match(installer, /EXPECTED_DISPATCH_NODE_LICENSE_SHA256/);
+  assert.match(installer, /PINNED_NODE_VERSION="v24\.18\.0"/);
+  assert.match(installer,
+    /NODE_ARCHIVE_URL="https:\/\/nodejs\.org\/dist\/v24\.18\.0\/\$\{NODE_ARCHIVE_NAME\}"/u);
+  assert.match(installer, /curl --fail --location --proto '=https'/u);
+  assert.match(installer, /Node runtime archive checksum mismatch/u);
+  assert.match(installer, /pinned Node runtime requires x86_64/);
+  assert.ok(installer.indexOf("curl --fail") < installer.indexOf("INSTALL_STARTED=true"));
+  assert.ok(installer.indexOf("Node runtime version binding mismatch")
+    < installer.indexOf("INSTALL_STARTED=true"));
   assert.match(installer, /INSTALLER_SOURCE/);
   assert.match(installer, /agent-initialize/);
   assert.match(installer, /systemctl enable --now/);
   assert.match(installer, /ROLLBACK_PRODUCTION_DISPATCH_PARTIAL_INSTALL/);
-  assert.doesNotMatch(installer, /\b(?:ssh|scp|curl)\s/u);
+  assert.doesNotMatch(installer, /\b(?:ssh|scp)\s/u);
   assert.doesNotMatch(installer, /docker compose|git checkout|git pull|\.env\.production/u);
 });
 
@@ -575,7 +598,8 @@ test("systemd poller is timer-bound, least-write and does not load production se
   assert.match(service, /^ProtectHome=read-only$/mu);
   assert.match(service, /^PrivateDevices=true$/mu);
   assert.match(service, /^MemoryDenyWriteExecute=true$/mu);
-  assert.match(service, /node --jitless .*agent-once --config/);
+  assert.match(service,
+    /\/opt\/market-radar-production-dispatch\/runtime\/node --jitless .*agent-once --config/);
   assert.doesNotMatch(service, /EnvironmentFile|\.env|DATABASE_URL|TOKEN|PASSWORD/u);
   assert.match(timer, /^OnUnitActiveSec=20s$/mu);
   assert.match(timer, /^Persistent=true$/mu);
@@ -604,6 +628,13 @@ test("governance contract matches the executable transport and truth boundary", 
   assert.equal(contract.execution.launchWorkingDirectory, "exact_staging_root");
   assert.equal(contract.execution.nodeChildJitlessRequired, true);
   assert.equal(contract.installation.installerIncludedInSourceSet, true);
+  assert.equal(contract.installation.hostNodeRequired, false);
+  assert.equal(contract.installation.runtimeBundled, false);
+  assert.equal(contract.installation.runtimeProvisioning, "pinned_official_https_download");
+  assert.equal(contract.installation.runtimeVersion, "v24.18.0");
+  assert.equal(contract.installation.runtimeBinarySha256,
+    "41a74efb34cbde5c7632cdac0cf8bd1a14d0b8d73dc1e82755014d9a9ce70f5c");
+  assert.equal(contract.installation.runtimeGlobalInstallAllowed, false);
   assert.equal(contract.installation.existingInstallOverwriteAllowed, false);
   assert.equal(contract.installation.partialFirstInstallRollbackRequired, true);
   assert.equal(contract.exceptions[0].mayBypassCloudMfa, false);
