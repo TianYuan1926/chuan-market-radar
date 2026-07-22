@@ -643,6 +643,22 @@ test("short installer launcher verifies exact package facts and rejects tamperin
     const plan = JSON.parse(planRaw);
     const publicKey = "-----BEGIN PUBLIC KEY-----\nTEST-ONLY-PUBLIC-KEY\n-----END PUBLIC KEY-----\n";
     await writeFile(join(packageRoot, "ed25519-public.pem"), publicKey);
+    const generatedDeployKey = join(root, "commented-deploy-key");
+    await execFileAsync("ssh-keygen", [
+      "-q",
+      "-t",
+      "ed25519",
+      "-N",
+      "",
+      "-C",
+      "market-radar-commented-key-test",
+      "-f",
+      generatedDeployKey,
+    ]);
+    const generatedDeployPublicFields = (await readFile(`${generatedDeployKey}.pub`, "utf8"))
+      .trim()
+      .split(/\s+/u);
+    const canonicalDeployPublicKey = `${generatedDeployPublicFields[0]} ${generatedDeployPublicFields[1]}\n`;
     const facts = {
       schemaVersion: "market-radar-production-dispatch-install-facts.v3",
       generatedAt: "2026-07-22T00:00:00Z",
@@ -655,7 +671,7 @@ test("short installer launcher verifies exact package facts and rejects tamperin
       hostNodeRequired: false,
       repositoryAccess: {
         authentication: "github_read_only_deploy_key",
-        deployPublicKeySha256: "b".repeat(64),
+        deployPublicKeySha256: sha256(canonicalDeployPublicKey),
         dispatchRemoteUrl: "git@github.com:TianYuan1926/chuan-market-radar.git",
         knownHostsSha256: sha256(await readFile(join(packageRoot, "github-known-hosts"))),
         privateKeyIncludedInArchive: false,
@@ -694,6 +710,42 @@ test("short installer launcher verifies exact package facts and rejects tamperin
         "install",
       ], { encoding: "utf8" }),
       /server-generated deploy key is missing/u,
+    );
+
+    const packagedDeployKey = join(packageRoot, "github-deploy-key");
+    await execFileAsync("cp", [generatedDeployKey, packagedDeployKey]);
+    await execFileAsync("chmod", ["600", packagedDeployKey]);
+    let installEnvironment = process.env;
+    if (process.platform === "darwin") {
+      const shimRoot = join(root, "bin");
+      const statShim = join(shimRoot, "stat");
+      const systemctlShim = join(shimRoot, "systemctl");
+      await mkdir(shimRoot);
+      await writeFile(statShim, `#!/bin/sh
+if [ "$1" = "-c" ] && [ "$2" = "%a" ]; then
+  exec /usr/bin/stat -f "%Lp" "$3"
+fi
+if [ "$1" = "-c" ] && [ "$2" = "%u" ]; then
+  exec /usr/bin/stat -f "%u" "$3"
+fi
+exec /usr/bin/stat "$@"
+`);
+      await writeFile(systemctlShim, "#!/bin/sh\nexit 1\n");
+      await execFileAsync("chmod", ["755", statShim]);
+      await execFileAsync("chmod", ["755", systemctlShim]);
+      installEnvironment = { ...process.env, PATH: `${shimRoot}:${process.env.PATH}` };
+    }
+    await assert.rejects(
+      execFileAsync("bash", [
+        join(packageRoot, "install-production-dispatch-launcher.sh"),
+        "install",
+      ], { encoding: "utf8", env: installEnvironment }),
+      (error) => {
+        const output = `${error.stdout ?? ""}\n${error.stderr ?? ""}`;
+        assert.doesNotMatch(output, /deploy key.*(?:does not match|checksum binding mismatch)/u);
+        assert.match(output, /pinned Node runtime requires x86_64|production repository is unavailable/u);
+        return true;
+      },
     );
 
     await writeFile(join(packageRoot, "README.md"), "tampered\n");

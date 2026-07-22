@@ -185,9 +185,12 @@ done
   || fail "deploy key source must be mode 600 and owned by the installer user"
 deploy_public_key="$(ssh-keygen -y -f "${DEPLOY_KEY_SOURCE}" 2>/dev/null)" \
   || fail "deploy key source is not a valid private key"
-[[ "${deploy_public_key}" == ssh-ed25519\ * ]] \
+read -r deploy_key_type deploy_key_body _ <<< "${deploy_public_key}" \
+  || fail "deploy key source is not a valid private key"
+[[ "${deploy_key_type}" == "ssh-ed25519" && -n "${deploy_key_body}" ]] \
   || fail "deploy key must be Ed25519"
-deploy_public_key_sha256="$(printf '%s\n' "${deploy_public_key}" | sha256sum | awk '{print $1}')"
+canonical_deploy_public_key="${deploy_key_type} ${deploy_key_body}"
+deploy_public_key_sha256="$(printf '%s\n' "${canonical_deploy_public_key}" | sha256sum | awk '{print $1}')"
 [[ "${EXPECTED_DEPLOY_PUBLIC_KEY_SHA256}" =~ ^[a-f0-9]{64}$ \
   && "${deploy_public_key_sha256}" == "${EXPECTED_DEPLOY_PUBLIC_KEY_SHA256}" ]] \
   || fail "deploy public key checksum binding mismatch"

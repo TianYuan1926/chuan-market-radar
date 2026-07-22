@@ -186,8 +186,12 @@ done
   || fail "server-generated deploy key must be mode 600"
 derived_deploy_public_key="$(ssh-keygen -y -f "${DEPLOY_KEY_SOURCE}" 2>/dev/null)" \
   || fail "server-generated deploy key is invalid"
-[[ "${derived_deploy_public_key}" == ssh-ed25519\ * \
-  && "$(printf '%s\n' "${derived_deploy_public_key}" | sha256sum | awk '{print $1}')" == "${deploy_public_key_sha256}" ]] \
+read -r derived_deploy_key_type derived_deploy_key_body _ <<< "${derived_deploy_public_key}" \
+  || fail "server-generated deploy key is invalid"
+derived_canonical_public_key="${derived_deploy_key_type} ${derived_deploy_key_body}"
+[[ "${derived_deploy_key_type}" == "ssh-ed25519" \
+  && -n "${derived_deploy_key_body}" \
+  && "$(printf '%s\n' "${derived_canonical_public_key}" | sha256sum | awk '{print $1}')" == "${deploy_public_key_sha256}" ]] \
   || fail "server-generated deploy key does not match approved public identity"
 
 exec env \
