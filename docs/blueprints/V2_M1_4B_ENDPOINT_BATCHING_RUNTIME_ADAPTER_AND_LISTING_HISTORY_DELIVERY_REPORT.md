@@ -2,7 +2,7 @@
 
 日期：2026-07-24
 
-状态：`LOCAL_CORE_AND_EXACT_DISPATCH_PACKAGE_PASS / FULL_CI_REVERIFY_PENDING / LIVE_NO_AUTHORITY_RUNTIME_UNPROVEN / PRODUCTION_UNCHANGED`
+状态：`LOCAL_ENGINEERING_AND_EXACT_DISPATCH_PACKAGE_FULL_CI_PASS / LIVE_NO_AUTHORITY_RUNTIME_UNPROVEN / PRODUCTION_UNCHANGED`
 
 ## 1. 本包完成什么
 
@@ -52,8 +52,13 @@ M1.1B regression: 26/26 PASS
 M1.4A regression: 28/28 PASS
 M1.4B core directed: 23/23 PASS
 M1.4B Tencent fixed-dispatch package: 9/9 PASS
-prior M1.4B core full ci:production: PASS
-current package full ci:production: PENDING_CORRECT_IMPLEMENTATION_BRANCH_REVERIFY
+V2 Foundation: 448 PASS / 6 explicit skip / 454 total
+V2 Ops: 131/131 PASS
+M0 machine exit: PASS
+Next production build: PASS
+Golden cases: 16/16 PASS
+Security check: PASS
+full ci:production: PASS
 ```
 
 覆盖：
@@ -93,7 +98,7 @@ runtime authority: unchanged
 
 ## 7. 下一入口
 
-本地核心与精确派发包已通过定向门禁；正式实施分支完整 CI 与 GitHub 同步后，Scope V2 现场出口固定为：
+本地核心、精确派发包和正式实施分支完整 CI 已通过；GitHub 同步后，Scope V2 现场出口固定为：
 
 ```text
 M1.4B Tencent isolated no-authority runtime

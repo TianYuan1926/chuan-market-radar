@@ -1,6 +1,6 @@
 # Market Radar V2 M1.4B 端点批处理、Runtime Adapter 与上新历史合同 v1
 
-状态：`LOCAL_CORE_AND_EXACT_DISPATCH_PACKAGE_PASS / FULL_CI_REVERIFY_PENDING_ON_IMPLEMENTATION_BRANCH / LIVE_NO_AUTHORITY_RUNTIME_UNPROVEN / PRODUCTION_UNCHANGED`
+状态：`LOCAL_ENGINEERING_AND_EXACT_DISPATCH_PACKAGE_FULL_CI_PASS / LIVE_NO_AUTHORITY_RUNTIME_UNPROVEN / PRODUCTION_UNCHANGED`
 
 冻结日期：2026-07-24
 
@@ -270,13 +270,18 @@ M1.1B source conformance + multi-asset regression: 26/26 PASS
 M1.4A adaptive collector regression: 28/28 PASS
 M1.4B runtime profile + listing history: 23/23 PASS
 M1.4B Tencent runtime fixed-dispatch package: 9/9 PASS
-prior M1.4B core full ci:production: PASS
-current package full ci:production: PENDING_CORRECT_IMPLEMENTATION_BRANCH_REVERIFY
+V2 Foundation: 448 PASS / 6 explicit skip / 454 total
+V2 Ops: 131/131 PASS
+M0 machine exit: PASS
+Next production build: PASS
+Golden cases: 16/16 PASS
+Security check: PASS
+full ci:production: PASS
 ```
 
 ## 10. 本地出口与后续顺序
 
-本地核心和精确派发包通过后，仍必须在正式实施分支完成完整 CI 并同步 GitHub；即使该门通过，M1.4B 也仍未完成现场运行验收。现场后续固定为：
+本地核心、精确派发包和正式实施分支完整 CI 已通过；GitHub 同步后，M1.4B 仍未完成现场运行验收。现场后续固定为：
 
 ```text
 Tencent isolated no-authority runtime execution

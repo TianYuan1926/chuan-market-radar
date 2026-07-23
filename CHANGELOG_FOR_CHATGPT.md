@@ -28,7 +28,7 @@
 - M1.4A 回归 28/28 PASS。
 - M1.4B 定向 23/23 PASS。
 - M1.4B 腾讯 fixed-dispatch package 9/9 PASS；包含四轴分母、零 blocked-route 请求、同源并发 1、Bundle 无 secret/无额外 payload、宿主不变、失败不晋级 checkpoint 和 PASS-result 续跑绑定。
-- 既有 M1.4B core 完整 `ci:production` 已通过；当前精确派发包的完整 CI 等待在正式实施分支重验，隔离侧分支唯一失败为预期的 branch-identity 门禁。
+- 正式实施分支完整 `ci:production` PASS：V2 Foundation 454 total / 448 pass / 6 explicit skip、V2 Ops 131/131、M0、Next production build、Golden 16/16 与 security 全部通过。
 
 ### 是否部署
 
@@ -36,11 +36,11 @@
 
 ### 风险与遗留问题
 
-正式实施分支完整 CI 与 GitHub 同步、腾讯隔离 no-authority runtime、真实 Bybit/Bitget checkpoint、请求率/配额/完整分母、Binance spot registry 新 digest 复验、M1.5C 和 M1.6-D1 均未完成。
+GitHub 实施分支同步、腾讯隔离 no-authority runtime、真实 Bybit/Bitget checkpoint、请求率/配额/完整分母、Binance spot registry 新 digest 复验、M1.5C 和 M1.6-D1 均未完成。
 
 ### 下一轮建议
 
-先在正式实施分支完成完整 CI 和 GitHub 同步，再用 exact package 在腾讯执行 no-authority Adapter/listing runtime。P0R 的 fresh 7200 秒 exact-plan STS 仍是独立生产第一关键路径。
+同步 GitHub 实施分支后，用 exact package 在腾讯执行 no-authority Adapter/listing runtime。P0R 的 fresh 7200 秒 exact-plan STS 仍是独立生产第一关键路径。
 
 ## 2026-07-24 / V2 M1.1B0 Tencent Live Source Conformance Dispatch Package
 
