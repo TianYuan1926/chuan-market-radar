@@ -2,6 +2,45 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-24 / V2 M3.1A-D Four-Lane Multi-Asset Decision Research Contract
+
+### 本轮目标
+
+把 Bitget、上新暖机、单股永续和指数/ETF 永续正确接入 Scope V2 的 Analysis、Independent Qualification 与 Strategy 合同，避免四条新增范围在决策层重新混为一套。
+
+### 修改范围
+
+- 新增四条 exact decision lane，分别锁定 Venue、asset domain、lifecycle、family、instrument identity 与 listing/identity epoch。
+- 新增 Listing/Venue Event 和 Equity Event/Basis family/pattern；CFD、RWA、watch、prelaunch、maintenance、suspended 和 delisting 对象禁止进入。
+- Analysis 分开 evidence/setup/integrity blocker；非方向硬前提不能投 LONG/SHORT，支持与有效反证并存时阻断。
+- Evidence 与 Setup 使用两份独立 calibration；校准只可在 exact segment 内跨 instrument 复用，最低 60 样本、3 regime、冻结阈值、一次 untouched holdout 和无 future leak。
+- Cost、Reference Price、Policy 和 Draft 全部内容寻址；不可得成本为 null，禁止 0 补缺。股票缺 session、公司行动、FX、reference、闭市 basis、规格或成本即弃权。
+- Strategy 使用精确价格数学、结构 stop 外扩、gross/net RR；未验证 Fib、低 RR、未来 artifact、哈希篡改和极端输入均 fail closed。
+
+### 核心链路影响
+
+形成 `Scope V2 lane -> Analysis -> Independent Evidence/Setup Qualification -> Domain Strategy Research Draft` 的严格本地合同。它不读取 M1 生产 authority，不替代 M2.3/M2.4 真实 cohort/holdout，也不生成 Signal Grade、READY 或交易权限。
+
+### 测试结果
+
+- Analysis 10/10。
+- Qualification 7/7。
+- Strategy 11/11。
+- 定向合计 28/28；TypeScript 和新文件 ESLint 通过。
+- 完整 `ci:production` 尚待 exact 最终文档状态下执行。
+
+### 是否部署
+
+未部署。生产服务、数据库、Redis、Worker、env、Feature Flag、数据和业务 authority 零变更。
+
+### 风险与遗留问题
+
+真实 M2.3A/B Detector、M2.4A/B cohort/untouched holdout、M3.1A-M3.3D 校准、M3.4-R1 Feasibility、M3.5 Risk、M3.6 Runtime 均未完成。本包只能标记 research contract scaffold PASS。
+
+### 下一轮建议
+
+完成完整 CI、提交和 GitHub 同步；随后恢复生产 P0R 第一关键路径，并在 no-authority 工程线上继续积累 Scope V2 runtime 与真实 cohort 前置证据。
+
 ## 2026-07-24 / V2 M3.4-R0 Scope Rebase Governance Gate
 
 ### 本轮目标
@@ -158,39 +197,3 @@ M1.1B0 只关闭 exact source conformance。M1.4B runtime Adapter、Bybit 完整
 ### 下一轮建议
 
 提交推送 M1.4A 后，准备 M1.1B0 无 secret 固定派发 runner/bundle；M1.4B 只能接入 live B0 实际 PASS 的 capability。P0R 继续作为独立生产第一关键路径。
-
-## 2026-07-23 / V2 M1.1B Exact Source Conformance + Multi-Asset Identity
-
-### 本轮目标
-
-把 M1.1A 的来源登记转为可执行探针、Bitget 与四 Venue 多资产身份、股票防误判和上新生命周期，同时保持旧 V1 与 Candidate/Strategy authority 完全隔离。
-
-### 修改范围
-
-- 冻结 15 个精确只读探针，分别形成 8 项 identity、6 项 listing 和 1 项 CoinGlass Hobbyist Gate；fixture 强制 `TEST_ONLY`，不能产生 live PASS。
-- 新增四 Venue catalog normalizer、Bitget、多资产 identity snapshot、官方 underlying mapping、listing/identity epoch 与 symbol reuse 防线。
-- 新增 Bybit/Bitget announcement normalizer 和 lifecycle ledger；不从标题猜 symbol，完整目录缺失不推断 delisting。
-- 股票外观 symbol、Bitget `isRwa=YES` 和 Bybit `symbolType=stock` 均不能静默区分单股/ETF；Bybit 费率组 `G9` 明确禁止作为 instrument 类型。
-- P0R 生产第一关键路径、M3.4 冻结草稿和 V1 证据边界均保持不变。
-
-### 核心链路影响
-
-建立 `Capability Registry -> Live Source Conformance -> Multi-Asset Identity/Listing -> Adaptive Collector` 的唯一扩展入口；本包不写 Market Fact、Candidate、Signal、Strategy 或 READY。
-
-### 测试结果
-
-- 全新隔离工作区 TypeScript 编译 PASS。
-- M1.1B 定向合同 22/22 PASS；空目录、adapter row schema 漂移、时钟漂移、分页重复、缺 key、计数/Gate/摘要篡改和资产误分类均有拒绝测试。
-- 完整 `ci:production` 已在排除冻结 M3.4 草稿的全新隔离快照通过，退出码 0；V2 Foundation 396 项、V2 Ops 115 项、Next production build、Golden 16/16 和 security check 全部通过。
-
-### 是否部署
-
-未部署、未执行 live B0。生产服务、数据库、Redis、Worker、env、Feature Flag、数据和业务 authority 零变更。
-
-### 风险与遗留问题
-
-腾讯隔离 live B0、真实四 Venue/地区/Hobbyist 可用性、M1.4B runtime Adapter、四 Venue Shadow、扩展容量、分域校准和生产 authority 均未证明；M1.4A 只完成 no-authority 本地合同。
-
-### 下一轮建议
-
-先绑定 exact clean commit 执行腾讯隔离 `LIVE_READ_ONLY` B0；只让实际 PASS 的 capability 进入 M1.4B runtime Adapter。生产 P0R 继续独立推进。
