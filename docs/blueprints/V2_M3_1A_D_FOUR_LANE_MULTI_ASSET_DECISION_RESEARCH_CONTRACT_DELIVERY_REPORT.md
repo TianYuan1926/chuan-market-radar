@@ -2,7 +2,7 @@
 
 日期：2026-07-24
 
-状态：`LOCAL_RESEARCH_CONTRACT_SCAFFOLD_PASS / DIRECTED_28_OF_28_PASS / FULL_CI_PENDING / PRODUCTION_UNCHANGED`
+状态：`LOCAL_RESEARCH_CONTRACT_SCAFFOLD_PASS / DIRECTED_28_OF_28_PASS / FULL_CI_PASS / PRODUCTION_UNCHANGED`
 
 ## 1. 交付目的
 
@@ -51,6 +51,15 @@ tests 28
 pass 28
 fail 0
 ```
+
+正式实施分支身份下完整 `ci:production` 结果：
+
+- V2 Foundation：494 total / 488 pass / 6 explicit skip / 0 fail。
+- V2 Ops：131/131。
+- M0 工程出口：11/11。
+- Next production build：PASS。
+- Golden cases：16/16。
+- Security check：PASS。
 
 ## 4. 权限与生产边界
 

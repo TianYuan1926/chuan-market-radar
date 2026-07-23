@@ -291,7 +291,7 @@ npm run security:check
 系统等级：R1
 工程描述：可运行但不完整
 实战描述：不能支撑实战
-V2：M1.1A 能力登记、M1.1B 四 Venue/多资产身份/上新生命周期和 M1.1B0 R3 15/15 endpoint conformance 已通过。M1.4A 与 M1.4B 本地工程/完整 CI 已通过，腾讯 runtime 未执行；15 个 live Profile 只执行 14 个 route eligible，Binance spot 仍 blocked。Bitget、Listing、Equity 与 Data Maximization 分别核算，股票 tradable Fact=0，Scope V2 Shadow、容量、真实 cohort/holdout、校准和生产 authority 未完成。M3.1A-D-R0 四轨 Analysis/Qualification/Strategy research contract 定向 28/28 PASS，但不计真实 M3.1A-M3.3D 完成；原 M3.0-M3.3 只保留 V1 效力。M3.4-R0 治理 gate PASS，旧草稿隔离；P0R 无新 STS，COS 恢复/fresh topology/P0 未执行，M1 未完成；Detector=DRAFT、Candidate 禁发，无 Signal Grade/Strategy/Feasibility/runtime/READY authority
+V2：M1.1A 能力登记、M1.1B 四 Venue/多资产身份/上新生命周期和 M1.1B0 R3 15/15 endpoint conformance 已通过。M1.4A 与 M1.4B 本地工程/完整 CI 已通过，腾讯 runtime 未执行；15 个 live Profile 只执行 14 个 route eligible，Binance spot 仍 blocked。Bitget、Listing、Equity 与 Data Maximization 分别核算，股票 tradable Fact=0，Scope V2 Shadow、容量、真实 cohort/holdout、校准和生产 authority 未完成。M3.1A-D-R0 四轨 Analysis/Qualification/Strategy research contract 定向 28/28 与完整 CI PASS，但不计真实 M3.1A-M3.3D 完成；原 M3.0-M3.3 只保留 V1 效力。M3.4-R0 治理 gate PASS，旧草稿隔离；P0R 无新 STS，COS 恢复/fresh topology/P0 未执行，M1 未完成；Detector=DRAFT、Candidate 禁发，无 Signal Grade/Strategy/Feasibility/runtime/READY authority
 本轮业务服务、数据库、Redis、Worker 与业务 authority 变更：0；Runtime Control 新增 fixed dispatch timer/service；外部安全状态：COS Object Lock COMPLIANCE 31 天已启用
 当前生产存储门禁：P0_BLOCKED_CAPACITY_AND_RECOVERY；P0R_OBJECT_LOCK_31D_AGE_VAULT_TRANSPORT_AND_CLEAN_PRE_STS_BASELINE_PASS_STS_RECOVERY_AND_FRESH_TOPOLOGY_PENDING；应用业务健康未在本包评估
 固定生产执行通道：PRODUCTION_OPERATIONAL_FIRST_SIGNED_DISPATCH_ACCEPTED；机器复发门禁 2 项 CLOSED、0 项 open，旧 approved_orcaterm_bundle_upload 包禁止伪装成 signed_git_bundle
