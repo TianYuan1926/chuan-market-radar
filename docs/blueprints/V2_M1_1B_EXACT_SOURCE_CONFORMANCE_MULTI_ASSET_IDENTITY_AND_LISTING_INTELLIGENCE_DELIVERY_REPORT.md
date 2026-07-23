@@ -180,12 +180,12 @@ fail = 0
 Bitget、股票类合约和上新生命周期已经进入正确的 Scope V2 本地数据合同。
 四 Venue 资产身份不会静默按 symbol 或宽泛 RWA 标记误分类。
 15 个来源探针已经可执行且测试证据不能伪装成 live。
+M1.1B0 R3 exact release 已在腾讯取得 15/15 和三个 Gate 全部 PASS。
 ```
 
 不能说：
 
 ```text
-四 Venue live B0 已通过。
 Bitget 或股票已进入生产扫描。
 上新币已能提前发出信号。
 CoinGlass Hobbyist 所有能力已验证。
@@ -194,12 +194,12 @@ M1.4B runtime Adapter、Shadow、容量或校准已完成。
 
 ## 10. 下一硬入口
 
-本包提交并推送后，使用 exact clean release 在腾讯隔离环境执行：
+M1.1B0 R3 live conformance 已完成。下一硬入口是：
 
 ```text
-V2-M1.1B0-TENCENT-ISOLATED-LIVE-SOURCE-CONFORMANCE
+V2-M1.4B-ENDPOINT-BATCHING-RUNTIME-ADAPTER-AND-LISTING-HISTORY
 ```
 
-M1.4A capability-independent scheduler contract 已独立完成，但没有 runtime authority。只有 `LIVE_READ_ONLY` 的 identity、listing 和 CoinGlass Gate 实际 PASS，相关 capability 才能进入 M1.4B runtime Adapter。失败项保持 unavailable，不允许 stale、mock、其他语义来源或旧 V1 PASS 补位。
+M1.4A capability-independent scheduler contract 已独立完成，但没有 runtime authority。M1.4B 只允许接入 R3 `LIVE_READ_ONLY` 实际 PASS 的 identity、listing 和 CoinGlass capability；未覆盖、未授权或后续漂移的能力保持 unavailable，不允许 stale、mock、其他语义来源或旧 V1 PASS 补位。
 
 生产 P0R 继续作为独立第一关键路径。M3.4 旧范围草稿继续冻结，等待 Scope V2 rebase。

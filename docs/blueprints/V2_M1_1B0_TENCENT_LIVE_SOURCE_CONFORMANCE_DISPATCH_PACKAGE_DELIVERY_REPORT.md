@@ -2,7 +2,7 @@
 
 日期：2026-07-24
 
-状态：`ATTEMPT_1_BLOCKED_NOT_COUNTED / R1_LIVE_0_OF_15_COMMON_TRANSPORT_FAILURE / R2_LIVE_14_OF_15_LISTING_GATE_BLOCKED / R3_BINANCE_SPOT_BOUNDED_QUERY_DIRECTED_AND_FULL_CI_PASS_COMMIT_REDISPATCH_PENDING / PRODUCTION_UNCHANGED`
+状态：`ATTEMPT_1_BLOCKED_NOT_COUNTED / R1_LIVE_0_OF_15_COMMON_TRANSPORT_FAILURE / R2_LIVE_14_OF_15_LISTING_GATE_BLOCKED / R3_LIVE_15_OF_15_ALL_GATES_PASS / PRODUCTION_UNCHANGED`
 
 Scope Epoch：`SCOPE_EPOCH_V2_MULTI_ASSET_4V`
 
@@ -65,6 +65,18 @@ compiled runtime modules = 15
 Zod runtime files = 107
 approximate archive bytes = 187404
 archive format = deterministic tar + gzip -n
+```
+
+R3 正式生产派发包为：
+
+```text
+source commit = 06c1fd1fe0559dfed2097d1d64cb94382973ec62
+source tree = b96690594db1094d3f632a038fffe984804147d7
+bundle files = 125
+bundle bytes = 189350
+bundle SHA-256 = 8483d1b8111cc34ddbf745f5fb44739a95c6b47de102f1d524589aef52407dc5
+approval request SHA-256 = 74d0d8cfa1526eb8b3a0dec0b6b03d10ece4dadf9007ca0b7e74b41b5690d2ba
+contains secrets = false
 ```
 
 构建器绑定 exact source commit/tree/ref、全部文件 SHA-256、dependency lock、Zod 版本与运行树摘要。正式构建要求远端 ref 与当前完整 commit 精确一致，未提交或未推送源码不能生成生产 approval package。
@@ -182,41 +194,66 @@ secretMaterialPresent = false
 现场测得 Binance 默认 `/api/v3/exchangeInfo` 响应约 17,407,074 bytes，超过
 固定 8 MiB 上限；官方 `showPermissionSets=false` 查询返回 6,629,806 bytes，
 并保留本 Gate 所需身份字段。R3 因此只修改该 exact URL，不提高响应上限、不放宽
-schema、不删探针。当前 R3 package 24/24、fixed dispatch 21/21、V2 Ops
+schema、不删探针。R3 package 24/24、fixed dispatch 21/21、V2 Ops
 125/125 和独立正确分支完整 `ci:production` PASS；V2 Foundation 422 pass /
-6 explicit skip、M0、Next build、Golden 16/16 与 security 全部通过。精确提交和
-腾讯重派发待完成。
+6 explicit skip、M0、Next build、Golden 16/16 与 security 全部通过。
+
+R3 精确生产事实：
+
+```text
+source commit = 06c1fd1fe0559dfed2097d1d64cb94382973ec62
+source tree = b96690594db1094d3f632a038fffe984804147d7
+dispatch = m1b0-r3-live-source-20260723t175033z
+dispatch commit = ab25f0663388b01051542a4bf64ab15eacc40b46
+runner = market-radar-m1-1b0-r3-175033z
+runner result = success / exit 0
+source cutoff = 2026-07-23T17:53:40.455Z
+generated at = 2026-07-23T17:53:45.426Z
+network = TENCENT_ISOLATED_READ_ONLY
+probe plan digest = sha256:a8e5488fee40a3462d175e44b350dc856476d9d70a5d04290cbaa4e7eb546d36
+artifact id = source-conformance:5a6d0c06c7085db00380f746
+artifact content hash = sha256:5a6d0c06c7085db00380f74676d627185f6683567fc2c0882d6fb079a87e68fd
+probe counts = 15 pass / 0 fail / 0 not-run
+gate status = identity PASS / listing PASS / CoinGlass PASS
+productionChanged = false
+secretMaterialPresent = false
+staging = absent after execution
+```
+
+生产前后均为 HEAD `cec0b6572bb09ae91ff9e013f8bb160f73c045e2`、clean
+worktree、相同容器/listener digest、timer enabled/active、health
+ready/fresh、persistence ready。这个结果关闭 M1.1B0 exact live conformance，
+但没有改变生产应用、数据库、Redis、Worker、Fact 或业务 authority。
 
 ## 8. 完成边界
 
 当前可以说：
 
 ```text
-M1.1B0 R2 原生 HTTPS 修复已在腾讯取得 14/15。
-固定派发通道已接受同结构 rehearsal。
-前两次生产尝试均已真实 BLOCKED；R1 已形成 15/15 共同传输失败证据。
-R2 只有 Binance 现货目录失败，另 14 项真实 PASS。
-R3 有界查询修复已通过本地定向门禁，尚未取得生产证据。
-当前生产代码、容器与健康身份仍匹配绑定基线。
+M1.1B0 R3 exact release 已在腾讯取得 15/15。
+Identity、Listing 与 CoinGlass Gate 全部 PASS。
+R1、R2 的失败证据继续保留，不被 R3 覆盖或改写。
+当前生产代码、容器、listener、timer 与健康身份仍匹配绑定基线。
 ```
 
 当前不能说：
 
 ```text
-腾讯 live B0 已通过。
-15 个来源当前全部可用。
 Bitget、上新币或股票合约已进入生产扫描。
+Bybit listing 完整历史已回填。
+股票 session、公司行动、FX、basis 或执行成本已完成。
 M1.4B、四 Venue Shadow、扩展容量或分域校准已完成。
+系统已经具备实战 READY authority。
 ```
 
 ## 9. 后续硬顺序
 
 ```text
-R3 exact package-only commit and push
--> obtain fresh production HEAD/container identity
--> build exact no-secret dispatch bundle
--> Tencent isolated LIVE_READ_ONLY 15/15 B0
--> only live-passed capabilities enter M1.4B runtime Adapter
+M1.1B0 R3 LIVE_READ_ONLY 15/15 PASS
+-> M1.4B endpoint batching/runtime Adapter profiles
+-> Bybit listing bootstrap/checkpoint/gap/incremental ledger
+-> M1.5C Four-Venue Multi-Asset Shadow
+-> M1.6-D1 Expanded-Scope No-Cost Capacity Proof
 ```
 
 P0R 的 STS、COS 恢复和 fresh P0 是独立生产第一关键路径，不与本包合并，也不共享密钥运输边界。

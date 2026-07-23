@@ -374,12 +374,15 @@ test harness conformance = PASS_TEST_ONLY
 live local conformance = NOT_RUN
 Tencent isolated live conformance attempt 1 = BLOCKED_BEFORE_BUSINESS_ARTIFACT_NOT_COUNTED
 R1 directed package/fixed-dispatch/V2 Ops = 22/22 + 21/21 + 125/125 PASS
+R1 Tencent live conformance = 0/15 COMMON_TRANSPORT_FAILURE
+R2 Tencent live conformance = 14/15 LISTING_GATE_BLOCKED
+R3 Tencent live conformance = 15/15 IDENTITY_LISTING_COINGLASS_PASS
 M1.1B original full production CI = PASS
-M1.1B0 R1 full production CI = PASS
+M1.1B0 R3 full production CI = PASS
 production mutation = 0
 ```
 
-本地直连目标 Venue 曾观察到 transport reset，因此不能使用本地 fixture 代替真实 B0。首次腾讯派发已在业务 artifact 前阻断，且旧 Bybit 全历史职责不可能在 64 页/85 秒边界内完成；该尝试不能计入 B0。R1 只验证最新两页 `BOUNDED_COMPLETE`，完整历史由 M1.4B runtime 承担。正式重派发必须绑定 R1 提交后的 clean release，在腾讯隔离只读环境执行。
+本地直连目标 Venue 曾观察到 transport reset，因此不能使用本地 fixture 代替真实 B0。首次腾讯派发已在业务 artifact 前阻断，且旧 Bybit 全历史职责不可能在 64 页/85 秒边界内完成；该尝试不能计入 B0。R1 只验证最新两页 `BOUNDED_COMPLETE`，完整历史由 M1.4B runtime 承担。R3 exact release 已在腾讯隔离只读环境取得 15/15 和三个 Gate 全部 PASS，生产前后身份一致、secret absent、staging cleaned。
 
 ## 13. 后续固定顺序
 
@@ -387,16 +390,16 @@ production mutation = 0
 M1.1B local implementation + full CI
 -> M1.4A capability-independent scheduler contract [COMPLETE]
 -> M1.1B0 attempt 1 [BLOCKED_NOT_COUNTED]
--> M1.1B0 R1 exact commit push
--> Tencent isolated LIVE_READ_ONLY B0 redispatch
--> only passed capabilities enter M1.4B runtime Adapter
+-> M1.1B0 R1 0/15 + R2 14/15 [HISTORICAL_FAILURE_EVIDENCE]
+-> M1.1B0 R3 Tencent isolated LIVE_READ_ONLY 15/15 [COMPLETE]
+-> only R3 passed capabilities enter M1.4B runtime Adapter
 -> M1.4B listing-history bootstrap + checkpoint + gap + incremental
 -> M1.5C Four-Venue Multi-Asset Shadow
 -> M1.6-D1 Expanded-Scope No-Cost Capacity Proof
 -> M2/M3 per-domain detection, calibration, feasibility and risk
 ```
 
-B0 中失败的能力不能在 M1.4B 中假定可用。单股和 ETF/指数必须分别取得 session、reference/index、公司行动、费用、资金费、流动性、地区可用性、历史/Shadow、容量和校准证据。
+B0 未覆盖、未授权或后续漂移的能力不能在 M1.4B 中假定可用。单股和 ETF/指数必须分别取得 session、reference/index、公司行动、费用、资金费、流动性、地区可用性、历史/Shadow、容量和校准证据。
 
 P0R 生产恢复继续作为独立第一关键路径。M3.4 V1 草稿继续暂停，等待 Scope V2 rebase review。
 

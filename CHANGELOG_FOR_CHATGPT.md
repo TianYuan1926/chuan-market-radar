@@ -34,15 +34,15 @@
 
 ### 是否部署
 
-首次派发在业务 artifact 前阻断。R1 精确提交与派发形成 0/15 共同 `TRANSPORT_FAILURE_UNAVAILABLE` 证据。R2 精确提交 `d557c666e2e27b67842354b869a64271c91ceae1` 与派发 `m1b0-r2-live-source-20260723t165411z` 已形成 14/15：Identity/CoinGlass PASS，Listing 因唯一 `BINANCE_SPOT_CATALOG` 失败而 BLOCKED；现场生产 HEAD、clean worktree、11 个容器、listener、timer 和 health 保持基线，`productionChanged=false`、`secretMaterialPresent=false`。
+首次派发在业务 artifact 前阻断。R1 精确提交与派发形成 0/15 共同 `TRANSPORT_FAILURE_UNAVAILABLE` 证据。R2 精确提交 `d557c666e2e27b67842354b869a64271c91ceae1` 与派发 `m1b0-r2-live-source-20260723t165411z` 形成 14/15。R3 精确提交 `06c1fd1fe0559dfed2097d1d64cb94382973ec62`、bundle `8483d1b8111cc34ddbf745f5fb44739a95c6b47de102f1d524589aef52407dc5` 与派发 `m1b0-r3-live-source-20260723t175033z` 已在腾讯取得 15/15，Identity、Listing、CoinGlass Gate 全部 PASS。artifact=`source-conformance:5a6d0c06c7085db00380f746`；现场生产 HEAD、clean worktree、11 个容器、listener、timer 和 health 前后保持基线，`productionChanged=false`、`secretMaterialPresent=false`，staging 已删除。
 
 ### 风险与遗留问题
 
-R3 完整 CI、exact commit/push、fresh 生产身份绑定和腾讯 15/15 重派发尚未完成。股票目录可达也不能证明 session、公司行动、reference、成本或股票实战能力；Bybit 两页窗口也不能证明完整 listing history。
+M1.1B0 只关闭 exact source conformance。M1.4B runtime Adapter、Bybit 完整 listing history、四 Venue Shadow、扩展容量和持续 SLO 尚未完成；股票目录可达也不能证明 session、公司行动、FX、reference、basis、成本或股票实战能力。
 
 ### 下一轮建议
 
-先完成 R3 完整 CI 和精确提交，再构建绑定 fresh production identity 的无密钥派发包；只有 live PASS capability 进入 M1.4B，随后由 M1.4B 单独验收 listing 历史回填。P0R 保持独立生产第一关键路径。
+本地进入 M1.4B，只为 R3 live PASS capability 建设 endpoint batching/runtime Adapter，并单独验收 Bybit listing 历史 bootstrap/checkpoint/gap/incremental。P0R 继续保持独立生产第一关键路径。
 
 ## 2026-07-23 / V2 M1.4A Adaptive Multi-Asset Collector Contracts
 
