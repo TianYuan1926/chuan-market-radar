@@ -1118,7 +1118,7 @@ export const PriceZoneSchema = z.strictObject({
 export const TargetLevelSchema = z.strictObject({
   targetId: NonEmptyStringSchema,
   price: PositiveDecimalStringSchema,
-  allocationPercent: FiniteNumberSchema.gt(0).max(100),
+  allocationPercent: z.number().int().gt(0).max(100),
   source: z.enum([
     "PRIOR_EXTREME",
     "STRUCTURE_BOUNDARY",
@@ -1203,30 +1203,145 @@ export const StrategyDraftSchema = z.strictObject({
   episodeId: NonEmptyStringSchema,
   analysisId: NonEmptyStringSchema,
   qualificationId: NonEmptyStringSchema,
+  opportunityFamily: z.enum(OPPORTUNITY_FAMILIES),
+  strategyAuthority: z.enum([
+    "TEST_ONLY_UNCALIBRATED",
+    "REPLAY_CALIBRATED",
+    "SHADOW_CALIBRATED",
+    "LIMITED_CALIBRATED",
+    "PRODUCTION_CALIBRATED",
+  ]),
+  analyzerVersion: NonEmptyStringSchema,
+  qualificationPolicyVersion: NonEmptyStringSchema,
   templateVersion: NonEmptyStringSchema,
+  bufferPolicyVersion: NonEmptyStringSchema,
+  costAssumptionSetId: NonEmptyStringSchema,
+  costAssumptionVersion: NonEmptyStringSchema,
   direction: DirectionSchema,
-  whyNow: ReasonCodesSchema,
+  referencePrice: PositiveDecimalStringSchema,
+  referencePriceFactIds: z.array(NonEmptyStringSchema).min(1),
+  whyNow: ReasonCodesSchema.min(1),
   whyNotNow: ReasonCodesSchema,
   entryTrigger: NonEmptyStringSchema,
   plannedEntryZone: PriceZoneSchema,
+  entryZoneBufferBps: z.number().int().nonnegative().max(9_999),
   structuralInvalidation: NonEmptyStringSchema,
+  structuralStopBase: PositiveDecimalStringSchema,
   structuralStop: PositiveDecimalStringSchema,
+  structuralStopBufferBps: z.number().int().nonnegative().max(9_999),
   structuralStopSourceLevelIds: z.array(NonEmptyStringSchema).min(1),
-  targets: z.array(TargetLevelSchema),
+  targets: z.array(TargetLevelSchema).min(1),
+  rewardRiskCalculationVersion: NonEmptyStringSchema,
+  rewardRiskPrecision: z.number().int().min(0).max(12),
   grossRewardRisk: NonNegativeFiniteSchema,
   estimatedNetRewardRisk: NonNegativeFiniteSchema,
-  feeAssumptionBps: NonNegativeFiniteSchema,
-  slippageAssumptionBps: NonNegativeFiniteSchema,
-  fundingAssumptionBps: FiniteNumberSchema,
+  feePerSideAssumptionBps: z.number().int().nonnegative().max(10_000),
+  slippagePerSideAssumptionBps: z.number().int().nonnegative().max(10_000),
+  fundingAssumptionBps: z.number().int().min(-10_000).max(10_000),
+  totalConservativeCostBps: z.number().int().nonnegative().max(50_000),
   confirmationWindow: NonEmptyStringSchema,
   expiresAt: IsoDateTimeSchema,
   noChaseCondition: NonEmptyStringSchema,
+  partialTakeProfitPolicy: NonEmptyStringSchema,
   counterEvidence: ReasonCodesSchema,
   blockers: ReasonCodesSchema,
 }).superRefine((draft, context) => {
   addPlanGeometryIssues(draft, context);
-  if (draft.targets.length > 0) {
-    validateTargetAllocation(draft.targets, context);
+  validateTargetAllocation(draft.targets, context);
+  if (new Set(draft.referencePriceFactIds).size !== draft.referencePriceFactIds.length) {
+    context.addIssue({
+      code: "custom",
+      message: "reference price fact ids must be unique",
+      path: ["referencePriceFactIds"],
+    });
+  }
+  if (
+    new Set(draft.structuralStopSourceLevelIds).size !==
+      draft.structuralStopSourceLevelIds.length
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "structural stop source level ids must be unique",
+      path: ["structuralStopSourceLevelIds"],
+    });
+  }
+  if (
+    draft.direction === "LONG" &&
+    (
+      compareNonNegativeDecimalStrings(
+        draft.structuralStop,
+        draft.structuralStopBase,
+      ) >= 0 ||
+      compareNonNegativeDecimalStrings(
+        draft.structuralStopBase,
+        draft.plannedEntryZone.upper,
+      ) > 0
+    )
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "a LONG stop buffer must widen below its structural base",
+      path: ["structuralStopBase"],
+    });
+  }
+  if (
+    draft.direction === "SHORT" &&
+    (
+      compareNonNegativeDecimalStrings(
+        draft.structuralStop,
+        draft.structuralStopBase,
+      ) <= 0 ||
+      compareNonNegativeDecimalStrings(
+        draft.structuralStopBase,
+        draft.plannedEntryZone.lower,
+      ) < 0
+    )
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "a SHORT stop buffer must widen above its structural base",
+      path: ["structuralStopBase"],
+    });
+  }
+  if (draft.estimatedNetRewardRisk > draft.grossRewardRisk) {
+    context.addIssue({
+      code: "custom",
+      message: "conservative net reward-risk cannot exceed gross reward-risk",
+      path: ["estimatedNetRewardRisk"],
+    });
+  }
+  if (
+    draft.totalConservativeCostBps !==
+      2 * draft.feePerSideAssumptionBps +
+      2 * draft.slippagePerSideAssumptionBps +
+      Math.max(draft.fundingAssumptionBps, 0)
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "total conservative cost bps must match fee, slippage and non-negative funding cost",
+      path: ["totalConservativeCostBps"],
+    });
+  }
+  if (Date.parse(draft.expiresAt) <= Date.parse(draft.generatedAt)) {
+    context.addIssue({
+      code: "custom",
+      message: "strategy draft must expire after it is generated",
+      path: ["expiresAt"],
+    });
+  }
+  if (
+    draft.strategyAuthority === "TEST_ONLY_UNCALIBRATED" &&
+    (
+      !draft.blockers.includes("strategy_authority_test_only_uncalibrated") ||
+      !draft.blockers.includes("strategy_buffer_policy_uncalibrated") ||
+      !draft.blockers.includes("strategy_cost_assumptions_uncalibrated")
+    )
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "test-only strategy drafts must retain all no-authority blockers",
+      path: ["blockers"],
+    });
   }
 }) satisfies z.ZodType<StrategyDraft>;
 

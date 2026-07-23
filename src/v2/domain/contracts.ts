@@ -465,24 +465,45 @@ export type StrategyDraft = TraceEnvelope & {
   episodeId: string;
   analysisId: string;
   qualificationId: string;
+  opportunityFamily: OpportunityFamily;
+  strategyAuthority:
+    | "TEST_ONLY_UNCALIBRATED"
+    | "REPLAY_CALIBRATED"
+    | "SHADOW_CALIBRATED"
+    | "LIMITED_CALIBRATED"
+    | "PRODUCTION_CALIBRATED";
+  analyzerVersion: string;
+  qualificationPolicyVersion: string;
   templateVersion: string;
+  bufferPolicyVersion: string;
+  costAssumptionSetId: string;
+  costAssumptionVersion: string;
   direction: Direction;
+  referencePrice: string;
+  referencePriceFactIds: readonly string[];
   whyNow: readonly string[];
   whyNotNow: readonly string[];
   entryTrigger: string;
   plannedEntryZone: PriceZone;
+  entryZoneBufferBps: number;
   structuralInvalidation: string;
+  structuralStopBase: string;
   structuralStop: string;
+  structuralStopBufferBps: number;
   structuralStopSourceLevelIds: readonly string[];
   targets: readonly TargetLevel[];
+  rewardRiskCalculationVersion: string;
+  rewardRiskPrecision: number;
   grossRewardRisk: number;
   estimatedNetRewardRisk: number;
-  feeAssumptionBps: number;
-  slippageAssumptionBps: number;
+  feePerSideAssumptionBps: number;
+  slippagePerSideAssumptionBps: number;
   fundingAssumptionBps: number;
+  totalConservativeCostBps: number;
   confirmationWindow: string;
   expiresAt: string;
   noChaseCondition: string;
+  partialTakeProfitPolicy: string;
   counterEvidence: readonly string[];
   blockers: readonly string[];
 };

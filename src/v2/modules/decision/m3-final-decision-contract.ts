@@ -21,7 +21,12 @@ import {
   NonEmptyStringSchema,
   QualityAssessmentSchema,
   ReasonCodesSchema,
+  compareNonNegativeDecimalStrings,
 } from "../../runtime-schema/primitives";
+import {
+  M3_CONSERVATIVE_REWARD_RISK_CALCULATION_VERSION,
+  calculateConservativeRewardRisk,
+} from "../strategy/m3-exact-price-math";
 
 export const M3_FINAL_DECISION_CONTRACT_VERSION =
   "m3-final-decision-contract.v1" as const;
@@ -294,6 +299,12 @@ function addIdentityIssues(
     ["draft.episodeId", draft.episodeId, expected.episodeId],
     ["draft.analysisId", draft.analysisId, expected.analysisId],
     ["draft.qualificationId", draft.qualificationId, expected.qualificationId],
+    ["draft.analyzerVersion", draft.analyzerVersion, analysis.analyzerVersion],
+    [
+      "draft.qualificationPolicyVersion",
+      draft.qualificationPolicyVersion,
+      qualification.qualificationPolicyVersion,
+    ],
     ["feasibility.draftId", feasibility.draftId, expected.draftId],
     ["decision.episodeId", decision.episodeId, expected.episodeId],
     ["decision.draftId", decision.draftId, expected.draftId],
@@ -313,13 +324,14 @@ function addIdentityIssues(
   if (
     thesis.opportunityFamily !== episode.opportunityFamily ||
     analysis.opportunityFamily !== episode.opportunityFamily ||
-    qualification.opportunityFamily !== episode.opportunityFamily
+    qualification.opportunityFamily !== episode.opportunityFamily ||
+    draft.opportunityFamily !== episode.opportunityFamily
   ) {
     issue(
       issues,
       "opportunity_family_lineage_mismatch",
       "analysis.opportunityFamily",
-      "episode, thesis, analysis and qualification must keep the same opportunity family",
+      "episode, thesis, analysis, qualification and strategy must keep the same opportunity family",
     );
   }
   if (
@@ -347,6 +359,121 @@ function addIdentityIssues(
       "analysis_evidence_item_lineage_incomplete",
       "analysis.evidenceItemIds",
       "family analysis must account for every evidence item exactly once",
+    );
+  }
+}
+
+function addStrategyCalculationIssues(
+  issues: M3DecisionContractIssue[],
+  bundle: M3FinalDecisionBundle,
+): void {
+  const { draft } = bundle;
+  if (
+    draft.rewardRiskCalculationVersion !==
+      M3_CONSERVATIVE_REWARD_RISK_CALCULATION_VERSION
+  ) {
+    issue(
+      issues,
+      "strategy_reward_risk_calculation_version_mismatch",
+      "draft.rewardRiskCalculationVersion",
+      "final decision accepts only the current exact conservative reward-risk calculation",
+    );
+    return;
+  }
+  const conservativeEntryPrice = draft.direction === "LONG"
+    ? draft.plannedEntryZone.upper
+    : draft.plannedEntryZone.lower;
+  const recalculated = calculateConservativeRewardRisk({
+    direction: draft.direction,
+    conservativeEntryPrice,
+    structuralStop: draft.structuralStop,
+    targets: draft.targets,
+    feePerSideBps: draft.feePerSideAssumptionBps,
+    slippagePerSideBps: draft.slippagePerSideAssumptionBps,
+    fundingBps: draft.fundingAssumptionBps,
+    precision: draft.rewardRiskPrecision,
+  });
+  if (
+    recalculated.grossRewardRisk !== draft.grossRewardRisk ||
+    recalculated.estimatedNetRewardRisk !== draft.estimatedNetRewardRisk ||
+    recalculated.totalConservativeCostBps !==
+      draft.totalConservativeCostBps
+  ) {
+    issue(
+      issues,
+      "strategy_reward_risk_calculation_mismatch",
+      "draft.grossRewardRisk",
+      "strategy reward-risk and cost fields must exactly match entry, stop, targets and assumptions",
+    );
+  }
+}
+
+function addStrategyLevelLineageIssues(
+  issues: M3DecisionContractIssue[],
+  bundle: M3FinalDecisionBundle,
+): void {
+  const levels = new Map(
+    bundle.analysis.structuralLevels.map((level) => [level.levelId, level]),
+  );
+  const allSourceIds = [
+    ...bundle.draft.plannedEntryZone.sourceLevelIds,
+    ...bundle.draft.structuralStopSourceLevelIds,
+    ...bundle.draft.targets.flatMap((target) => target.sourceLevelIds),
+  ];
+  if (allSourceIds.some((levelId) => !levels.has(levelId))) {
+    issue(
+      issues,
+      "strategy_level_lineage_missing",
+      "draft.plannedEntryZone.sourceLevelIds",
+      "every strategy entry, stop and target source must exist in family analysis",
+    );
+  }
+  const stopBaseMatches = bundle.draft.structuralStopSourceLevelIds.some(
+    (levelId) => {
+      const level = levels.get(levelId);
+      return level !== undefined &&
+        compareNonNegativeDecimalStrings(
+          level.price,
+          bundle.draft.structuralStopBase,
+        ) === 0;
+    },
+  );
+  if (!stopBaseMatches) {
+    issue(
+      issues,
+      "strategy_stop_base_level_price_mismatch",
+      "draft.structuralStopBase",
+      "structural stop base must equal a declared analysis level price",
+    );
+  }
+  for (const [index, target] of bundle.draft.targets.entries()) {
+    const targetMatches = target.sourceLevelIds.some((levelId) => {
+      const level = levels.get(levelId);
+      return level !== undefined &&
+        compareNonNegativeDecimalStrings(level.price, target.price) === 0;
+    });
+    if (!targetMatches) {
+      issue(
+        issues,
+        "strategy_target_level_price_mismatch",
+        `draft.targets.${index}.price`,
+        "target price must equal a declared source level price",
+      );
+    }
+  }
+  const analysisFactIds = new Set(
+    bundle.analysis.structuralLevels.flatMap((level) => level.sourceFactIds),
+  );
+  if (
+    bundle.draft.referencePriceFactIds.some(
+      (factId) => !analysisFactIds.has(factId),
+    )
+  ) {
+    issue(
+      issues,
+      "strategy_reference_price_fact_lineage_missing",
+      "draft.referencePriceFactIds",
+      "every reference price fact must be present in analysis structural lineage",
     );
   }
 }
@@ -414,6 +541,25 @@ function authorizationReasons(bundle: M3FinalDecisionBundle): string[] {
       requiredQualificationAuthority[authorization.decisionScope]
   ) {
     reasons.add("signal_qualification_authority_not_calibrated_for_scope");
+  }
+  const requiredStrategyAuthority = {
+    REPLAY: "REPLAY_CALIBRATED",
+    SHADOW: "SHADOW_CALIBRATED",
+    LIMITED: "LIMITED_CALIBRATED",
+    PRODUCTION: "PRODUCTION_CALIBRATED",
+  } as const;
+  if (
+    authorization.decisionScope === "TEST_ONLY" &&
+    bundle.draft.strategyAuthority !== "TEST_ONLY_UNCALIBRATED"
+  ) {
+    reasons.add("strategy_authority_exceeds_test_only_scope");
+  }
+  if (
+    authorization.decisionScope !== "TEST_ONLY" &&
+    bundle.draft.strategyAuthority !==
+      requiredStrategyAuthority[authorization.decisionScope]
+  ) {
+    reasons.add("strategy_authority_not_calibrated_for_scope");
   }
   return [...reasons].sort();
 }
@@ -638,6 +784,8 @@ export function assessM3FinalDecisionBundle(
   const issues: M3DecisionContractIssue[] = [];
   addReleaseIssues(issues, bundle);
   addIdentityIssues(issues, bundle);
+  addStrategyCalculationIssues(issues, bundle);
+  addStrategyLevelLineageIssues(issues, bundle);
 
   addChronologyIssue(issues, bundle.episode, "episode", []);
   addChronologyIssue(issues, bundle.thesis, "thesis", [bundle.episode]);

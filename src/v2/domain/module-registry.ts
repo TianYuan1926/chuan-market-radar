@@ -113,8 +113,17 @@ export const MODULE_REGISTRY = [
     order: 10,
     pipelineOrder: 10,
     authorityOutputs: ["StrategyDraft"],
-    readsFrom: ["family_analysis", "signal_qualification"],
-    prohibited: ["ready_state", "scan_ranking_mutation", "rr_gate_relaxation"],
+    readsFrom: [
+      "market_fact_quality",
+      "family_analysis",
+      "signal_qualification",
+    ],
+    prohibited: [
+      "ready_state",
+      "placeholder_price",
+      "scan_ranking_mutation",
+      "rr_gate_relaxation",
+    ],
   },
   {
     id: "execution_feasibility_final_decision",

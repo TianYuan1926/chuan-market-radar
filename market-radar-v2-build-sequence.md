@@ -47,9 +47,10 @@
 - [ ] **M2.2-C Registered Replay + Sensitivity + Untouched Holdout**：先在 validation 执行全部预登记 sensitivity trial 并报告失败，再单次打开 holdout，输出 overall/family/detector/direction/regime/liquidity 指标、Top20 late/noise、失败案例和 sealed result；每个实际 stratum 都必须登记并逐层过线，数据或样本不足必须 INSUFFICIENT。
 - [ ] **M2.2-D Independent Audit + Lifecycle Proposal**：独立复核来源权利、分母、future leak、trial completeness、custody ledger 和 Gate digest。只有 PASS 才可提出 REPLAY_VALIDATED；生命周期修改仍需独立 package，Candidate/runtime 仍封闭。
 - [ ] **M3 唯一决策纵向切片**：完成 family-specific Analysis、Evidence/Setup 双评级、StrategyDraft、Execution Feasibility 唯一终审、Personal/Portfolio Risk。验证：只有 Final Decision 能产生 READY，false READY=0，结构与净 RR 均不低于 3，所有关键缺失 fail closed。
-- [x] **M3.0 Final Decision Authority Contract（可并行本地）**：已冻结 upstream authority、same-release/id/time lineage、Evidence/Setup 独立状态、Draft/Feasibility/Trigger/Runtime Gate、Action State 优先级、READY plan parity 和派生原因完整性。M3.2 后回归扩至 18/18，未校准 Analysis/Qualification、校准 abstain 或丢失反证均不得进入有权决策。状态：`LOCAL_CONTRACT_PASS / TEST_ONLY_NO_PRODUCTION_AUTHORITY / M1_P0R_PENDING / M2_DETECTORS_DRAFT`。
+- [x] **M3.0 Final Decision Authority Contract（可并行本地）**：已冻结 upstream authority、same-release/id/time lineage、Evidence/Setup 独立状态、Draft/Feasibility/Trigger/Runtime Gate、Action State 优先级、READY plan parity 和派生原因完整性。M3.3 后回归扩至 22/22，未校准 Analysis/Qualification/Strategy、校准 abstain、丢失反证或 Strategy level/RR 伪造均不得进入有权决策。状态：`LOCAL_CONTRACT_PASS / TEST_ONLY_NO_PRODUCTION_AUTHORITY / M1_P0R_PENDING / M2_DETECTORS_DRAFT`。
 - [x] **M3.1 Family Analysis + Evidence Interpretation（可并行本地）**：六族分别覆盖 long、short、失效/unavailable；EvidenceItem 必须恰好解释一次，反证不得丢失，Market Context 和结构位绑定 exact lineage，缺失/stale/冲突/未来读/标签漂白/Fib-only 均 fail closed 或降为 UNKNOWN。M3.2 后 `AnalysisSnapshot v3` 增加显式 `spaceQuality`。状态：`LOCAL_CONTRACT_PASS / TEST_ONLY_UNCALIBRATED / NO_STRATEGY_AUTHORITY / PRODUCTION_UNCHANGED`。
-- [x] **M3.2 Evidence + Setup Qualification（可并行本地）**：清除 EvidencePackage 上游 `tier`，以 v2 criticality/independence lineage 独立形成 Evidence Grade；Setup Grade 独立评价结构、位置、空间、时机、fakeout/noise、regime 和 uncertainty。真实 calibration contract 必须绑定 cohort、untouched holdout、至少 60 样本、至少 3 个 regime、CI 与 reliability error；当前 builder 永远 test-only uncalibrated，不生成概率或决策。M3.2 18/18、M3.1 21/21、M3.0 18/18，M3 合计 57/57；全 V2 336 pass / 0 fail / 6 explicit skip，ops 115/115。状态：`LOCAL_CONTRACT_PASS / NO_STRATEGY_OR_READY_AUTHORITY / PRODUCTION_UNCHANGED`。
+- [x] **M3.2 Evidence + Setup Qualification（可并行本地）**：清除 EvidencePackage 上游 `tier`，以 v2 criticality/independence lineage 独立形成 Evidence Grade；Setup Grade 独立评价结构、位置、空间、时机、fakeout/noise、regime 和 uncertainty。真实 calibration contract 必须绑定 cohort、untouched holdout、至少 60 样本、至少 3 个 regime、CI 与 reliability error；当前 builder 永远 test-only uncalibrated，不生成概率或决策。M3.2 保持 18/18；M3.3 后总回归见下一项。状态：`LOCAL_CONTRACT_PASS / NO_DECISION_AUTHORITY / PRODUCTION_UNCHANGED`。
+- [x] **M3.3 Strategy Construction（可并行本地）**：六族分别冻结 long/short entry、结构失效、target、confirmation、expiry、no-chase 和 partial take-profit；`StrategyDraft v2` 绑定 family、policy、reference、stop base、cost 与 RR calculation lineage。BigInt 定点算法按最不利 entry 计算 gross/net RR，低 RR 只阻断、不缩 stop；缺入口/目标/fresh reference 时 no-draft abstain。M3.0 二次核对 Strategy scope、level/price/fact 和 RR。M3.3 20/20、M3.2 18/18、M3.1 21/21、M3.0 22/22，M3 合计 81/81；全 V2 360 pass / 0 fail / 6 explicit skip，ops 115/115。状态：`LOCAL_CONTRACT_PASS / TEST_ONLY_UNCALIBRATED / NO_READY_AUTHORITY / PRODUCTION_UNCHANGED`。
 - [ ] **M4 单一读模型与专业工作台**：先建立 DecisionSnapshot 和站内 Alert，再重建 Inbox、Token Workbench、Review、System。验证：页面零 provider/decision 调用，同一 snapshot 在所有视图一致，E2E、a11y、visual、performance 和注意力预算通过。
 - [ ] **M5 结果与研究治理**：从 M2 首个 Episode 起并行采集 Outcome，但只有冻结数据成熟后才评估；Research 与 Evaluation 物理分离。验证：future leak=0、Missed Movers/对照组完整、全部试验登记、Challenger 不能自批或自动晋级。
 - [ ] **M6-M7 受控切换与实战准入**：严格按 replay -> no-write shadow -> isolated write -> dual read -> read authority -> single write -> rollback retention -> Legacy retirement；最后完成 60 天 Shadow、30 天模拟决策、安全、恢复和外部审计。验证：每次只切一个 authority，R4 评分与一票否决全部过线后才允许声明“人工实战决策辅助准入”。
@@ -103,13 +104,13 @@ M2.2-B0.2-B external rights/source resolution
 
 ```text
 M0 engineering exit: LOCAL_PASS / PRODUCTION_UNCHANGED
-Last completed local package: V2-M3.2-EVIDENCE-AND-SETUP-QUALIFICATION-CONTRACT
-Next local package: V2-M3.3-STRATEGY-CONSTRUCTION-CONTRACT
+Last completed local package: V2-M3.3-STRATEGY-CONSTRUCTION-CONTRACT
+Next local package: V2-M3.4-EXECUTION-FEASIBILITY-CONTRACT
 Last production gate execution: V2-M1.6-P0-PRODUCTION-STORAGE-READ-ONLY-PREFLIGHT = BLOCKED
 Current execution entry: V2-M1.6-P0R-C-STS-ENCRYPTED-BACKUP-EXACT-RETRIEVAL-AND-ISOLATED-RESTORE; Object Lock 31d, age Keychain identity and exact transport bundle are complete
 Current blocked external entry: V2-M2.2-B0.2-B-EXACT-SOURCE-RIGHTS-AND-CAPABILITY-RESOLUTION
 Completed bounded shadow gate: V2-M1.5-B1-B-PASS_EARLY_SHADOW_BUSINESS_GATE
-Current status: M1.5-B1_COMPLETE / B1-B1_EXECUTION_INVALID_NOT_COUNTED / B1-B3_PASS / M1.6-P0_EXECUTED_BLOCKED_CAPACITY_AND_RECOVERY / M1.6-P0R_CLEAN_PRE_STS_BASELINE_PASS_STS_AND_RECOVERY_PENDING / M3.0-M3.2_LOCAL_CONTRACT_PASS_TEST_ONLY_UNCALIBRATED_NO_STRATEGY_OR_READY_AUTHORITY / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED / PRODUCTION_SERVICES_DATA_AND_AUTHORITY_UNCHANGED
+Current status: M1.5-B1_COMPLETE / B1-B1_EXECUTION_INVALID_NOT_COUNTED / B1-B3_PASS / M1.6-P0_EXECUTED_BLOCKED_CAPACITY_AND_RECOVERY / M1.6-P0R_CLEAN_PRE_STS_BASELINE_PASS_STS_AND_RECOVERY_PENDING / M3.0-M3.3_LOCAL_CONTRACT_PASS_TEST_ONLY_UNCALIBRATED_NO_READY_AUTHORITY / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED / PRODUCTION_SERVICES_DATA_AND_AUTHORITY_UNCHANGED
 ```
 
 M0 的减数只代表合同、运行时输入边界、Legacy 消费者地图和隔离门禁已经形成闭环；它不代表真实 Provider、全市场扫描、Detector、交易计划、页面或生产能力已经完成。

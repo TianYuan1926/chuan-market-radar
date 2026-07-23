@@ -141,14 +141,14 @@ M3.2 strict schema 拒绝：
 
 ## 9. 验收与未完成
 
-M3.2 定向 18 项，连同 M3.1 21 项和 M3.0 18 项共 57/57 PASS。覆盖六族、双等级独立性、关键缺失、未知 context、invalid structure、constrained space、污染字段、谱系拼接、校准防伪、策略越权、确定性与深冻结。
+M3.2 定向 18 项保持通过；M3.3 后连同 M3.1 21 项、M3.3 20 项和扩展后的 M3.0 22 项共 81/81 PASS。覆盖六族、双等级独立性、关键缺失、未知 context、invalid structure、constrained space、污染字段、谱系拼接、校准防伪、策略越权、确定性与深冻结。
 
 以下仍未完成：
 
 - 真实 Deep Validation 生产链。
 - 真实 cohort、分层校准、untouched holdout 和独立审计。
 - scope-matched calibrated authority。
-- Strategy Construction、live Execution Feasibility、Personal/Portfolio Risk。
+- M3.3 已建立 test-only Strategy Construction；真实 buffer/cost 校准、scope authority、live Execution Feasibility 与 Personal/Portfolio Risk 仍未完成。
 - M1/M2 runtime authority、M3 runtime、API、Decision Snapshot 和页面。
 
 因此 M3 主步骤仍未完成，当前不能产生 V2 `TRADE_PLAN_READY`。

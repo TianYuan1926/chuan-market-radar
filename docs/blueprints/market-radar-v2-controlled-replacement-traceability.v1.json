@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.27",
-  "status": "m1_5_b1_pass_m1_6_p0_blocked_p0r_clean_pre_sts_baseline_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_m3_0_through_m3_2_local_contract_pass_test_only_uncalibrated_no_strategy_or_ready_authority_fixed_dispatch_first_signed_acceptance_pass_external_historical_source_blocked_m1_not_complete",
-  "generatedAt": "2026-07-23T12:58:39+08:00",
+  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.28",
+  "status": "m1_5_b1_pass_m1_6_p0_blocked_p0r_clean_pre_sts_baseline_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_m3_0_through_m3_3_local_contract_pass_test_only_uncalibrated_no_ready_authority_fixed_dispatch_first_signed_acceptance_pass_external_historical_source_blocked_m1_not_complete",
+  "generatedAt": "2026-07-23T13:43:27+08:00",
   "implementationAuthorized": true,
   "productionMutationAuthorized": false,
   "authority": {
@@ -10,7 +10,7 @@
     "index": "docs/blueprints/README.md",
     "currentFacts": "PROJECT_CONTEXT_FOR_CHATGPT.md",
     "recentChanges": "CHANGELOG_FOR_CHATGPT.md",
-    "deliveryReport": "docs/blueprints/V2_M3_2_EVIDENCE_AND_SETUP_QUALIFICATION_DELIVERY_REPORT.md",
+    "deliveryReport": "docs/blueprints/V2_M3_3_STRATEGY_CONSTRUCTION_DELIVERY_REPORT.md",
     "buildSequence": "market-radar-v2-build-sequence.md",
     "baseManifest": "docs/architecture/v2/V2_BASE_MANIFEST.v1.json",
     "baselineDecision": "docs/architecture/v2/ADR-0001-CLEAN-BASELINE-AND-V2-ISOLATION.md",
@@ -59,6 +59,8 @@
     "m3FamilyAnalysisAndEvidenceInterpretationDeliveryReport": "docs/blueprints/V2_M3_1_FAMILY_ANALYSIS_AND_EVIDENCE_INTERPRETATION_DELIVERY_REPORT.md",
     "m3EvidenceAndSetupQualificationContract": "docs/architecture/v2/M3_2_EVIDENCE_AND_SETUP_QUALIFICATION_CONTRACT_V1.md",
     "m3EvidenceAndSetupQualificationDeliveryReport": "docs/blueprints/V2_M3_2_EVIDENCE_AND_SETUP_QUALIFICATION_DELIVERY_REPORT.md",
+    "m3StrategyConstructionContract": "docs/architecture/v2/M3_3_STRATEGY_CONSTRUCTION_CONTRACT_V1.md",
+    "m3StrategyConstructionDeliveryReport": "docs/blueprints/V2_M3_3_STRATEGY_CONSTRUCTION_DELIVERY_REPORT.md",
     "productionFixedDispatchContract": "docs/governance/production-fixed-dispatch-channel.v1.json",
     "productionFixedDispatchDeliveryReport": "docs/blueprints/G0_PRODUCTION_FIXED_DISPATCH_FIRST_SIGNED_ACCEPTANCE_DELIVERY_REPORT.md",
     "recurrenceRootCauseRegistry": "docs/governance/recurrence-root-cause-registry.v1.json",
@@ -81,7 +83,7 @@
   "currentBoundary": {
     "readiness": "R1",
     "status": "runnable_but_incomplete_not_practical_ready",
-    "v2ImplementationStatus": "m1_5_b1_complete_m1_6_p0_blocked_p0r_clean_pre_sts_baseline_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_m3_0_through_m3_2_local_contract_pass_test_only_uncalibrated_no_strategy_or_ready_authority_external_rights_blocked_detectors_draft_candidate_emission_false_m1_not_complete",
+    "v2ImplementationStatus": "m1_5_b1_complete_m1_6_p0_blocked_p0r_clean_pre_sts_baseline_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_m3_0_through_m3_3_local_contract_pass_test_only_uncalibrated_no_ready_authority_external_rights_blocked_detectors_draft_candidate_emission_false_m1_not_complete",
     "v2ImplementationBranch": "codex/market-radar-v2-implementation",
     "v2ImplementationBaseCommit": "e5eb90026d8bfcd52b060359446515de5a5c32d6",
     "latestProductionFinalStatus": "storage_preflight_blocked_capacity_and_recovery_application_health_not_evaluated",
@@ -299,6 +301,7 @@
       "coreContribution": "family_specific_structural_plan_draft",
       "prohibited": [
         "ready_state",
+        "placeholder_price",
         "scan_ranking_mutation",
         "rr_gate_relaxation"
       ]
@@ -860,7 +863,7 @@
       "order": 3,
       "id": "M3",
       "name": "analysis_qualification_strategy_feasibility_risk",
-      "status": "m3_0_through_m3_2_local_contract_pass_test_only_uncalibrated_main_stage_incomplete",
+      "status": "m3_0_through_m3_3_local_contract_pass_test_only_uncalibrated_main_stage_incomplete",
       "dependsOn": [
         "M2"
       ],
@@ -869,7 +872,7 @@
           "id": "M3.0",
           "name": "final_decision_authority_contract",
           "status": "local_contract_pass_test_only_no_production_authority",
-          "directedTestsPassed": 18,
+          "directedTestsPassed": 22,
           "directedTestsFailed": 0,
           "m1ExitRequired": true,
           "m2LifecycleGateRequired": true,
@@ -902,6 +905,21 @@
           "candidatePriorityInheritanceAllowed": false,
           "singleTotalScoreAllowed": false,
           "realCalibrationAvailable": false,
+          "strategyAuthorityAllowed": false,
+          "productionAuthorityAllowed": false
+        },
+        {
+          "id": "M3.3",
+          "name": "strategy_construction",
+          "status": "local_contract_pass_six_families_test_only_uncalibrated_no_ready_authority",
+          "directedTestsPassed": 20,
+          "directedTestsFailed": 0,
+          "strategyDraftSchema": "strategy-draft.v2",
+          "familiesCovered": 6,
+          "longShortCovered": true,
+          "exactDecimalPriceMath": true,
+          "rewardRiskRecalculatedByFinalDecision": true,
+          "placeholderPriceAllowed": false,
           "strategyAuthorityAllowed": false,
           "productionAuthorityAllowed": false
         }
@@ -980,9 +998,9 @@
     "legacyDeletionAllowed": false
   },
   "lastCompletedImplementationEntry": {
-    "id": "V2-M3.2-EVIDENCE-AND-SETUP-QUALIFICATION-CONTRACT",
-    "name": "independent_evidence_and_setup_grade_contract_with_calibration_abstention",
-    "status": "local_contract_pass_test_only_uncalibrated_no_strategy_or_ready_authority",
+    "id": "V2-M3.3-STRATEGY-CONSTRUCTION-CONTRACT",
+    "name": "six_family_structural_strategy_draft_with_exact_reward_risk_and_abstention",
+    "status": "local_contract_pass_test_only_uncalibrated_no_ready_authority",
     "productionMutationPerformed": false,
     "migrationPerformed": false,
     "legacyDeletionPerformed": false

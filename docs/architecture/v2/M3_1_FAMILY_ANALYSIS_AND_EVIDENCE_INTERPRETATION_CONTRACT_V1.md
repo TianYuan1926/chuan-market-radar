@@ -76,7 +76,7 @@ M3.1 首次把 AnalysisSnapshot 从 v1 升级为 v2；M3.2 随后升级到 v3。
 - observation definition、family policy 与 required-category 的历史 cohort 校准。
 - Evidence/Setup 双评级合同已由 M3.2 建立，但真实校准、置信区间证据和 scope authority 尚未完成。
 - M1 production authority、M2 lifecycle Gate 与 Candidate emission。
-- 各 family Strategy template、结构止损、目标、结构/净 RR 与 trigger。
+- M3.3 已建立各 family 的 test-only Strategy template、结构止损、目标和精确 RR；真实 buffer/cost 校准、scope authority 与 trigger 仍未完成。
 - live Execution Feasibility、Personal Risk、Portfolio Risk。
 - untouched holdout、独立审计、M3 runtime、API、Decision Snapshot 和页面。
 
@@ -86,4 +86,4 @@ M3.1 首次把 AnalysisSnapshot 从 v1 升级为 v2；M3.2 随后升级到 v3。
 
 M3.1 定向测试 21/21 覆盖：六族 long、六族 short、六族失效/不可用、完整 evidence 核算、缺失、stale、方向冲突、跨 release、身份拼接、标签漂白、未来时间、结构位来源、Fib-only、Market Context、future/plan 字段拒绝、无等级/计划输出、确定性和深冻结。
 
-M3.2 后，M3.1 仍为 21/21；M3.0 扩展到 18/18，M3.2 为 18/18，合计 M3 定向 57/57。新增门禁拒绝未校准 Qualification、calibration abstain 和旧 schema。完整出口还要求 typecheck、lint、`test:market`、全 V2、ops、M0、production build、Golden 16/16 和 security PASS。`backtest:formal` 不属于本包。
+M3.3 后，M3.1 仍为 21/21；M3.2 为 18/18，M3.3 为 20/20，M3.0 扩展到 22/22，合计 M3 定向 81/81。新增门禁拒绝未校准 Qualification、calibration abstain、旧 schema、Strategy scope/level/RR 伪造。完整出口还要求 typecheck、lint、`test:market`、全 V2、ops、M0、production build、Golden 16/16 和 security PASS。`backtest:formal` 不属于本包。

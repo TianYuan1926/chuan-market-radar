@@ -86,14 +86,14 @@ function readyPlan() {
     targets: [
       {
         targetId: "target-prior-high",
-        price: "110",
+        price: "111",
         allocationPercent: 100,
         source: "PRIOR_EXTREME",
         sourceLevelIds: ["level-prior-high"],
       },
     ],
-    structuralRewardRisk: 3.5,
-    estimatedNetRewardRisk: 3.2,
+    structuralRewardRisk: 3.333333,
+    estimatedNetRewardRisk: 3.072809,
     expiresAt: "2026-01-15T00:15:00.000Z",
     noChaseCondition: "do not enter above 101",
   } as const;
@@ -113,6 +113,7 @@ function fixtureDecisionReasonCodes(
       "m1_engineering_exit_not_passed",
       "m2_lifecycle_gate_not_passed",
       "signal_qualification_calibration_abstained",
+      "strategy_draft_has_blockers",
       "test_only_scope_has_no_decision_authority",
     ];
   }
@@ -310,7 +311,7 @@ function bundle(
         {
           levelId: "level-prior-high",
           kind: "RESISTANCE",
-          price: "110",
+          price: "111",
           timeframe: "1h",
           sourceFactIds: ["fact-m3-two"],
           reasonCodes: ["prior_extreme"],
@@ -418,31 +419,61 @@ function bundle(
       reasonCodes: ["evidence_and_setup_independently_qualified"],
     },
     draft: {
-      ...trace("strategy_construction", "strategy-draft.v1"),
+      ...trace("strategy_construction", "strategy-draft.v2"),
       draftId: "draft-m3-one",
       episodeId: "episode-m3-one",
       analysisId: "analysis-m3-one",
       qualificationId: "qualification-m3-one",
+      opportunityFamily: "BREAKOUT_RETEST",
+      strategyAuthority: authorized
+        ? "REPLAY_CALIBRATED"
+        : "TEST_ONLY_UNCALIBRATED",
+      analyzerVersion: "breakout-retest-analyzer.v1",
+      qualificationPolicyVersion: "m3-signal-qualification-policy.v1",
       templateVersion: "breakout-retest-long.v1",
+      bufferPolicyVersion: "structural-buffer.v1",
+      costAssumptionSetId: "conservative-costs",
+      costAssumptionVersion: "conservative-costs.v1",
       direction: plan.direction,
+      referencePrice: "100.5",
+      referencePriceFactIds: ["fact-m3-one"],
       whyNow: ["retest_acceptance"],
-      whyNotNow: [],
+      whyNotNow: authorized
+        ? []
+        : [
+          "strategy_authority_test_only_uncalibrated",
+          "strategy_buffer_policy_uncalibrated",
+          "strategy_cost_assumptions_uncalibrated",
+        ],
       entryTrigger: plan.entryTrigger,
       plannedEntryZone: plan.plannedEntryZone,
+      entryZoneBufferBps: 10,
       structuralInvalidation: plan.structuralInvalidation,
+      structuralStopBase: "100",
       structuralStop: plan.structuralStop,
+      structuralStopBufferBps: 20,
       structuralStopSourceLevelIds: ["level-resistance"],
       targets: plan.targets,
+      rewardRiskCalculationVersion: "m3-conservative-reward-risk.v1",
+      rewardRiskPrecision: 6,
       grossRewardRisk: plan.structuralRewardRisk,
       estimatedNetRewardRisk: plan.estimatedNetRewardRisk,
-      feeAssumptionBps: 4,
-      slippageAssumptionBps: 5,
+      feePerSideAssumptionBps: 4,
+      slippagePerSideAssumptionBps: 5,
       fundingAssumptionBps: 1,
+      totalConservativeCostBps: 19,
       confirmationWindow: "15m",
       expiresAt: plan.expiresAt,
       noChaseCondition: plan.noChaseCondition,
+      partialTakeProfitPolicy: "Reduce at the first structural objective",
       counterEvidence: [],
-      blockers: [],
+      blockers: authorized
+        ? []
+        : [
+          "strategy_authority_test_only_uncalibrated",
+          "strategy_buffer_policy_uncalibrated",
+          "strategy_cost_assumptions_uncalibrated",
+        ],
     },
     feasibility: {
       ...trace("execution_feasibility_final_decision", "execution-feasibility-snapshot.v1", "2026-01-15T00:00:25.000Z"),
@@ -730,6 +761,63 @@ test("rejects uncalibrated signal qualification in an authorized replay decision
       "signal_qualification_authority_not_calibrated_for_scope",
     ),
   );
+});
+
+test("rejects a strategy authority calibrated for the wrong decision scope", () => {
+  const wrongScope = structuredClone(bundle());
+  wrongScope.draft.strategyAuthority = "SHADOW_CALIBRATED";
+  wrongScope.decision.reasonCodes = [
+    "strategy_authority_not_calibrated_for_scope",
+  ];
+  wrongScope.decision.actionState = "BLOCKED";
+  wrongScope.decision.executablePlan = null;
+  const assessment = assessM3FinalDecisionBundle(wrongScope);
+  assert.equal(assessment.validationStatus, "PASS");
+  assert.equal(assessment.authorityStatus, "NOT_AUTHORIZED");
+  assert.equal(assessment.expectedActionState, "BLOCKED");
+  assert.ok(assessment.reasonCodes.includes(
+    "strategy_authority_not_calibrated_for_scope",
+  ));
+});
+
+test("rejects strategy family and policy lineage splicing", () => {
+  const spliced = structuredClone(bundle());
+  spliced.draft.opportunityFamily = "PRE_MOVE";
+  spliced.draft.analyzerVersion = "another-analyzer.v1";
+  spliced.draft.qualificationPolicyVersion = "another-qualification-policy.v1";
+  const assessment = assessM3FinalDecisionBundle(spliced);
+  assert.equal(assessment.validationStatus, "BLOCKED");
+  assert.ok(assessment.issues.some(
+    (item) => item.code === "opportunity_family_lineage_mismatch",
+  ));
+  assert.ok(assessment.issues.filter(
+    (item) => item.code === "artifact_identity_lineage_mismatch",
+  ).length >= 2);
+});
+
+test("recalculates strategy RR and rejects hand-edited performance claims", () => {
+  const inflated = structuredClone(bundle());
+  inflated.draft.grossRewardRisk += 1;
+  inflated.draft.estimatedNetRewardRisk += 1;
+  const assessment = assessM3FinalDecisionBundle(inflated);
+  assert.equal(assessment.validationStatus, "BLOCKED");
+  assert.ok(assessment.issues.some(
+    (item) => item.code === "strategy_reward_risk_calculation_mismatch",
+  ));
+});
+
+test("rejects strategy levels that are not present at the analyzed prices", () => {
+  const invented = structuredClone(bundle());
+  invented.draft.targets[0]!.sourceLevelIds = ["invented-target-level"];
+  invented.draft.structuralStopBase = "99";
+  const assessment = assessM3FinalDecisionBundle(invented);
+  assert.equal(assessment.validationStatus, "BLOCKED");
+  assert.ok(assessment.issues.some(
+    (item) => item.code === "strategy_level_lineage_missing",
+  ));
+  assert.ok(assessment.issues.some(
+    (item) => item.code === "strategy_stop_base_level_price_mismatch",
+  ));
 });
 
 test("strictly rejects unknown fields instead of silently accepting future material", () => {
