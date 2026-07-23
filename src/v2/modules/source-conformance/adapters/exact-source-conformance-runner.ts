@@ -53,6 +53,17 @@ type PageResponse = Readonly<{
 const MAX_RESPONSE_BYTES_PER_PAGE = 8 * 1024 * 1024;
 const REQUEST_TIMEOUT_MS = 12_000;
 
+export const M1_EXACT_SOURCE_EXECUTION_POLICY = Object.freeze({
+  announcementScope: Object.freeze({
+    bitget: "OFFICIAL_ONE_MONTH_COIN_LISTINGS",
+    bybit: "FULL_NEW_CRYPTO_CATALOG",
+  }),
+  crossSourceConcurrency: 5,
+  maxResponseBytesPerPage: MAX_RESPONSE_BYTES_PER_PAGE,
+  perSourceConcurrency: 1,
+  requestTimeoutMs: REQUEST_TIMEOUT_MS,
+});
+
 const BinanceSpotRowSchema = z.object({
   symbol: z.string(),
   status: z.string(),
@@ -443,11 +454,11 @@ const RUNTIME_PROBE_DEFINITIONS = [
     paginationExpectation: "MUST_TERMINATE",
     host: "api.bybit.com",
     initialUrl:
-      "https://api.bybit.com/v5/announcements/index?locale=en-US&page=1&limit=20",
+      "https://api.bybit.com/v5/announcements/index?locale=en-US&type=new_crypto&page=1&limit=20",
     maxPages: 64,
     parsePage: bybitAnnouncementParser,
     nextUrl: (_token, nextPageIndex) =>
-      `https://api.bybit.com/v5/announcements/index?locale=en-US&page=${
+      `https://api.bybit.com/v5/announcements/index?locale=en-US&type=new_crypto&page=${
         nextPageIndex + 1
       }&limit=20`,
   },
@@ -523,11 +534,11 @@ const RUNTIME_PROBE_DEFINITIONS = [
     paginationExpectation: "MUST_TERMINATE",
     host: "api.bitget.com",
     initialUrl:
-      "https://api.bitget.com/api/v2/public/annoucements?language=en_US&limit=10",
+      "https://api.bitget.com/api/v2/public/annoucements?language=en_US&annType=coin_listings&limit=10",
     maxPages: 64,
     parsePage: bitgetAnnouncementParser,
     nextUrl: (cursor) =>
-      `https://api.bitget.com/api/v2/public/annoucements?language=en_US&limit=10&cursor=${
+      `https://api.bitget.com/api/v2/public/annoucements?language=en_US&annType=coin_listings&limit=10&cursor=${
         encodeURIComponent(cursor)
       }`,
   },
@@ -568,14 +579,17 @@ export const M1_EXACT_SOURCE_PROBE_DEFINITIONS:
   );
 
 export const M1_EXACT_SOURCE_PROBE_PLAN_DIGEST = stableContentHash(
-  RUNTIME_PROBE_DEFINITIONS.map((definition) => ({
-    ...M1_EXACT_SOURCE_PROBE_DEFINITIONS.find(
-      (candidate) => candidate.probeId === definition.probeId,
-    ),
-    host: definition.host,
-    initialUrl: definition.initialUrl,
-    maxPages: definition.maxPages,
-  })),
+  {
+    executionPolicy: M1_EXACT_SOURCE_EXECUTION_POLICY,
+    probes: RUNTIME_PROBE_DEFINITIONS.map((definition) => ({
+      ...M1_EXACT_SOURCE_PROBE_DEFINITIONS.find(
+        (candidate) => candidate.probeId === definition.probeId,
+      ),
+      host: definition.host,
+      initialUrl: definition.initialUrl,
+      maxPages: definition.maxPages,
+    })),
+  },
 );
 
 function definitionDigest(definition: RuntimeProbeDefinition): string {
@@ -962,16 +976,32 @@ export async function runM1ExactSourceConformance(input: {
     throw new Error("live source conformance cannot claim TEST_HARNESS");
   }
   const normalizedApiKey = input.coinGlassApiKey?.trim() || null;
-  const probes: M1SourceConformanceProbeObservation[] = [];
+  const definitionsBySource = new Map<
+    M1SourceConformanceProbeDefinition["sourceId"],
+    RuntimeProbeDefinition[]
+  >();
   for (const definition of RUNTIME_PROBE_DEFINITIONS) {
-    probes.push(await runProbe({
-      definition,
-      evidenceClass,
-      apiKey: normalizedApiKey,
-      fetchImplementation,
-      now,
-    }));
+    const definitions = definitionsBySource.get(definition.sourceId) ?? [];
+    definitions.push(definition);
+    definitionsBySource.set(definition.sourceId, definitions);
   }
+  const probes = (
+    await Promise.all(
+      [...definitionsBySource.values()].map(async (definitions) => {
+        const sourceProbes: M1SourceConformanceProbeObservation[] = [];
+        for (const definition of definitions) {
+          sourceProbes.push(await runProbe({
+            definition,
+            evidenceClass,
+            apiKey: normalizedApiKey,
+            fetchImplementation,
+            now,
+          }));
+        }
+        return sourceProbes;
+      }),
+    )
+  ).flat();
   const generatedAt = now().toISOString();
   const sourceCutoff = probes
     .map((probe) => probe.receivedAt)

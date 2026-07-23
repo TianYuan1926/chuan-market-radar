@@ -101,11 +101,13 @@ function fixtureFetch(options: {
   binanceClockOffsetMs?: number;
   emptyBitgetDerivativeCatalog?: boolean;
   malformedOkxDerivativeCatalog?: boolean;
+  observedUrls?: string[];
   repeatBybitCursor?: boolean;
   observedCoinGlassKey?: string[];
 } = {}): typeof fetch {
   return async (request, init) => {
     const url = new URL(String(request));
+    options.observedUrls?.push(url.toString());
     if (url.hostname === "fapi.binance.com") {
       return url.pathname.endsWith("/time")
         ? response({
@@ -305,6 +307,63 @@ test("runs all probes in a test harness without manufacturing live gate PASS", a
     true,
   );
   assert.doesNotMatch(JSON.stringify(artifact), /test-only-key-not-real/u);
+});
+
+test("uses exact listing-only announcement scopes and parallelizes only across sources", async () => {
+  const observedUrls: string[] = [];
+  const activeBySource = new Map<string, number>();
+  const sourceForHost = (host: string): string => {
+    if (host === "fapi.binance.com" || host === "api.binance.com") {
+      return "BINANCE";
+    }
+    if (host === "www.okx.com") return "OKX";
+    if (host === "api.bybit.com") return "BYBIT";
+    if (host === "api.bitget.com") return "BITGET";
+    return "COINGLASS";
+  };
+  let activeTotal = 0;
+  let maxActiveTotal = 0;
+  let maxActivePerSource = 0;
+  const baseFetch = fixtureFetch({ observedUrls });
+  const delayedFetch: typeof fetch = async (request, init) => {
+    const host = new URL(String(request)).hostname;
+    const source = sourceForHost(host);
+    const sourceActive = (activeBySource.get(source) ?? 0) + 1;
+    activeBySource.set(source, sourceActive);
+    activeTotal += 1;
+    maxActiveTotal = Math.max(maxActiveTotal, activeTotal);
+    maxActivePerSource = Math.max(maxActivePerSource, sourceActive);
+    try {
+      await new Promise((resolvePromise) => setTimeout(resolvePromise, 5));
+      return await baseFetch(request, init);
+    } finally {
+      activeBySource.set(source, (activeBySource.get(source) ?? 1) - 1);
+      activeTotal -= 1;
+    }
+  };
+
+  await runM1ExactSourceConformance({
+    releaseId: RELEASE_ID,
+    registryDigest: REGISTRY_DIGEST,
+    networkEnvironment: "LOCAL_WORKSTATION",
+    coinGlassApiKey: "test-key",
+    fetchImplementation: delayedFetch,
+    now: () => new Date(NOW),
+  });
+
+  const bybitAnnouncement = observedUrls.find((url) =>
+    url.includes("api.bybit.com/v5/announcements/index")
+  );
+  const bitgetAnnouncement = observedUrls.find((url) =>
+    url.includes("api.bitget.com/api/v2/public/annoucements")
+  );
+  assert.equal(new URL(bybitAnnouncement!).searchParams.get("type"), "new_crypto");
+  assert.equal(
+    new URL(bitgetAnnouncement!).searchParams.get("annType"),
+    "coin_listings",
+  );
+  assert.ok(maxActiveTotal > 1);
+  assert.equal(maxActivePerSource, 1);
 });
 
 test("keeps missing CoinGlass Hobbyist credential as NOT_RUN while public probes proceed", async () => {

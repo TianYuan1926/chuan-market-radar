@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.m1-source-conformance-package.json",
+  "compilerOptions": {
+    "outDir": ".tmp/m1-source-conformance-test"
+  },
+  "files": [
+    "src/v2/entrypoints/m1-exact-source-conformance.ts",
+    "src/v2/modules/source-conformance/source-conformance-contract.test.ts"
+  ]
+}

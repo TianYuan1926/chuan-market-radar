@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false,
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "noEmit": false,
+    "outDir": ".tmp/m1-source-conformance-package",
+    "rootDir": "src",
+    "types": ["node"]
+  },
+  "files": [
+    "src/v2/entrypoints/m1-exact-source-conformance.ts"
+  ],
+  "include": []
+}

@@ -109,6 +109,13 @@ COINGLASS_SUPPORTED_COINS
 
 CoinGlass 使用用户已确认的 Hobbyist 只读 key。key 只通过 `CG-API-KEY` 发送，不进入 artifact、日志、Git 或响应摘要。
 
+上新公告探针固定为官方可验证语义：
+
+- Bybit 使用 `type=new_crypto`，从第一页开始完整遍历官方分页。
+- Bitget 使用 `annType=coin_listings`，覆盖官方允许的一个月窗口并完整遍历 cursor。
+- 五个来源组允许并行，但同一来源内严格串行；每页超时 12 秒、响应上限 8 MiB。
+- 公告过滤、分页和执行策略均进入 `probePlanDigest`，任一变化都必须重新取得 B0 证据。
+
 ## 5. B0 证据等级与硬门槛
 
 证据只有两类：
@@ -376,15 +383,16 @@ production mutation = 0
 ```text
 M1.1B local implementation + full CI
 -> exact commit push
+-> M1.4A capability-independent scheduler contract [COMPLETE]
+-> M1.1B0 no-secret fixed-dispatch package
 -> Tencent isolated LIVE_READ_ONLY B0
--> only passed capabilities enter M1.4A
--> M1.4A Adaptive Multi-Asset Collector
+-> only passed capabilities enter M1.4B runtime Adapter
 -> M1.5C Four-Venue Multi-Asset Shadow
 -> M1.6-D1 Expanded-Scope No-Cost Capacity Proof
 -> M2/M3 per-domain detection, calibration, feasibility and risk
 ```
 
-B0 中失败的能力不能在 M1.4A 中假定可用。单股和 ETF/指数必须分别取得 session、reference/index、公司行动、费用、资金费、流动性、地区可用性、历史/Shadow、容量和校准证据。
+B0 中失败的能力不能在 M1.4B 中假定可用。单股和 ETF/指数必须分别取得 session、reference/index、公司行动、费用、资金费、流动性、地区可用性、历史/Shadow、容量和校准证据。
 
 P0R 生产恢复继续作为独立第一关键路径。M3.4 V1 草稿继续暂停，等待 Scope V2 rebase review。
 
