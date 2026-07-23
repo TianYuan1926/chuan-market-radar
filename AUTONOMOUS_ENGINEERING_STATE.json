@@ -315,7 +315,7 @@
     "recurrenceRootCauseGate": {
       "registryPath": "docs/governance/recurrence-root-cause-registry.v1.json",
       "operations": [
-        "fixed_dispatch_first_signed_acceptance"
+        "shadow_capture_activation"
       ]
     },
     "gate": "G0",

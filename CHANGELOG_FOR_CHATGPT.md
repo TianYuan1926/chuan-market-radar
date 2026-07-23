@@ -2,45 +2,42 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
-## 2026-07-23 / G0 Signed Pull-Only Production Dispatch Installed
+## 2026-07-23 / G0 Signed Pull-Only Production Dispatch First Acceptance
 
 ### 本轮目标
 
-安装签名 pull-only 固定生产派发通道，并证明安装本身没有改变生产应用、数据、业务容器或 authority；首个真实签名派发继续保持独立验收门槛。
+完成固定 pull-only 通道的首个真实签名派发，证明普通无 secret Bundle 可脱离 OrcaTerm 上传和前台会话完成 publish、pull、验签、独立启动与 package acceptance，同时保持生产业务零漂移。
 
 ### 修改范围
 
-- 在 V2 控制面新增 Ed25519 canonical dispatch、脱敏四文件 Outbox、本地签名/发布、服务器 pull-only agent、独立 bare mirror、持久化一次性 claim 和 20 秒 systemd timer；agent 及其 Node 子进程以 `--jitless` 配合 systemd `MemoryDenyWriteExecute`，Legacy protected source 保持零漂移。
-- 新增绑定安装器自身的 exact-hash 一次性安装器、半安装自动回收、机器治理合同、运行手册和 GitHub quality gate；异常租约只等待，不会放行，无效单任务会隔离并推进 cursor，避免永久堵队列。
-- 腾讯只读预检发现生产主机无 Node，旧 `/usr/bin/node` 入口未执行；安装器改为从 Node.js 官方 HTTPS 固定下载 `v24.18.0` Linux x64，在任何 mutation 前校验官方 archive SHA、binary SHA、license SHA、架构和版本，只安装独立 runtime，不上传 30MB 二进制、不安装 npm、不改全局 PATH。
-- 新增 `RECURRENCE_ROOT_CAUSE_GATE`：同类问题第二次出现后禁止继续堆重试和人工 workaround，必须用复现指纹、根因、永久修复、回归测试、运行门禁和真实目标验收收口；OrcaTerm 反复会话/输入/上传问题是首个适用实例。
-- 门禁已从文字升级为机器注册表与 active-package operation 检查；普通 OrcaTerm Bundle 运输和长命令重输按策略永久拒绝。短入口已在真实目标机完成安装，输入完整性事故为 `CLOSED_VERIFIED`；stale upload 事故仍等首个真实 signed dispatch，open incident=1。
-- OrcaTerm 会静默丢失 `_`、`:`、`|` 等特殊字符，旧长环境变量安装命令已从操作路径移除；新增 source-set 绑定的短 `verify/install` 入口，从严格事实包读取全部批准值并再次经过原安装器门禁，包内任一文件被改写即在 mutation 前拒绝。
-- 文件上传连续两次 `0B/18.7KB`；短路径、无扩展属性和 66GB 可用磁盘排除后，刷新站点并重连使同一 19156-byte 文件 1 秒上传，服务器 SHA-256 精确匹配。该证据将根因边界收敛为 stale upload session，不再允许第三次盲重试。
-- `471a226` 首次安装在 mutation 前暴露 Deploy Key 注释参与哈希的 canonicalization 缺陷；`966bc60` 第二次安装暴露共享 root `0700` 状态目录导致 agent `EACCES`，半安装自动回滚。最终修复使用 service-owned `/var/lib/market-radar-production-dispatch`，没有放宽共享目录权限。
-- final source `7a59e45b1c277907475f093a25cbb310b7287e12`、archive `cf05305b3d8e869375e2c9cb37db9a79cedc3b426c71ba4793b405a80b4d8337`、source-set `39387c3a01cae0ce1532e5cd9f065c3629a4bdd0651c8396b5f1a6b392bb998c` 安装 PASS；不修改 scan、analysis、strategy、backtest、前端、业务 API、DB、Redis、Worker 或 Feature Flag。
+- 新增首单 acceptance runner 与可复现 Bundle：只读检查 production HEAD/worktree、11 个容器、health、前后端合同、Redis 和 timer；仅两个精确 Docker 读调用使用 `sudo -n`，没有把 `ubuntu` 加入 Docker 组。
+- 前三次 dispatch 全部保留为失败：第一次为 Docker socket permission；后两次为人工抄录 64 字符容器 ID 错误。最终使用目标机排序机器文件和 exact diff，未降低身份门禁，也未复用失败 dispatch。
+- `g0-first-signed-exact-20260722t211117z` 绑定 source `5a98c7d2783a2e74e36fec47541a2b9f2d7eada4`、Bundle `5e263bb5...`、request `b8168ed6...`，发布 commit `467ce8e2156aabe399ca61211b232c9d81294c4e`。
+- 目标机返回 `PASS_SESSION_INDEPENDENT_RUNNER_LAUNCHED` 与 `PASS_FIXED_DISPATCH_FIRST_SIGNED_ACCEPTANCE`；普通无 secret Bundle 的运输和独立启动正式退出 OrcaTerm 文件上传路径。
+- 生产 HEAD/worktree、11 容器身份、ready/fresh/persistence、Redis PONG、timer enabled/active 前后不变，应用、DB、Redis、Worker mutation 均未尝试，staging 自动清理。
+- `RECURRENCE_ROOT_CAUSE_GATE` 当前 2 CLOSED / 0 open；OrcaTerm 长特殊字符命令和普通 Bundle 上传继续永久退役。P0R STS/MFA 仍使用 `/dev/shm` 独立边界，不能进入 Git Bundle。
 
 ### 核心链路影响
 
-只加固整条核心链路的 Runtime Control / Deployment 地基；不改变机会发现、判断、计划或排序能力。
+只加固整条核心链路的 Runtime Control / Deployment 地基；不改变机会发现、判断、计划或排序能力，G0 主步骤仍为 7。
 
 ### 测试结果
 
-- 固定通道 14/14、复发门禁 9/9、Legacy 自治 31/31 PASS；实际注册表 1 CLOSED / 1 open、结构违规 0，active package 已切换到 `fixed_dispatch_first_signed_acceptance`。
-- 初版因放入 Legacy deploy 层导致 M0 正确失败；迁入 `scripts/v2/production/fixed-channel/` 并恢复 Legacy workflow 后，consumer map 回到 539 source / 273 runtime edges、M0 PASS。
-- 固定 runtime 与短安装入口修正后的完整 `ci:production` 已重新 PASS：定向 14/14、typecheck/lint、Market 965/0/4 explicit skip、Worker 23/23、Historical 4/4、V2 foundation 317/0/6 explicit skip、ops 115/115、M0、build、Golden 16/16 和 security 全通过。
+- `test:production-dispatch`：21/21 PASS。
+- `test:recurrence-gate`：9/9 PASS；2 CLOSED / 0 open、violations=0，active operation 恢复为 `shadow_capture_activation`。
+- 完整 `ci:production`：PASS，退出码 0；market 965/965、Worker 23/23、historical backtest 4/4、V2 Foundation 317/317、V2 Ops 115/115、M0 zero-drift、build、Golden 16/16 和 security check 全部通过。受限沙箱曾因禁止监听 `127.0.0.1` 让两个 Worker 测试返回 `EPERM`；未改测试，宿主原样重跑通过。
 
 ### 是否部署
 
-已安装腾讯生产 Runtime Control：timer enabled/active，agent `initialized_no_replay -> IDLE_NO_DISPATCH_REF`；生产应用 HEAD/clean worktree、11 个容器、health/scan/Redis 和监听端口保持基线，全部暂存已清理。当前状态为 `PRODUCTION_INSTALLED_ACCEPTANCE_PENDING_FIRST_SIGNED_DISPATCH`，P0R STS/MFA 仍通过 `/dev/shm` 独立处理。
+已安装并验收腾讯生产 Runtime Control：首单从 publish 到 acceptance 约 10 秒，状态为 `PRODUCTION_OPERATIONAL_FIRST_SIGNED_DISPATCH_ACCEPTED`。生产应用、数据、业务容器和 authority 零变更；P0R STS/MFA 仍通过 `/dev/shm` 独立处理。
 
 ### 风险与遗留问题
 
-旧 request 声明 `approved_orcaterm_bundle_upload` 时固定通道必须拒绝；首个真实 package 必须重生为 `signed_git_bundle`，完成 publish/pull/launch/runner acceptance 后才能关闭 stale-upload 事故。
+固定通道只解决普通无 secret 运输和独立启动，不替代业务包自身的 lease、回滚、生产验证或观察；人工长身份抄录禁止复用，旧 `approved_orcaterm_bundle_upload` request 必须重生为 `signed_git_bundle`。
 
 ### 下一轮建议
 
-只执行首个无 secret、可自动回滚的真实 signed dispatch 验收；不得与 P0R STS/secret 运输混包。
+回到当前最高优先 P0R 恢复准入与既定 V2/G0 顺序；默认使用固定通道运输普通无 secret 包，不重复首单验收。
 
 ## 2026-07-22 / V2 M3.1 Family Analysis and Evidence Interpretation
 

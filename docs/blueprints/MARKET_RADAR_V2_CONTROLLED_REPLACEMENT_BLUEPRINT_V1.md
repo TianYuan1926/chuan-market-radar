@@ -1,6 +1,6 @@
-# Market Radar V2 受控替换工程与运行蓝图 v1.21
+# Market Radar V2 受控替换工程与运行蓝图 v1.22
 
-状态：`ACTIVE_DESIGN_AUTHORITY / M0_ENGINEERING_EXIT_LOCAL_PASS / M1.1-M1.6_LOCAL_PASS / M1.5-B1_EARLY_SHADOW_BUSINESS_GATE_PASS / B1-B1_EXECUTION_INVALID_NOT_COUNTED / B1-B3_PASS / M1.6-P0_EXECUTED_BLOCKED_CAPACITY_AND_RECOVERY / M1.6-P0R_NO_COST_CAPACITY_AND_FRESH_ADMISSION_LOCAL_PASS_OBJECT_LOCK_31D_AGE_VAULT_AND_TRANSPORT_PASS_STS_AND_RECOVERY_PENDING / M2.2-B0.2-C1_FORWARD_ONLY_READY / M3.0_FINAL_DECISION_CONTRACT_LOCAL_PASS_NO_AUTHORITY / M3.1_FAMILY_ANALYSIS_LOCAL_PASS_TEST_ONLY_UNCALIBRATED_NO_STRATEGY_AUTHORITY / B0.2_EXTERNAL_RESOLUTION_BLOCKED / M1_NOT_COMPLETE / PRODUCTION_SERVICES_DATA_AND_AUTHORITY_UNCHANGED`
+状态：`ACTIVE_DESIGN_AUTHORITY / M0_ENGINEERING_EXIT_LOCAL_PASS / M1.1-M1.6_LOCAL_PASS / M1.5-B1_EARLY_SHADOW_BUSINESS_GATE_PASS / B1-B1_EXECUTION_INVALID_NOT_COUNTED / B1-B3_PASS / M1.6-P0_EXECUTED_BLOCKED_CAPACITY_AND_RECOVERY / M1.6-P0R_NO_COST_CAPACITY_AND_FRESH_ADMISSION_LOCAL_PASS_OBJECT_LOCK_31D_AGE_VAULT_AND_TRANSPORT_PASS_STS_AND_RECOVERY_PENDING / M2.2-B0.2-C1_FORWARD_ONLY_READY / M3.0_FINAL_DECISION_CONTRACT_LOCAL_PASS_NO_AUTHORITY / M3.1_FAMILY_ANALYSIS_LOCAL_PASS_TEST_ONLY_UNCALIBRATED_NO_STRATEGY_AUTHORITY / PRODUCTION_FIXED_DISPATCH_FIRST_SIGNED_ACCEPTANCE_PASS / B0.2_EXTERNAL_RESOLUTION_BLOCKED / M1_NOT_COMPLETE / PRODUCTION_SERVICES_DATA_AND_AUTHORITY_UNCHANGED`
 
 设计日期：2026-07-21
 
@@ -51,6 +51,8 @@ v1.19 完成 M3.1 六族 Analysis/Evidence 解释合同：Pre-Move、Breakout/Re
 v1.20 把重复问题根因门禁从文字升级为机器治理：中央注册表记录 recurrence count、稳定指纹、责任边界、永久修复、红绿回归、运行门禁、真实目标验收、workaround 时间和剩余风险；每个活跃工程包必须声明 operation，V2 质量检查会拒绝命中未关闭故障或已退役 workaround 的操作，只允许登记过的根治动作，并强制核对触发后的紧急绕行次数上限。该版本当时把 OrcaTerm 长命令输入完整性和 stale upload session 作为首批两项，状态均为 `REMEDIATION_IN_PROGRESS`；固定通道 bootstrap 验包已在腾讯目标机通过但 systemd 尚未安装，不能关闭事故或宣称运输自动化。当前事实由后续版本覆盖。
 
 v1.21 登记固定生产派发通道真实安装：exact source `7a59e45b1c277907475f093a25cbb310b7287e12`、archive `sha256:cf05305b3d8e869375e2c9cb37db9a79cedc3b426c71ba4793b405a80b4d8337` 和 source-set `sha256:39387c3a01cae0ce1532e5cd9f065c3629a4bdd0651c8396b5f1a6b392bb998c` 在腾讯目标机通过 verify/install；timer enabled/active，agent `initialized_no_replay -> IDLE_NO_DISPATCH_REF`，固定 runtime/公钥/agent 哈希一致，生产 HEAD、clean worktree、11 个容器、health/scan/Redis 和监听端口均保持基线。OrcaTerm 长命令事故达到 `CLOSED_VERIFIED`；stale upload 仍需首个真实 signed dispatch 验收，故日常运输闭环仍不得提前宣称完成。
+
+v1.22 登记首个真实 signed dispatch 目标验收：dispatch `g0-first-signed-exact-20260722t211117z` 通过专用 ref 自动 pull、Ed25519 验签、独立 systemd runner 启动并返回 `PASS_FIXED_DISPATCH_FIRST_SIGNED_ACCEPTANCE`。生产 HEAD `cec0b657...`、clean worktree、11 个容器身份、health=`ready`、scan=`ready/fresh`、persistence=`ready`、Redis=`PONG` 与 timer enabled/active 前后不变；应用、数据库、Redis 和 Worker mutation 均未尝试，staging 自动清理。前三次失败及其 claim 保留，不被最终 PASS 覆盖；Docker socket 权限改为精确 sudo 只读 allowlist，人工长 ID 抄录改为目标机机器排序文件加 exact diff，禁止通过放宽身份门禁求通过。OrcaTerm 两项复发事故均达到 `CLOSED_VERIFIED`，open incident=0；P0R secret/MFA 例外和每个业务包自身验收仍保持独立。
 
 ---
 
@@ -1425,7 +1427,7 @@ M1.6-P0 fresh read-only preflight
 
 这个通道不接受 shell command/arguments，不把 GitHub 变成生产 shell，不开放新端口，不运输 `.env`、Token、数据库 URL、COS STS、私钥或业务数据，也不修改应用生产 worktree。它只替代“OrcaTerm 上传并启动”这一段；真实变更、lease/fencing、mutation checkpoint、health/contract、rollback 和 evidence 仍由 exact package runner 负责。
 
-截至 2026-07-23，固定 timer 已在生产安装并通过零业务变更空闲验收；首个真实 signed dispatch 尚未发布、拉取和启动，所以只能写 `PRODUCTION_INSTALLED_ACCEPTANCE_PENDING_FIRST_SIGNED_DISPATCH`。V2 M1.6 P0R 的腾讯 STS/MFA 必须继续通过 `/dev/shm` 短期凭证边界处理，不得进入 signed Git Bundle；旧 `approved_orcaterm_bundle_upload` 包必须显式升级为 `signed_git_bundle` 后才能使用固定通道。
+截至 2026-07-23，固定 timer 已在生产安装，首个真实 signed dispatch 已完成 publish、pull、verify、独立 launch 和 package acceptance，状态为 `PRODUCTION_OPERATIONAL_FIRST_SIGNED_DISPATCH_ACCEPTED`。这只关闭普通无 secret Bundle 的运输与启动瓶颈，不代表任何业务包、G0 或 V2 实战能力完成。V2 M1.6 P0R 的腾讯 STS/MFA 必须继续通过 `/dev/shm` 短期凭证边界处理，不得进入 signed Git Bundle；旧 `approved_orcaterm_bundle_upload` 包必须显式升级为 `signed_git_bundle` 后才能使用固定通道。
 
 ### 17.8 现实工期口径
 

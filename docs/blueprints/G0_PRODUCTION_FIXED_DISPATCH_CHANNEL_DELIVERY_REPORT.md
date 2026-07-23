@@ -1,5 +1,7 @@
 # 本轮交付报告
 
+> 历史安装阶段报告：本文保留固定通道安装时点的真实事实，不代表当前状态。当前首个 signed dispatch 的生产验收结论见 [固定生产派发首单验收报告](./G0_PRODUCTION_FIXED_DISPATCH_FIRST_SIGNED_ACCEPTANCE_DELIVERY_REPORT.md)。
+
 ## 1. 本轮目标
 
 消除普通生产 Bundle 对 OrcaTerm 人工上传和前台会话的依赖，建立不开放入站端口、不运输 secret、不接受任意命令的签名 pull-only 固定执行通道。

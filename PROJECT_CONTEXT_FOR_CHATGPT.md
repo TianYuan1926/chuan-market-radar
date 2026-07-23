@@ -55,8 +55,8 @@ Runtime / Security / Release Control 贯穿全链。
 
 当前唯一设计权威：
 
-- `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`，内容版本 v1.21。
-- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.23。
+- `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`，内容版本 v1.22。
+- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.24。
 - `docs/blueprints/README.md`，权威解析入口。
 - `market-radar-v2-build-sequence.md`，当前正确施工依赖与减数规则。
 
@@ -279,7 +279,7 @@ npm run security:check
 -> 成功保留证据，失败自动回滚
 ```
 
-签名 pull-only 通道已按 exact source `7a59e45b1c277907475f093a25cbb310b7287e12` 安装到腾讯生产：timer enabled/active，固定 Node、公钥和 agent 哈希一致，首次 `initialized_no_replay`，随后持续 `IDLE_NO_DISPATCH_REF`。生产应用 HEAD/clean worktree、11 个容器、health/scan/Redis 和监听端口均保持基线。首个真实 signed dispatch 尚未验收，所以只能写“已安装、日常运输首单待验”，不能写整条发布闭环完成。通道不允许任意命令/参数，不运输 secret；package runner 原有 lease/fencing、checkpoint、rollback 和 evidence 不变。
+签名 pull-only 通道已按 exact source `7a59e45b1c277907475f093a25cbb310b7287e12` 安装到腾讯生产。首单 `g0-first-signed-exact-20260722t211117z` 已通过专用 ref 自动 pull、Ed25519 验签、独立 runner 启动并返回 `PASS_FIXED_DISPATCH_FIRST_SIGNED_ACCEPTANCE`；从 publish 到 acceptance 约 10 秒。生产应用 HEAD/clean worktree、11 个容器、health/scan/persistence/Redis 和 timer 均保持基线，staging 自动清理。普通无 secret 运输闭环通过，但通道不允许任意命令/参数、不运输 secret，也不替代 package runner 原有 lease/fencing、checkpoint、rollback、evidence 和逐包业务验收。
 
 不把服务器密码、SSH 私钥或 secret 交给 Codex。数据库 migration、清库、volume 删除和 production authority 切换必须有独立任务与明确边界。P0R 腾讯 STS/MFA 仍是 `/dev/shm` 短期 secret 例外，不能通过 Git 通道运输。
 
@@ -294,7 +294,7 @@ npm run security:check
 V2：M0、M1.1-M1.6、M1.5-B1、M2.0-M2.2 已列本地包、C1、M3.0 和 M3.1 合同出口通过；B1-B1 永久不计。M1.6-P0 因容量与恢复证据 BLOCKED；Object Lock 31 天、age Keychain 身份和 exact P0R staging 已通过，多次短期 STS 已失效且未执行 COS/数据库恢复，fresh topology/P0 未执行，M1 未完成。历史 cohort Gate=INSUFFICIENT，Detector=DRAFT、Candidate 禁发；M3.1 仅 test-only 未校准，无 Strategy/runtime/READY authority
 本轮业务服务、数据库、Redis、Worker 与业务 authority 变更：0；Runtime Control 新增 fixed dispatch timer/service；外部安全状态：COS Object Lock COMPLIANCE 31 天已启用
 当前生产存储门禁：P0_BLOCKED_CAPACITY_AND_RECOVERY；P0R_OBJECT_LOCK_31D_AGE_VAULT_AND_TRANSPORT_PASS_STS_RECOVERY_AND_FRESH_TOPOLOGY_PENDING；应用业务健康未在本包评估
-固定生产执行通道：PRODUCTION_INSTALLED_ACCEPTANCE_PENDING_FIRST_SIGNED_DISPATCH；机器复发门禁 1 项 CLOSED、1 项 open，旧 approved_orcaterm_bundle_upload 包禁止伪装成 signed_git_bundle
+固定生产执行通道：PRODUCTION_OPERATIONAL_FIRST_SIGNED_DISPATCH_ACCEPTED；机器复发门禁 2 项 CLOSED、0 项 open，旧 approved_orcaterm_bundle_upload 包禁止伪装成 signed_git_bundle
 ```
 
 2026-07-21 P0 通过只读事务取得数据库/容量事实，Docker/Git before/after 一致，证据 `sha256:344ae4e05ec78e74ca97c92728fc06576f744e795bf4919d6eb3b76ee145769e`。它只判定存储准入，不包含 `/api/health`、Redis 或业务 ready，因此不得扩写为全站健康或全站失败。
@@ -315,10 +315,10 @@ Cycle final
 
 ## 14. 最近三次关键事件
 
-### 2026-07-23 / G0 Signed Pull-Only Production Dispatch Installed
-- 前两次安装没有被包装成成功：`471a226` 在 mutation 前暴露 Deploy Key 注释参与哈希的 canonicalization 缺陷；`966bc60` 暴露共享 `/var/lib/market-radar-ops` 为 root `0700` 导致 agent `EACCES`，安装器按合同回滚半安装。修复后定向 14/14 和完整 CI PASS。
-- final exact source `7a59e45b1c277907475f093a25cbb310b7287e12`、archive `sha256:cf05305b3d8e869375e2c9cb37db9a79cedc3b426c71ba4793b405a80b4d8337` 和 source-set `sha256:39387c3a01cae0ce1532e5cd9f065c3629a4bdd0651c8396b5f1a6b392bb998c` 返回 `PASS_SIGNED_PULL_ONLY_PRODUCTION_DISPATCH_INSTALLED`；独立 state root 为 `/var/lib/market-radar-production-dispatch`，timer enabled/active，agent 无回放且持续 idle。
-- 生产应用 HEAD `cec0b6572bb09ae91ff9e013f8bb160f73c045e2`、clean worktree、11 个容器 ID、health=`ready`、scan=`ready/fresh`、Redis=`PONG` 和监听端口保持不变；全部 server/local staging 已精确清理。输入完整性事故关闭，零字节上传事故仍等待首个真实 signed dispatch，不提前宣称日常运输闭环。
+### 2026-07-23 / G0 Signed Pull-Only Production Dispatch First Acceptance
+- 三次失败均保留：第一次暴露 Docker socket 读取权限并根治为精确 `sudo -n` 只读 allowlist；后两次由肉眼抄录长容器 ID 导致，身份门禁正确拒绝，没有放宽。目标机生成排序机器文件并 exact diff 后签发第四个独立 dispatch。
+- dispatch commit `467ce8e2156aabe399ca61211b232c9d81294c4e`、source `5a98c7d2783a2e74e36fec47541a2b9f2d7eada4` 返回 `PASS_SESSION_INDEPENDENT_RUNNER_LAUNCHED` 与 `PASS_FIXED_DISPATCH_FIRST_SIGNED_ACCEPTANCE`；从 publish 到 acceptance 约 10 秒。
+- 生产 HEAD `cec0b6572bb09ae91ff9e013f8bb160f73c045e2`、clean worktree、11 个容器身份、health=`ready`、scan=`ready/fresh`、persistence=`ready`、Redis=`PONG`、timer enabled/active 前后不变，应用/DB/Redis/Worker mutation 均未尝试，staging absent。两项 OrcaTerm 复发事故均 `CLOSED_VERIFIED`，open=0；这只关闭普通无 secret 运输，不使 G0 减数。
 
 ### 2026-07-21 / V2 M1.6-P0R-B1C Object Lock, Age and Transport Preparation
 - 用户动作级确认后，Microsoft Edge 已启用并回读 Object Lock=`COMPLIANCE` 31 天；真实 age X25519 身份只在 macOS Keychain，public attestation 不含私钥。
@@ -335,7 +335,7 @@ Cycle final
 ### P0
 
 - M1.6-P0 存储准入仍为 BLOCKED；Object Lock、age 和 transport 不是恢复 PASS，仍缺 STS、加密备份、exact retrieval、独立 PG16 restore、cleanup、fresh topology 和 exact-release calibration，P1 严禁启动。
-- 固定执行通道已安装但首个真实 signed dispatch 尚未验收；在 publish -> pull -> verify -> launch -> package acceptance 全链通过前，仍不得把日常 Bundle 运输瓶颈写成完全关闭。
+- 固定通道首单已通过，但它不运输 P0R secret，也不替代任何业务包自身生产验收；禁止把运输 PASS 扩写成 G0、M1 或实战能力 PASS。
 - 一旦发现 mock/fallback 冒充真值、WAIT 冒充 READY、future leak、secret、数据库损坏或错误交易计划，立即停止其他开发。
 
 ### P1
@@ -389,7 +389,7 @@ Cycle final
 V2-M1.6-P0R-C-STS-ENCRYPTED-BACKUP-EXACT-RETRIEVAL-AND-ISOLATED-RESTORE
 ```
 
-B1-B3 已关闭 M1.5-B1；P0 已执行并因容量与 recovery evidence BLOCKED。Object Lock 31 天、age Keychain 身份、source=`bed938566d242394de7f6c31b309bd9f8198b71f` 和 exact staging 已通过；当前 P0R 只执行 fresh exact-plan 7200 秒 STS 的即时 server-side compile、受限上传、加密备份、精确取回、隔离恢复和 cleanup。既往短期 STS 已失效且不得复用，生产数据库和服务尚未因本 P0R 改变。随后刷新完整生产健康/topology，在 exact clean release 重跑校准并执行 fresh P0。只有新 P0 PASS 才能进入 `P1 v1+v2 schema -> P2 identities -> P3 six-hour partitions+dormant Worker -> P4 isolated-write Shadow -> M1.7 24h`。签名 pull-only 通道在本地并行完成但未生产安装；它不能运输 P0R secret。外部门 B0.2-B 仍需账户所有者/合格审查者和可验证历史来源，未解决前 historical bulk、真实 cohort、holdout、Detector lifecycle 和 runtime 一律关闭。
+B1-B3 已关闭 M1.5-B1；P0 已执行并因容量与 recovery evidence BLOCKED。Object Lock 31 天、age Keychain 身份、source=`bed938566d242394de7f6c31b309bd9f8198b71f` 和 exact staging 已通过；当前 P0R 只执行 fresh exact-plan 7200 秒 STS 的即时 server-side compile、受限上传、加密备份、精确取回、隔离恢复和 cleanup。既往短期 STS 已失效且不得复用，生产数据库和服务尚未因本 P0R 改变。随后刷新完整生产健康/topology，在 exact clean release 重跑校准并执行 fresh P0。只有新 P0 PASS 才能进入 `P1 v1+v2 schema -> P2 identities -> P3 six-hour partitions+dormant Worker -> P4 isolated-write Shadow -> M1.7 24h`。签名 pull-only 通道已完成腾讯安装和首单验收，但不能运输 P0R secret。外部门 B0.2-B 仍需账户所有者/合格审查者和可验证历史来源，未解决前 historical bulk、真实 cohort、holdout、Detector lifecycle 和 runtime 一律关闭。
 
 ## 19. 活跃记忆维护规则
 

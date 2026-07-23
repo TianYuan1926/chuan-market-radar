@@ -810,7 +810,7 @@ test("governance contract matches the executable transport and truth boundary", 
     "docs/governance/production-fixed-dispatch-channel.v1.json",
     "utf8",
   ));
-  assert.equal(contract.status, "production_installed_acceptance_pending_first_signed_dispatch");
+  assert.equal(contract.status, "production_operational_first_signed_dispatch_accepted");
   assert.equal(contract.cost.additionalPaidServiceRequired, false);
   assert.equal(contract.transport.method, "signed_git_bundle");
   assert.deepEqual(contract.transport.files, DISPATCH_FILES);
@@ -864,13 +864,22 @@ test("governance contract matches the executable transport and truth boundary", 
   assert.equal(contract.bootstrapEvidence.scanFreshness, "fresh");
   assert.equal(contract.bootstrapEvidence.opensInboundPort, false);
   assert.equal(contract.bootstrapEvidence.stagingCleaned, true);
-  assert.equal(contract.bootstrapEvidence.firstSignedDispatchAccepted, false);
+  assert.equal(contract.bootstrapEvidence.firstSignedDispatchAccepted, true);
+  assert.equal(contract.firstSignedDispatchEvidence.status,
+    "PASS_FIXED_DISPATCH_FIRST_SIGNED_ACCEPTANCE");
+  assert.equal(contract.firstSignedDispatchEvidence.dispatchCommit,
+    "467ce8e2156aabe399ca61211b232c9d81294c4e");
+  assert.equal(contract.firstSignedDispatchEvidence.sourceCommit,
+    "5a98c7d2783a2e74e36fec47541a2b9f2d7eada4");
+  assert.equal(contract.firstSignedDispatchEvidence.containerCount, 11);
+  assert.equal(contract.firstSignedDispatchEvidence.containerIdentityUnchanged, true);
+  assert.equal(contract.firstSignedDispatchEvidence.transportContainsSecrets, false);
+  assert.equal(contract.firstSignedDispatchEvidence.stagingCleaned, true);
   assert.equal(contract.recurrenceRootCauseGate.requiredForEveryActivePackage, true);
-  assert.equal(contract.recurrenceRootCauseGate.currentOpenIncidentCount, 1);
+  assert.equal(contract.recurrenceRootCauseGate.currentOpenIncidentCount, 0);
   assert.equal(contract.recurrenceRootCauseGate.allowedBootstrapOperation,
     "fixed_dispatch_bootstrap_install");
-  assert.equal(contract.recurrenceRootCauseGate.nextRequiredOperation,
-    "fixed_dispatch_first_signed_acceptance");
+  assert.equal(contract.recurrenceRootCauseGate.nextRequiredOperation, null);
   assert.equal(contract.exceptions[0].mayBypassCloudMfa, false);
   assert.equal(contract.exceptions[1].mayMisreportTransport, false);
 });

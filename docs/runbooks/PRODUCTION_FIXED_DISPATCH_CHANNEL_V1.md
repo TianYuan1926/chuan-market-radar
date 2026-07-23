@@ -22,11 +22,11 @@ OrcaTerm 从日常运输通道降级为：首次安装、云平台 MFA、secret 
 截至 2026-07-23：
 
 - 固定执行通道已安装到腾讯生产服务器；`market-radar-production-dispatch.timer` 为 enabled/active，固定 Node `v24.18.0`、公钥、agent 和 source-set 哈希均通过目标机校验。
-- agent 首次状态为 `initialized_no_replay`，随后持续返回 `IDLE_NO_DISPATCH_REF`；这证明安装后保持空闲且没有回放旧任务。
+- agent 首次状态为 `initialized_no_replay`，随后保持空闲；首个真实 signed dispatch 已被专用 ref 拉取、验签并通过独立 runner 完成验收。
 - 生产应用仓库仍为 clean `cec0b6572bb09ae91ff9e013f8bb160f73c045e2`，11 个容器 ID 全部未变，health=`ready`、scan=`ready/fresh`、Redis=`PONG`，没有新增入站监听端口。
-- 首个真实签名派发尚未发布、拉取和启动，因此当前只能写“通道已安装，日常运输验收待首单”，不能写整条生产发布闭环完成。
+- 首单 `g0-first-signed-exact-20260722t211117z` 返回 `PASS_SESSION_INDEPENDENT_RUNNER_LAUNCHED` 与 `PASS_FIXED_DISPATCH_FIRST_SIGNED_ACCEPTANCE`；普通无 secret Bundle 的运输和独立启动闭环已通过真实目标验收。
 - 当前 P0R 使用 7200 秒腾讯 STS 和 `/dev/shm` 临时凭证，仍属于云平台凭证例外；V1 通道禁止运输 secret，也不伪装成能够绕过腾讯 MFA。
-- 首个真实 signed dispatch 验收通过后，普通无 secret 的生产 Bundle 才正式退出浏览器逐文件上传和前台保持连接路径。
+- 普通无 secret 的生产 Bundle 已正式退出浏览器逐文件上传和前台保持连接路径；OrcaTerm 文件上传和长特殊字符命令保持退役。
 - 旧包若仍声明 `approved_orcaterm_bundle_upload`，固定通道会拒绝；只有合同和 request 明确声明 `signed_git_bundle` 的新包才可进入，禁止运输事实与报告不一致。
 
 ## 3. 安全模型
@@ -165,6 +165,12 @@ node scripts/v2/production/fixed-channel/production-dispatch.mjs publish \
 
 发布动作只推送四个脱敏文件：`approval-request.json`、`bundle.tar.gz`、`dispatch.json`、`dispatch.sig`。
 
+### 5.4 身份绑定输入纪律
+
+- 禁止从终端截图或折行文本肉眼抄录 64 字符容器、镜像、提交或证据身份。
+- 必须在目标机生成排序后的机器文件或摘要，并在签名前用 exact `diff` 或 SHA-256 比对；任何差异都视为输入污染，不允许放宽生产身份门禁。
+- 首单验收是一次性安装出口，合同已经标记 `firstSignedDispatchAccepted=true`；后续包使用各自的生产合同和 runner，不重复伪造“首单验收”。
+
 ## 6. 结果判定
 
 - `PASS_SIGNED_DISPATCH_PUBLISHED`：只代表脱敏任务已送到专用 ref。
@@ -174,6 +180,17 @@ node scripts/v2/production/fixed-channel/production-dispatch.mjs publish \
 - `DEFERRED_PRODUCTION_LEASE_UNCERTAIN`：租约真值损坏或处于创建竞态，保持任务未消费并等待修复，不得继续生产变更。
 - `FAIL_DISPATCH_NOT_REUSABLE`：该 dispatch 已声明失败，不得修改后重用，必须重新生成 ID、nonce、授权和签名。
 
+首单生产证据：
+
+```text
+dispatch commit = 467ce8e2156aabe399ca61211b232c9d81294c4e
+source commit = 5a98c7d2783a2e74e36fec47541a2b9f2d7eada4
+bundle sha256 = 5e263bb5d26edacf479db43da8f482c4894b8810dddedebff5c0b4d234e682e3
+request sha256 = b8168ed65c32c37bb1c8de8c804e5491d079c99e1e2e5ca9b7fe931d6a901fb2
+acceptance evidence sha256 = e337f6b3b1940ba58149d13423ffd720886404401231c04fd0d9b09cc3037044
+result = PASS_FIXED_DISPATCH_FIRST_SIGNED_ACCEPTANCE
+```
+
 ## 7. 速度目标
 
-首个真实签名派发验收后，正常 Bundle 的“运输并启动”目标从人工 20-60 分钟降为 1-3 分钟；完整生产耗时仍由 build、数据库安全、健康验证和必要观察窗口决定，这些质量门禁不缩短。
+首个真实签名派发从 publish 到目标机 acceptance 约 10 秒，在一个 20 秒轮询周期内完成，已经优于 1-3 分钟目标。完整生产耗时仍由 build、数据库安全、健康验证和必要观察窗口决定，这些质量门禁不缩短。

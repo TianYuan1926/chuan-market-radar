@@ -108,7 +108,7 @@
       "id": "REC-2026-07-23-ORCATERM-ZERO-BYTE-UPLOAD",
       "faultClass": "orcaterm.file_upload.stale_session_zero_byte",
       "affectedChannel": "tencent_orcaterm_browser_file_manager",
-      "status": "REMEDIATION_IN_PROGRESS",
+      "status": "CLOSED_VERIFIED",
       "recurrenceCount": 2,
       "firstObservedDate": "2026-07-23",
       "lastObservedDate": "2026-07-23",
@@ -147,7 +147,7 @@
         ]
       },
       "permanentFix": {
-        "status": "PARTIAL",
+        "status": "PASS",
         "authorityPaths": [
           "scripts/v2/production/fixed-channel/production-dispatch.mjs",
           "scripts/v2/production/fixed-channel/install-production-dispatch.sh",
@@ -156,7 +156,8 @@
         "workaroundDisposition": "RETIRED_AFTER_BOOTSTRAP",
         "evidence": [
           "Routine non-secret packages move to an Ed25519 signed pull-only Git channel.",
-          "The production host will poll without browser upload sessions or inbound ports."
+          "The production host polls without browser upload sessions or inbound ports.",
+          "Dispatch g0-first-signed-exact-20260722t211117z completed publish, pull, signature verification, independent launch and package acceptance without using the OrcaTerm file manager."
         ]
       },
       "regression": {
@@ -173,14 +174,17 @@
         "evidence": [
           "The exact bootstrap archive uploaded only after session reload and reconnect.",
           "The server-side package verify returned PASS_EXACT_INSTALL_PACKAGE_VERIFIED_NO_MUTATION.",
-          "The fixed pull-only timer is enabled and active and repeatedly reports IDLE_NO_DISPATCH_REF."
+          "The fixed pull-only timer is enabled and active.",
+          "Dispatch commit 467ce8e2156aabe399ca61211b232c9d81294c4e was pulled and returned PASS_SESSION_INDEPENDENT_RUNNER_LAUNCHED."
         ]
       },
       "realTargetAcceptance": {
-        "status": "PARTIAL",
+        "status": "PASS",
         "evidence": [
           "Persistent channel installation and zero-business-change post-install verification passed.",
-          "One real signed dispatch must still be published, pulled, launched and accepted before this incident can close."
+          "The first real signed dispatch returned PASS_FIXED_DISPATCH_FIRST_SIGNED_ACCEPTANCE on the Tencent production host.",
+          "Production HEAD cec0b6572bb09ae91ff9e013f8bb160f73c045e2, clean worktree, 11-container identity, ready/fresh health, Redis PONG and enabled/active timer remained unchanged; no application, database, Redis or worker mutation was attempted.",
+          "The exact acceptance staging directory was absent after execution and all failed claims remain retained as audit evidence."
         ]
       },
       "workaroundAccounting": {
@@ -192,7 +196,8 @@
       },
       "remainingRisks": [
         "Tencent does not expose the internal upload-session token state.",
-        "The first real signed dispatch has not yet proved that routine Bundle transport no longer depends on the browser upload path."
+        "OrcaTerm remains an explicit exception for cloud MFA, secret rotation and emergency recovery; the signed Git channel must never transport credentials.",
+        "Visual transcription of long runtime identities is prohibited; identity-bound acceptance must use machine-generated sorted facts and an exact diff or digest before signing."
       ]
     }
   ]
