@@ -20,6 +20,7 @@ import {
 } from "./m1-source-conformance-live-bundle.mjs";
 import {
   LIVE_SOURCE_CONFORMANCE_ENTRYPOINT,
+  LIVE_SOURCE_CONFORMANCE_FAILURE_RESULT_SCHEMA,
   LIVE_SOURCE_CONFORMANCE_PACKAGE_ID,
   LIVE_SOURCE_CONFORMANCE_RUNNER,
   LIVE_SOURCE_CONFORMANCE_RUNTIME_ENTRY,
@@ -185,6 +186,8 @@ function validArtifact(staging, request) {
       outcome: "PASS",
       paginationStatus: definition.paginationExpectation === "MUST_TERMINATE"
         ? "COMPLETE"
+        : definition.paginationExpectation === "BOUNDED_HEAD_WINDOW"
+          ? "BOUNDED_COMPLETE"
         : "NOT_APPLICABLE",
       probeId: definition.probeId,
       providerServerTime:
@@ -347,6 +350,54 @@ test("persists a blocked live artifact without emitting the success marker path"
       "BLOCKED_TENCENT_LIVE_READ_ONLY_SOURCE_CONFORMANCE",
     );
     assert.equal(persistedResult.productionChanged, false);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("persists a sanitized pre-artifact failure result for probe process failures", async () => {
+  const root = await realpath(
+    await mkdtemp(join(tmpdir(), "m1-1b0-probe-failure-test-")),
+  );
+  try {
+    const dispatchId = "m1-1b0-probe-failure-20260723t220000z";
+    const staged = await buildStaging(root, dispatchId);
+    await assert.rejects(
+      () => runLiveSourceConformance({
+        bundleMarkerPath: staged.bundleMarkerPath,
+        commandRunner: commandRunner([]),
+        credentialReader: async () => COINGLASS_KEY,
+        now: new Date(ISSUED_AT),
+        policy: staged.policy,
+        probeExecutor: async () => {
+          throw new LiveSourceConformanceError("live_probe_process_failed");
+        },
+        requestPath: staged.requestPath,
+      }),
+      (error) =>
+        error instanceof LiveSourceConformanceError &&
+        error.reason === "live_probe_process_failed",
+    );
+    const persistedResultRaw = await readFile(
+      staged.request.resultPath,
+      "utf8",
+    );
+    const persistedResult = JSON.parse(persistedResultRaw);
+
+    assert.equal(
+      persistedResult.schemaVersion,
+      LIVE_SOURCE_CONFORMANCE_FAILURE_RESULT_SCHEMA,
+    );
+    assert.equal(persistedResult.failurePhase, "PROBE_EXECUTION");
+    assert.equal(
+      persistedResult.failureReason,
+      "live_probe_process_failed",
+    );
+    assert.equal(persistedResult.artifactWritten, false);
+    assert.equal(persistedResult.productionMutationAttempted, false);
+    assert.equal(persistedResult.productionIdentityUnchangedVerified, false);
+    assert.equal(persistedResult.secretMaterialPresent, false);
+    assert.doesNotMatch(persistedResultRaw, new RegExp(COINGLASS_KEY, "u"));
   } finally {
     await rm(root, { recursive: true, force: true });
   }

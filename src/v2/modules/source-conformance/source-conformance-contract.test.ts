@@ -4,6 +4,7 @@ import {
   runM1ExactSourceConformanceEntrypoint,
 } from "../../entrypoints/m1-exact-source-conformance";
 import {
+  M1_EXACT_SOURCE_EXECUTION_POLICY,
   M1_EXACT_SOURCE_PROBE_DEFINITIONS,
   M1_EXACT_SOURCE_PROBE_PLAN_DIGEST,
   runM1ExactSourceConformance,
@@ -102,6 +103,7 @@ function fixtureFetch(options: {
   emptyBitgetDerivativeCatalog?: boolean;
   malformedOkxDerivativeCatalog?: boolean;
   observedUrls?: string[];
+  bybitAnnouncementTotal?: number;
   repeatBybitCursor?: boolean;
   observedCoinGlassKey?: string[];
 } = {}): typeof fetch {
@@ -153,13 +155,14 @@ function fixtureFetch(options: {
         });
       }
       if (url.pathname.includes("announcements")) {
+        const page = Number(url.searchParams.get("page") ?? "1");
         return response({
           retCode: 0,
           time: NOW_MS,
           result: {
-            total: 1,
+            total: options.bybitAnnouncementTotal ?? 1,
             list: [{
-              title: "Fixture listing",
+              title: `Fixture listing page ${page}`,
               type: { key: "new_crypto" },
               tags: ["Derivatives"],
               url: "https://announcements.bybit.com/example",
@@ -364,6 +367,39 @@ test("uses exact listing-only announcement scopes and parallelizes only across s
   );
   assert.ok(maxActiveTotal > 1);
   assert.equal(maxActivePerSource, 1);
+  assert.equal(
+    M1_EXACT_SOURCE_EXECUTION_POLICY.announcementScope.bybit,
+    "LATEST_TWO_NEW_CRYPTO_PAGES_FOR_CONFORMANCE_FULL_BACKFILL_DEFERRED_TO_LISTING_RUNTIME",
+  );
+});
+
+test("bounds Bybit live conformance to the newest two pages without claiming a full backfill", async () => {
+  const observedUrls: string[] = [];
+  const artifact = await runM1ExactSourceConformance({
+    releaseId: RELEASE_ID,
+    registryDigest: REGISTRY_DIGEST,
+    networkEnvironment: "LOCAL_WORKSTATION",
+    coinGlassApiKey: "test-key",
+    fetchImplementation: fixtureFetch({
+      bybitAnnouncementTotal: 1_617,
+      observedUrls,
+    }),
+    now: () => new Date(NOW),
+  });
+  const announcementUrls = observedUrls.filter((url) =>
+    url.includes("api.bybit.com/v5/announcements/index")
+  );
+  const bybit = artifact.probes.find(
+    (probe) => probe.probeId === "BYBIT_LISTING_ANNOUNCEMENT",
+  );
+
+  assert.deepEqual(
+    announcementUrls.map((url) => new URL(url).searchParams.get("page")),
+    ["1", "2"],
+  );
+  assert.equal(bybit?.outcome, "PASS");
+  assert.equal(bybit?.paginationStatus, "BOUNDED_COMPLETE");
+  assert.equal(bybit?.observedRecordCount, 2);
 });
 
 test("keeps missing CoinGlass Hobbyist credential as NOT_RUN while public probes proceed", async () => {

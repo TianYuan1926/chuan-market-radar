@@ -1,6 +1,6 @@
 # Market Radar V2 M1.1B0 腾讯实时来源一致性固定派发合同 v1
 
-状态：`LOCAL_PACKAGE_PASS / LIVE_EXECUTION_NOT_RUN / PRODUCTION_UNCHANGED`
+状态：`LIVE_ATTEMPT_1_BLOCKED_BEFORE_BUSINESS_RESULT / ROOT_CAUSE_CLASS_IDENTIFIED / R1_DIRECTED_22_OF_22_PASS / PRODUCTION_CODE_AND_CONTAINER_IDENTITY_MATCH_BASELINE`
 
 日期：2026-07-23
 
@@ -39,10 +39,12 @@ Bitget 不能作为可选加分项。任何一个 Venue 的身份探针失败，
 上新范围固定为：
 
 - Binance、OKX、Bybit、Bitget 现货目录。
-- Bybit `type=new_crypto` 的完整官方公告分页。
+- Bybit `type=new_crypto` 的最新两页有界一致性窗口；到达窗口边界时必须记录 `BOUNDED_COMPLETE`，不得冒充完整历史回填。
 - Bitget `annType=coin_listings` 的官方一个月公告范围及完整 cursor 分页。
 
 股票合约本包只验证可承载其身份的合约目录。单股、ETF/指数、session、corporate action 和 jurisdiction 能力仍由后续独立 Gate 决定，目录可达不能冒充股票实战能力。
+
+Bybit 完整公告历史不再塞入 85 秒一致性探针。它必须在 M1.4B 上市情报运行时通过一次性 bootstrap backfill、持久 checkpoint、缺口检测和后续增量页收口；B0 只证明最新入口、结构和有界翻页当前可用。
 
 ## 3. 有界并发
 
@@ -186,9 +188,34 @@ notRunCount = 0
 before production identity = after production identity
 ```
 
-任何部分失败仍保存脱敏 artifact/result，但 fixed dispatch 不输出成功标记，状态为 `BLOCKED_TENCENT_LIVE_READ_ONLY_SOURCE_CONFORMANCE`。
+任何 Gate 失败仍保存脱敏 artifact/result，但 fixed dispatch 不输出成功标记，状态为 `BLOCKED_TENCENT_LIVE_READ_ONLY_SOURCE_CONFORMANCE`。
 
-## 9. 完成边界
+若在 artifact 形成前发生 request、bundle、runtime、生产身份、凭证、子进程或 evidence 异常，runner 必须额外保存独立失败结果：
+
+```text
+schemaVersion = market-radar-v2-m1-source-conformance-live-failure-result.v1
+failurePhase = bounded phase code
+failureReason = bounded sanitized reason code
+productionMutationAttempted = false
+productionIdentityUnchangedVerified = true only when both snapshots exist and match
+secretMaterialPresent = false
+```
+
+不得再只留下 stderr hash，也不得在缺少 after snapshot 时宣称完整零漂移。
+
+## 9. 首次生产尝试与路线纠正
+
+首次派发 `m1b0-live-source-20260723t141526z` 被固定通道真实领取，但入口以 `dispatch_entrypoint_launch_failed` 关闭，未形成业务 artifact/result；staging 已清理。现场复核确认 exact production HEAD、clean worktree、11 个容器 ID、timer、health 及 CoinGlass 文件权限/键形状均符合合同。
+
+同一现场查询显示 Bybit `new_crypto` 当前 `total=1617`，需要 81 页；原计划同时要求“全分页”、`maxPages=64` 和 85 秒总 deadline，合同不可能取得完整 PASS，且前 artifact 失败没有可读原因码。该尝试永久记为：
+
+```text
+BLOCKED_ATTEMPT_NOT_COUNTED_AS_LIVE_B0_PASS
+```
+
+R1 同时修复有界职责分离和失败证据，不原样重试旧 dispatch。
+
+## 10. 完成边界
 
 本地包测试通过只能说：
 

@@ -10,11 +10,12 @@
 
 ### 修改范围
 
-- Bybit 公告固定 `type=new_crypto` 全分页；Bitget 固定 `annType=coin_listings` 官方一个月窗口和完整 cursor。
+- Bybit 公告 B0 固定为 `type=new_crypto` 最新两页 `BOUNDED_COMPLETE` 一致性窗口，完整历史移交 M1.4B bootstrap/checkpoint/gap/incremental；Bitget 保持 `annType=coin_listings` 官方一个月窗口和完整 cursor。
 - 五个来源组跨来源并行、同一来源严格串行；每页 12 秒超时、8 MiB 上限及 85 秒探针 deadline 全部进入摘要。
 - 新增确定性 bundle、目标机 runner、固定 entrypoint、独立最小 TypeScript 编译和 Zod 4.4.3 最小运行树。
 - CoinGlass Hobbyist key 只从目标机受限生产 env 读取并进入一次性子进程，不进入 Git、运输、staging、日志、artifact 或 result。
 - 执行前后绑定 production HEAD、clean worktree、容器 ID、listener、timer 和 health；任何变化均失败关闭。
+- request 通过后的前 artifact 故障必须持久化脱敏 phase/reason；Bitget Venue、Listing Lifecycle、股票 Asset Domain 分别记账，不能合并成一个能力状态。
 
 ### 核心链路影响
 
@@ -22,23 +23,23 @@
 
 ### 测试结果
 
-- 定向 package tests 20/20 PASS。
-- 确定性 bundle、secret 拒绝、身份/窗口篡改拒绝、blocked result 和 staging cleanup 均 PASS。
-- 固定派发 `prepareDispatch` 与 `validateOutbox` rehearsal PASS。
-- 独立干净克隆完整 `ci:production` PASS：Legacy 965 pass / 4 skip、V2 Foundation 419 pass / 6 skip、V2 Ops 124/124、Next build、Golden 16/16 和 security 全部通过。
+- R1 定向 package tests 22/22 PASS。
+- 确定性 bundle、secret 拒绝、身份/窗口篡改拒绝、blocked result、前 artifact 脱敏失败结果和 staging cleanup 均 PASS。
+- 固定派发回归 21/21、V2 Ops 125/125 PASS。
+- R1 独立干净克隆完整 `ci:production` PASS：Legacy 965 pass / 4 skip、V2 Foundation 420 pass / 6 skip、V2 Ops 125/125、M0、Next build、Golden 16/16 和 security 全部通过。
 - 本地 14 个公开探针的 reset/timeout 只登记为 `LOCAL_UNCOMMITTED_DIAGNOSTIC_NOT_AUTHORITY`。
 
 ### 是否部署
 
-未部署、未执行腾讯 live B0。生产服务、数据库、Redis、Worker、env、Feature Flag、数据和业务 authority 零变更。
+首次派发 `m1b0-live-source-20260723t141526z` 已被腾讯固定通道领取，但在业务 artifact 前阻断，永久记为 `BLOCKED_ATTEMPT_NOT_COUNTED_AS_LIVE_B0_PASS`。现场只读复核确认 production HEAD、clean worktree、11 个容器、health、timer 和 CoinGlass 文件边界仍匹配基线；生产服务、数据库、Redis、Worker、env、Feature Flag、数据和业务 authority 零变更。
 
 ### 风险与遗留问题
 
-exact package-only commit/push、fresh 生产身份绑定和腾讯 15/15 尚未完成。股票目录可达也不能证明 session、公司行动、reference、成本或股票实战能力。
+exact package-only commit/push、fresh 生产身份绑定和腾讯 15/15 重派发尚未完成。股票目录可达也不能证明 session、公司行动、reference、成本或股票实战能力；Bybit 两页窗口也不能证明完整 listing history。
 
 ### 下一轮建议
 
-先完成精确提交，再构建绑定 fresh production identity 的无密钥派发包；只有 live PASS capability 进入 M1.4B。P0R 保持独立生产第一关键路径。
+先完成 R1 精确提交，再构建绑定 fresh production identity 的无密钥派发包；只有 live PASS capability 进入 M1.4B，随后由 M1.4B 单独验收 listing 历史回填。P0R 保持独立生产第一关键路径。
 
 ## 2026-07-23 / V2 M1.4A Adaptive Multi-Asset Collector Contracts
 

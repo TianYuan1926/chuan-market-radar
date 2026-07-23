@@ -1,6 +1,6 @@
 # Market Radar V2 M1.1B 精确来源一致性、多资产身份与上新情报合同 v1
 
-状态：`LOCAL_IMPLEMENTATION_PASS / TEST_ONLY_CONFORMANCE_PASS / LIVE_B0_NOT_RUN / PRODUCTION_UNCHANGED`
+状态：`LOCAL_IMPLEMENTATION_PASS / TEST_ONLY_CONFORMANCE_PASS / LIVE_B0_ATTEMPT_1_BLOCKED_NOT_COUNTED / R1_LOCAL_AND_FULL_CI_PASS_EXACT_COMMIT_REDISPATCH_PENDING / PRODUCTION_UNCHANGED`
 
 冻结日期：2026-07-23
 
@@ -111,7 +111,7 @@ CoinGlass 使用用户已确认的 Hobbyist 只读 key。key 只通过 `CG-API-K
 
 上新公告探针固定为官方可验证语义：
 
-- Bybit 使用 `type=new_crypto`，从第一页开始完整遍历官方分页。
+- Bybit 使用 `type=new_crypto`；B0 一致性探针只取最新两页并明确记为 `BOUNDED_COMPLETE`，不得声称完整历史。完整 bootstrap backfill、checkpoint、缺口检测和增量追页属于 M1.4B 上市情报运行时。
 - Bitget 使用 `annType=coin_listings`，覆盖官方允许的一个月窗口并完整遍历 cursor。
 - 五个来源组允许并行，但同一来源内严格串行；每页超时 12 秒、响应上限 8 MiB。
 - 公告过滤、分页和执行策略均进入 `probePlanDigest`，任一变化都必须重新取得 B0 证据。
@@ -173,7 +173,8 @@ runner 只允许：
 - 非 JSON 或 schema 漂移。
 - 必需目录返回空数组。
 - provider body error。
-- 重复 cursor、缺 cursor 或超过最大页数。
+- 要求完整遍历的来源出现重复 cursor、缺 cursor 或超过最大页数。
+- 有界窗口未按精确页数完成，或把 `BOUNDED_COMPLETE` 冒充完整 backfill。
 - server time 缺失或与接收时间偏差超过 30 秒。
 - CoinGlass key 缺失时，该探针显式 `NOT_RUN`。
 
@@ -371,22 +372,25 @@ TypeScript isolated compile = PASS
 directed contract tests = 22/22 PASS
 test harness conformance = PASS_TEST_ONLY
 live local conformance = NOT_RUN
-Tencent isolated live conformance = NOT_RUN
-full production CI = PASS
+Tencent isolated live conformance attempt 1 = BLOCKED_BEFORE_BUSINESS_ARTIFACT_NOT_COUNTED
+R1 directed package/fixed-dispatch/V2 Ops = 22/22 + 21/21 + 125/125 PASS
+M1.1B original full production CI = PASS
+M1.1B0 R1 full production CI = PASS
 production mutation = 0
 ```
 
-本地直连目标 Venue 曾观察到 transport reset，因此不能使用本地 fixture 代替真实 B0。正式 B0 应绑定提交后的 clean release，在腾讯隔离只读环境执行。
+本地直连目标 Venue 曾观察到 transport reset，因此不能使用本地 fixture 代替真实 B0。首次腾讯派发已在业务 artifact 前阻断，且旧 Bybit 全历史职责不可能在 64 页/85 秒边界内完成；该尝试不能计入 B0。R1 只验证最新两页 `BOUNDED_COMPLETE`，完整历史由 M1.4B runtime 承担。正式重派发必须绑定 R1 提交后的 clean release，在腾讯隔离只读环境执行。
 
 ## 13. 后续固定顺序
 
 ```text
 M1.1B local implementation + full CI
--> exact commit push
 -> M1.4A capability-independent scheduler contract [COMPLETE]
--> M1.1B0 no-secret fixed-dispatch package
--> Tencent isolated LIVE_READ_ONLY B0
+-> M1.1B0 attempt 1 [BLOCKED_NOT_COUNTED]
+-> M1.1B0 R1 exact commit push
+-> Tencent isolated LIVE_READ_ONLY B0 redispatch
 -> only passed capabilities enter M1.4B runtime Adapter
+-> M1.4B listing-history bootstrap + checkpoint + gap + incremental
 -> M1.5C Four-Venue Multi-Asset Shadow
 -> M1.6-D1 Expanded-Scope No-Cost Capacity Proof
 -> M2/M3 per-domain detection, calibration, feasibility and risk

@@ -121,6 +121,7 @@ export const M1SourceConformanceProbeObservationSchema = z.strictObject({
   paginationStatus: z.enum([
     "NOT_APPLICABLE",
     "COMPLETE",
+    "BOUNDED_COMPLETE",
     "INCOMPLETE",
     "NOT_RUN",
   ]),
@@ -192,6 +193,16 @@ export const M1SourceConformanceProbeObservationSchema = z.strictObject({
         path: ["failure"],
       });
     }
+    if (
+      observation.paginationStatus === "INCOMPLETE" ||
+      observation.paginationStatus === "NOT_RUN"
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "PASS probe requires completed pagination semantics",
+        path: ["paginationStatus"],
+      });
+    }
   } else if (
     observation.failure === null ||
     observation.reasonCodes.length === 0
@@ -228,6 +239,20 @@ export const M1SourceConformanceProbeObservationSchema = z.strictObject({
       code: "custom",
       message: "missing credential must remain an explicit NOT_RUN",
       path: ["credentialDisposition"],
+    });
+  }
+  if (
+    observation.paginationStatus === "BOUNDED_COMPLETE" &&
+    (
+      observation.outcome !== "PASS" ||
+      observation.capabilityId !== "LISTING_ANNOUNCEMENT"
+    )
+  ) {
+    context.addIssue({
+      code: "custom",
+      message:
+        "bounded pagination completion is reserved for passing listing announcement probes",
+      path: ["paginationStatus"],
     });
   }
 });
@@ -424,7 +449,10 @@ export type M1SourceConformanceProbeDefinition = Readonly<{
   capabilityId: M1CapabilityId;
   gate: M1SourceConformanceGate;
   requiresReadOnlyApiKey: boolean;
-  paginationExpectation: "NOT_APPLICABLE" | "MUST_TERMINATE";
+  paginationExpectation:
+    | "NOT_APPLICABLE"
+    | "MUST_TERMINATE"
+    | "BOUNDED_HEAD_WINDOW";
 }>;
 
 function gateStatus(

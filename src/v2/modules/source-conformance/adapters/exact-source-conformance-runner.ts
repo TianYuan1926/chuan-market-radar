@@ -56,7 +56,8 @@ const REQUEST_TIMEOUT_MS = 12_000;
 export const M1_EXACT_SOURCE_EXECUTION_POLICY = Object.freeze({
   announcementScope: Object.freeze({
     bitget: "OFFICIAL_ONE_MONTH_COIN_LISTINGS",
-    bybit: "FULL_NEW_CRYPTO_CATALOG",
+    bybit:
+      "LATEST_TWO_NEW_CRYPTO_PAGES_FOR_CONFORMANCE_FULL_BACKFILL_DEFERRED_TO_LISTING_RUNTIME",
   }),
   crossSourceConcurrency: 5,
   maxResponseBytesPerPage: MAX_RESPONSE_BYTES_PER_PAGE,
@@ -451,11 +452,11 @@ const RUNTIME_PROBE_DEFINITIONS = [
     capabilityId: "LISTING_ANNOUNCEMENT",
     gate: "LISTING_INTELLIGENCE",
     requiresReadOnlyApiKey: false,
-    paginationExpectation: "MUST_TERMINATE",
+    paginationExpectation: "BOUNDED_HEAD_WINDOW",
     host: "api.bybit.com",
     initialUrl:
       "https://api.bybit.com/v5/announcements/index?locale=en-US&type=new_crypto&page=1&limit=20",
-    maxPages: 64,
+    maxPages: 2,
     parsePage: bybitAnnouncementParser,
     nextUrl: (_token, nextPageIndex) =>
       `https://api.bybit.com/v5/announcements/index?locale=en-US&type=new_crypto&page=${
@@ -807,6 +808,76 @@ async function runProbe(input: {
   let url = input.definition.initialUrl;
   let pageIndex = 0;
 
+  const completedObservation = (
+    paginationStatus:
+      M1SourceConformanceProbeObservation["paginationStatus"],
+  ): M1SourceConformanceProbeObservation => {
+    const responseBodyDigest = stableContentHash(pageDigests);
+    const absoluteClockSkewMs = providerServerTime === null
+      ? null
+      : Math.abs(
+        Date.parse(lastReceivedAt) - Date.parse(providerServerTime),
+      );
+    if (
+      allRecords.length === 0 &&
+      input.definition.capabilityId !== "LISTING_ANNOUNCEMENT"
+    ) {
+      return failedObservation({
+        definition: input.definition,
+        evidenceClass: input.evidenceClass,
+        failure: "EMPTY_RESPONSE_OBSERVED_EMPTY",
+        startedAt,
+        receivedAt: lastReceivedAt,
+        credentialDisposition,
+      });
+    }
+    if (
+      input.definition.capabilityId === "SERVER_TIME" &&
+      (
+        absoluteClockSkewMs === null ||
+        absoluteClockSkewMs > 30_000
+      )
+    ) {
+      return failedObservation({
+        definition: input.definition,
+        evidenceClass: input.evidenceClass,
+        failure: "SOURCE_CLOCK_UNKNOWN_UNAVAILABLE",
+        startedAt,
+        receivedAt: lastReceivedAt,
+        credentialDisposition,
+      });
+    }
+    return M1SourceConformanceProbeObservationSchema.parse({
+      probeId: input.definition.probeId,
+      sourceId: input.definition.sourceId,
+      capabilityId: input.definition.capabilityId,
+      gate: input.definition.gate,
+      definitionDigest: definitionDigest(input.definition),
+      evidenceClass: input.evidenceClass,
+      outcome: "PASS",
+      attemptStartedAt: startedAt,
+      receivedAt: lastReceivedAt,
+      latencyMs: Math.max(
+        0,
+        Date.parse(lastReceivedAt) - Date.parse(startedAt),
+      ),
+      httpStatus: lastStatus,
+      responseBodyDigest,
+      responseBytes: totalBytes,
+      topLevelKeys: [...topLevelKeys].sort(),
+      recordKeys: recordKeys(allRecords),
+      observedRecordCount: allRecords.length,
+      providerServerTime,
+      absoluteClockSkewMs,
+      paginationStatus,
+      credentialDisposition,
+      failure: null,
+      reasonCodes: [],
+      rawBodyRetained: false,
+      secretMaterialPresent: false,
+    });
+  };
+
   while (pageIndex < input.definition.maxPages) {
     const response = await fetchPage({
       definition: input.definition,
@@ -858,73 +929,11 @@ async function runProbe(input: {
     providerServerTime = parsed.providerServerTime ?? providerServerTime;
     pageIndex += 1;
     if (parsed.nextToken === null) {
-      const responseBodyDigest = stableContentHash(pageDigests);
-      const absoluteClockSkewMs = providerServerTime === null
-        ? null
-        : Math.abs(
-          Date.parse(lastReceivedAt) - Date.parse(providerServerTime),
-        );
-      if (
-        allRecords.length === 0 &&
-        input.definition.capabilityId !== "LISTING_ANNOUNCEMENT"
-      ) {
-        return failedObservation({
-          definition: input.definition,
-          evidenceClass: input.evidenceClass,
-          failure: "EMPTY_RESPONSE_OBSERVED_EMPTY",
-          startedAt,
-          receivedAt: lastReceivedAt,
-          credentialDisposition,
-        });
-      }
-      if (
-        input.definition.capabilityId === "SERVER_TIME" &&
-        (
-          absoluteClockSkewMs === null ||
-          absoluteClockSkewMs > 30_000
-        )
-      ) {
-        return failedObservation({
-          definition: input.definition,
-          evidenceClass: input.evidenceClass,
-          failure: "SOURCE_CLOCK_UNKNOWN_UNAVAILABLE",
-          startedAt,
-          receivedAt: lastReceivedAt,
-          credentialDisposition,
-        });
-      }
-      return M1SourceConformanceProbeObservationSchema.parse({
-        probeId: input.definition.probeId,
-        sourceId: input.definition.sourceId,
-        capabilityId: input.definition.capabilityId,
-        gate: input.definition.gate,
-        definitionDigest: definitionDigest(input.definition),
-        evidenceClass: input.evidenceClass,
-        outcome: "PASS",
-        attemptStartedAt: startedAt,
-        receivedAt: lastReceivedAt,
-        latencyMs: Math.max(
-          0,
-          Date.parse(lastReceivedAt) - Date.parse(startedAt),
-        ),
-        httpStatus: lastStatus,
-        responseBodyDigest,
-        responseBytes: totalBytes,
-        topLevelKeys: [...topLevelKeys].sort(),
-        recordKeys: recordKeys(allRecords),
-        observedRecordCount: allRecords.length,
-        providerServerTime,
-        absoluteClockSkewMs,
-        paginationStatus:
-          input.definition.paginationExpectation === "NOT_APPLICABLE"
-            ? "NOT_APPLICABLE"
-            : "COMPLETE",
-        credentialDisposition,
-        failure: null,
-        reasonCodes: [],
-        rawBodyRetained: false,
-        secretMaterialPresent: false,
-      });
+      return completedObservation(
+        input.definition.paginationExpectation === "NOT_APPLICABLE"
+          ? "NOT_APPLICABLE"
+          : "COMPLETE",
+      );
     }
     if (
       input.definition.nextUrl === null ||
@@ -941,6 +950,12 @@ async function runProbe(input: {
     }
     seenTokens.add(parsed.nextToken);
     url = input.definition.nextUrl(parsed.nextToken, pageIndex);
+  }
+
+  if (
+    input.definition.paginationExpectation === "BOUNDED_HEAD_WINDOW"
+  ) {
+    return completedObservation("BOUNDED_COMPLETE");
   }
 
   return failedObservation({

@@ -25,6 +25,8 @@ export const LIVE_SOURCE_CONFORMANCE_REQUEST_SCHEMA =
   "market-radar-v2-m1-source-conformance-live-request.v1";
 export const LIVE_SOURCE_CONFORMANCE_RESULT_SCHEMA =
   "market-radar-v2-m1-source-conformance-live-result.v1";
+export const LIVE_SOURCE_CONFORMANCE_FAILURE_RESULT_SCHEMA =
+  "market-radar-v2-m1-source-conformance-live-failure-result.v1";
 export const LIVE_SOURCE_CONFORMANCE_MANIFEST_SCHEMA =
   "market-radar-v2-m1-source-conformance-live-manifest.v1";
 export const LIVE_SOURCE_CONFORMANCE_MANIFEST =
@@ -1001,15 +1003,94 @@ function boundedIdentity(identity) {
   };
 }
 
-export async function runLiveSourceConformance({
+const LIVE_FAILURE_PHASES = Object.freeze([
+  "REQUEST_FILE_VALIDATION",
+  "PACKAGE_BINDING_VALIDATION",
+  "RUNTIME_BINDING_VALIDATION",
+  "PRODUCTION_IDENTITY_BEFORE",
+  "CREDENTIAL_VALIDATION",
+  "PROBE_EXECUTION",
+  "ARTIFACT_VALIDATION",
+  "PRODUCTION_IDENTITY_AFTER",
+  "EVIDENCE_PERSISTENCE",
+  "GATE_EVALUATION",
+]);
+
+async function persistBlockedExecutionResult({
+  error,
+  executionContext,
+  policy,
+}) {
+  const request = executionContext.request;
+  if (request === null) {
+    return;
+  }
+  const existingResult = await lstat(request.resultPath).catch((readError) => {
+    if (readError?.code === "ENOENT") return null;
+    throw readError;
+  });
+  if (existingResult !== null) {
+    return;
+  }
+  const failureReason = error instanceof LiveSourceConformanceError
+    ? error.reason
+    : "unexpected_error";
+  ensure(
+    /^[a-z0-9_]{3,120}$/u.test(failureReason) &&
+      LIVE_FAILURE_PHASES.includes(executionContext.phase),
+    "live_failure_evidence_reason_invalid",
+  );
+  const artifactFacts = await lstat(request.artifactPath).catch((readError) => {
+    if (readError?.code === "ENOENT") return null;
+    throw readError;
+  });
+  const before = executionContext.before === null
+    ? null
+    : boundedIdentity(executionContext.before);
+  const after = executionContext.after === null
+    ? null
+    : boundedIdentity(executionContext.after);
+  const productionIdentityUnchangedVerified =
+    before !== null &&
+    after !== null &&
+    canonicalJson(before) === canonicalJson(after);
+  const result = {
+    after,
+    artifactPath: request.artifactPath,
+    artifactWritten:
+      artifactFacts?.isFile() === true &&
+      artifactFacts.isSymbolicLink() === false,
+    before,
+    dispatchId: request.dispatchId,
+    failurePhase: executionContext.phase,
+    failureReason,
+    generatedAt: new Date().toISOString(),
+    packageId: request.packageId,
+    productionIdentityUnchangedVerified,
+    productionMutationAttempted: false,
+    resultPath: request.resultPath,
+    schemaVersion: LIVE_SOURCE_CONFORMANCE_FAILURE_RESULT_SCHEMA,
+    secretMaterialPresent: false,
+    sourceCommit: request.sourceCommit,
+    sourceTree: request.sourceTree,
+    status:
+      "BLOCKED_TENCENT_LIVE_READ_ONLY_SOURCE_CONFORMANCE_EXECUTION_FAILURE",
+  };
+  await ensureEvidenceRoot(policy);
+  await writeExclusiveCanonical(request.resultPath, result);
+}
+
+async function executeLiveSourceConformance({
   bundleMarkerPath,
   commandRunner = runLiveReadOnlyCommand,
   credentialReader = readExactCoinGlassCredential,
+  executionContext,
   now = new Date(),
   policy = DEFAULT_LIVE_SOURCE_CONFORMANCE_POLICY,
   probeExecutor = executeProbeProcess,
   requestPath,
 }) {
+  executionContext.phase = "REQUEST_FILE_VALIDATION";
   const requestFacts = await assertRegularFile(
     requestPath,
     "live_request_file_unsafe",
@@ -1022,6 +1103,8 @@ export async function runLiveSourceConformance({
     "live_request_invalid",
   );
   validateLiveSourceConformanceRequest(request, { now, policy });
+  executionContext.request = request;
+  executionContext.phase = "PACKAGE_BINDING_VALIDATION";
   ensure(
     await realpath(request.stagingDirectory) === request.stagingDirectory &&
       await realpath(requestPath) === join(request.stagingDirectory, "approval-request.json"),
@@ -1041,14 +1124,19 @@ export async function runLiveSourceConformance({
     requestRaw,
     bundleMarkerPath,
   );
+  executionContext.phase = "RUNTIME_BINDING_VALIDATION";
   const bindings = loadRuntimeBindings(request.stagingDirectory);
   validateRuntimeBindings(bindings, request);
 
+  executionContext.phase = "PRODUCTION_IDENTITY_BEFORE";
   const before = await captureProductionIdentity(request, commandRunner);
+  executionContext.before = before;
   assertProductionIdentity(before, request, "before");
+  executionContext.phase = "CREDENTIAL_VALIDATION";
   const credential = await credentialReader(request.coinGlassCredential.file);
   let rawArtifact;
   try {
+    executionContext.phase = "PROBE_EXECUTION";
     rawArtifact = await probeExecutor({
       credential,
       request,
@@ -1060,6 +1148,7 @@ export async function runLiveSourceConformance({
   }
   let artifact;
   try {
+    executionContext.phase = "ARTIFACT_VALIDATION";
     artifact = validateLiveArtifact(JSON.parse(rawArtifact), request, bindings);
   } catch (error) {
     if (error instanceof LiveSourceConformanceError) throw error;
@@ -1070,7 +1159,9 @@ export async function runLiveSourceConformance({
     "live_artifact_contains_credential",
   );
 
+  executionContext.phase = "PRODUCTION_IDENTITY_AFTER";
   const after = await captureProductionIdentity(request, commandRunner);
+  executionContext.after = after;
   assertProductionIdentity(after, request, "after");
   ensure(
     before.productionHead === after.productionHead &&
@@ -1079,6 +1170,7 @@ export async function runLiveSourceConformance({
     "live_production_identity_drift",
   );
 
+  executionContext.phase = "EVIDENCE_PERSISTENCE";
   await ensureEvidenceRoot(policy);
   await writeExclusiveCanonical(request.artifactPath, artifact);
   const gatesPassed =
@@ -1124,8 +1216,31 @@ export async function runLiveSourceConformance({
     "live_result_contains_credential",
   );
   await writeExclusiveCanonical(request.resultPath, result);
+  executionContext.phase = "GATE_EVALUATION";
   ensure(gatesPassed, "live_source_conformance_gates_blocked");
   return result;
+}
+
+export async function runLiveSourceConformance(options) {
+  const executionContext = {
+    after: null,
+    before: null,
+    phase: "REQUEST_FILE_VALIDATION",
+    request: null,
+  };
+  try {
+    return await executeLiveSourceConformance({
+      ...options,
+      executionContext,
+    });
+  } catch (error) {
+    await persistBlockedExecutionResult({
+      error,
+      executionContext,
+      policy: options.policy ?? DEFAULT_LIVE_SOURCE_CONFORMANCE_POLICY,
+    }).catch(() => {});
+    throw error;
+  }
 }
 
 function parseArguments(argv) {
