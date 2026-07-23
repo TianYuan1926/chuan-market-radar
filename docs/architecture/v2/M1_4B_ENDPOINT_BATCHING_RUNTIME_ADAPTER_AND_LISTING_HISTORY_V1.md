@@ -259,11 +259,10 @@ full ci:production: PASS
 
 ## 10. 本地出口与后续顺序
 
-本地代码和定向回归通过后，M1.4B 仍未完成运行验收。后续固定为：
+本地工程、完整 CI 和 GitHub 实施分支同步通过后，M1.4B 仍未完成运行验收。现场后续固定为：
 
 ```text
-exact commit + GitHub push
--> Tencent isolated no-authority runtime execution
+Tencent isolated no-authority runtime execution
 -> real Bybit bootstrap + Bitget one-month checkpoint evidence
 -> quota/request-rate/full-denominator verification
 -> registry amendment + new-digest conformance for Binance spot

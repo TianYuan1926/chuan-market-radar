@@ -92,7 +92,7 @@ runtime authority: unchanged
 
 ## 7. 下一入口
 
-本地出口已达到 `LOCAL_ENGINEERING_AND_FULL_CI_PASS`。GitHub 实施分支同步后，Scope V2 现场出口固定为：
+本地出口已达到 `LOCAL_ENGINEERING_AND_FULL_CI_PASS`。Scope V2 现场出口固定为：
 
 ```text
 M1.4B Tencent isolated no-authority runtime
