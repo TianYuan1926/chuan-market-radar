@@ -10,10 +10,26 @@
 | --- | --- | --- | --- | --- | --- |
 | Bitget | M1.1A 能力登记；M1.1B/B0 live conformance；M1.4B runtime Adapter；M1.5C Shadow；M1.6-D1 容量 | 与其他 Venue 使用同一 Detector 定义，但按 Venue 独立分母、缺失和漂移 | 只能使用带 Bitget lineage 的 Fact/Evidence，不能借用其他 Venue 的可用性 | 独立 Venue 状态、告警、Outcome、切换与回滚 | Bitget 的目录、行情、衍生品、公告、配额和 SLO 分别 PASS 后才开放对应 capability |
 | 上新、预上新及暂无合约的新币 | M1.1B 建立 listing/identity epoch 与生命周期账本；M1.4B 完成历史 bootstrap、checkpoint、gap 和增量；仅 watch 的资产不得伪装成 eligible contract | M2.3 Listing/Venue Event；M2.4 使用 warm-up cohort、matched control 和 sealed holdout | 事件本身不产生多空方向；必须等待可交易事实、结构、流动性、成本和反证 | 独立 warm-up 视图、漏报/误报复盘和 lifecycle readiness | Listing Lifecycle 不借 Bitget Venue PASS，也不借成熟币策略 PASS |
-| 股票单一标的及股票指数/ETF 合约 | M1.1B 只按官方 underlying mapping 分类；M1.4B 补齐 session、公司行动、FX、reference/mark/index、费用和地区能力 | M2.3 Equity Event/Basis；M2.4 使用成熟股票、指数/ETF 的独立 cohort 和 untouched holdout | M3.1A-M3.3A 独立 Analysis/Qualification/Strategy；缺 session、公司行动、FX、basis 或成本必须 abstain | Equity Workbench、Outcome、风险和切换分域；只有 Portfolio Risk 可跨域汇合 | 股票 Asset Domain 不借加密证据、总 precision 或旧 scopeEpoch PASS |
+| 股票单一标的及股票指数/ETF 合约 | M1.1B 只按官方 underlying mapping 分类；M1.4B 补齐 session、公司行动、FX、reference/mark/index、费用和地区能力 | M2.3B Equity Event/Basis；M2.4B 使用单股、指数/ETF 各自独立的 cohort 和 untouched holdout | M3.1C-M3.3C 单股；M3.1D-M3.3D 指数/ETF；缺 session、公司行动、FX、basis 或成本必须 abstain | Equity Workbench、Outcome、风险和切换分域；只有 Portfolio Risk 可跨域汇合 | 股票 Asset Domain 不借加密证据、总 precision 或旧 scopeEpoch PASS |
 | 可用数据最大化 | M1.1A 逐 source-capability 穷举登记；M1.1B exact live conformance；M1.4B route-eligible Profile；M1.5C 质量/SLO；M1.6-D1 成本与容量 | 只有 point-in-time、可回放且对 Detector 有增量价值的数据才进入研究 | 下游只读带 lineage 的 Fact/Evidence；缺失、越权、陈旧和语义不明必须 abstain | 每项 capability 独立健康、成本、权利、保留和退役状态 | 不是“能请求就全抓”；必须依次通过官方语义、权利、live、Adapter、Shadow、质量和容量 |
 
 前三条是独立业务范围，第四条是横跨所有来源的能力开放策略；它们是新增内容的唯一责任映射，不再另建重叠路线。代码包可以为效率合并交付，但测试、状态、证据、回滚和完成判定必须按 `BITGET_VENUE / LISTING_LIFECYCLE / EQUITY_ASSET_DOMAIN / DATA_MAXIMIZATION` 分开记账。
+
+M2/M3 的冻结拆包为：
+
+```text
+M2.3A Listing/Venue Event Detection
+M2.3B Equity Event/Basis Detection
+M2.4A Four-Venue Crypto + Listing Lifecycle Cohort/Holdout
+M2.4B Single-Name + Index/ETF Domain-Sealed Cohort/Holdout
+M3.1A-M3.3A Four-Venue Established Crypto Revalidation
+M3.1B-M3.3B Listing Warm-up Decision Extension
+M3.1C-M3.3C Single-Name Equity Decision Extension
+M3.1D-M3.3D Index/ETF Equity Decision Extension
+M3.4-R1 Domain-Separated Execution Feasibility
+```
+
+加密线性永续仍是主线。股票合约是独立第二资产线；它不能挤占四 Venue 加密 T0/T1 全量目录和宽扫基础保留位。资源比例必须由 M1.5C 真实事实率与 M1.6-D1 无付费容量证据决定，不在设计期固定。
 
 ## Tasks
 
@@ -65,16 +81,21 @@
 - [ ] **M2.2-B3 Split + Sealed Holdout Freeze**：冻结 train/validation、purge/embargo、symbol/regime assignment 和独立 holdout commitment；本包仍不得打开 holdout，也不得挑选表现最好的 trial。
 - [ ] **M2.2-C Registered Replay + Sensitivity + Untouched Holdout**：先在 validation 执行全部预登记 sensitivity trial 并报告失败，再单次打开 holdout，输出 overall/family/detector/direction/regime/liquidity 指标、Top20 late/noise、失败案例和 sealed result；每个实际 stratum 都必须登记并逐层过线，数据或样本不足必须 INSUFFICIENT。
 - [ ] **M2.2-D Independent Audit + Lifecycle Proposal**：独立复核来源权利、分母、future leak、trial completeness、custody ledger 和 Gate digest。只有 PASS 才可提出 REPLAY_VALIDATED；生命周期修改仍需独立 package，Candidate/runtime 仍封闭。
-- [ ] **M2.3 Listing/Venue + Equity Event Detection**：新增 Listing and Venue Event、Equity Event and Basis 两个独立研究族；公告或事件本身不生成方向。状态起点：`DESIGN_ONLY / NO_CANDIDATE_EMISSION`。
-- [ ] **M2.4 Multi-Asset Cohort + Domain-Sealed Holdout**：加密、上新 warm-up、成熟股票、指数/ETF 按 assetDomain/Venue/direction/regime/liquidity 分层构造 cohort、matched control 与 untouched holdout；禁止跨域阈值和总 precision。
+- [ ] **M2.3A Listing/Venue Event Detection**：单独建设合约公告、预上线、warm-up、成熟、维护、限制、暂停和下架研究族；无支持合约的新币只进入 watch。公告或事件本身不生成方向。状态起点：`DESIGN_ONLY / NO_CANDIDATE_EMISSION`。
+- [ ] **M2.3B Equity Event/Basis Detection**：单独建设传统市场开闭市、公司行动、财报、FX、underlying/reference、休市 basis、价差和流动性切换研究族；CFD/RWA 保持 accounting only。状态起点：`DESIGN_ONLY / NO_CANDIDATE_EMISSION`。
+- [ ] **M2.4A Four-Venue Crypto + Listing Lifecycle Cohort/Holdout**：成熟加密与 listing warm-up 按 Venue/lifecycle/direction/regime/liquidity 分层构造 cohort、matched control 与 untouched holdout；Bitget 和 warm-up 分母不得借旧三 Venue或成熟币结论。
+- [ ] **M2.4B Equity Domain-Sealed Cohort/Holdout**：单股永续与股票指数/ETF 永续分别构造 cohort、matched control、untouched holdout 和校准；禁止两类股票互借，也禁止复用加密阈值或总 precision。
 - [ ] **M3 唯一决策纵向切片**：完成 family-specific Analysis、Evidence/Setup 双评级、StrategyDraft、Execution Feasibility 唯一终审、Personal/Portfolio Risk。验证：只有 Final Decision 能产生 READY，false READY=0，结构与净 RR 均不低于 3，所有关键缺失 fail closed。
 - [x] **M3.0 Final Decision Authority Contract（可并行本地）**：已冻结 upstream authority、same-release/id/time lineage、Evidence/Setup 独立状态、Draft/Feasibility/Trigger/Runtime Gate、Action State 优先级、READY plan parity 和派生原因完整性。M3.3 后回归扩至 22/22，未校准 Analysis/Qualification/Strategy、校准 abstain、丢失反证或 Strategy level/RR 伪造均不得进入有权决策。状态：`LOCAL_CONTRACT_PASS / TEST_ONLY_NO_PRODUCTION_AUTHORITY / M1_P0R_PENDING / M2_DETECTORS_DRAFT`。
 - [x] **M3.1 Family Analysis + Evidence Interpretation（可并行本地）**：六族分别覆盖 long、short、失效/unavailable；EvidenceItem 必须恰好解释一次，反证不得丢失，Market Context 和结构位绑定 exact lineage，缺失/stale/冲突/未来读/标签漂白/Fib-only 均 fail closed 或降为 UNKNOWN。M3.2 后 `AnalysisSnapshot v3` 增加显式 `spaceQuality`。状态：`LOCAL_CONTRACT_PASS / TEST_ONLY_UNCALIBRATED / NO_STRATEGY_AUTHORITY / PRODUCTION_UNCHANGED`。
 - [x] **M3.2 Evidence + Setup Qualification（可并行本地）**：清除 EvidencePackage 上游 `tier`，以 v2 criticality/independence lineage 独立形成 Evidence Grade；Setup Grade 独立评价结构、位置、空间、时机、fakeout/noise、regime 和 uncertainty。真实 calibration contract 必须绑定 cohort、untouched holdout、至少 60 样本、至少 3 个 regime、CI 与 reliability error；当前 builder 永远 test-only uncalibrated，不生成概率或决策。M3.2 保持 18/18；M3.3 后总回归见下一项。状态：`LOCAL_CONTRACT_PASS / NO_DECISION_AUTHORITY / PRODUCTION_UNCHANGED`。
 - [x] **M3.3 Strategy Construction（可并行本地）**：六族分别冻结 long/short entry、结构失效、target、confirmation、expiry、no-chase 和 partial take-profit；`StrategyDraft v2` 绑定 family、policy、reference、stop base、cost 与 RR calculation lineage。BigInt 定点算法按最不利 entry 计算 gross/net RR，低 RR 只阻断、不缩 stop；缺入口/目标/fresh reference 时 no-draft abstain。M3.0 二次核对 Strategy scope、level/price/fact 和 RR。M3.3 20/20、M3.2 18/18、M3.1 21/21、M3.0 22/22，M3 合计 81/81；全 V2 360 pass / 0 fail / 6 explicit skip，ops 115/115。状态：`LOCAL_CONTRACT_PASS / TEST_ONLY_UNCALIBRATED / NO_READY_AUTHORITY / PRODUCTION_UNCHANGED`。
-- [ ] **M3.1A-M3.3A Multi-Asset Decision Extension**：为股票和上市事件独立补齐 Analysis、Evidence/Setup Qualification 与 Strategy；传统市场 session、公司行动、FX、reference/mark/index、休市 basis 和成本缺失时必须 abstain。
+- [ ] **M3.1A-M3.3A Four-Venue Established Crypto Revalidation**：把成熟加密 Analysis、Evidence/Setup Qualification 与 Strategy 重新绑定 Scope V2 四 Venue事实、Bitget lineage、逐 Venue cohort/holdout 和校准；V1 三 Venue PASS 不得改名复用。
+- [ ] **M3.1B-M3.3B Listing Warm-up Decision Extension**：为已实际可交易的 warm-up/established 上新合约建立独立 Analysis、Qualification 与 Strategy；只有公告、尚无合约、历史不足、流动性或 mark/index 不稳定时必须 abstain，绝不因“刚上线”自动给方向或计划。
+- [ ] **M3.1C-M3.3C Single-Name Equity Decision Extension**：为单股永续建立独立 Analysis、Qualification 与 Strategy；session、公司行动、FX、underlying/reference、休市 basis、规格和成本缺失时必须 abstain。
+- [ ] **M3.1D-M3.3D Index/ETF Equity Decision Extension**：为股票指数/ETF 永续建立独立 Analysis、Qualification 与 Strategy；不得借单股或加密 cohort、阈值和成本模型。
 - [x] **M3.4-R0 Scope Rebase Review Gate（治理前置，不计 M3.4 完成）**：已只读审计旧 V1 草稿，确认 typecheck FAIL 3、lint 1 warning、测试 0，且缺 scopeEpoch、Bitget、assetDomain、listing lifecycle 与股票执行事实；草稿保持用户原样并继续隔离。新增机器 gate 强制四 Venue、资产域、生命周期、release、14 项通用、3 项加密、7 项股票与 warm-up 独立证据逐项绑定，Bitget/Listing/Equity/Data Maximization 四轴不得互借 PASS。定向 12/12、ESLint 0/0，正式实施分支身份完整 CI PASS（V2 Foundation 460 pass + 6 explicit skip、V2 Ops 131/131、M0 11/11、Next、Golden 16/16、security）；状态：`LOCAL_GOVERNANCE_CONTRACT_AND_FULL_CI_PASS / OLD_DRAFT_QUARANTINED / NO_FEASIBILITY_OR_READY_AUTHORITY / PRODUCTION_UNCHANGED`。
-- [ ] **M3.4-M3.6 Feasibility + Risk + Runtime**：M3.4-R0 已把 scope rebase 前置条件机器化，但真实实现必须等待 M1.4B runtime、M1.5C、M1.6-D1、M2.3/M2.4 和 M3.1A-M3.3A。随后分域完成真实成本、Execution Feasibility、Personal/Portfolio Risk、Trigger 与 Runtime Gate；只有 Portfolio Risk 可以汇合加密和股票。状态：`M3.4_R0_GOVERNANCE_PASS_IMPLEMENTATION_BLOCKED_BY_SCOPE_V2_PREREQUISITES / M3.5-M3.6_NOT_STARTED`。
+- [ ] **M3.4-R1-M3.6 Feasibility + Risk + Runtime**：M3.4-R0 已把 scope rebase 前置条件机器化，但真实实现必须等待 M1.4B runtime、M1.5C、M1.6-D1、M2.3A/B、M2.4A/B 和 M3.1A-M3.3D。随后按成熟加密、listing warm-up、单股、指数/ETF 分域完成真实成本与 Execution Feasibility，再接 Personal/Portfolio Risk、Trigger 与 Runtime Gate；只有 Portfolio Risk 可以汇合加密和股票。状态：`M3.4_R0_GOVERNANCE_PASS_IMPLEMENTATION_BLOCKED_BY_SCOPE_V2_PREREQUISITES / M3.5-M3.6_NOT_STARTED`。
 - [ ] **M4 单一读模型与专业工作台**：先建立 DecisionSnapshot 和站内 Alert，再重建 Inbox、Token/Equity Workbench、Review、System。加密、股票、指数和 warm-up 先分域展示，不得混成总分。验证：页面零 provider/decision 调用，同一 snapshot 在所有视图一致，E2E、a11y、visual、performance 和注意力预算通过。
 - [ ] **M5 结果与研究治理**：从 M2 首个 Episode 起并行采集 Outcome，但只有冻结数据成熟后才评估；Research 与 Evaluation 物理分离。验证：future leak=0、Missed Movers/对照组完整、全部试验登记、Challenger 不能自批或自动晋级。
 - [ ] **M6-M7 受控切换与实战准入**：严格按 replay -> no-write shadow -> isolated write -> dual read -> read authority -> single write -> rollback retention -> Legacy retirement；最后完成 60 天 Shadow、30 天模拟决策、安全、恢复和外部审计。验证：每次只切一个 authority，R4 评分与一票否决全部过线后才允许声明“人工实战决策辅助准入”。
@@ -91,8 +112,9 @@ M0.4 scope epoch
 -> M1.4B live-passed endpoint batching and runtime adapters
 -> M1.5C four-venue multi-asset shadow
 -> M1.6-D1 expanded capacity proof
--> M2.3/M2.4 domain-specific detection and holdout
--> M3.1A-M3.6 domain-specific decision and risk
+-> M2.3A/B + M2.4A/B domain-specific detection and holdout
+-> M3.1A-M3.3D domain-specific analysis/qualification/strategy
+-> M3.4-R1-M3.6 domain-specific feasibility and risk
 -> M4-M5 domain-separated workbench and learning
 -> M6-M7 domain-by-domain cutover and readiness
 ```

@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.42",
+  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.43",
   "status": "m0_4_expanded_scope_design_pass_m1_1a_registry_local_pass_m1_1b_multi_asset_identity_listing_and_exact_probe_local_implementation_pass_test_only_conformance_pass_m1_1b0_attempt_1_blocked_r1_live_zero_of_15_common_runtime_transport_blocked_r2_live_14_of_15_listing_gate_blocked_r3_live_15_of_15_all_gates_pass_m1_4a_adaptive_multi_asset_collector_local_contract_and_full_ci_pass_no_runtime_authority_m1_4b_local_engineering_and_exact_dispatch_package_full_ci_pass_live_runtime_unproven_15_live_profiles_14_route_eligible_scope_epoch_v1_evidence_preserved_m1_5_b1_pass_v1_only_m1_6_p0_blocked_p0r_clean_pre_sts_baseline_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_v1_only_m3_0_through_m3_3_local_contract_pass_v1_only_test_only_uncalibrated_no_ready_authority_m3_4_r0_scope_rebase_governance_and_full_ci_pass_implementation_blocked_fixed_dispatch_first_signed_acceptance_pass_external_historical_source_blocked_m1_not_complete",
-  "generatedAt": "2026-07-24T05:12:34+08:00",
+  "generatedAt": "2026-07-24T05:37:12+08:00",
   "implementationAuthorized": true,
   "productionMutationAuthorized": false,
   "authority": {
@@ -153,6 +153,116 @@
     "unsupportedContractsRemainInAccounting": true,
     "globalAllExchangeCoverageClaimAllowed": false,
     "scopeMustBeVersionedAndUserVisible": true
+  },
+  "scopeV2ResponsibilityAxes": {
+    "status": "plan_frozen_independent_acceptance_required_no_cross_pass",
+    "primaryMission": "early_and_broad_crypto_perpetual_opportunity_discovery",
+    "primaryVenueDenominator": [
+      "BINANCE_FUTURES",
+      "OKX_SWAP",
+      "BYBIT_DERIVATIVES",
+      "BITGET_FUTURES"
+    ],
+    "equityLanePriority": "secondary_independent_lane_must_not_displace_crypto_t0_t1_baseline_reserve",
+    "resourceAllocationAuthority": "m1_5c_observed_fact_rate_plus_m1_6_d1_no_cost_capacity_evidence",
+    "axes": [
+      {
+        "id": "BITGET_VENUE",
+        "scope": "bitget_futures_as_fourth_first_class_venue",
+        "m1Packages": [
+          "M1.1A",
+          "M1.1B",
+          "M1.1B0",
+          "M1.4B",
+          "M1.5C",
+          "M1.6-D1"
+        ],
+        "m2Packages": [
+          "M2.4A"
+        ],
+        "m3Packages": [
+          "M3.1A-M3.3A",
+          "M3.4-R1"
+        ],
+        "crossPassAllowed": false,
+        "forbiddenSubstitution": "binance_okx_bybit_evidence"
+      },
+      {
+        "id": "LISTING_LIFECYCLE",
+        "scope": "contract_announcement_prelaunch_warmup_established_maintenance_restricted_suspended_delisting_offline_and_asset_watch",
+        "m1Packages": [
+          "M1.1B",
+          "M1.4B",
+          "M1.5C",
+          "M1.6-D1"
+        ],
+        "m2Packages": [
+          "M2.3A",
+          "M2.4A"
+        ],
+        "m3Packages": [
+          "M3.1B-M3.3B",
+          "M3.4-R1"
+        ],
+        "watchCandidateAuthorityAllowed": false,
+        "eventAloneDirectionAuthorityAllowed": false,
+        "crossPassAllowed": false,
+        "forbiddenSubstitution": "venue_pass_or_established_crypto_calibration"
+      },
+      {
+        "id": "EQUITY_ASSET_DOMAIN",
+        "scope": "single_name_equity_perpetual_and_equity_index_etf_perpetual",
+        "m1Packages": [
+          "M1.1B",
+          "M1.4B",
+          "M1.5C",
+          "M1.6-D1"
+        ],
+        "m2Packages": [
+          "M2.3B",
+          "M2.4B"
+        ],
+        "m3Packages": [
+          "M3.1C-M3.3C",
+          "M3.1D-M3.3D",
+          "M3.4-R1"
+        ],
+        "singleNameAndIndexEtfCalibrationSeparated": true,
+        "cfdAndOtherRwaInitiallyEligible": false,
+        "crossPassAllowed": false,
+        "forbiddenSubstitution": "crypto_or_other_equity_subdomain_context_threshold_grade_calibration_cost"
+      },
+      {
+        "id": "DATA_MAXIMIZATION",
+        "scope": "positive_value_authorized_no_new_paid_source_capabilities",
+        "m1Packages": [
+          "M1.1A",
+          "M1.1B0",
+          "M1.4A",
+          "M1.4B",
+          "M1.5C",
+          "M1.6-D1"
+        ],
+        "m2Packages": [
+          "M2.3A",
+          "M2.3B",
+          "M2.4A",
+          "M2.4B"
+        ],
+        "m3Packages": [
+          "M3.1A-M3.3D",
+          "M3.4-R1"
+        ],
+        "globalAllExchangeCoverageClaimAllowed": false,
+        "indiscriminateByteCollectionAllowed": false,
+        "pointInTimeLineageRightsQualityCapacityRequired": true,
+        "crossPassAllowed": false,
+        "forbiddenSubstitution": "endpoint_request_count_download_volume_field_count_or_stale_cache"
+      }
+    ],
+    "contractScaffoldingMayRunAhead": true,
+    "acceptanceMayRunAheadOfPrerequisites": false,
+    "productionAuthorityAllowed": false
   },
   "sourceCapabilityRegistry": {
     "id": "market-radar-v2-four-venue-source-capability-registry.v1",
@@ -1397,14 +1507,24 @@
           "status": "pending"
         },
         {
-          "id": "M2.3",
-          "name": "listing_venue_and_equity_event_detection",
+          "id": "M2.3A",
+          "name": "listing_and_venue_event_detection",
           "status": "design_only_not_started_no_candidate_emission"
         },
         {
-          "id": "M2.4",
-          "name": "multi_asset_cohort_and_domain_sealed_holdout",
+          "id": "M2.3B",
+          "name": "equity_event_and_basis_detection",
+          "status": "design_only_not_started_no_candidate_emission"
+        },
+        {
+          "id": "M2.4A",
+          "name": "four_venue_crypto_and_listing_lifecycle_cohort_and_holdout",
           "status": "not_started_blocked_until_v2_fact_scope_and_historical_forward_evidence"
+        },
+        {
+          "id": "M2.4B",
+          "name": "single_name_and_index_etf_domain_sealed_cohort_and_holdout",
+          "status": "not_started_blocked_until_equity_fact_scope_and_historical_forward_evidence"
         }
       ]
     },
@@ -1474,8 +1594,26 @@
         },
         {
           "id": "M3.1A-M3.3A",
-          "name": "multi_asset_analysis_qualification_and_strategy_extension",
-          "status": "not_started_requires_domain_sealed_calibration",
+          "name": "four_venue_established_crypto_analysis_qualification_and_strategy_revalidation",
+          "status": "not_started_requires_m2_4a_domain_sealed_calibration",
+          "productionAuthorityAllowed": false
+        },
+        {
+          "id": "M3.1B-M3.3B",
+          "name": "listing_warmup_analysis_qualification_and_strategy_extension",
+          "status": "not_started_requires_m2_3a_and_m2_4a",
+          "productionAuthorityAllowed": false
+        },
+        {
+          "id": "M3.1C-M3.3C",
+          "name": "single_name_equity_analysis_qualification_and_strategy_extension",
+          "status": "not_started_requires_m2_3b_and_m2_4b",
+          "productionAuthorityAllowed": false
+        },
+        {
+          "id": "M3.1D-M3.3D",
+          "name": "equity_index_etf_analysis_qualification_and_strategy_extension",
+          "status": "not_started_requires_m2_3b_and_m2_4b",
           "productionAuthorityAllowed": false
         },
         {

@@ -1,4 +1,4 @@
-# Market Radar V2 受控替换工程与运行蓝图 v1.37
+# Market Radar V2 受控替换工程与运行蓝图 v1.38
 
 状态：`ACTIVE_DESIGN_AUTHORITY / M0.4_EXPANDED_SCOPE_DESIGN_PASS / M1.1A_FOUR_VENUE_CAPABILITY_REGISTRY_LOCAL_PASS / M1.1B_MULTI_ASSET_AND_LISTING_LOCAL_IMPLEMENTATION_PASS_TEST_ONLY_CONFORMANCE_PASS / M1.1B0_R1_LIVE_0_OF_15_COMMON_TRANSPORT_FAILURE_R2_LIVE_14_OF_15_LISTING_GATE_BLOCKED_R3_LIVE_15_OF_15_ALL_GATES_PASS / M1.4A_ADAPTIVE_MULTI_ASSET_COLLECTOR_LOCAL_CONTRACT_AND_FULL_CI_PASS_NO_RUNTIME_AUTHORITY / M1.4B_LOCAL_ENGINEERING_AND_EXACT_DISPATCH_PACKAGE_FULL_CI_PASS_LIVE_RUNTIME_UNPROVEN / M1.1-M1.6_SCOPE_EPOCH_V1_LOCAL_PASS / M1.5-B1_EARLY_SHADOW_BUSINESS_GATE_PASS_V1_ONLY / B1-B1_EXECUTION_INVALID_NOT_COUNTED / B1-B3_PASS_V1_ONLY / M1.6-P0_EXECUTED_BLOCKED_CAPACITY_AND_RECOVERY / M1.6-P0R_CLEAN_PRE_STS_BASELINE_PASS_STS_AND_RECOVERY_PENDING / M2.2-B0.2-C1_FORWARD_ONLY_READY_V1_ONLY / M3.0-M3.3_LOCAL_CONTRACT_PASS_TEST_ONLY_UNCALIBRATED_NO_READY_AUTHORITY_V1_ONLY / M3.4-R0_SCOPE_REBASE_GOVERNANCE_AND_FULL_CI_PASS_IMPLEMENTATION_BLOCKED / PRODUCTION_FIXED_DISPATCH_FIRST_SIGNED_ACCEPTANCE_PASS / B0.2_EXTERNAL_RESOLUTION_BLOCKED / SCOPE_EPOCH_V2_SHADOW_CAPACITY_AND_CALIBRATION_UNPROVEN / M1_NOT_COMPLETE / PRODUCTION_SERVICES_DATA_AND_AUTHORITY_UNCHANGED`
 
@@ -83,6 +83,8 @@ v1.35 完成 M1.4B 最终本地工程出口：独立正确分支克隆的完整 
 v1.36 把 M1.4B 现场出口从文字计划升级为无 secret、内容寻址的固定派发包。该包保持 15 个 live-conformant Profile 完整分母，只执行 14 个 route-eligible Profile，`BINANCE_SPOT_CATALOG` 请求数固定为 0；五个 source group 跨来源并行、同源并发 1，Bybit/Bitget listing 各有 64 页有界预算。Bitget Venue、Listing Lifecycle、Equity Asset Domain、Data Maximization 四轴独立核算，任何一轴不能借 PASS。Bundle 绑定 R3 artifact、registry/probe digest、exact source commit/tree/ref 及生产 HEAD、容器、listener、timer、health；CoinGlass key 只进入目标机一次性子进程。blocked segment 不晋级 checkpoint，续跑必须同时绑定原 checkpoint 与精确 `PASS` result SHA-256。定向包 9/9、V2 Foundation 454 total / 448 pass / 6 explicit skip、V2 Ops 131/131、M0、Next production build、Golden 16/16 和 security 全部 PASS；GitHub 同步和腾讯真实执行尚未完成，生产服务、数据与 authority 不变。
 
 v1.37 完成 M3.4-R0 Scope Rebase 治理门禁并纠正“修几处编译错误即可继续 M3.4”的错误路径。只读审计证明旧 V1 草稿当前 typecheck FAIL 3、lint 1 warning、测试 0，且缺 scopeEpoch、Bitget、assetDomain、listing lifecycle、股票 session/公司行动/FX/reference/basis 和分域校准；草稿保持用户原样并继续隔离。新 gate 强制 exact Scope V2/Venue/assetDomain/lifecycle/release、14 项通用、3 项加密、7 项股票和 warm-up 独立证据，PASS 必须绑定不可变 release/evidence/digest；Bitget、Listing、Equity、Data Maximization 四轴不能互借。定向 12/12、ESLint 0/0，正式实施分支身份完整 CI 为 V2 Foundation 460 pass + 6 explicit skip、V2 Ops 131/131、M0 11/11、Next、Golden 16/16 与 security 全部 PASS；该 PASS 只有治理效力，M3.4 实现仍必须等待 M1.4B runtime、M1.5C、M1.6-D1、M2.3/M2.4 和 M3.1A-M3.3A，生产和全部 Feasibility/Signal/Strategy/READY authority 不变。
+
+v1.38 冻结 Scope V2 四轴不混线施工矩阵。Bitget 是第四 Venue 验收轴；上新、预上新和暂无合约的新币是独立 Listing Lifecycle 轴；单股永续与股票指数/ETF 永续是两个分开校准的 Equity 子域；Data Maximization 是横跨来源的开放治理轴，不是“请求越多越好”。后续 M2/M3 拆为四 Venue 成熟加密、listing warm-up、单股永续、指数/ETF 永续四套逐域包，分别拥有 Detector、cohort、untouched holdout、Analysis、Qualification、Strategy、Feasibility、Outcome 和切换证据。加密合约提前发现继续是主线，股票支线不得挤占全量加密 T0/T1 基础保留位；本版本只纠正搭建计划与机器追踪，不增加任何运行、Candidate、Strategy、READY 或生产权限。
 
 ---
 
@@ -1318,6 +1320,44 @@ user_execution_deviation / unknown
 ## 16. V2 建设列车
 
 旧 G0-G8 的安全、SLO、holdout、Shadow、模拟决策和 R4 门槛继续作为验收来源，但 V2 按以下工程列车建设。
+
+### Scope V2 四轴施工矩阵
+
+四条新增责任轴必须沿同一主链推进，但状态、证据和完成判定永久分开：
+
+| 责任轴 | 首期精确范围 | M1 数据地基 | M2 发现与验证 | M3 决策 | M4-M7 出口 | 禁止借用 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `BITGET_VENUE` | Bitget Futures，作为第四正式 Venue | exact capability、identity、runtime Adapter、真实 checkpoint、Shadow、配额和容量 | 使用同一机会定义，但按 Bitget 独立核算覆盖、缺失、漂移和 matched control | `M3.1A-M3.3A` 对四 Venue成熟加密重新验证，输入必须带 Bitget lineage | Venue 独立健康、Outcome、切换和回滚 | Binance、OKX、Bybit 的 PASS |
+| `LISTING_LIFECYCLE` | 合约公告、预上线、warm-up、成熟、维护、限制、暂停、下架；无合约新币仅 watch | 公告、目录和增量变更形成 point-in-time lifecycle/identity epoch | `M2.3A` Listing/Venue Event；`M2.4A` warm-up/mature cohort 与 untouched holdout | `M3.1B-M3.3B` 只对具备合格可交易事实的 warm-up/established 合约输出研究草案 | 生命周期工作台、提前率、漏报/误报、分状态切换 | “刚上线”、成熟币阈值或 Bitget Venue PASS |
+| `EQUITY_ASSET_DOMAIN` | 单股永续与股票指数/ETF 永续；CFD/RWA 仅记账 | 官方 underlying、session、公司行动、FX、reference、basis、规格、成本和地区事实 | `M2.3B` Equity Event/Basis；`M2.4B` 单股与指数/ETF 分开的 cohort/holdout | `M3.1C-M3.3C` 单股；`M3.1D-M3.3D` 指数/ETF；各自 Feasibility | 分域 Workbench、Outcome、风险和逐域切换 | 加密 Context、阈值、评级、校准或总 precision |
+| `DATA_MAXIMIZATION` | 四 Venue、CoinGlass Hobbyist 及其他已获授权且无需新增付费的正价值能力 | capability registry -> rights/entitlement -> live -> Adapter -> Shadow -> quality/capacity | 只有 point-in-time、可回放且有增量价值的数据进入 Detector 研究 | 只消费带 lineage、freshness 和可用性状态的 Fact/Evidence | 逐 capability 健康、成本、保留、降级和退役 | endpoint 可请求、下载量、字段数量或旧缓存 |
+
+首期正式交易 Venue 分母固定为 Binance、OKX、Bybit、Bitget，不把“最大获取”偷换成未经验证的全球全部交易所覆盖。后续新增 Venue 必须创建新的 additive scope epoch，并完整重走 capability、identity、Shadow、容量、校准和切换。
+
+加密线性永续继续是产品主线和资源调度第一优先级。股票合约是独立第二资产线；发生容量竞争时，必须先守住四 Venue 加密 T0/T1 全量目录与宽扫基础保留位，具体资源比例只由 M1.5C 的真实事实率和 M1.6-D1 的无付费容量证据决定，不在设计期拍脑袋写死。
+
+正确依赖顺序：
+
+```text
+P0R production recovery + fresh P0                         [独立生产第一关键路径]
+
+M1.4B Tencent no-authority runtime + real checkpoints
+-> M1.5C four-Venue multi-asset Shadow
+-> M1.6-D1 expanded-scope no-cost capacity
+-> M2.3A listing/venue event detector
+-> M2.3B equity event/basis detector
+-> M2.4A four-Venue crypto + listing lifecycle cohorts/holdouts
+-> M2.4B single-name + index/ETF cohorts/holdouts
+-> M3.1A-M3.3A four-Venue established crypto revalidation
+-> M3.1B-M3.3B listing warm-up decision extension
+-> M3.1C-M3.3C single-name equity decision extension
+-> M3.1D-M3.3D index/ETF equity decision extension
+-> M3.4-R1 domain-separated Execution Feasibility
+-> M3.5-M3.6 Risk + Trigger + Runtime + Final Decision
+-> M4-M7 domain-separated read model, outcome, cutover and readiness
+```
+
+合同骨架可以在前置证据等待期间并行开发，但对应步骤只有在真实上游证据、定向测试、完整 CI 和自身验收全部通过后才能减数。任何提前编写的 M3 多资产代码都只能保持 `LOCAL_RESEARCH_SCAFFOLD / NO_AUTHORITY`，不能绕过 M2.3/M2.4 获得完成状态。
 
 ### M0 - Constitution, Active Memory and Legacy Freeze
 
