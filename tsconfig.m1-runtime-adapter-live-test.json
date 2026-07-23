@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.m1-runtime-adapter-live-package.json",
+  "compilerOptions": {
+    "outDir": ".tmp/m1-runtime-adapter-live-test"
+  },
+  "files": [
+    "src/v2/modules/collector/runtime-adapter-live.ts",
+    "src/v2/modules/collector/runtime-adapter-live.test.ts"
+  ]
+}

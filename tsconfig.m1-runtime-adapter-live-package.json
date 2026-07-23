@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false,
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "noEmit": false,
+    "outDir": ".tmp/m1-runtime-adapter-live-package",
+    "rootDir": "src",
+    "types": ["node"]
+  },
+  "files": [
+    "src/v2/modules/collector/runtime-adapter-live.ts"
+  ],
+  "include": []
+}

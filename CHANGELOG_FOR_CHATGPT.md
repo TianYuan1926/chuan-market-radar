@@ -6,26 +6,29 @@
 
 ### 本轮目标
 
-把 R3 exact live conformance 与 M1.4A 逐标的调度合同接成内容寻址、可批处理、可恢复但仍无 authority 的 Runtime Adapter 核心，并把 Bitget、上新、股票合约和数据最大化正确落到独立验收链。
+把 R3 exact live conformance 与 M1.4A 逐标的调度合同接成内容寻址、可批处理、可恢复但仍无 authority 的 Runtime Adapter 核心和腾讯固定派发包，并把 Bitget、上新、股票合约和数据最大化正确落到独立验收链。
 
 ### 修改范围
 
 - 从 exact conformance artifact 生成绑定 registry/probe digest、HTTPS endpoint、分页、credential、恢复和 source-cutoff 的 Profile；TEST_ONLY 生成零 Profile。
 - 将 source-capability 的 ready intent 精确一次合并；snapshot batching 与 listing-history bootstrap 使用两本请求预算。
 - 建立 Bybit provider-available history 和 Bitget 官方一个月窗口的 bootstrap、resume、gap、incremental 状态机；token、ordinal、segment、内容冲突和 future knowledge 全部 fail closed。
-- 三条业务验收轴和 Source Capability 轴独立记账；股票当前只做 catalog accounting，tradable Fact 为 0。
+- Bitget Venue、Listing Lifecycle、Equity Asset Domain、Data Maximization 四轴独立记账；股票当前只做 catalog accounting，tradable Fact 为 0。
 - 纠正 15/15 endpoint conformance 与 14/15 scheduler route eligibility 的差异；Binance spot registry 仍为 `UNAVAILABLE`，不能进入 batch 或 Shadow。
+- 新增无 secret、内容寻址 Bundle/Runner/Entrypoint；14 个 route 跨五来源有界运行，同源并发 1，执行前后绑定生产 HEAD、容器、listener、timer 和 health。
+- blocked segment 不晋级 checkpoint；续跑必须绑定原 checkpoint、精确 `PASS` result 路径和 SHA-256，失败、孤儿或被篡改结果均拒绝。
 
 ### 核心链路影响
 
-`Live Source Conformance + Adaptive Intent -> Route-Eligible Profile -> Bounded Batch/Listing Checkpoint` 已形成本地核心；没有持续网络执行、Fact、Candidate、Strategy、READY 或生产 authority。
+`Live Source Conformance + Adaptive Intent -> Route-Eligible Profile -> Bounded Batch/Listing Checkpoint -> Exact Fixed Dispatch` 已形成本地工程链；没有腾讯持续网络执行、真实 checkpoint、Fact、Candidate、Strategy、READY 或生产 authority。
 
 ### 测试结果
 
 - M1.1B 回归 26/26 PASS。
 - M1.4A 回归 28/28 PASS。
 - M1.4B 定向 23/23 PASS。
-- ESLint PASS；完整 `ci:production` PASS：V2 Foundation 451 total / 445 pass / 6 explicit skip、V2 Ops 125/125、M0、Next production build、Golden 16/16 与 security 全部通过。
+- M1.4B 腾讯 fixed-dispatch package 9/9 PASS；包含四轴分母、零 blocked-route 请求、同源并发 1、Bundle 无 secret/无额外 payload、宿主不变、失败不晋级 checkpoint 和 PASS-result 续跑绑定。
+- 既有 M1.4B core 完整 `ci:production` 已通过；当前精确派发包的完整 CI 等待在正式实施分支重验，隔离侧分支唯一失败为预期的 branch-identity 门禁。
 
 ### 是否部署
 
@@ -33,11 +36,11 @@
 
 ### 风险与遗留问题
 
-腾讯隔离 no-authority runtime、真实 Bybit/Bitget checkpoint、请求率/配额/完整分母、Binance spot registry 新 digest 复验、M1.5C 和 M1.6-D1 均未完成。
+正式实施分支完整 CI 与 GitHub 同步、腾讯隔离 no-authority runtime、真实 Bybit/Bitget checkpoint、请求率/配额/完整分母、Binance spot registry 新 digest 复验、M1.5C 和 M1.6-D1 均未完成。
 
 ### 下一轮建议
 
-下一证据包使用腾讯隔离 no-authority 运行验证实际 Adapter/listing runtime。P0R 的 fresh 7200 秒 exact-plan STS 仍是独立生产第一关键路径。
+先在正式实施分支完成完整 CI 和 GitHub 同步，再用 exact package 在腾讯执行 no-authority Adapter/listing runtime。P0R 的 fresh 7200 秒 exact-plan STS 仍是独立生产第一关键路径。
 
 ## 2026-07-24 / V2 M1.1B0 Tencent Live Source Conformance Dispatch Package
 

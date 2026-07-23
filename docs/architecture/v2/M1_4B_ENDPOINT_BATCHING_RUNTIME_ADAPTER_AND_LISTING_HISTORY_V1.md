@@ -1,6 +1,6 @@
 # Market Radar V2 M1.4B 端点批处理、Runtime Adapter 与上新历史合同 v1
 
-状态：`LOCAL_ENGINEERING_AND_FULL_CI_PASS / LIVE_NO_AUTHORITY_RUNTIME_UNPROVEN / PRODUCTION_UNCHANGED`
+状态：`LOCAL_CORE_AND_EXACT_DISPATCH_PACKAGE_PASS / FULL_CI_REVERIFY_PENDING_ON_IMPLEMENTATION_BRANCH / LIVE_NO_AUTHORITY_RUNTIME_UNPROVEN / PRODUCTION_UNCHANGED`
 
 冻结日期：2026-07-24
 
@@ -91,7 +91,7 @@ Binance 现货目录在 R3 使用官方 `showPermissionSets=false` 后通过 8 M
 - `SOURCE_WIDE_SNAPSHOT`、`PAGINATED_SOURCE_WIDE_SNAPSHOT` 或 `LISTING_HISTORY_SEGMENT`。
 - 单请求 token、每 source 并发 1、12 秒超时和单页 8 MiB 上限。
 - pagination、history responsibility、checkpoint retry 和 no-stale-promotion。
-- Bitget Venue、Listing Lifecycle、Equity Asset Domain 三条独立验收轴。
+- Bitget Venue、Listing Lifecycle、Equity Asset Domain、Data Maximization 四条独立验收轴。
 
 Profile 只证明 endpoint 语义和进入后续 no-authority Shadow 的资格，不代表已执行、已稳定、已落库或已获得 Fact authority。
 
@@ -184,7 +184,7 @@ Bitget 官方边界见 [Get All Notices](https://www.bitget.com/api-doc/common/n
 
 ## 7. 新增范围独立验收
 
-三条轴允许在一个 batch 上重叠，但不得互相借 PASS。
+四条轴允许在一个 batch 上重叠，但不得互相借 PASS。前三条是业务范围，第四条是跨来源能力开放治理；代码可同包执行，分母、状态、证据和完成判定必须分开。
 
 ### 7.1 Bitget Venue
 
@@ -205,6 +205,12 @@ Bitget 官方边界见 [Get All Notices](https://www.bitget.com/api-doc/common/n
 - `equityTradableFactBatchCount=0`。
 - session、corporate action、FX、reference/mark/index、basis、费用、地区和执行机制未完成前，不能生成股票可交易 Fact 或后续决策 authority。
 - 股票 Asset Domain 不能借加密、Bitget Venue 或 Listing Lifecycle 的 PASS。
+
+### 7.4 Data Maximization
+
+- 每个 source-capability 以自身 route、请求、记录、失败、配额和恢复分母验收。
+- `DATA_MAXIMIZATION` 失败不能改写 Bitget、Listing 或 Equity 的独立事实，其他三轴通过也不能把缺失 capability 补成可用。
+- “交易所能返回”只证明 observed；没有官方语义、权利、point-in-time、质量、容量和下游增量价值时保持 blocked。
 
 ## 8. “数据最大化”是治理策略，不是盲目抓取
 
@@ -229,9 +235,24 @@ Source Capability Registry
 src/v2/modules/source-conformance/adapters/exact-source-conformance-runner.ts
 src/v2/modules/collector/runtime-adapter-profile.ts
 src/v2/modules/collector/runtime-adapter-profile.test.ts
+src/v2/modules/collector/runtime-adapter-live.ts
+src/v2/modules/collector/runtime-adapter-live.test.ts
 src/v2/modules/multi-asset-universe/listing-history-runtime.ts
 src/v2/modules/multi-asset-universe/listing-history-runtime.test.ts
+scripts/v2/production/m1-runtime-adapter-live-bundle.mjs
+scripts/v2/production/m1-runtime-adapter-live-runner.mjs
+scripts/v2/production/m1-runtime-adapter-live-entrypoint.sh
 ```
+
+腾讯现场包冻结以下边界：
+
+- 15 个 live-conformant Profile 保持完整分母；只执行 14 个 route-eligible Profile，`BINANCE_SPOT_CATALOG` 请求数必须为 0。
+- Binance、OKX、Bybit、Bitget、CoinGlass 五个 source group 可跨来源并行；同一来源严格并发 1。
+- Bybit 与 Bitget listing segment 各最多 64 页；页间 request token、checkpoint、gap 和 prior `PASS` result 必须精确绑定。
+- Bundle 不含 secret；CoinGlass key 只在目标机从受限生产 env 进入一次性子进程，不写入 staging、日志、artifact、result 或 checkpoint。
+- 执行前后绑定 production HEAD、容器身份、listener、timer 和 health。任何漂移在证据晋级前失败关闭。
+- blocked segment 可以保留脱敏诊断 artifact/result，但不得写可续跑 checkpoint；历史 checkpoint 必须绑定原 `PASS` result 的路径和 SHA-256，孤儿、失败或被篡改结果一律拒绝。
+- 本地注入 transport 只能产生 `TEST_ONLY / TEST_HARNESS`；不能冒充腾讯 `LIVE_READ_ONLY`。
 
 定向验证：
 
@@ -239,6 +260,7 @@ src/v2/modules/multi-asset-universe/listing-history-runtime.test.ts
 npm run test:v2-m1-source-conformance-multi-asset
 npm run test:v2-m1-adaptive-collector
 npm run test:v2-m1-runtime-adapter-listing-history
+npm run test:v2-m1-runtime-adapter-live-package
 ```
 
 当前结果：
@@ -247,19 +269,14 @@ npm run test:v2-m1-runtime-adapter-listing-history
 M1.1B source conformance + multi-asset regression: 26/26 PASS
 M1.4A adaptive collector regression: 28/28 PASS
 M1.4B runtime profile + listing history: 23/23 PASS
-ESLint: PASS
-V2 Foundation: 445 PASS / 6 explicit skip / 451 total
-V2 Ops: 125/125 PASS
-M0 machine exit: PASS
-Next production build: PASS
-Golden cases: 16/16 PASS
-Security check: PASS
-full ci:production: PASS
+M1.4B Tencent runtime fixed-dispatch package: 9/9 PASS
+prior M1.4B core full ci:production: PASS
+current package full ci:production: PENDING_CORRECT_IMPLEMENTATION_BRANCH_REVERIFY
 ```
 
 ## 10. 本地出口与后续顺序
 
-本地工程、完整 CI 和 GitHub 实施分支同步通过后，M1.4B 仍未完成运行验收。现场后续固定为：
+本地核心和精确派发包通过后，仍必须在正式实施分支完成完整 CI 并同步 GitHub；即使该门通过，M1.4B 也仍未完成现场运行验收。现场后续固定为：
 
 ```text
 Tencent isolated no-authority runtime execution

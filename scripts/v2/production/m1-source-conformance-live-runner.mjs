@@ -746,7 +746,7 @@ function healthSummary(raw, expected) {
   };
 }
 
-async function captureProductionIdentity(request, commandRunner) {
+export async function captureProductionIdentity(request, commandRunner) {
   const run = (command, args) => commandRunner(command, args, request);
   const productionHead = await run("git", [
     "-C",
@@ -796,7 +796,7 @@ async function captureProductionIdentity(request, commandRunner) {
   };
 }
 
-function assertProductionIdentity(identity, request, phase) {
+export function assertProductionIdentity(identity, request, phase) {
   ensure(
     identity.productionHead === request.expectedProductionHead,
     `live_${phase}_production_head_mismatch`,
@@ -955,7 +955,7 @@ export function validateLiveArtifact(artifact, request, bindings) {
   return parsed;
 }
 
-async function ensureEvidenceRoot(policy) {
+export async function ensureEvidenceRoot(policy) {
   await mkdir(policy.evidenceRoot, { recursive: true, mode: 0o700 });
   const facts = await lstat(policy.evidenceRoot);
   ensure(
@@ -967,7 +967,7 @@ async function ensureEvidenceRoot(policy) {
   );
 }
 
-async function writeExclusiveCanonical(path, value) {
+export async function writeExclusiveCanonical(path, value) {
   const temporary = `${path}.tmp-${process.pid}-${Date.now()}`;
   const existing = await lstat(path).catch((error) => {
     if (error?.code === "ENOENT") return null;
@@ -991,7 +991,7 @@ async function writeExclusiveCanonical(path, value) {
   }
 }
 
-function boundedIdentity(identity) {
+export function boundedIdentity(identity) {
   return {
     containerIdsSha256: sha256(`${identity.containerIds.join("\n")}\n`),
     health: identity.health,

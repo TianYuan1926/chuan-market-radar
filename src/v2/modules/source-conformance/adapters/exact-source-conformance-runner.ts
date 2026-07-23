@@ -12,6 +12,7 @@ import {
   type M1SourceConformanceArtifact,
   type M1SourceConformanceFailure,
   type M1SourceConformanceProbeDefinition,
+  type M1SourceConformanceProbeId,
   type M1SourceConformanceProbeObservation,
 } from "../source-conformance-contract";
 import {
@@ -53,6 +54,35 @@ type PageResponse = Readonly<{
   bytes: number;
   receivedAt: string;
   status: number;
+}>;
+
+export type M1ExactSourceRuntimePage = Readonly<{
+  payload: unknown;
+  responseBodyDigest: string;
+  responseBytes: number;
+  receivedAt: string;
+  httpStatus: number;
+  rawBodyRetained: false;
+  secretMaterialPresent: false;
+}>;
+
+export type M1ExactSourceRuntimePageResult =
+  | Readonly<{
+    ok: true;
+    evidenceClass: "LIVE_READ_ONLY" | "TEST_ONLY";
+    requestAttempts: 1;
+    page: M1ExactSourceRuntimePage;
+  }>
+  | Readonly<{
+    ok: false;
+    evidenceClass: "LIVE_READ_ONLY" | "TEST_ONLY";
+    requestAttempts: 1;
+    failure: M1SourceConformanceFailure;
+  }>;
+
+export type M1ExactSourceRuntimeProbeResult = Readonly<{
+  observation: M1SourceConformanceProbeObservation;
+  requestAttempts: number;
 }>;
 
 type TransportSuccess = Readonly<{
@@ -984,6 +1014,7 @@ async function runProbe(input: {
   apiKey: string | null;
   transport: M1SourceConformanceTransport;
   now: () => Date;
+  onRequestAttempt?: () => void;
 }): Promise<M1SourceConformanceProbeObservation> {
   const credentialDisposition =
     input.definition.requiresReadOnlyApiKey
@@ -1089,6 +1120,7 @@ async function runProbe(input: {
   };
 
   while (pageIndex < input.definition.maxPages) {
+    input.onRequestAttempt?.();
     const response = await fetchPage({
       definition: input.definition,
       url,
@@ -1175,6 +1207,131 @@ async function runProbe(input: {
     startedAt,
     receivedAt: lastReceivedAt,
     credentialDisposition,
+  });
+}
+
+function runtimeDefinition(
+  probeId: M1SourceConformanceProbeId,
+): RuntimeProbeDefinition {
+  const definition = RUNTIME_PROBE_DEFINITIONS.find(
+    (candidate) => candidate.probeId === probeId,
+  );
+  if (definition === undefined) {
+    throw new Error(`unknown exact source probe: ${probeId}`);
+  }
+  return definition;
+}
+
+function runtimeTransport(input: {
+  transportImplementation?: M1SourceConformanceTransport;
+}): Readonly<{
+  evidenceClass: "LIVE_READ_ONLY" | "TEST_ONLY";
+  transport: M1SourceConformanceTransport;
+}> {
+  return input.transportImplementation === undefined
+    ? {
+      evidenceClass: "LIVE_READ_ONLY",
+      transport: createM1NodeHttpsTransport(),
+    }
+    : {
+      evidenceClass: "TEST_ONLY",
+      transport: input.transportImplementation,
+    };
+}
+
+export async function runM1ExactSourceRuntimeProbe(input: {
+  probeId: M1SourceConformanceProbeId;
+  networkEnvironment: "TENCENT_ISOLATED_READ_ONLY" | "TEST_HARNESS";
+  coinGlassApiKey?: string | null;
+  transportImplementation?: M1SourceConformanceTransport;
+  now?: () => Date;
+}): Promise<M1ExactSourceRuntimeProbeResult> {
+  const selected = runtimeTransport(input);
+  if (
+    selected.evidenceClass === "LIVE_READ_ONLY" &&
+    input.networkEnvironment !== "TENCENT_ISOLATED_READ_ONLY"
+  ) {
+    throw new Error(
+      "live exact source runtime requires Tencent isolated read-only environment",
+    );
+  }
+  if (
+    selected.evidenceClass === "TEST_ONLY" &&
+    input.networkEnvironment !== "TEST_HARNESS"
+  ) {
+    throw new Error(
+      "injected exact source runtime transport must remain TEST_ONLY",
+    );
+  }
+  let requestAttempts = 0;
+  const observation = await runProbe({
+    definition: runtimeDefinition(input.probeId),
+    evidenceClass: selected.evidenceClass,
+    apiKey: input.coinGlassApiKey?.trim() || null,
+    transport: selected.transport,
+    now: input.now ?? (() => new Date()),
+    onRequestAttempt: () => {
+      requestAttempts += 1;
+    },
+  });
+  return Object.freeze({
+    observation,
+    requestAttempts,
+  });
+}
+
+export async function fetchM1ExactListingRuntimePage(input: {
+  probeId: "BYBIT_LISTING_ANNOUNCEMENT" | "BITGET_LISTING_ANNOUNCEMENT";
+  url: string;
+  networkEnvironment: "TENCENT_ISOLATED_READ_ONLY" | "TEST_HARNESS";
+  transportImplementation?: M1SourceConformanceTransport;
+  now?: () => Date;
+}): Promise<M1ExactSourceRuntimePageResult> {
+  const selected = runtimeTransport(input);
+  if (
+    selected.evidenceClass === "LIVE_READ_ONLY" &&
+    input.networkEnvironment !== "TENCENT_ISOLATED_READ_ONLY"
+  ) {
+    throw new Error(
+      "live exact listing runtime requires Tencent isolated read-only environment",
+    );
+  }
+  if (
+    selected.evidenceClass === "TEST_ONLY" &&
+    input.networkEnvironment !== "TEST_HARNESS"
+  ) {
+    throw new Error(
+      "injected exact listing transport must remain TEST_ONLY",
+    );
+  }
+  const response = await fetchPage({
+    definition: runtimeDefinition(input.probeId),
+    url: input.url,
+    apiKey: null,
+    transport: selected.transport,
+    now: input.now ?? (() => new Date()),
+  });
+  if (typeof response === "string") {
+    return Object.freeze({
+      ok: false,
+      evidenceClass: selected.evidenceClass,
+      requestAttempts: 1,
+      failure: response,
+    });
+  }
+  return Object.freeze({
+    ok: true,
+    evidenceClass: selected.evidenceClass,
+    requestAttempts: 1,
+    page: Object.freeze({
+      payload: response.data,
+      responseBodyDigest: response.digest,
+      responseBytes: response.bytes,
+      receivedAt: response.receivedAt,
+      httpStatus: response.status,
+      rawBodyRetained: false as const,
+      secretMaterialPresent: false as const,
+    }),
   });
 }
 

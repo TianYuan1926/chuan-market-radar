@@ -354,6 +354,24 @@ export function buildM1ListingHistoryRequest(input: {
       (input.profile.sourceId === "BYBIT_DERIVATIVES" ? "page:1" : "ROOT");
   }
 
+  return buildM1ListingHistoryPageRequest({
+    profile: input.profile,
+    requestToken,
+  });
+}
+
+export function buildM1ListingHistoryPageRequest(input: {
+  profile: M1RuntimeAdapterProfile;
+  requestToken: string;
+}): Readonly<{
+  allowedHost: string;
+  requestToken: string;
+  url: string;
+  credentialRequired: false;
+  rawBodyRetentionAllowed: false;
+}> {
+  validateListingProfile(input.profile);
+  const requestToken = NonEmptyStringSchema.parse(input.requestToken);
   const url = new URL(input.profile.initialUrl);
   if (input.profile.sourceId === "BYBIT_DERIVATIVES") {
     const page = parseBybitPageToken(requestToken);
