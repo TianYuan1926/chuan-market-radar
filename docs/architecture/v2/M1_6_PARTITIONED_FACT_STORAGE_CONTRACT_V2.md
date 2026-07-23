@@ -1,6 +1,6 @@
 # M1.6 Partitioned Fact Storage Contract V2
 
-状态：`SIX_HOUR_LOCAL_ENGINEERING_AND_POSTGRES16_CAPACITY_PASS / PRODUCTION_P0_STILL_BLOCKED / M1_NOT_COMPLETE`
+状态：`SIX_HOUR_LOCAL_ENGINEERING_AND_POSTGRES16_CAPACITY_PASS / P0R_OBJECT_LOCK_31D_AGE_AND_TRANSPORT_PASS_STS_RECOVERY_PENDING / PRODUCTION_P0_STILL_BLOCKED / M1_NOT_COMPLETE`
 
 ## 1. 目的
 
@@ -132,7 +132,7 @@ Clean source：`15746813245744af4f4ba73f61a976b722ad9a21`。
 - 旧 P0 topology 已过期，必须重新只读采集。
 - 旧 evidence index 的远端 bundle 摘要长度不合法，不能继续作为 fresh 生产证据。
 - 真实加密离机 backup、exact version retrieval 和独立 restore evidence 尚不存在。
-- Object Lock 白名单尚未开通，真实 age 身份和 STS 尚未生成。
+- Object Lock=`COMPLIANCE` 31 天、真实 age Keychain 身份和 exact transport bundle 已通过；fresh 7200 秒 exact-plan STS、真实加密备份、exact version retrieval 与独立 PG16 restore 尚未执行。
 - 未执行生产 migration、身份创建、分区预建、Worker 或写入。
 
 因此当前结论只能是：`LOCAL_CAPACITY_MODEL_PASS / BLOCKED_EXTERNAL_PREREQUISITES / PRODUCTION_CAPACITY_PASS_NOT_CLAIMED`。
@@ -140,8 +140,7 @@ Clean source：`15746813245744af4f4ba73f61a976b722ad9a21`。
 ## 13. 后续顺序
 
 ```text
-Object Lock whitelist + action-time COMPLIANCE confirmation
--> real age vault + 7200s exact STS
+fresh 7200s exact-plan STS + immediate server-side credential compile
 -> encrypted off-host backup + exact retrieval + isolated PG16 restore
 -> fresh boot/filesystem/Docker/Postgres/Redis/app health and topology capture
 -> exact clean release capacity recalibration
