@@ -605,6 +605,38 @@ const RUNTIME_PROBE_DEFINITIONS = [
   },
 ] as const satisfies readonly RuntimeProbeDefinition[];
 
+export type M1ExactSourceEndpointDefinition = Readonly<{
+  probeId: M1SourceConformanceProbeDefinition["probeId"];
+  sourceId: M1SourceConformanceProbeDefinition["sourceId"];
+  capabilityId: M1SourceConformanceProbeDefinition["capabilityId"];
+  gate: M1SourceConformanceProbeDefinition["gate"];
+  requiresReadOnlyApiKey: boolean;
+  paginationExpectation:
+    M1SourceConformanceProbeDefinition["paginationExpectation"];
+  host: string;
+  initialUrl: string;
+  maxPages: number;
+  definitionDigest: string;
+}>;
+
+export const M1_EXACT_SOURCE_ENDPOINT_DEFINITIONS:
+  readonly M1ExactSourceEndpointDefinition[] = Object.freeze(
+    RUNTIME_PROBE_DEFINITIONS.map((definition) =>
+      Object.freeze({
+        probeId: definition.probeId,
+        sourceId: definition.sourceId,
+        capabilityId: definition.capabilityId,
+        gate: definition.gate,
+        requiresReadOnlyApiKey: definition.requiresReadOnlyApiKey,
+        paginationExpectation: definition.paginationExpectation,
+        host: definition.host,
+        initialUrl: definition.initialUrl,
+        maxPages: definition.maxPages,
+        definitionDigest: definitionDigest(definition),
+      })
+    ),
+  );
+
 export const M1_EXACT_SOURCE_PROBE_DEFINITIONS:
   readonly M1SourceConformanceProbeDefinition[] = Object.freeze(
     RUNTIME_PROBE_DEFINITIONS.map((definition) => Object.freeze({
