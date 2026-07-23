@@ -2,6 +2,40 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-23 / V2 M1.6-P0R Production Resume Preflight and Truth Cleanup
+
+### 本轮目标
+
+从生产现场重新确认 P0R 唯一有效入口，清除现行合同中的旧 Object Lock/age/transport 状态，并在签发新 STS 前识别所有 staging 与 `/dev/shm` 残留。
+
+### 修改范围
+
+- 两份现行 M1.6/P0R 合同已从“Object Lock 白名单未开、age 身份未创建”纠正为 `COMPLIANCE 31d + age Keychain + exact transport PASS`，STS、真实恢复和 fresh P0 继续关闭。
+- 腾讯主机只读复核确认当前唯一入口为 source `bed938566d242394de7f6c31b309bd9f8198b71f`、run `p0r-20260721t183927z-221b4eebbf2ab34191c63608771b21ea`；manifest 禁止生产/数据库/服务/仓库 mutation。
+- 现场同时发现一个已覆盖旧 staging、16 个 `/dev/shm` 旧 P0R 辅助/占位文件和一个诊断临时文件；`p0r-sts` 为 0 字节，没有读取任何可能的凭证内容。它们尚未删除，当前 staging 不得执行。
+
+### 核心链路影响
+
+只修复 `Market Fact + Quality -> Runtime Truth -> Recovery` 的现场真值和执行入口，不改变 scan、analysis、strategy、backtest、前端或生产业务。
+
+### 测试结果
+
+- V2 Foundation：317/317 PASS，6 个合同明确 skip。
+- V2 Ops：115/115 PASS，Go helper PASS。
+- JSON parse、diff check 和 Context 400 行上限 PASS。
+
+### 是否部署
+
+未部署、未签发 STS、未上传对象、未读取数据库、未执行恢复，生产应用与数据 mutation=0；仅通过 Edge/OrcaTerm 执行只读 inventory、manifest/binding/hash 核对。
+
+### 风险与遗留问题
+
+旧 staging、16 个 `/dev/shm` 文件和诊断文件仍待不可逆删除确认。清理并复核为空前禁止创建新 STS；既往短期 STS 全部失效且不得复用。
+
+### 下一轮建议
+
+只执行精确残留清理和 clean-baseline 复核；随后才可进入 fresh 7200 秒 exact-plan STS 的即时 server-side compile。
+
 ## 2026-07-23 / G0 Signed Pull-Only Production Dispatch First Acceptance
 
 ### 本轮目标
@@ -138,34 +172,3 @@ M1 未退出、M2 Gate=INSUFFICIENT、Detector=DRAFT、Candidate 禁发；当前
 ### 下一轮建议
 
 本地只进入 M3.1 family Analysis/Evidence 合同；生产线优先 P0R 与 fresh P0。
-
-## 2026-07-21 / V2 M1.6 Fresh P0 Capacity Admission
-
-### 本轮目标
-
-让 future fresh P0 使用六小时实测容量模型，同时完整继承旧 P0 的只读、身份、恢复、拓扑、schema 和零 mutation 门禁。
-
-### 修改范围
-
-- 新增 raw evidence 可重建的 fresh P0 composition admission；只替代三个旧日分区容量计算。
-- 修正稳态 60% / 峰值 70% 双门槛，隔离 restore target 必须容纳数据库、完整稳态数据集和 WAL reserve。
-
-### 核心链路影响
-
-只加固 `全市场发现 -> Market Fact + Quality -> Runtime Truth` 的生产存储准入。
-
-### 测试结果
-
-- fresh admission 10/10、P0R 59/59、ops 113/113、M0 11/11 和当轮完整 CI PASS。
-
-### 是否部署
-
-未部署，未消费 fresh production evidence，生产零变更。
-
-### 风险与遗留问题
-
-本地工具不等于 production capacity PASS；真实 recovery、fresh topology 和 exact-release calibration 仍需组合执行。
-
-### 下一轮建议
-
-完成真实恢复后重跑 exact-release calibration 和 fresh P0。

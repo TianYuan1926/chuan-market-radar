@@ -28,7 +28,7 @@ Legacy G0 的七个生产出口继续作为历史安全义务，但它们不是 
 | 优先级 | 文档 | 唯一职责 |
 | ---: | --- | --- |
 | 1 | [V2 受控替换工程与运行蓝图 v1.22](./MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md) | 当前唯一产品、领域、工程、研究、运行与切换设计权威 |
-| 2 | [V2 机器追踪矩阵 v1.24](./market-radar-v2-controlled-replacement-traceability.v1.json) | 18 个 Module、5 维状态、4 类不确定性、硬门槛和 M0-M7 的机器合同 |
+| 2 | [V2 机器追踪矩阵 v1.25](./market-radar-v2-controlled-replacement-traceability.v1.json) | 18 个 Module、5 维状态、4 类不确定性、硬门槛和 M0-M7 的机器合同 |
 | 3 | [项目当前上下文](../../PROJECT_CONTEXT_FOR_CHATGPT.md) | 当前事实、风险、生产未知项和唯一下一入口 |
 | 4 | [最近变更日志](../../CHANGELOG_FOR_CHATGPT.md) | 最近最多 5 个重要变化，不保存历史流水账 |
 | 5 | [正确搭建顺序](../../market-radar-v2-build-sequence.md) | 当前唯一施工依赖、Critical Path、并行边界和减数规则 |
@@ -97,7 +97,7 @@ Legacy G0 的七个生产出口继续作为历史安全义务，但它们不是 
 
 1. 与当前 release 身份对齐的新鲜生产只读证据。
 2. 永久安全、事实、交易、无 future leak 和无自动交易红线。
-3. V2 蓝图 v1.22 与机器追踪矩阵 v1.24。
+3. V2 蓝图 v1.22 与机器追踪矩阵 v1.25。
 4. `PROJECT_CONTEXT_FOR_CHATGPT.md` 中仍标为 current 的事实。
 5. Legacy 工程、运行和 readiness 文档中仍适用的安全与验收合同。
 6. 历史蓝图、旧请求、旧报告、旧 digest 和 Git history。
