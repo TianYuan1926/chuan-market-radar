@@ -1,6 +1,6 @@
 # V2 M1.6-P0R 生产恢复运行手册
 
-状态：`OBJECT_LOCK_31D_ENABLED_AND_VERIFIED / AGE_IDENTITY_KEYCHAIN_PASS / EXACT_BED938_STAGING_PASS / NO_USABLE_STS / OLD_STAGING_AND_DEVSHM_HELPER_CLEANUP_REQUIRED / PRODUCTION_RECOVERY_NOT_EXECUTED / P0_BLOCKED`
+状态：`OBJECT_LOCK_31D_ENABLED_AND_VERIFIED / AGE_IDENTITY_KEYCHAIN_PASS / EXACT_BED938_STAGING_PASS / CLEAN_PRE_STS_BASELINE_PASS / NO_USABLE_STS / PRODUCTION_RECOVERY_NOT_EXECUTED / P0_BLOCKED`
 
 ## 1. 唯一目标
 
@@ -86,7 +86,7 @@ npm run v2:m1:p0r:bundle -- \
 
 不得手工编 credential JSON。必须在腾讯 API Explorer 中逐字使用 plan 的 `stsRequest`；API policy 不含 `principal`，由源 IP、HTTPS、TLS、private ACL、Content-Type、COMPLIANCE retention 和唯一 resource 约束。腾讯返回的原始 JSON 只能暂存为 `/dev/shm/...sts-response.json` mode 600，再由 bundle 内工具编译。生产宿主不依赖系统 Node，必须复用正在运行的 Web 容器内已验证 Node 二进制：
 
-既往短期 STS 均已过期且不得复用。2026-07-23 现场只读 inventory 未发现可用 credential 文件；名为 `/dev/shm/p0r-sts` 的旧占位文件为 0 字节，但同目录仍有 15 个旧辅助脚本或 base64 中间文件。新 STS 签发前必须精确删除这 16 个旧 P0R 临时文件并复核目标命名空间为空，禁止在脏 `/dev/shm` 上继续编译。
+既往短期 STS 均已过期且不得复用。2026-07-23 现场只读 inventory 未发现可用 credential 文件；名为 `/dev/shm/p0r-sts` 的旧占位文件为 0 字节，同目录另有 15 个旧辅助脚本或 base64 中间文件。用户在动作时确认后，这 16 个精确路径已全部删除；随后 `find /dev/shm -maxdepth 1 -type f -print` 返回空，诊断临时文件也已确认不存在。当前是 clean pre-STS baseline，尚未创建新 credential。
 
 ```bash
 WEB_CONTAINER="$(sudo docker compose \
@@ -159,7 +159,7 @@ age identity: /dev/shm/market-radar-v2-p0r-<run-id>.age-identity.txt
 
 staging/evidence 根目录和 source 目录必须是实际目录，不得是 symlink。解包后必须核验 transport bundle SHA-256、manifest、所有 file checksum 和 source commit。只上传 checksum-bound bundle、临时 credential file 与临时 age identity；不得同步源码仓库或生产 env。bundle 无 secret，但含受限 COS 目标元数据，执行后 staging 必须清理。
 
-2026-07-23 只读 inventory 发现两个 staging run：历史 `p0r-20260721t144414z-289549af427e1d918c9b87a24f046878` 与当前 `p0r-20260721t183927z-221b4eebbf2ab34191c63608771b21ea`。前者已被当前 exact source 覆盖，必须在签发新 STS 前精确删除；后者的 `p0r-bindings.env` 与 `cos-provisioning-plan.json` SHA-256 已现场核对，继续作为唯一执行入口。不得删除或重建当前 staging，也不得把两个 run 拼接使用。
+2026-07-23 只读 inventory 最初发现两个 staging run：历史 `p0r-20260721t144414z-289549af427e1d918c9b87a24f046878` 与当前 `p0r-20260721t183927z-221b4eebbf2ab34191c63608771b21ea`。用户在动作时确认后，前者已被精确删除；复核结果只剩 staging 根目录与当前 exact run。后者的 `p0r-bindings.env` 与 `cos-provisioning-plan.json` SHA-256 已现场核对，执行文件仍完整存在，继续作为唯一执行入口。不得删除或重建当前 staging。
 
 ## 7. 执行
 

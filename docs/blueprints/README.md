@@ -17,7 +17,7 @@ V2 生产权限：false
 
 2026-07-21 M1.6-P0 已以 exact source 完成生产只读存储核验：PostgreSQL 16、V2 schema=`ABSENT_CLEAN`、旧/新 Fact=0、连接使用率 2%，数据库/服务/仓库 mutation 均为 0；但 120 GiB 系统盘按冻结模型预计使用率 90%，容量余量不足且 recovery evidence 缺失，因此准入结论是 `BLOCKED`。这不评价 `/api/health` 或生产业务 ready，不能扩写成全站健康或全站失败。
 
-P0R 本地恢复、六小时无扩容容量和 fresh P0 组合准入工程已通过；真实 COS 已启用并回读 Object Lock=`COMPLIANCE` 31 天，age X25519 身份仅保存在 macOS Keychain，exact commit `6a81e865e61569f7d2d7c3bb3be1d78db72a9eab` 的受限 transport bundle 已通过。STS、生产对象、backup/retrieval/restore、fresh topology、exact-release 校准和 fresh P0 尚未发生，P1 继续关闭。M3.0 Final Decision Contract 与 M3.1 六族 Analysis/Evidence 合同已本地 PASS；M3.1 固定 test-only 未校准、无 Strategy authority，M1/M2 关闭时仍只能 planless BLOCKED。
+P0R 本地恢复、六小时无扩容容量和 fresh P0 组合准入工程已通过；真实 COS 已启用并回读 Object Lock=`COMPLIANCE` 31 天，age X25519 身份仅保存在 macOS Keychain。当前生产恢复入口已绑定 exact source `bed938566d242394de7f6c31b309bd9f8198b71f`、run `p0r-20260721t183927z-221b4eebbf2ab34191c63608771b21ea` 和 transport bundle `1adae1348bd983ba0eb003ba3521a1404faa4ed4a5559ab89b8a70cf473dac00`；旧 staging、16 个 `/dev/shm` 旧文件和诊断文件已精确清理，clean pre-STS baseline 通过。STS、生产对象、backup/retrieval/restore、fresh topology、exact-release 校准和 fresh P0 尚未发生，P1 继续关闭。M3.0 Final Decision Contract 与 M3.1 六族 Analysis/Evidence 合同已本地 PASS；M3.1 固定 test-only 未校准、无 Strategy authority，M1/M2 关闭时仍只能 planless BLOCKED。
 
 固定生产派发通道的首个真实 signed dispatch 已在腾讯目标机完成 `publish -> pull -> verify -> launch -> package acceptance`，返回 `PASS_FIXED_DISPATCH_FIRST_SIGNED_ACCEPTANCE`。生产应用 HEAD、clean worktree、11 个容器、health、Redis 和 timer 前后保持基线，两项 OrcaTerm 复发事故均已取得目标验收并关闭。该结果只证明普通无 secret 包的运输与独立启动地基，不提升任何 G0、M1 或交易能力状态，也不运输 P0R 临时凭证。
 
@@ -28,7 +28,7 @@ Legacy G0 的七个生产出口继续作为历史安全义务，但它们不是 
 | 优先级 | 文档 | 唯一职责 |
 | ---: | --- | --- |
 | 1 | [V2 受控替换工程与运行蓝图 v1.22](./MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md) | 当前唯一产品、领域、工程、研究、运行与切换设计权威 |
-| 2 | [V2 机器追踪矩阵 v1.25](./market-radar-v2-controlled-replacement-traceability.v1.json) | 18 个 Module、5 维状态、4 类不确定性、硬门槛和 M0-M7 的机器合同 |
+| 2 | [V2 机器追踪矩阵 v1.26](./market-radar-v2-controlled-replacement-traceability.v1.json) | 18 个 Module、5 维状态、4 类不确定性、硬门槛和 M0-M7 的机器合同 |
 | 3 | [项目当前上下文](../../PROJECT_CONTEXT_FOR_CHATGPT.md) | 当前事实、风险、生产未知项和唯一下一入口 |
 | 4 | [最近变更日志](../../CHANGELOG_FOR_CHATGPT.md) | 最近最多 5 个重要变化，不保存历史流水账 |
 | 5 | [正确搭建顺序](../../market-radar-v2-build-sequence.md) | 当前唯一施工依赖、Critical Path、并行边界和减数规则 |
@@ -97,7 +97,7 @@ Legacy G0 的七个生产出口继续作为历史安全义务，但它们不是 
 
 1. 与当前 release 身份对齐的新鲜生产只读证据。
 2. 永久安全、事实、交易、无 future leak 和无自动交易红线。
-3. V2 蓝图 v1.22 与机器追踪矩阵 v1.25。
+3. V2 蓝图 v1.22 与机器追踪矩阵 v1.26。
 4. `PROJECT_CONTEXT_FOR_CHATGPT.md` 中仍标为 current 的事实。
 5. Legacy 工程、运行和 readiness 文档中仍适用的安全与验收合同。
 6. 历史蓝图、旧请求、旧报告、旧 digest 和 Git history。
@@ -146,7 +146,7 @@ M0.0-M0.3、M1.1-M1.6、M2.0-M2.2 已列本地包、C1、M3.0 和 M3.1 已通过
 V2-M1.6-P0R-C-STS-ENCRYPTED-BACKUP-EXACT-RETRIEVAL-AND-ISOLATED-RESTORE
 ```
 
-P0R 下一步只签发与 frozen plan 完全一致的 7200 秒 STS，执行受限上传、真实加密离机备份、exact version retrieval、独立 PG16 restore parity 和 cleanup。随后刷新 production health/topology，在 exact clean release 重跑容量校准和 fresh P0；不得清缓存、缩短核心扫描分母或改阈值。只有新 P0 PASS 才能请求 P1，并严格按 `P1 schema -> P2 identities -> P3 partitions+dormant Worker -> P4 isolated-write Shadow -> M1.7 24h` 推进。固定通道只作为普通无 secret 包的默认运输层，不重复首单验收，也不替代 P0R `/dev/shm` 凭证边界或任一业务包自身 Gate。并行本地下一包为 `M3.2-EVIDENCE-AND-SETUP-QUALIFICATION-CONTRACT`。外部门 `V2-M2.2-B0.2-B-EXACT-SOURCE-RIGHTS-AND-CAPABILITY-RESOLUTION` 仍需人工来源权利和合格历史身份；M1.7 前不得让 M2/M3 runtime 写 Candidate、接页面或生成真实等级/计划。
+P0R clean pre-STS baseline 已通过。下一步只签发与 frozen plan 完全一致的 7200 秒 STS，执行受限上传、真实加密离机备份、exact version retrieval、独立 PG16 restore parity 和 cleanup。随后刷新 production health/topology，在 exact clean release 重跑容量校准和 fresh P0；不得清缓存、缩短核心扫描分母或改阈值。只有新 P0 PASS 才能请求 P1，并严格按 `P1 schema -> P2 identities -> P3 partitions+dormant Worker -> P4 isolated-write Shadow -> M1.7 24h` 推进。固定通道只作为普通无 secret 包的默认运输层，不重复首单验收，也不替代 P0R `/dev/shm` 凭证边界或任一业务包自身 Gate。并行本地下一包为 `M3.2-EVIDENCE-AND-SETUP-QUALIFICATION-CONTRACT`。外部门 `V2-M2.2-B0.2-B-EXACT-SOURCE-RIGHTS-AND-CAPABILITY-RESOLUTION` 仍需人工来源权利和合格历史身份；M1.7 前不得让 M2/M3 runtime 写 Candidate、接页面或生成真实等级/计划。
 
 ## 7. Legacy 参考材料
 

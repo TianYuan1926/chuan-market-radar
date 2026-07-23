@@ -12,7 +12,7 @@
 
 - 两份现行 M1.6/P0R 合同已从“Object Lock 白名单未开、age 身份未创建”纠正为 `COMPLIANCE 31d + age Keychain + exact transport PASS`，STS、真实恢复和 fresh P0 继续关闭。
 - 腾讯主机只读复核确认当前唯一入口为 source `bed938566d242394de7f6c31b309bd9f8198b71f`、run `p0r-20260721t183927z-221b4eebbf2ab34191c63608771b21ea`；manifest 禁止生产/数据库/服务/仓库 mutation。
-- 现场同时发现一个已覆盖旧 staging、16 个 `/dev/shm` 旧 P0R 辅助/占位文件和一个诊断临时文件；`p0r-sts` 为 0 字节，没有读取任何可能的凭证内容。它们尚未删除，当前 staging 不得执行。
+- 现场同时发现一个已覆盖旧 staging、16 个 `/dev/shm` 旧 P0R 辅助/占位文件和一个诊断临时文件；`p0r-sts` 为 0 字节，没有读取任何可能的凭证内容。用户在动作时确认后，这三类残留已按精确路径删除。
 
 ### 核心链路影响
 
@@ -23,18 +23,19 @@
 - V2 Foundation：317/317 PASS，6 个合同明确 skip。
 - V2 Ops：115/115 PASS，Go helper PASS。
 - JSON parse、diff check 和 Context 400 行上限 PASS。
+- 生产 clean-baseline 复核：诊断文件 absent；staging 仅剩根目录和当前 exact run；`/dev/shm` 普通文件为空；当前 run 的执行文件仍完整存在。
 
 ### 是否部署
 
-未部署、未签发 STS、未上传对象、未读取数据库、未执行恢复，生产应用与数据 mutation=0；仅通过 Edge/OrcaTerm 执行只读 inventory、manifest/binding/hash 核对。
+未部署、未签发 STS、未上传对象、未读取数据库、未执行恢复，生产应用与数据 mutation=0；通过 Edge/OrcaTerm 执行只读 inventory、manifest/binding/hash 核对，以及用户明确确认的三类精确残留清理。
 
 ### 风险与遗留问题
 
-旧 staging、16 个 `/dev/shm` 文件和诊断文件仍待不可逆删除确认。清理并复核为空前禁止创建新 STS；既往短期 STS 全部失效且不得复用。
+clean pre-STS baseline 已通过；既往短期 STS 全部失效且不得复用。当前剩余风险是尚未创建新的 exact-plan STS，也尚未执行 COS 对象、加密备份、精确取回、隔离恢复和最终 cleanup。
 
 ### 下一轮建议
 
-只执行精确残留清理和 clean-baseline 复核；随后才可进入 fresh 7200 秒 exact-plan STS 的即时 server-side compile。
+进入 fresh 7200 秒 exact-plan STS 的即时 server-side compile，然后只执行绑定计划的受限上传、加密备份、精确取回、隔离 PG16 恢复和 cleanup。
 
 ## 2026-07-23 / G0 Signed Pull-Only Production Dispatch First Acceptance
 
