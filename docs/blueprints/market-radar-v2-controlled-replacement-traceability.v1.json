@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.29",
-  "status": "m0_4_expanded_scope_design_pass_implementation_not_started_scope_epoch_v1_evidence_preserved_v2_multi_asset_4v_unproven_m1_5_b1_pass_v1_only_m1_6_p0_blocked_p0r_clean_pre_sts_baseline_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_v1_only_m3_0_through_m3_3_local_contract_pass_v1_only_test_only_uncalibrated_no_ready_authority_fixed_dispatch_first_signed_acceptance_pass_external_historical_source_blocked_m1_not_complete",
-  "generatedAt": "2026-07-23T15:49:49+08:00",
+  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.30",
+  "status": "m0_4_expanded_scope_design_pass_m1_1a_source_capability_registry_local_pass_official_docs_reviewed_scope_v2_adapters_and_live_unproven_scope_epoch_v1_evidence_preserved_m1_5_b1_pass_v1_only_m1_6_p0_blocked_p0r_clean_pre_sts_baseline_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_v1_only_m3_0_through_m3_3_local_contract_pass_v1_only_test_only_uncalibrated_no_ready_authority_fixed_dispatch_first_signed_acceptance_pass_external_historical_source_blocked_m1_not_complete",
+  "generatedAt": "2026-07-23T18:35:21+08:00",
   "implementationAuthorized": true,
   "productionMutationAuthorized": false,
   "authority": {
@@ -10,7 +10,7 @@
     "index": "docs/blueprints/README.md",
     "currentFacts": "PROJECT_CONTEXT_FOR_CHATGPT.md",
     "recentChanges": "CHANGELOG_FOR_CHATGPT.md",
-    "deliveryReport": "docs/blueprints/V2_M0_4_EXPANDED_MARKET_SCOPE_AMENDMENT_DELIVERY_REPORT.md",
+    "deliveryReport": "docs/blueprints/V2_M1_1A_FOUR_VENUE_SOURCE_CAPABILITY_REGISTRY_DELIVERY_REPORT.md",
     "buildSequence": "market-radar-v2-build-sequence.md",
     "baseManifest": "docs/architecture/v2/V2_BASE_MANIFEST.v1.json",
     "baselineDecision": "docs/architecture/v2/ADR-0001-CLEAN-BASELINE-AND-V2-ISOLATION.md",
@@ -22,6 +22,9 @@
     "dataCapabilityBaseline": "docs/architecture/v2/DATA_CAPABILITY_AND_REPLAY_BASELINE_V1.md",
     "expandedMarketScopeContract": "docs/architecture/v2/M0_4_EXPANDED_MARKET_SCOPE_AND_SCOPE_EPOCH_CONTRACT_V1.md",
     "expandedMarketScopeDeliveryReport": "docs/blueprints/V2_M0_4_EXPANDED_MARKET_SCOPE_AMENDMENT_DELIVERY_REPORT.md",
+    "m1FourVenueSourceCapabilityRegistryContract": "docs/architecture/v2/M1_1A_FOUR_VENUE_SOURCE_CAPABILITY_REGISTRY_V1.md",
+    "m1FourVenueSourceCapabilityRegistryImplementation": "src/v2/modules/source-capability/adapters/four-venue-capability-registry.ts",
+    "m1FourVenueSourceCapabilityRegistryDeliveryReport": "docs/blueprints/V2_M1_1A_FOUR_VENUE_SOURCE_CAPABILITY_REGISTRY_DELIVERY_REPORT.md",
     "m1FoundationSliceContract": "docs/architecture/v2/M1_FOUNDATION_VERTICAL_SLICE_CONTRACT_V1.md",
     "m1ProviderSourceContracts": "docs/architecture/v2/M1_1_PROVIDER_SOURCE_CONTRACTS_V1.md",
     "m1FeatureContextContract": "docs/architecture/v2/M1_2_FEATURE_CONTEXT_CONTRACT_V1.md",
@@ -85,7 +88,7 @@
   "currentBoundary": {
     "readiness": "R1",
     "status": "runnable_but_incomplete_not_practical_ready",
-    "v2ImplementationStatus": "m0_4_expanded_scope_design_pass_v1_evidence_preserved_v2_multi_asset_4v_implementation_not_started_m1_5_b1_complete_v1_only_m1_6_p0_blocked_p0r_clean_pre_sts_baseline_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_v1_only_m3_0_through_m3_3_local_contract_pass_v1_only_test_only_uncalibrated_no_ready_authority_external_rights_blocked_detectors_draft_candidate_emission_false_m1_not_complete",
+    "v2ImplementationStatus": "m0_4_expanded_scope_design_pass_m1_1a_capability_registry_local_pass_official_docs_reviewed_scope_v2_adapters_and_live_unproven_v1_evidence_preserved_m1_5_b1_complete_v1_only_m1_6_p0_blocked_p0r_clean_pre_sts_baseline_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_v1_only_m3_0_through_m3_3_local_contract_pass_v1_only_test_only_uncalibrated_no_ready_authority_external_rights_blocked_detectors_draft_candidate_emission_false_m1_not_complete",
     "v2ImplementationBranch": "codex/market-radar-v2-implementation",
     "v2ImplementationBaseCommit": "e5eb90026d8bfcd52b060359446515de5a5c32d6",
     "latestProductionFinalStatus": "storage_preflight_blocked_capacity_and_recovery_application_health_not_evaluated",
@@ -131,6 +134,26 @@
     "globalAllExchangeCoverageClaimAllowed": false,
     "scopeMustBeVersionedAndUserVisible": true
   },
+  "sourceCapabilityRegistry": {
+    "id": "market-radar-v2-four-venue-source-capability-registry.v1",
+    "status": "local_contract_pass_official_documents_reviewed_scope_v2_adapters_and_live_probes_unproven",
+    "scopeEpoch": "SCOPE_EPOCH_V2_MULTI_ASSET_4V",
+    "venueDenominator": 4,
+    "sourceDenominator": 5,
+    "capabilityDenominator": 33,
+    "expectedRowCount": 165,
+    "observedRowCount": 165,
+    "officialDocumentedRowCount": 110,
+    "unavailableOrUnlicensedRowCount": 57,
+    "scopeV1RuntimePassRowCount": 6,
+    "scopeV2RuntimePassRowCount": 0,
+    "registryDigest": "sha256:45832cf889c92153a29d511582c386a9089d1eeb904a3e8ecdee5772904dfd94",
+    "missingOrDuplicateRowCount": 0,
+    "productionMutationPerformed": false,
+    "factAuthorityGranted": false,
+    "candidateAuthorityGranted": false,
+    "readyAuthorityGranted": false
+  },
   "scopeEpochs": [
     {
       "id": "SCOPE_EPOCH_V1_CRYPTO_3V",
@@ -147,7 +170,7 @@
     },
     {
       "id": "SCOPE_EPOCH_V2_MULTI_ASSET_4V",
-      "status": "design_scope_amendment_pass_implementation_shadow_capacity_calibration_and_production_unproven",
+      "status": "design_scope_amendment_and_source_capability_registry_local_pass_adapters_live_shadow_capacity_calibration_and_production_unproven",
       "venues": [
         "BINANCE_FUTURES",
         "OKX_SWAP",
@@ -905,7 +928,7 @@
       "id": "M0",
       "name": "constitution_active_memory_and_legacy_freeze",
       "productionMutationAllowed": false,
-      "status": "local_engineering_exit_pass_m0_4_expanded_scope_design_pass_production_unchanged",
+      "status": "local_engineering_exit_pass_m0_4_expanded_scope_design_pass_m1_1a_registry_local_pass_production_unchanged",
       "workPackages": [
         {
           "id": "M0.0",
@@ -930,7 +953,7 @@
         {
           "id": "M0.4",
           "name": "expanded_market_scope_and_scope_epoch_contract",
-          "status": "design_scope_amendment_pass_implementation_not_started_production_unchanged"
+          "status": "design_scope_amendment_pass_m1_1a_registry_local_pass_scope_v2_runtime_unproven_production_unchanged"
         }
       ]
     },
@@ -941,17 +964,17 @@
       "dependsOn": [
         "M0"
       ],
-      "status": "scope_epoch_v1_b1b3_early_shadow_business_gate_pass_m1_5_b1_complete_m1_6_p0_executed_blocked_p0r_object_lock_31d_age_vault_transport_pass_sts_and_production_recovery_pending_scope_epoch_v2_multi_asset_4v_not_implemented_m1_not_complete",
+      "status": "scope_epoch_v1_b1b3_early_shadow_business_gate_pass_m1_5_b1_complete_m1_6_p0_executed_blocked_p0r_object_lock_31d_age_vault_transport_pass_sts_and_production_recovery_pending_scope_epoch_v2_m1_1a_capability_registry_local_pass_adapters_and_live_unproven_m1_not_complete",
       "workPackages": [
         {
           "id": "M1.1A",
           "name": "four_venue_source_capability_registry",
-          "status": "next_local_package_not_started"
+          "status": "local_contract_pass_official_docs_reviewed_165_of_165_rows_scope_v2_runtime_pass_zero_production_unchanged"
         },
         {
           "id": "M1.1B",
-          "name": "multi_asset_identity_and_listing_intelligence",
-          "status": "pending_after_m1_1a"
+          "name": "exact_source_conformance_multi_asset_identity_and_listing_intelligence_superpackage",
+          "status": "next_local_package_not_started_b0_and_b1_have_independent_gates"
         },
         {
           "id": "M1.4A",
@@ -1280,10 +1303,10 @@
     "legacyDeletionAllowed": false
   },
   "lastCompletedImplementationEntry": {
-    "id": "V2-M3.3-STRATEGY-CONSTRUCTION-CONTRACT",
-    "name": "six_family_structural_strategy_draft_with_exact_reward_risk_and_abstention",
-    "status": "local_contract_pass_test_only_uncalibrated_no_ready_authority",
-    "scopeEpoch": "SCOPE_EPOCH_V1_CRYPTO_3V",
+    "id": "V2-M1.1A-FOUR-VENUE-CAPABILITY-REGISTRY",
+    "name": "five_source_33_capability_165_row_entitlement_rate_limit_and_runtime_truth_registry",
+    "status": "local_contract_pass_official_documents_reviewed_scope_v2_adapters_and_live_probes_unproven",
+    "scopeEpoch": "SCOPE_EPOCH_V2_MULTI_ASSET_4V",
     "productionMutationPerformed": false,
     "migrationPerformed": false,
     "legacyDeletionPerformed": false
@@ -1291,13 +1314,13 @@
   "lastCompletedDesignEntry": {
     "id": "V2-M0.4-EXPANDED-MARKET-SCOPE-AMENDMENT",
     "name": "bitget_listing_lifecycle_useful_data_maximization_and_equity_contract_scope_epoch",
-    "status": "design_scope_amendment_pass_implementation_not_started",
+    "status": "design_scope_amendment_pass_m1_1a_source_registry_implemented_scope_v2_runtime_unproven",
     "scopeEpoch": "SCOPE_EPOCH_V2_MULTI_ASSET_4V",
     "productionMutationPerformed": false
   },
   "currentLocalImplementationEntry": {
-    "id": "V2-M1.1A-FOUR-VENUE-CAPABILITY-REGISTRY",
-    "name": "source_capability_entitlement_rate_limit_semantics_and_runtime_evidence_registry",
+    "id": "V2-M1.1B-EXACT-SOURCE-CONFORMANCE-MULTI-ASSET-IDENTITY-AND-LISTING-INTELLIGENCE",
+    "name": "b0_exact_source_conformance_then_b1_bitget_multi_asset_identity_and_listing_lifecycle",
     "status": "not_started",
     "scopeEpoch": "SCOPE_EPOCH_V2_MULTI_ASSET_4V",
     "productionMutationAllowed": false
