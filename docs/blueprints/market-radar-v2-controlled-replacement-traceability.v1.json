@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.30",
-  "status": "m0_4_expanded_scope_design_pass_m1_1a_source_capability_registry_local_pass_official_docs_reviewed_scope_v2_adapters_and_live_unproven_scope_epoch_v1_evidence_preserved_m1_5_b1_pass_v1_only_m1_6_p0_blocked_p0r_clean_pre_sts_baseline_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_v1_only_m3_0_through_m3_3_local_contract_pass_v1_only_test_only_uncalibrated_no_ready_authority_fixed_dispatch_first_signed_acceptance_pass_external_historical_source_blocked_m1_not_complete",
-  "generatedAt": "2026-07-23T18:35:21+08:00",
+  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.32",
+  "status": "m0_4_expanded_scope_design_pass_m1_1a_registry_local_pass_m1_1b_multi_asset_identity_listing_and_exact_probe_local_implementation_pass_test_only_conformance_pass_live_b0_not_run_scope_epoch_v1_evidence_preserved_m1_5_b1_pass_v1_only_m1_6_p0_blocked_p0r_clean_pre_sts_baseline_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_v1_only_m3_0_through_m3_3_local_contract_pass_v1_only_test_only_uncalibrated_no_ready_authority_fixed_dispatch_first_signed_acceptance_pass_external_historical_source_blocked_m1_not_complete",
+  "generatedAt": "2026-07-23T19:28:32+08:00",
   "implementationAuthorized": true,
   "productionMutationAuthorized": false,
   "authority": {
@@ -10,7 +10,7 @@
     "index": "docs/blueprints/README.md",
     "currentFacts": "PROJECT_CONTEXT_FOR_CHATGPT.md",
     "recentChanges": "CHANGELOG_FOR_CHATGPT.md",
-    "deliveryReport": "docs/blueprints/V2_M1_1A_FOUR_VENUE_SOURCE_CAPABILITY_REGISTRY_DELIVERY_REPORT.md",
+    "deliveryReport": "docs/blueprints/V2_M1_1B_EXACT_SOURCE_CONFORMANCE_MULTI_ASSET_IDENTITY_AND_LISTING_INTELLIGENCE_DELIVERY_REPORT.md",
     "buildSequence": "market-radar-v2-build-sequence.md",
     "baseManifest": "docs/architecture/v2/V2_BASE_MANIFEST.v1.json",
     "baselineDecision": "docs/architecture/v2/ADR-0001-CLEAN-BASELINE-AND-V2-ISOLATION.md",
@@ -25,6 +25,11 @@
     "m1FourVenueSourceCapabilityRegistryContract": "docs/architecture/v2/M1_1A_FOUR_VENUE_SOURCE_CAPABILITY_REGISTRY_V1.md",
     "m1FourVenueSourceCapabilityRegistryImplementation": "src/v2/modules/source-capability/adapters/four-venue-capability-registry.ts",
     "m1FourVenueSourceCapabilityRegistryDeliveryReport": "docs/blueprints/V2_M1_1A_FOUR_VENUE_SOURCE_CAPABILITY_REGISTRY_DELIVERY_REPORT.md",
+    "m1ExactSourceConformanceMultiAssetIdentityAndListingContract": "docs/architecture/v2/M1_1B_EXACT_SOURCE_CONFORMANCE_MULTI_ASSET_IDENTITY_AND_LISTING_INTELLIGENCE_V1.md",
+    "m1ExactSourceConformanceImplementation": "src/v2/modules/source-conformance/adapters/exact-source-conformance-runner.ts",
+    "m1MultiAssetIdentityImplementation": "src/v2/modules/multi-asset-universe/multi-asset-identity-contract.ts",
+    "m1ListingLifecycleImplementation": "src/v2/modules/multi-asset-universe/listing-lifecycle-contract.ts",
+    "m1ExactSourceConformanceMultiAssetIdentityAndListingDeliveryReport": "docs/blueprints/V2_M1_1B_EXACT_SOURCE_CONFORMANCE_MULTI_ASSET_IDENTITY_AND_LISTING_INTELLIGENCE_DELIVERY_REPORT.md",
     "m1FoundationSliceContract": "docs/architecture/v2/M1_FOUNDATION_VERTICAL_SLICE_CONTRACT_V1.md",
     "m1ProviderSourceContracts": "docs/architecture/v2/M1_1_PROVIDER_SOURCE_CONTRACTS_V1.md",
     "m1FeatureContextContract": "docs/architecture/v2/M1_2_FEATURE_CONTEXT_CONTRACT_V1.md",
@@ -88,7 +93,7 @@
   "currentBoundary": {
     "readiness": "R1",
     "status": "runnable_but_incomplete_not_practical_ready",
-    "v2ImplementationStatus": "m0_4_expanded_scope_design_pass_m1_1a_capability_registry_local_pass_official_docs_reviewed_scope_v2_adapters_and_live_unproven_v1_evidence_preserved_m1_5_b1_complete_v1_only_m1_6_p0_blocked_p0r_clean_pre_sts_baseline_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_v1_only_m3_0_through_m3_3_local_contract_pass_v1_only_test_only_uncalibrated_no_ready_authority_external_rights_blocked_detectors_draft_candidate_emission_false_m1_not_complete",
+    "v2ImplementationStatus": "m0_4_expanded_scope_design_pass_m1_1a_registry_local_pass_m1_1b_local_adapter_identity_listing_and_test_only_conformance_pass_live_b0_not_run_v1_evidence_preserved_m1_5_b1_complete_v1_only_m1_6_p0_blocked_p0r_clean_pre_sts_baseline_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_v1_only_m3_0_through_m3_3_local_contract_pass_v1_only_test_only_uncalibrated_no_ready_authority_external_rights_blocked_detectors_draft_candidate_emission_false_m1_not_complete",
     "v2ImplementationBranch": "codex/market-radar-v2-implementation",
     "v2ImplementationBaseCommit": "e5eb90026d8bfcd52b060359446515de5a5c32d6",
     "latestProductionFinalStatus": "storage_preflight_blocked_capacity_and_recovery_application_health_not_evaluated",
@@ -154,6 +159,51 @@
     "candidateAuthorityGranted": false,
     "readyAuthorityGranted": false
   },
+  "sourceConformance": {
+    "schemaVersion": "v2-m1-exact-source-conformance.v1",
+    "status": "local_implementation_pass_test_only_conformance_pass_live_b0_not_run",
+    "scopeEpoch": "SCOPE_EPOCH_V2_MULTI_ASSET_4V",
+    "expectedProbeCount": 15,
+    "identityGateProbeCount": 8,
+    "listingGateProbeCount": 6,
+    "coinGlassGateProbeCount": 1,
+    "testHarnessEvidenceClass": "TEST_ONLY",
+    "testHarnessGateStatus": "NOT_EVALUATED_TEST_ONLY",
+    "fullProductionCiStatus": "pass",
+    "localLiveProbeStatus": "not_run",
+    "tencentIsolatedLiveProbeStatus": "not_run",
+    "livePassClaimAllowed": false,
+    "rawResponseRetentionAllowed": false,
+    "secretRetentionAllowed": false,
+    "productionMutationPerformed": false,
+    "factAuthorityGranted": false,
+    "candidateAuthorityGranted": false,
+    "readyAuthorityGranted": false
+  },
+  "multiAssetIdentityAndListing": {
+    "identitySchemaVersion": "v2-m1-multi-asset-identity.v1",
+    "identitySnapshotSchemaVersion": "v2-m1-multi-asset-identity-snapshot.v1",
+    "status": "local_contract_pass_live_catalog_identity_and_listing_evidence_unproven",
+    "scopeEpoch": "SCOPE_EPOCH_V2_MULTI_ASSET_4V",
+    "venueDenominator": 4,
+    "bitgetAdapterImplemented": true,
+    "fourVenueCatalogNormalizersImplemented": true,
+    "bybitAndBitgetAnnouncementNormalizersImplemented": true,
+    "listingAndIdentityEpochImplemented": true,
+    "provisionalEpochContinuityImplemented": true,
+    "symbolTextClassificationAllowed": false,
+    "bitgetIsRwaMayProveExactEquityType": false,
+    "bybitG9MayBeUsedAsInstrumentSymbolType": false,
+    "officialEvidenceBoundUnderlyingMappingRequiredForAmbiguousRwa": true,
+    "catalogAbsenceMayProveDelisting": false,
+    "directedContractTestCount": 22,
+    "directedContractTestFailCount": 0,
+    "fullProductionCiStatus": "pass",
+    "productionMutationPerformed": false,
+    "runtimeEligibilityAuthorityGranted": false,
+    "candidateAuthorityGranted": false,
+    "strategyAuthorityGranted": false
+  },
   "scopeEpochs": [
     {
       "id": "SCOPE_EPOCH_V1_CRYPTO_3V",
@@ -170,7 +220,7 @@
     },
     {
       "id": "SCOPE_EPOCH_V2_MULTI_ASSET_4V",
-      "status": "design_scope_amendment_and_source_capability_registry_local_pass_adapters_live_shadow_capacity_calibration_and_production_unproven",
+      "status": "design_registry_and_m1_1b_adapter_identity_listing_local_pass_test_only_conformance_pass_live_shadow_capacity_calibration_and_production_unproven",
       "venues": [
         "BINANCE_FUTURES",
         "OKX_SWAP",
@@ -230,32 +280,33 @@
       "venue": "BINANCE_FUTURES",
       "cryptoPerpetualProduct": "officially_documented",
       "listingLifecycleFields": "officially_documented",
-      "equityPerpetualProduct": "unverified_unavailable",
-      "runtimeAdapterEvidenceForV2": "missing"
+      "equityPerpetualProduct": "officially_documented",
+      "runtimeAdapterEvidenceForV2": "local_contract_pass_live_unproven"
     },
     {
       "venue": "OKX_SWAP",
       "cryptoPerpetualProduct": "officially_documented",
       "listingLifecycleFields": "officially_documented",
       "equityPerpetualProduct": "officially_documented",
-      "runtimeAdapterEvidenceForV2": "missing"
+      "runtimeAdapterEvidenceForV2": "local_contract_pass_live_unproven"
     },
     {
       "venue": "BYBIT_DERIVATIVES",
       "cryptoPerpetualProduct": "officially_documented",
       "listingLifecycleFields": "officially_documented",
       "equityPerpetualProduct": "officially_documented",
-      "runtimeAdapterEvidenceForV2": "missing"
+      "runtimeAdapterEvidenceForV2": "local_contract_pass_live_unproven"
     },
     {
       "venue": "BITGET_FUTURES",
       "cryptoPerpetualProduct": "officially_documented",
       "listingLifecycleFields": "officially_documented",
       "equityPerpetualProduct": "officially_documented",
-      "runtimeAdapterEvidenceForV2": "missing"
+      "runtimeAdapterEvidenceForV2": "local_contract_pass_live_unproven"
     }
   ],
   "listingLifecycle": {
+    "status": "local_contract_pass_live_reconciliation_unproven",
     "states": [
       "ANNOUNCED",
       "OBSERVED_UNCONFIRMED",
@@ -964,7 +1015,7 @@
       "dependsOn": [
         "M0"
       ],
-      "status": "scope_epoch_v1_b1b3_early_shadow_business_gate_pass_m1_5_b1_complete_m1_6_p0_executed_blocked_p0r_object_lock_31d_age_vault_transport_pass_sts_and_production_recovery_pending_scope_epoch_v2_m1_1a_capability_registry_local_pass_adapters_and_live_unproven_m1_not_complete",
+      "status": "scope_epoch_v1_b1b3_early_shadow_business_gate_pass_m1_5_b1_complete_m1_6_p0_executed_blocked_p0r_object_lock_31d_age_vault_transport_pass_sts_and_production_recovery_pending_scope_epoch_v2_m1_1a_registry_and_m1_1b_adapter_identity_listing_local_pass_test_only_conformance_pass_live_b0_pending_m1_not_complete",
       "workPackages": [
         {
           "id": "M1.1A",
@@ -974,7 +1025,7 @@
         {
           "id": "M1.1B",
           "name": "exact_source_conformance_multi_asset_identity_and_listing_intelligence_superpackage",
-          "status": "next_local_package_not_started_b0_and_b1_have_independent_gates"
+          "status": "local_implementation_pass_test_only_conformance_pass_live_b0_pending_no_runtime_authority"
         },
         {
           "id": "M1.4A",
@@ -1303,9 +1354,9 @@
     "legacyDeletionAllowed": false
   },
   "lastCompletedImplementationEntry": {
-    "id": "V2-M1.1A-FOUR-VENUE-CAPABILITY-REGISTRY",
-    "name": "five_source_33_capability_165_row_entitlement_rate_limit_and_runtime_truth_registry",
-    "status": "local_contract_pass_official_documents_reviewed_scope_v2_adapters_and_live_probes_unproven",
+    "id": "V2-M1.1B-LOCAL-EXACT-PROBES-MULTI-ASSET-IDENTITY-AND-LISTING-INTELLIGENCE",
+    "name": "fifteen_exact_read_only_probes_four_venue_multi_asset_identity_bitget_and_listing_lifecycle_local_contracts",
+    "status": "local_implementation_pass_test_only_conformance_pass_live_b0_not_run",
     "scopeEpoch": "SCOPE_EPOCH_V2_MULTI_ASSET_4V",
     "productionMutationPerformed": false,
     "migrationPerformed": false,
@@ -1319,11 +1370,20 @@
     "productionMutationPerformed": false
   },
   "currentLocalImplementationEntry": {
-    "id": "V2-M1.1B-EXACT-SOURCE-CONFORMANCE-MULTI-ASSET-IDENTITY-AND-LISTING-INTELLIGENCE",
-    "name": "b0_exact_source_conformance_then_b1_bitget_multi_asset_identity_and_listing_lifecycle",
-    "status": "not_started",
+    "id": "V2-M1.4A-ADAPTIVE-MULTI-ASSET-COLLECTOR-CONTRACTS",
+    "name": "capability_gated_multi_asset_collection_scheduler_without_live_capability_assumptions",
+    "status": "pending_may_only_build_capability_independent_contracts_before_live_b0",
     "scopeEpoch": "SCOPE_EPOCH_V2_MULTI_ASSET_4V",
     "productionMutationAllowed": false
+  },
+  "currentScopeV2EvidenceEntry": {
+    "id": "V2-M1.1B0-TENCENT-ISOLATED-LIVE-SOURCE-CONFORMANCE",
+    "name": "exact_clean_commit_live_read_only_identity_listing_and_coinglass_capability_gates",
+    "status": "pending_exact_commit_and_tencent_isolated_execution",
+    "scopeEpoch": "SCOPE_EPOCH_V2_MULTI_ASSET_4V",
+    "productionMutationAllowed": false,
+    "migrationAllowed": false,
+    "candidateAuthorityAllowed": false
   },
   "pausedLocalImplementationEntry": {
     "id": "V2-M3.4-EXECUTION-FEASIBILITY-CONTRACT",
