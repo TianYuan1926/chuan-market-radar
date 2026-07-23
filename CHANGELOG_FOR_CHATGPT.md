@@ -2,6 +2,43 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-24 / V2 M3.4-R0 Scope Rebase Governance Gate
+
+### 本轮目标
+
+在继续执行可行性实现前，把 Bitget、上新生命周期、股票合约和数据最大化四条新增能力轴强制接入 M3.4 的正式范围与证据链，防止旧草稿用三 Venue、单一 crypto 逻辑或测试阈值获得交易权限。
+
+### 修改范围
+
+- 新增纯治理门禁；它只判断某个范围能否进入后续 M3.4 实现，不能生成 Candidate、Signal、Strategy、READY 或交易计划。
+- 四条能力轴分别记账，任何一条缺失都不能被其他能力替代；Bitget 固定进入 Venue 分母，上新使用系统冻结的 `ANNOUNCED_WAITING_CATALOG`、`OBSERVED_UNCONFIRMED`、`PRE_LAUNCH_OR_PREOPEN`、`TRADING_WARMUP`、`ESTABLISHED`、维护/限制/暂停/下架/离线和 unresolved 生命周期。
+- 股票类合约必须额外证明交易时段、休市/隔夜 basis、公司行动、FX、underlying reference、成本和流动性边界；CFD、RWA watch、跨市场观察对象不能冒充可交易股票合约。
+- 所有 PASS 证明必须绑定 Scope V2、Venue、asset domain、lifecycle、release、evidenceId 与 SHA-256；禁止跨 Venue、跨资产域、跨生命周期或跨 release 借用证明。
+- 旧 M3.4 草稿保持隔离：当前 typecheck 有 3 个失败、无测试、仍是三 Venue 且缺 Scope epoch、asset domain、listing warm-up 和股票专项校准，因此不能提交或作为基线。
+- P0R exact plan、13 个 Bundle 成员和腾讯 staging hash 已重新核验一致；生产 HEAD、容器、listener、timer、health、`/dev/shm` 与恢复容器/卷均保持只读基线。
+
+### 核心链路影响
+
+形成 `Scope V2 -> M3.4-R0 Governance Gate -> Domain-Sealed Calibration -> M3.4 Feasibility` 的唯一入口。新增市场范围被正确纳入后续工程，但本包不声称任何新增范围已经具备实战能力。
+
+### 测试结果
+
+- M3.4-R0 定向合同 12/12 PASS。
+- 新实现 ESLint 0 error / 0 warning。
+- 正式实施分支身份下完整 `ci:production` PASS：V2 Foundation 466 total / 460 pass / 6 explicit skip、V2 Ops 131/131、M0 11/11、Next production build、Golden 16/16 与 security 全部通过。
+
+### 是否部署
+
+未部署。生产服务、数据库、Redis、Worker、env、Feature Flag、数据和业务 authority 零变更；P0R 仍因缺少新的 7200 秒 exact-plan STS 而未执行。
+
+### 风险与遗留问题
+
+M3.4-R0 只是范围与证据门禁，真正的多资产可执行性数学、分域阈值、股票市场微观结构、上新 warm-up 校准、Shadow 和生产验收仍未完成。P0R 必须在实际操作时新生成 STS，并只进入服务器 `/dev/shm`。
+
+### 下一轮建议
+
+完成精确提交与 GitHub 同步后，集中完成 P0R 的一次性 STS、加密备份、精确版本取回、隔离 PostgreSQL 16 恢复和清理。M3.4 后续只能基于本门禁重新实现，不能修补旧草稿后直接放行。
+
 ## 2026-07-24 / V2 M1.4B Endpoint Batching, Runtime Adapter and Listing History
 
 ### 本轮目标
@@ -157,39 +194,3 @@ M1.1B0 只关闭 exact source conformance。M1.4B runtime Adapter、Bybit 完整
 ### 下一轮建议
 
 先绑定 exact clean commit 执行腾讯隔离 `LIVE_READ_ONLY` B0；只让实际 PASS 的 capability 进入 M1.4B runtime Adapter。生产 P0R 继续独立推进。
-
-## 2026-07-23 / V2 M1.1A Four-Venue Source Capability Registry
-
-### 本轮目标
-
-把 Bitget、上新币种、股票永续和可用外部数据正确纳入同一 V2 搭建计划，建立不能漏项、不能把官方文档冒充运行能力的来源登记表。
-
-### 修改范围
-
-- 新增 4 Venue + CoinGlass Hobbyist、33 类能力、165 行 source-capability 穷举登记；缺失、重复、证据错绑、摘要篡改、套餐越权和 secret 均 fail closed。
-- 每行记录 endpoint/channel、事实语义、鉴权/套餐、限速、分页、历史、推送、point-in-time/replay、权利、实现/live 状态、成本、失败和 no-stale fallback。
-- Bitget 正式进入 Venue 分母；合约/现货上新进入 T0 listing watch；股票永续进入独立 equity asset domain。
-- 根据最新官方资料纠正 M0.4：Binance、OKX、Bybit、Bitget 均有股票/TradFi 永续产品证明，但 Scope V2 Adapter/live/session/corporate-action 仍未证明。
-- 下一本地包升级为 M1.1B 超级包，内部先 B0 exact source conformance，再 B1 multi-asset identity/listing。
-
-### 核心链路影响
-
-来源能力、套餐和缺口成为 `Universe -> Fact -> Detection -> Validation` 的统一前置合同；不改变 Pre-Move 优先级，不产生任何 Candidate、Strategy 或 READY。
-
-### 测试结果
-
-- M1.1A 定向合同 8/8 PASS。
-- 165/165 组合、110 个官方文档行、57 个 unavailable/unlicensed、Scope V2 runtime PASS=0，registry violations=0。
-- 完整 `ci:production` 在排除冻结 M3.4 草稿的真实分支隔离快照通过。
-
-### 是否部署
-
-未部署；没有网络能力探测。生产服务、数据库、Redis、Worker、env、Feature Flag、数据和业务 authority 零变更。
-
-### 风险与遗留问题
-
-Bitget、股票和 listing Adapter 尚未实现；CoinGlass 除明确页面外仍需 Hobbyist exact-plan 探测；四 Venue live、Shadow、容量和分域校准均未证明。
-
-### 下一轮建议
-
-执行 M1.1B0/B1 本地超级包；生产 P0R 继续作为独立第一关键路径，M3.4 草稿保持冻结。

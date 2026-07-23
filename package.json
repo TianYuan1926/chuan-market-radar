@@ -142,6 +142,7 @@
     "test:v2-m3-family-analysis": "npm run build:market-cli && node --test .tmp/market-tests/v2/modules/analysis/m3-family-analysis-contract.test.js .tmp/market-tests/v2/modules/decision/m3-final-decision-contract.test.js",
     "test:v2-m3-signal-qualification": "npm run build:market-cli && node --test .tmp/market-tests/v2/modules/qualification/m3-signal-qualification-contract.test.js .tmp/market-tests/v2/modules/analysis/m3-family-analysis-contract.test.js .tmp/market-tests/v2/modules/decision/m3-final-decision-contract.test.js",
     "test:v2-m3-strategy-construction": "npm run build:market-cli && node --test .tmp/market-tests/v2/modules/strategy/m3-strategy-construction-contract.test.js .tmp/market-tests/v2/modules/qualification/m3-signal-qualification-contract.test.js .tmp/market-tests/v2/modules/analysis/m3-family-analysis-contract.test.js .tmp/market-tests/v2/modules/decision/m3-final-decision-contract.test.js",
+    "test:v2-m3-scope-rebase": "npm run build:market-cli && node --test .tmp/market-tests/v2/modules/execution-governance/m3-scope-rebase-gate.test.js",
     "v2:m2:forward-instrument:capture": "npm run build:market-cli && node .tmp/market-tests/v2/entrypoints/m2-forward-instrument-capture.js",
     "v2:m2:historical-source:preflight": "npm run build:market-cli && node .tmp/market-tests/v2/entrypoints/m2-historical-source-pilot.js preflight",
     "v2:m2:historical-source:verify-pilot": "npm run build:market-cli && node .tmp/market-tests/v2/entrypoints/m2-historical-source-pilot.js verify",
