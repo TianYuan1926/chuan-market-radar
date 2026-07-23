@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.32",
-  "status": "m0_4_expanded_scope_design_pass_m1_1a_registry_local_pass_m1_1b_multi_asset_identity_listing_and_exact_probe_local_implementation_pass_test_only_conformance_pass_live_b0_not_run_scope_epoch_v1_evidence_preserved_m1_5_b1_pass_v1_only_m1_6_p0_blocked_p0r_clean_pre_sts_baseline_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_v1_only_m3_0_through_m3_3_local_contract_pass_v1_only_test_only_uncalibrated_no_ready_authority_fixed_dispatch_first_signed_acceptance_pass_external_historical_source_blocked_m1_not_complete",
-  "generatedAt": "2026-07-23T19:28:32+08:00",
+  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.33",
+  "status": "m0_4_expanded_scope_design_pass_m1_1a_registry_local_pass_m1_1b_multi_asset_identity_listing_and_exact_probe_local_implementation_pass_test_only_conformance_pass_live_b0_not_run_m1_4a_adaptive_multi_asset_collector_local_contract_and_full_ci_pass_no_runtime_authority_scope_epoch_v1_evidence_preserved_m1_5_b1_pass_v1_only_m1_6_p0_blocked_p0r_clean_pre_sts_baseline_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_v1_only_m3_0_through_m3_3_local_contract_pass_v1_only_test_only_uncalibrated_no_ready_authority_fixed_dispatch_first_signed_acceptance_pass_external_historical_source_blocked_m1_not_complete",
+  "generatedAt": "2026-07-23T20:55:46+08:00",
   "implementationAuthorized": true,
   "productionMutationAuthorized": false,
   "authority": {
@@ -10,7 +10,7 @@
     "index": "docs/blueprints/README.md",
     "currentFacts": "PROJECT_CONTEXT_FOR_CHATGPT.md",
     "recentChanges": "CHANGELOG_FOR_CHATGPT.md",
-    "deliveryReport": "docs/blueprints/V2_M1_1B_EXACT_SOURCE_CONFORMANCE_MULTI_ASSET_IDENTITY_AND_LISTING_INTELLIGENCE_DELIVERY_REPORT.md",
+    "deliveryReport": "docs/blueprints/V2_M1_4A_ADAPTIVE_MULTI_ASSET_COLLECTOR_CONTRACTS_DELIVERY_REPORT.md",
     "buildSequence": "market-radar-v2-build-sequence.md",
     "baseManifest": "docs/architecture/v2/V2_BASE_MANIFEST.v1.json",
     "baselineDecision": "docs/architecture/v2/ADR-0001-CLEAN-BASELINE-AND-V2-ISOLATION.md",
@@ -30,6 +30,9 @@
     "m1MultiAssetIdentityImplementation": "src/v2/modules/multi-asset-universe/multi-asset-identity-contract.ts",
     "m1ListingLifecycleImplementation": "src/v2/modules/multi-asset-universe/listing-lifecycle-contract.ts",
     "m1ExactSourceConformanceMultiAssetIdentityAndListingDeliveryReport": "docs/blueprints/V2_M1_1B_EXACT_SOURCE_CONFORMANCE_MULTI_ASSET_IDENTITY_AND_LISTING_INTELLIGENCE_DELIVERY_REPORT.md",
+    "m1AdaptiveMultiAssetCollectorContract": "docs/architecture/v2/M1_4A_ADAPTIVE_MULTI_ASSET_COLLECTOR_CONTRACTS_V1.md",
+    "m1AdaptiveMultiAssetCollectorImplementation": "src/v2/modules/collector/adaptive-collector-contract.ts",
+    "m1AdaptiveMultiAssetCollectorDeliveryReport": "docs/blueprints/V2_M1_4A_ADAPTIVE_MULTI_ASSET_COLLECTOR_CONTRACTS_DELIVERY_REPORT.md",
     "m1FoundationSliceContract": "docs/architecture/v2/M1_FOUNDATION_VERTICAL_SLICE_CONTRACT_V1.md",
     "m1ProviderSourceContracts": "docs/architecture/v2/M1_1_PROVIDER_SOURCE_CONTRACTS_V1.md",
     "m1FeatureContextContract": "docs/architecture/v2/M1_2_FEATURE_CONTEXT_CONTRACT_V1.md",
@@ -93,7 +96,7 @@
   "currentBoundary": {
     "readiness": "R1",
     "status": "runnable_but_incomplete_not_practical_ready",
-    "v2ImplementationStatus": "m0_4_expanded_scope_design_pass_m1_1a_registry_local_pass_m1_1b_local_adapter_identity_listing_and_test_only_conformance_pass_live_b0_not_run_v1_evidence_preserved_m1_5_b1_complete_v1_only_m1_6_p0_blocked_p0r_clean_pre_sts_baseline_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_v1_only_m3_0_through_m3_3_local_contract_pass_v1_only_test_only_uncalibrated_no_ready_authority_external_rights_blocked_detectors_draft_candidate_emission_false_m1_not_complete",
+    "v2ImplementationStatus": "m0_4_expanded_scope_design_pass_m1_1a_registry_local_pass_m1_1b_local_adapter_identity_listing_and_test_only_conformance_pass_live_b0_not_run_m1_4a_local_contract_and_full_ci_pass_no_runtime_authority_v1_evidence_preserved_m1_5_b1_complete_v1_only_m1_6_p0_blocked_p0r_clean_pre_sts_baseline_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_v1_only_m3_0_through_m3_3_local_contract_pass_v1_only_test_only_uncalibrated_no_ready_authority_external_rights_blocked_detectors_draft_candidate_emission_false_m1_not_complete",
     "v2ImplementationBranch": "codex/market-radar-v2-implementation",
     "v2ImplementationBaseCommit": "e5eb90026d8bfcd52b060359446515de5a5c32d6",
     "latestProductionFinalStatus": "storage_preflight_blocked_capacity_and_recovery_application_health_not_evaluated",
@@ -204,6 +207,50 @@
     "candidateAuthorityGranted": false,
     "strategyAuthorityGranted": false
   },
+  "adaptiveMultiAssetCollector": {
+    "planSchemaVersion": "v2-m1-adaptive-collector-contract-plan.v1",
+    "grantSchemaVersion": "v2-m1-adaptive-collector-capability-grant.v1",
+    "policyVersion": "v2-m1-adaptive-collector-policy.v1",
+    "status": "local_contract_and_full_ci_pass_live_capability_dependent_no_runtime_authority",
+    "scopeEpoch": "SCOPE_EPOCH_V2_MULTI_ASSET_4V",
+    "venues": [
+      "BINANCE_FUTURES",
+      "OKX_SWAP",
+      "BYBIT_DERIVATIVES",
+      "BITGET_FUTURES"
+    ],
+    "listingWatchTier": "T0_CATALOG_EVENT",
+    "collectionTiers": [
+      "T0_CATALOG_EVENT",
+      "T1_WIDE_MARKET",
+      "T2_CANDIDATE_BURST",
+      "T3_DEEP_VALIDATION"
+    ],
+    "equitySessionAndCorporateActionPrerequisitesRequired": true,
+    "coinGlassHobbyistEntitlementRequired": true,
+    "externalHumanRightsReviewRequired": true,
+    "fullT0T1AccountingRequired": true,
+    "matchedControlRequiredForT2T3": true,
+    "baselineReservedCapacityRequired": true,
+    "boundedBackpressureRequired": true,
+    "inputLineageHashes": [
+      "subjectInputHash",
+      "capabilityGrantSetHash",
+      "quotaStateSetHash",
+      "checkpointSetHash",
+      "policyHash"
+    ],
+    "directedContractTestCount": 28,
+    "directedContractTestFailCount": 0,
+    "broadFourVenueSubjectTestCount": 400,
+    "fullProductionCiStatus": "pass",
+    "runtimeExecutionAllowed": false,
+    "factAuthorityGranted": false,
+    "candidateAuthorityGranted": false,
+    "strategyAuthorityGranted": false,
+    "readyAuthorityGranted": false,
+    "productionMutationPerformed": false
+  },
   "scopeEpochs": [
     {
       "id": "SCOPE_EPOCH_V1_CRYPTO_3V",
@@ -220,7 +267,7 @@
     },
     {
       "id": "SCOPE_EPOCH_V2_MULTI_ASSET_4V",
-      "status": "design_registry_and_m1_1b_adapter_identity_listing_local_pass_test_only_conformance_pass_live_shadow_capacity_calibration_and_production_unproven",
+      "status": "design_registry_m1_1b_adapter_identity_listing_and_m1_4a_scheduler_contract_full_ci_pass_test_only_live_shadow_capacity_calibration_and_production_unproven",
       "venues": [
         "BINANCE_FUTURES",
         "OKX_SWAP",
@@ -1015,7 +1062,7 @@
       "dependsOn": [
         "M0"
       ],
-      "status": "scope_epoch_v1_b1b3_early_shadow_business_gate_pass_m1_5_b1_complete_m1_6_p0_executed_blocked_p0r_object_lock_31d_age_vault_transport_pass_sts_and_production_recovery_pending_scope_epoch_v2_m1_1a_registry_and_m1_1b_adapter_identity_listing_local_pass_test_only_conformance_pass_live_b0_pending_m1_not_complete",
+      "status": "scope_epoch_v1_b1b3_early_shadow_business_gate_pass_m1_5_b1_complete_m1_6_p0_executed_blocked_p0r_object_lock_31d_age_vault_transport_pass_sts_and_production_recovery_pending_scope_epoch_v2_m1_1a_registry_m1_1b_adapter_identity_listing_local_pass_test_only_conformance_live_b0_pending_m1_4a_local_contract_and_full_ci_pass_no_runtime_authority_m1_not_complete",
       "workPackages": [
         {
           "id": "M1.1A",
@@ -1029,8 +1076,13 @@
         },
         {
           "id": "M1.4A",
-          "name": "adaptive_multi_asset_collector",
-          "status": "pending_after_m1_1b"
+          "name": "adaptive_multi_asset_collector_contracts",
+          "status": "local_contract_pass_28_of_28_full_ci_pass_live_capability_dependent_no_runtime_authority"
+        },
+        {
+          "id": "M1.4B",
+          "name": "live_passed_endpoint_batching_and_runtime_adapter_profiles",
+          "status": "pending_after_live_m1_1b0_capability_pass"
         },
         {
           "id": "M1.5C",
@@ -1354,9 +1406,9 @@
     "legacyDeletionAllowed": false
   },
   "lastCompletedImplementationEntry": {
-    "id": "V2-M1.1B-LOCAL-EXACT-PROBES-MULTI-ASSET-IDENTITY-AND-LISTING-INTELLIGENCE",
-    "name": "fifteen_exact_read_only_probes_four_venue_multi_asset_identity_bitget_and_listing_lifecycle_local_contracts",
-    "status": "local_implementation_pass_test_only_conformance_pass_live_b0_not_run",
+    "id": "V2-M1.4A-ADAPTIVE-MULTI-ASSET-COLLECTOR-CONTRACTS",
+    "name": "capability_gated_multi_asset_collection_scheduler_without_live_capability_assumptions",
+    "status": "local_contract_and_full_ci_pass_no_runtime_execution_authority",
     "scopeEpoch": "SCOPE_EPOCH_V2_MULTI_ASSET_4V",
     "productionMutationPerformed": false,
     "migrationPerformed": false,
@@ -1370,9 +1422,9 @@
     "productionMutationPerformed": false
   },
   "currentLocalImplementationEntry": {
-    "id": "V2-M1.4A-ADAPTIVE-MULTI-ASSET-COLLECTOR-CONTRACTS",
-    "name": "capability_gated_multi_asset_collection_scheduler_without_live_capability_assumptions",
-    "status": "pending_may_only_build_capability_independent_contracts_before_live_b0",
+    "id": "V2-M1.1B0-TENCENT-LIVE-SOURCE-CONFORMANCE-NO-SECRET-DISPATCH-PACKAGE",
+    "name": "exact_release_no_secret_fixed_dispatch_runner_bundle_for_live_read_only_source_conformance",
+    "status": "pending_local_package_preparation_no_live_execution_claim",
     "scopeEpoch": "SCOPE_EPOCH_V2_MULTI_ASSET_4V",
     "productionMutationAllowed": false
   },
