@@ -25,7 +25,7 @@
 - M1.1B 回归 26/26 PASS。
 - M1.4A 回归 28/28 PASS。
 - M1.4B 定向 23/23 PASS。
-- ESLint PASS；完整 `ci:production` 待最终出口。
+- ESLint PASS；完整 `ci:production` PASS：V2 Foundation 451 total / 445 pass / 6 explicit skip、V2 Ops 125/125、M0、Next production build、Golden 16/16 与 security 全部通过。
 
 ### 是否部署
 
@@ -33,11 +33,11 @@
 
 ### 风险与遗留问题
 
-完整 CI、exact commit、腾讯隔离 no-authority runtime、真实 Bybit/Bitget checkpoint、请求率/配额/完整分母、Binance spot registry 新 digest 复验、M1.5C 和 M1.6-D1 均未完成。
+腾讯隔离 no-authority runtime、真实 Bybit/Bitget checkpoint、请求率/配额/完整分母、Binance spot registry 新 digest 复验、M1.5C 和 M1.6-D1 均未完成。
 
 ### 下一轮建议
 
-先完成最终 CI、提交和推送；随后用腾讯隔离 no-authority 包验证实际 Adapter/listing runtime。P0R 的 fresh 7200 秒 exact-plan STS 仍是独立生产第一关键路径。
+GitHub 实施分支同步后，用腾讯隔离 no-authority 包验证实际 Adapter/listing runtime。P0R 的 fresh 7200 秒 exact-plan STS 仍是独立生产第一关键路径。
 
 ## 2026-07-24 / V2 M1.1B0 Tencent Live Source Conformance Dispatch Package
 

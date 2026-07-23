@@ -2,7 +2,7 @@
 
 日期：2026-07-24
 
-状态：`LOCAL_ENGINEERING_AND_DIRECTED_REGRESSION_PASS / FULL_CI_PENDING / LIVE_NO_AUTHORITY_RUNTIME_UNPROVEN / PRODUCTION_UNCHANGED`
+状态：`LOCAL_ENGINEERING_AND_FULL_CI_PASS / LIVE_NO_AUTHORITY_RUNTIME_UNPROVEN / PRODUCTION_UNCHANGED`
 
 ## 1. 本包完成什么
 
@@ -49,7 +49,13 @@ M1.1B regression: 26/26 PASS
 M1.4A regression: 28/28 PASS
 M1.4B directed: 23/23 PASS
 ESLint: PASS
-full ci:production: PENDING
+V2 Foundation: 445 PASS / 6 explicit skip / 451 total
+V2 Ops: 125/125 PASS
+M0 machine exit: PASS
+Next production build: PASS
+Golden cases: 16/16 PASS
+Security check: PASS
+full ci:production: PASS
 ```
 
 覆盖：
@@ -76,8 +82,6 @@ runtime authority: unchanged
 
 ## 6. 尚未完成
 
-- 完整 `ci:production` 最终出口。
-- exact commit 和 GitHub 实施分支推送。
 - 腾讯隔离 no-authority runtime 执行。
 - 真实 Bybit history bootstrap 和 Bitget one-month checkpoint 持久证据。
 - 请求率、配额、断线恢复和完整分母现场证明。
@@ -88,13 +92,7 @@ runtime authority: unchanged
 
 ## 7. 下一入口
 
-本地出口：
-
-```text
-final ci:production -> commit -> push
-```
-
-Scope V2 现场出口：
+本地出口已达到 `LOCAL_ENGINEERING_AND_FULL_CI_PASS`。GitHub 实施分支同步后，Scope V2 现场出口固定为：
 
 ```text
 M1.4B Tencent isolated no-authority runtime

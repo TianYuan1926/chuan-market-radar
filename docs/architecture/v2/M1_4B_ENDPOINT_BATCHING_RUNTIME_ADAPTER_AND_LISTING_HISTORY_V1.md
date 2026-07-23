@@ -1,6 +1,6 @@
 # Market Radar V2 M1.4B 端点批处理、Runtime Adapter 与上新历史合同 v1
 
-状态：`LOCAL_ENGINEERING_AND_DIRECTED_REGRESSION_PASS / FULL_CI_PENDING / LIVE_NO_AUTHORITY_RUNTIME_UNPROVEN / PRODUCTION_UNCHANGED`
+状态：`LOCAL_ENGINEERING_AND_FULL_CI_PASS / LIVE_NO_AUTHORITY_RUNTIME_UNPROVEN / PRODUCTION_UNCHANGED`
 
 冻结日期：2026-07-24
 
@@ -248,7 +248,13 @@ M1.1B source conformance + multi-asset regression: 26/26 PASS
 M1.4A adaptive collector regression: 28/28 PASS
 M1.4B runtime profile + listing history: 23/23 PASS
 ESLint: PASS
-full ci:production: PENDING
+V2 Foundation: 445 PASS / 6 explicit skip / 451 total
+V2 Ops: 125/125 PASS
+M0 machine exit: PASS
+Next production build: PASS
+Golden cases: 16/16 PASS
+Security check: PASS
+full ci:production: PASS
 ```
 
 ## 10. 本地出口与后续顺序
@@ -256,8 +262,7 @@ full ci:production: PENDING
 本地代码和定向回归通过后，M1.4B 仍未完成运行验收。后续固定为：
 
 ```text
-final full ci:production
--> exact commit + GitHub push
+exact commit + GitHub push
 -> Tencent isolated no-authority runtime execution
 -> real Bybit bootstrap + Bitget one-month checkpoint evidence
 -> quota/request-rate/full-denominator verification
