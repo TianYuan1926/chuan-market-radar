@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.41",
-  "status": "m0_4_expanded_scope_design_pass_m1_1a_registry_local_pass_m1_1b_multi_asset_identity_listing_and_exact_probe_local_implementation_pass_test_only_conformance_pass_m1_1b0_attempt_1_blocked_r1_live_zero_of_15_common_runtime_transport_blocked_r2_live_14_of_15_listing_gate_blocked_r3_live_15_of_15_all_gates_pass_m1_4a_adaptive_multi_asset_collector_local_contract_and_full_ci_pass_no_runtime_authority_m1_4b_local_engineering_and_exact_dispatch_package_full_ci_pass_live_runtime_unproven_15_live_profiles_14_route_eligible_scope_epoch_v1_evidence_preserved_m1_5_b1_pass_v1_only_m1_6_p0_blocked_p0r_clean_pre_sts_baseline_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_v1_only_m3_0_through_m3_3_local_contract_pass_v1_only_test_only_uncalibrated_no_ready_authority_fixed_dispatch_first_signed_acceptance_pass_external_historical_source_blocked_m1_not_complete",
-  "generatedAt": "2026-07-24T04:30:00+08:00",
+  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.42",
+  "status": "m0_4_expanded_scope_design_pass_m1_1a_registry_local_pass_m1_1b_multi_asset_identity_listing_and_exact_probe_local_implementation_pass_test_only_conformance_pass_m1_1b0_attempt_1_blocked_r1_live_zero_of_15_common_runtime_transport_blocked_r2_live_14_of_15_listing_gate_blocked_r3_live_15_of_15_all_gates_pass_m1_4a_adaptive_multi_asset_collector_local_contract_and_full_ci_pass_no_runtime_authority_m1_4b_local_engineering_and_exact_dispatch_package_full_ci_pass_live_runtime_unproven_15_live_profiles_14_route_eligible_scope_epoch_v1_evidence_preserved_m1_5_b1_pass_v1_only_m1_6_p0_blocked_p0r_clean_pre_sts_baseline_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_v1_only_m3_0_through_m3_3_local_contract_pass_v1_only_test_only_uncalibrated_no_ready_authority_m3_4_r0_scope_rebase_governance_and_full_ci_pass_implementation_blocked_fixed_dispatch_first_signed_acceptance_pass_external_historical_source_blocked_m1_not_complete",
+  "generatedAt": "2026-07-24T05:12:34+08:00",
   "implementationAuthorized": true,
   "productionMutationAuthorized": false,
   "authority": {
@@ -1592,6 +1592,32 @@
     "scopeEpoch": "SCOPE_EPOCH_V2_MULTI_ASSET_4V",
     "productionMutationPerformed": false
   },
+  "lastCompletedGovernanceEntry": {
+    "id": "V2-M3.4-R0-EXECUTION-FEASIBILITY-SCOPE-REBASE-GATE",
+    "name": "scope_v2_execution_feasibility_prerequisite_evidence_and_draft_quarantine_gate",
+    "status": "local_governance_contract_and_full_ci_pass_scope_v2_prerequisites_pending_m3_4_implementation_blocked",
+    "scopeEpoch": "SCOPE_EPOCH_V2_MULTI_ASSET_4V",
+    "acceptanceAxes": [
+      "BITGET_VENUE",
+      "LISTING_LIFECYCLE",
+      "EQUITY_ASSET_DOMAIN",
+      "DATA_MAXIMIZATION"
+    ],
+    "directedTestsPassed": 12,
+    "fullCiPassed": true,
+    "v2FoundationPassed": 460,
+    "v2FoundationExplicitSkips": 6,
+    "v2OpsPassed": 131,
+    "m0ChecksPassed": 11,
+    "oldDraftTypecheckPassed": false,
+    "oldDraftTestCount": 0,
+    "oldDraftCommitEligible": false,
+    "productionMutationPerformed": false,
+    "feasibilityAuthorityAllowed": false,
+    "candidateAuthorityAllowed": false,
+    "strategyAuthorityAllowed": false,
+    "readyAuthorityAllowed": false
+  },
   "currentLocalImplementationEntry": {
     "id": "V2-M1.4B-ENDPOINT-BATCHING-RUNTIME-ADAPTER-AND-LISTING-HISTORY",
     "name": "live_passed_capability_runtime_adapter_profiles_listing_history_and_exact_dispatch_package",
@@ -1630,8 +1656,11 @@
   "pausedLocalImplementationEntry": {
     "id": "V2-M3.4-EXECUTION-FEASIBILITY-CONTRACT",
     "name": "partial_uncommitted_v1_scope_draft",
-    "status": "paused_requires_scope_rebase_review_before_commit",
+    "status": "scope_rebase_review_complete_quarantined_not_commit_eligible_scope_v2_prerequisites_pending",
     "scopeEpoch": "SCOPE_EPOCH_V1_CRYPTO_3V",
+    "typecheckPassed": false,
+    "directedTestCount": 0,
+    "replacementImplementationEntry": "V2-M3.4-R1-DOMAIN-SEPARATED-EXECUTION-FEASIBILITY",
     "productionMutationAllowed": false
   },
   "currentImplementationEntry": {
