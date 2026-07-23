@@ -55,8 +55,8 @@ Runtime / Security / Release Control 贯穿全链。
 
 当前唯一设计权威：
 
-- `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`，内容版本 v1.22。
-- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.26。
+- `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`，内容版本 v1.23。
+- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.27。
 - `docs/blueprints/README.md`，权威解析入口。
 - `market-radar-v2-build-sequence.md`，当前正确施工依赖与减数规则。
 
@@ -80,7 +80,7 @@ M1.5B1B3_EARLY_SHADOW_BUSINESS_GATE_PASS
 M1.5B1_COMPLETE
 M1.6_PARTITIONED_FACT_STORAGE_LOCAL_POSTGRES16_PASS
 M1.6P0_PRODUCTION_STORAGE_READ_ONLY_PREFLIGHT_EXECUTED_BLOCKED
-M1.6P0R_OBJECT_LOCK_31D_AGE_VAULT_AND_TRANSPORT_PASS_STS_AND_RECOVERY_PENDING
+M1.6P0R_CLEAN_PRE_STS_BASELINE_PASS_STS_AND_RECOVERY_PENDING
 M1.6_FRESH_P0_CAPACITY_ADMISSION_LOCAL_ENGINEERING_PASS_PRODUCTION_EVIDENCE_PENDING
 M2.0_DISCOVERY_CONTRACTS_LOCAL_PASS
 M2.1_DRAFT_REPLAY_KERNELS_LOCAL_PASS
@@ -91,7 +91,7 @@ M2.2B0.2A_RIGHTS_AND_HISTORICAL_IDENTITY_MACHINE_GATE_LOCAL_PASS
 M2.2B0.2C_FORWARD_INSTRUMENT_CAPTURE_LOCAL_ENGINEERING_PASS
 M2.2B0.2C1_FORWARD_CAPTURE_START_PASS
 forwardInstrumentContinuity=FORWARD_ONLY_READY
-M3.0_DECISION_CONTRACT_AND_M3.1_FAMILY_ANALYSIS_LOCAL_PASS_TEST_ONLY_UNCALIBRATED_NO_AUTHORITY
+M3.0_M3.1_M3.2_LOCAL_CONTRACT_PASS_TEST_ONLY_UNCALIBRATED_NO_STRATEGY_OR_READY_AUTHORITY
 M2.2_REAL_COHORT_GATE_INSUFFICIENT
 detectorLifecycle=DRAFT
 candidateEmissionAllowed=false
@@ -147,7 +147,7 @@ automaticTradingAllowed=false
 - M2.2-B0.1 已为五个 DRAFT Detector 增加 target-blind relative-rule-margin diagnostic strength，明确不是概率、等级或交易结论；固定 Detector 分母 Top20、TRAIN-only 六维事件阈值、matched/background、pre-cutoff regime/liquidity、observed/modeled knowledge-time、purge/embargo 和 1+4 trial registry 已由 version/digest 绑定到 dataset/experiment/holdout v2。定向 45/45 PASS；真实 cohort 仍为 0、Gate=`INSUFFICIENT`、Detector 仍 DRAFT、Candidate 禁发。
 - M2.2-B0.2-A 已把来源权利升级为内容寻址、限定账户/法域、带有效期且只能由账户所有者或合格法律审查者作出的外部结论；把历史 instrument identity、onboard/delist、状态区间、knowledge time、symbol reuse epoch 和全分母覆盖核算做成 fail-closed Gate。当前五个来源候选全部为 `RESEARCH_ONLY`，合格历史来源仍为 0；Agent、当前快照和 archive presence 均不能自证通过。
 - M2.2-B0.2-C/C1 已建立 release-bound 三 Venue exact raw capture、工作区外内容寻址 store、完整分母、三类 identity evidence、identity epoch、持续缺席非 delist、全链 journal 验证与 clean-HEAD CLI。冻结 release `4139cc631d3d760876c3e39404c494462541a910` 连续取得两轮三 Venue COMPLETE；Binance/OKX/Bybit 分别 841/426/746 rows，目标 654/272/642，out-of-scope 187/154/104，unresolved=0；跨度约 368.5 秒，三家均 2/2 complete、gap/conflict/blocker=0、`FORWARD_ONLY_READY`。这只通过前向捕获起点，不回填历史、不解锁 B0.2-B/B1 historical acquisition、Detector 或 Candidate。
-- M3.0 已冻结 Final Decision authority、lineage、Action State 与 READY parity；M3.1 已为六族建立 long/short/失效解释，要求每个 EvidenceItem 恰好解释一次、结构位有 fresh fact 来源、Fib 不得独立决策，并以 `AnalysisSnapshot v2` 绑定 evidence ids、Market Context id 和 authority。M3.1 21/21、M3.0 回归 17/17、完整 CI PASS；当前固定 `TEST_ONLY_UNCALIBRATED`，真实 Deep Validation、双评级校准、Strategy、Feasibility、Risk 和 runtime 均未完成。
+- M3.0 已冻结 Final Decision authority、lineage、Action State 与 READY parity；M3.1 六族 long/short/失效解释要求 EvidenceItem 全核算、结构位有 fresh fact 来源且 Fib 不得独立决策；M3.2 清除 Deep Validation 上游等级，以 `EvidencePackage v2`、`AnalysisSnapshot v3` 和 `SignalQualification v2` 独立评估 Evidence/Setup，并要求真实 calibration 绑定 cohort、untouched holdout、样本、regime、CI 和 reliability error。M3 合计 57/57、全 V2 336/0/6、ops 115/115；当前固定 `TEST_ONLY_UNCALIBRATED`，真实校准、Strategy、Feasibility、Risk 和 runtime 均未完成。
 - M1.5-B1-A 已在腾讯宿主机隔离 no-authority Runner 以 exact commit `97f10e75ce296b07d933e9c362c40ba2be0997ea` 构建专用镜像并真实运行两周期。每周期 eligible/collected 均 1,444/1,444、三 Venue provider failure=0、checkpoint/persistence=`INSERTED`，宿主机 11 容器/4 network/5 volume 已按 digest 精确恢复；evidence `sha256:a44cab89b8a4bf291e7c8f67eb6de2b76f2637f4f8265d91ebb8f1224d2a40c2` 独立重算通过。技术 Runner=`PASS`，业务 readiness=`FAIL`：READY 0/2，fresh 1,441 后降至 1,274，原因包括 stale、duplicate 和 missed schedule。31 周期 Shadow、语义整改、24h SLO、生产 migration、API、页面和生产 authority 仍未证明。
 - M1.5-B1-B0 已冻结单进程 31 周期、60 秒 cadence、完整分母、strict process summary、独立业务 SLO、内容寻址 domain/runner evidence 和宿主 Docker 精确恢复；中断、短包或跨进程/config 拼接全部拒绝。
 - M1.5-B1-B1 exact commit `3908f9f5d0066849311e9d3ac875cc6a76acc69e` 虽观察到进程运行 31 周期，但 Runner 使用 1 小时 reconciliation、validator 仍要求旧 24 小时值，导致完整脱敏证据未生成且原始字节已按清理合同删除。两个失败报告 digest 已独立重算、宿主精确恢复；该窗口只能记 `EXECUTION_INVALID_NOT_COUNTED`，不得推断业务 PASS/FAIL。
@@ -291,7 +291,7 @@ npm run security:check
 系统等级：R1
 工程描述：可运行但不完整
 实战描述：不能支撑实战
-V2：M0、M1.1-M1.6、M1.5-B1、M2.0-M2.2 已列本地包、C1、M3.0 和 M3.1 合同出口通过；B1-B1 永久不计。M1.6-P0 因容量与恢复证据 BLOCKED；Object Lock 31 天、age Keychain 身份和 exact P0R staging 已通过，多次短期 STS 已失效且未执行 COS/数据库恢复，fresh topology/P0 未执行，M1 未完成。历史 cohort Gate=INSUFFICIENT，Detector=DRAFT、Candidate 禁发；M3.1 仅 test-only 未校准，无 Strategy/runtime/READY authority
+V2：M0、M1.1-M1.6、M1.5-B1、M2.0-M2.2 已列本地包、C1、M3.0-M3.2 合同出口通过；B1-B1 永久不计。M1.6-P0 因容量与恢复证据 BLOCKED；Object Lock 31 天、age Keychain 身份、exact P0R staging 与 clean pre-STS baseline 已通过，多次短期 STS 已失效且未执行 COS/数据库恢复，fresh topology/P0 未执行，M1 未完成。历史 cohort Gate=INSUFFICIENT，Detector=DRAFT、Candidate 禁发；M3.2 仅 test-only 未校准，无 Strategy/runtime/READY authority
 本轮业务服务、数据库、Redis、Worker 与业务 authority 变更：0；Runtime Control 新增 fixed dispatch timer/service；外部安全状态：COS Object Lock COMPLIANCE 31 天已启用
 当前生产存储门禁：P0_BLOCKED_CAPACITY_AND_RECOVERY；P0R_OBJECT_LOCK_31D_AGE_VAULT_TRANSPORT_AND_CLEAN_PRE_STS_BASELINE_PASS_STS_RECOVERY_AND_FRESH_TOPOLOGY_PENDING；应用业务健康未在本包评估
 固定生产执行通道：PRODUCTION_OPERATIONAL_FIRST_SIGNED_DISPATCH_ACCEPTED；机器复发门禁 2 项 CLOSED、0 项 open，旧 approved_orcaterm_bundle_upload 包禁止伪装成 signed_git_bundle
@@ -325,10 +325,10 @@ Cycle final
 - 首次 bundle 因错误交叉编译 `go test` 真实失败；提交 `6a81e865e61569f7d2d7c3bb3be1d78db72a9eab` 拆分 host-test/linux-build 并用真实 helper 测试修复。
 - exact plan 与 mode-600 transport bundle 已通过，12/12 hash 一致且无 secret/private key；STS、对象、backup/retrieval/restore 未执行，P0/P1 不变。
 
-### 2026-07-22 / V2 M3.1 Family Analysis and Evidence Interpretation
-- 六族均建立 long、short 和失效/unavailable 路径；EvidenceItem 一对一解释，反证、Market Context 和结构位来源不能静默丢失或拼接。
-- `AnalysisSnapshot v2` 显式绑定 evidence ids、Market Context id 与 authority；M3.1 21/21、M3.0 回归 17/17、全 V2 317/0/6 explicit skip、ops 115/115 和完整 CI PASS。
-- 只达到 `TEST_ONLY_UNCALIBRATED / NO_STRATEGY_AUTHORITY`；真实校准、双评级、Strategy、Feasibility、Risk 和 M3 runtime 仍缺失。
+### 2026-07-23 / V2 M3.2 Evidence and Setup Qualification
+- `EvidencePackage v2` 删除 Deep Validation 上游等级，新增 required/supplemental 与 independence lineage；`AnalysisSnapshot v3` 新增 space quality；Evidence Grade 与 Setup Grade 独立生成。
+- `SignalQualification v2` 对假概率、无 cohort/untouched holdout、小样本、窄 regime、跨 release/context、总分、未来 Outcome 和策略字段 fail closed；M3 57/57、全 V2 336/0/6、ops 115/115。
+- 当前 builder 永远 `TEST_ONLY_UNCALIBRATED / NO_DECISION_AUTHORITY`；真实 calibration、Strategy、Feasibility、Risk、runtime 和 READY 均未完成。
 
 ## 15. 当前风险
 
@@ -350,7 +350,7 @@ Cycle final
 - M2.2-A/B0.1/B0.2-A 已能拒绝 future leak、病例对照 precision 膨胀、任意排序/构造政策、伪 holdout、Agent 自批权利和当前快照倒推历史，但 accepted real historical cohort=0；真实来源权利、完整背景实际构造、真实 Top20/sensitivity、独立 holdout custody/result 和审计都未完成，Gate 必须保持 INSUFFICIENT，禁止发 Candidate 或宣称 Detector 有效。
 - M2.2-B0 证明官方归档技术链可用；B0.2-A 进一步证明公开下载、当前 snapshot 和 archive presence 都不能给出历史 eligibility。五个候选全部 `RESEARCH_ONLY`，Kline 也不支持 L2 Liquidity Shift，故 bulk/cohort 继续 blocked。
 - C1 前向捕获起点已通过，但当前只有两轮、约 6 分钟目录证据；它不能替代持续采集、历史 instrument source、历史权利、真实 cohort 或长期 SLO，旧未绑定 release 的诊断根不得并入正式链。
-- M3.0/M3.1 只验证决策与未校准六族解释合同；真实 Deep Validation、Evidence/Setup 校准、Strategy template、执行成本事实、个人/组合风险和 untouched holdout 缺失，任何 V2 READY 声明均为 P1 风险。
+- M3.0-M3.2 只验证决策、六族解释和双评级的未校准合同；真实 Deep Validation runtime、Evidence/Setup calibration、Strategy template、执行成本事实、个人/组合风险和 untouched holdout 结果缺失，任何 V2 READY 声明均为 P1 风险。
 
 ### P2
 
@@ -365,7 +365,7 @@ Cycle final
 2. C1 正式证据是否继续保持 exact release/config、两轮完整 raw、冻结 cadence、active gap=0 和无 identity conflict；前向 capture 永远不能伪装历史回填或长期 SLO。
 3. M1.6 production Gate 是否绑定旧 Fact=0、migration checksum、预建窗口、容量阈值、备份恢复和 Audit/Retention 分权。
 4. Candidate/Evidence/Setup/Action/User Fit 是否越层。
-5. M3 Analysis 是否完整核算 EvidenceItem、绑定 exact Market Context/结构 fact、具备匹配 scope 的校准 authority；READY 是否只由同 release/id/time lineage 的后端完整计划、双评级、执行可行性、结构与净 RR、Trigger 和 Runtime Gate 共同决定。
+5. M3 Analysis 是否完整核算 EvidenceItem、绑定 exact Market Context/结构 fact；Evidence/Setup 是否独立、真实 cohort/holdout/CI/reliability 与 scope authority 是否齐全；READY 是否只由同 release/id/time lineage 的后端完整计划、双评级、执行可行性、结构与净 RR、Trigger 和 Runtime Gate 共同决定。
 6. 数据缺失、CoinGlass 失败、429、stale 和数据库故障是否诚实降级。
 7. 前端是否只读 Decision Snapshot。
 8. 发布是否绑定 commit、artifact、image、schema、feature/rule version、rollback 和 evidence。

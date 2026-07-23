@@ -112,6 +112,7 @@ function fixtureDecisionReasonCodes(
       "final_decision_authority_not_enabled",
       "m1_engineering_exit_not_passed",
       "m2_lifecycle_gate_not_passed",
+      "signal_qualification_calibration_abstained",
       "test_only_scope_has_no_decision_authority",
     ];
   }
@@ -229,21 +230,46 @@ function bundle(
       uncertainty,
     },
     evidence: {
-      ...trace("deep_validation", "evidence-package.v1"),
+      ...trace("deep_validation", "evidence-package.v2"),
       evidencePackageId: "evidence-m3-one",
       episodeId: "episode-m3-one",
       thesisId: "thesis-m3-one",
-      tier: "A",
       items: [
         {
           evidenceId: "evidence-item-m3-one",
           category: "structure",
           stance: "SUPPORTING",
+          criticality: "REQUIRED",
           factIds: ["fact-m3-one"],
           featureIds: ["feature-m3-one"],
+          independenceGroupIds: ["source-group-m3-one"],
           observedAt: "2026-01-15T00:00:10.000Z",
           quality: fresh,
           reasonCodes: ["role_flip_retest_confirmed"],
+        },
+        {
+          evidenceId: "evidence-item-m3-two",
+          category: "location",
+          stance: "SUPPORTING",
+          criticality: "REQUIRED",
+          factIds: ["fact-m3-two"],
+          featureIds: [],
+          independenceGroupIds: ["source-group-m3-two"],
+          observedAt: "2026-01-15T00:00:10.000Z",
+          quality: fresh,
+          reasonCodes: ["structural_location_confirmed"],
+        },
+        {
+          evidenceId: "evidence-item-m3-three",
+          category: "space",
+          stance: "SUPPORTING",
+          criticality: "REQUIRED",
+          factIds: ["fact-m3-three"],
+          featureIds: [],
+          independenceGroupIds: ["source-group-m3-three"],
+          observedAt: "2026-01-15T00:00:10.000Z",
+          quality: fresh,
+          reasonCodes: ["structural_space_confirmed"],
         },
       ],
       completenessRatio: 1,
@@ -251,12 +277,16 @@ function bundle(
       quality: fresh,
     },
     analysis: {
-      ...trace("family_analysis", "analysis-snapshot.v2"),
+      ...trace("family_analysis", "analysis-snapshot.v3"),
       analysisId: "analysis-m3-one",
       episodeId: "episode-m3-one",
       thesisId: "thesis-m3-one",
       evidencePackageId: "evidence-m3-one",
-      evidenceItemIds: ["evidence-item-m3-one"],
+      evidenceItemIds: [
+        "evidence-item-m3-one",
+        "evidence-item-m3-two",
+        "evidence-item-m3-three",
+      ],
       marketContextSnapshotId: "market-context-m3-one",
       analyzerVersion: "breakout-retest-analyzer.v1",
       analysisAuthority: authorized
@@ -267,6 +297,7 @@ function bundle(
       structureState: "ROLE_FLIP_RETEST",
       marketStage: "EARLY_RETEST",
       locationQuality: "GOOD",
+      spaceQuality: "GOOD",
       structuralLevels: [
         {
           levelId: "level-resistance",
@@ -293,24 +324,96 @@ function bundle(
       uncertainty,
     },
     qualification: {
-      ...trace("signal_qualification", "signal-qualification.v1"),
+      ...trace("signal_qualification", "signal-qualification.v2"),
       qualificationId: "qualification-m3-one",
       episodeId: "episode-m3-one",
+      thesisId: "thesis-m3-one",
       evidencePackageId: "evidence-m3-one",
       analysisId: "analysis-m3-one",
+      marketContextSnapshotId: "market-context-m3-one",
+      opportunityFamily: "BREAKOUT_RETEST",
+      direction: "LONG",
+      qualificationPolicyVersion: "m3-signal-qualification-policy.v1",
+      qualificationAuthority: authorized
+        ? "REPLAY_CALIBRATED"
+        : "TEST_ONLY_UNCALIBRATED",
       evidenceGrade,
       setupGrade,
+      evidenceAssessment: {
+        completenessStatus: "PASS",
+        independenceStatus: "PASS",
+        freshnessStatus: "PASS",
+        dataQualityStatus: "PASS",
+        lineageStatus: "PASS",
+        uncertaintyStatus: "PASS",
+        requiredItemCount: 3,
+        observedRequiredItemCount: 3,
+        freshItemCount: 3,
+        totalItemCount: 3,
+        independentGroupCount: 3,
+        reasonCodes: ["fixture_evidence_assessment"],
+      },
+      setupAssessment: {
+        directionStatus: "PASS",
+        structureStatus: "PASS",
+        locationStatus: "PASS",
+        spaceStatus: "PASS",
+        timingStatus: "PASS",
+        fakeoutStatus: "PASS",
+        noiseStatus: "PASS",
+        regimeFitStatus: "PASS",
+        uncertaintyStatus: "PASS",
+        reasonCodes: ["fixture_setup_assessment"],
+      },
       evidenceCalibration: {
-        calibrationVersion: "evidence-calibration.v1",
-        sampleSize: 100,
-        confidenceInterval: [0.7, 0.9],
-        abstainReasonCodes: [],
+        status: authorized ? "CALIBRATED" : "UNCALIBRATED",
+        calibrationVersion: authorized ? "evidence-calibration.v1" : null,
+        targetDefinitionVersion: authorized
+          ? "evidence-reliability-target.v1"
+          : null,
+        calibrationCohortId: authorized ? "cohort-evidence-m3-one" : null,
+        untouchedHoldoutId: authorized ? "holdout-evidence-m3-one" : null,
+        coveredRegimes: authorized
+          ? ["TREND", "RANGE", "TRANSITION"]
+          : [],
+        sampleSize: authorized ? 100 : 0,
+        estimatedProbability: authorized ? 0.8 : null,
+        confidenceInterval: authorized ? [0.7, 0.9] : null,
+        reliabilityError: authorized ? 0.05 : null,
+        segment: {
+          opportunityFamily: "BREAKOUT_RETEST",
+          direction: "LONG",
+          regime: "TREND",
+        },
+        evaluatedAt: authorized ? BASE : null,
+        abstainReasonCodes: authorized
+          ? []
+          : ["fixture_evidence_calibration_absent"],
       },
       setupCalibration: {
-        calibrationVersion: "setup-calibration.v1",
-        sampleSize: 100,
-        confidenceInterval: [0.65, 0.85],
-        abstainReasonCodes: [],
+        status: authorized ? "CALIBRATED" : "UNCALIBRATED",
+        calibrationVersion: authorized ? "setup-calibration.v1" : null,
+        targetDefinitionVersion: authorized
+          ? "setup-follow-through-target.v1"
+          : null,
+        calibrationCohortId: authorized ? "cohort-setup-m3-one" : null,
+        untouchedHoldoutId: authorized ? "holdout-setup-m3-one" : null,
+        coveredRegimes: authorized
+          ? ["TREND", "RANGE", "TRANSITION"]
+          : [],
+        sampleSize: authorized ? 100 : 0,
+        estimatedProbability: authorized ? 0.75 : null,
+        confidenceInterval: authorized ? [0.65, 0.85] : null,
+        reliabilityError: authorized ? 0.06 : null,
+        segment: {
+          opportunityFamily: "BREAKOUT_RETEST",
+          direction: "LONG",
+          regime: "TREND",
+        },
+        evaluatedAt: authorized ? BASE : null,
+        abstainReasonCodes: authorized
+          ? []
+          : ["fixture_setup_calibration_absent"],
       },
       reasonCodes: ["evidence_and_setup_independently_qualified"],
     },
@@ -555,8 +658,10 @@ test("rejects family analysis that silently drops counter evidence", () => {
     evidenceId: "evidence-item-hidden-counter",
     category: "counter_structure",
     stance: "CONTRADICTING",
+    criticality: "SUPPLEMENTAL",
     factIds: ["fact-hidden-counter"],
     featureIds: [],
+    independenceGroupIds: ["source-group-hidden-counter"],
     observedAt: CUTOFF,
     quality: { status: "FRESH", ageMs: 0, reasonCodes: [] },
     reasonCodes: ["price_returned_inside_structure"],
@@ -585,6 +690,44 @@ test("rejects uncalibrated family analysis in an authorized replay decision", ()
   assert.ok(
     assessment.reasonCodes.includes(
       "family_analysis_authority_not_calibrated_for_scope",
+    ),
+  );
+});
+
+test("rejects uncalibrated signal qualification in an authorized replay decision", () => {
+  const uncalibrated = structuredClone(bundle());
+  uncalibrated.qualification.qualificationAuthority =
+    "TEST_ONLY_UNCALIBRATED";
+  for (const calibration of [
+    uncalibrated.qualification.evidenceCalibration,
+    uncalibrated.qualification.setupCalibration,
+  ]) {
+    calibration.status = "UNCALIBRATED";
+    calibration.calibrationVersion = null;
+    calibration.targetDefinitionVersion = null;
+    calibration.calibrationCohortId = null;
+    calibration.untouchedHoldoutId = null;
+    calibration.coveredRegimes = [];
+    calibration.sampleSize = 0;
+    calibration.estimatedProbability = null;
+    calibration.confidenceInterval = null;
+    calibration.reliabilityError = null;
+    calibration.evaluatedAt = null;
+    calibration.abstainReasonCodes = ["real_calibration_absent"];
+  }
+  uncalibrated.decision.reasonCodes = [
+    "signal_qualification_calibration_abstained",
+    "signal_qualification_authority_not_calibrated_for_scope",
+  ];
+  uncalibrated.decision.actionState = "BLOCKED";
+  uncalibrated.decision.executablePlan = null;
+  const assessment = assessM3FinalDecisionBundle(uncalibrated);
+  assert.equal(assessment.validationStatus, "PASS");
+  assert.equal(assessment.authorityStatus, "NOT_AUTHORIZED");
+  assert.equal(assessment.expectedActionState, "BLOCKED");
+  assert.ok(
+    assessment.reasonCodes.includes(
+      "signal_qualification_authority_not_calibrated_for_scope",
     ),
   );
 });

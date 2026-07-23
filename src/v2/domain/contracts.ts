@@ -306,8 +306,10 @@ export type EvidenceItem = {
   evidenceId: string;
   category: string;
   stance: "SUPPORTING" | "CONTRADICTING" | "MISSING";
+  criticality: "REQUIRED" | "SUPPLEMENTAL";
   factIds: readonly string[];
   featureIds: readonly string[];
+  independenceGroupIds: readonly string[];
   observedAt: string;
   quality: QualityAssessment;
   reasonCodes: readonly string[];
@@ -318,7 +320,6 @@ export type EvidencePackage = TraceEnvelope & {
   evidencePackageId: string;
   episodeId: string;
   thesisId: string;
-  tier: "A" | "B" | "C";
   items: readonly EvidenceItem[];
   completenessRatio: number;
   uncertainty: UncertaintyVector;
@@ -354,6 +355,7 @@ export type AnalysisSnapshot = TraceEnvelope & {
   structureState: string;
   marketStage: string;
   locationQuality: "GOOD" | "ACCEPTABLE" | "POOR" | "UNKNOWN";
+  spaceQuality: "GOOD" | "ACCEPTABLE" | "CONSTRAINED" | "UNKNOWN";
   structuralLevels: readonly StructuralLevel[];
   supportingReasons: readonly string[];
   counterEvidence: readonly string[];
@@ -364,20 +366,80 @@ export type AnalysisSnapshot = TraceEnvelope & {
 };
 
 export type CalibrationReference = {
-  calibrationVersion: string;
+  status: "UNCALIBRATED" | "CALIBRATED";
+  calibrationVersion: string | null;
+  targetDefinitionVersion: string | null;
+  calibrationCohortId: string | null;
+  untouchedHoldoutId: string | null;
+  coveredRegimes: readonly Exclude<MarketContextSnapshot["regime"], "UNKNOWN">[];
   sampleSize: number;
+  estimatedProbability: number | null;
   confidenceInterval: readonly [number, number] | null;
+  reliabilityError: number | null;
+  segment: {
+    opportunityFamily: OpportunityFamily;
+    direction: DirectionHypothesis;
+    regime: MarketContextSnapshot["regime"];
+  };
+  evaluatedAt: string | null;
   abstainReasonCodes: readonly string[];
+};
+
+export type QualificationDimensionStatus =
+  | "PASS"
+  | "DEGRADED"
+  | "FAIL"
+  | "UNKNOWN";
+
+export type EvidenceQualificationAssessment = {
+  completenessStatus: QualificationDimensionStatus;
+  independenceStatus: QualificationDimensionStatus;
+  freshnessStatus: QualificationDimensionStatus;
+  dataQualityStatus: QualificationDimensionStatus;
+  lineageStatus: QualificationDimensionStatus;
+  uncertaintyStatus: QualificationDimensionStatus;
+  requiredItemCount: number;
+  observedRequiredItemCount: number;
+  freshItemCount: number;
+  totalItemCount: number;
+  independentGroupCount: number;
+  reasonCodes: readonly string[];
+};
+
+export type SetupQualificationAssessment = {
+  directionStatus: QualificationDimensionStatus;
+  structureStatus: QualificationDimensionStatus;
+  locationStatus: QualificationDimensionStatus;
+  spaceStatus: QualificationDimensionStatus;
+  timingStatus: QualificationDimensionStatus;
+  fakeoutStatus: QualificationDimensionStatus;
+  noiseStatus: QualificationDimensionStatus;
+  regimeFitStatus: QualificationDimensionStatus;
+  uncertaintyStatus: QualificationDimensionStatus;
+  reasonCodes: readonly string[];
 };
 
 export type SignalQualification = TraceEnvelope & {
   producerModule: "signal_qualification";
   qualificationId: string;
   episodeId: string;
+  thesisId: string;
   evidencePackageId: string;
   analysisId: string;
+  marketContextSnapshotId: string;
+  opportunityFamily: OpportunityFamily;
+  direction: DirectionHypothesis;
+  qualificationPolicyVersion: string;
+  qualificationAuthority:
+    | "TEST_ONLY_UNCALIBRATED"
+    | "REPLAY_CALIBRATED"
+    | "SHADOW_CALIBRATED"
+    | "LIMITED_CALIBRATED"
+    | "PRODUCTION_CALIBRATED";
   evidenceGrade: EvidenceGrade;
   setupGrade: SetupGrade;
+  evidenceAssessment: EvidenceQualificationAssessment;
+  setupAssessment: SetupQualificationAssessment;
   evidenceCalibration: CalibrationReference;
   setupCalibration: CalibrationReference;
   reasonCodes: readonly string[];

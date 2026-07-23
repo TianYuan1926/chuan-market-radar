@@ -305,6 +305,21 @@ function locationQuality(
   return "UNKNOWN";
 }
 
+function spaceQuality(
+  found: Set<M3FamilyAnalysisObservationCode>,
+): AnalysisSnapshot["spaceQuality"] {
+  if (found.has("SPACE_CONSTRAINED") || found.has("BREAKOUT_SPACE_CONSTRAINED")) {
+    return "CONSTRAINED";
+  }
+  if (found.has("SPACE_STRUCTURAL_GOOD")) {
+    return "GOOD";
+  }
+  if (found.has("SPACE_STRUCTURAL_ACCEPTABLE")) {
+    return "ACCEPTABLE";
+  }
+  return "UNKNOWN";
+}
+
 function risk(
   found: Set<M3FamilyAnalysisObservationCode>,
   highCodes: readonly M3FamilyAnalysisObservationCode[],
@@ -462,6 +477,7 @@ function buildAnalysis(input: M3FamilyAnalysisInput): AnalysisSnapshot {
     structureState: resolution.structureState,
     marketStage: resolution.marketStage,
     locationQuality: locationQuality(found, sortedLevels),
+    spaceQuality: spaceQuality(found),
     structuralLevels: sortedLevels,
     supportingReasons: reasons.supportingReasons,
     counterEvidence: reasons.counterEvidence,

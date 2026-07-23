@@ -283,8 +283,14 @@ function addIdentityIssues(
     ["analysis.thesisId", analysis.thesisId, expected.thesisId],
     ["analysis.evidencePackageId", analysis.evidencePackageId, expected.evidencePackageId],
     ["qualification.episodeId", qualification.episodeId, expected.episodeId],
+    ["qualification.thesisId", qualification.thesisId, expected.thesisId],
     ["qualification.evidencePackageId", qualification.evidencePackageId, expected.evidencePackageId],
     ["qualification.analysisId", qualification.analysisId, expected.analysisId],
+    [
+      "qualification.marketContextSnapshotId",
+      qualification.marketContextSnapshotId,
+      analysis.marketContextSnapshotId,
+    ],
     ["draft.episodeId", draft.episodeId, expected.episodeId],
     ["draft.analysisId", draft.analysisId, expected.analysisId],
     ["draft.qualificationId", draft.qualificationId, expected.qualificationId],
@@ -306,19 +312,21 @@ function addIdentityIssues(
 
   if (
     thesis.opportunityFamily !== episode.opportunityFamily ||
-    analysis.opportunityFamily !== episode.opportunityFamily
+    analysis.opportunityFamily !== episode.opportunityFamily ||
+    qualification.opportunityFamily !== episode.opportunityFamily
   ) {
     issue(
       issues,
       "opportunity_family_lineage_mismatch",
       "analysis.opportunityFamily",
-      "episode, thesis and analysis must keep the same opportunity family",
+      "episode, thesis, analysis and qualification must keep the same opportunity family",
     );
   }
   if (
     analysis.directionBias === "NEUTRAL" ||
     analysis.directionBias === "UNKNOWN" ||
-    analysis.directionBias !== draft.direction
+    analysis.directionBias !== draft.direction ||
+    qualification.direction !== analysis.directionBias
   ) {
     issue(
       issues,
@@ -394,6 +402,19 @@ function authorizationReasons(bundle: M3FinalDecisionBundle): string[] {
   ) {
     reasons.add("family_analysis_authority_not_calibrated_for_scope");
   }
+  const requiredQualificationAuthority = {
+    REPLAY: "REPLAY_CALIBRATED",
+    SHADOW: "SHADOW_CALIBRATED",
+    LIMITED: "LIMITED_CALIBRATED",
+    PRODUCTION: "PRODUCTION_CALIBRATED",
+  } as const;
+  if (
+    authorization.decisionScope !== "TEST_ONLY" &&
+    bundle.qualification.qualificationAuthority !==
+      requiredQualificationAuthority[authorization.decisionScope]
+  ) {
+    reasons.add("signal_qualification_authority_not_calibrated_for_scope");
+  }
   return [...reasons].sort();
 }
 
@@ -416,6 +437,12 @@ function criticalBlockReasons(bundle: M3FinalDecisionBundle): string[] {
   }
   if (qualification.setupGrade === "UNKNOWN") {
     reasons.add("setup_grade_unknown");
+  }
+  if (
+    qualification.evidenceCalibration.abstainReasonCodes.length > 0 ||
+    qualification.setupCalibration.abstainReasonCodes.length > 0
+  ) {
+    reasons.add("signal_qualification_calibration_abstained");
   }
   if (analysis.directionBias === "NEUTRAL" || analysis.directionBias === "UNKNOWN") {
     reasons.add("analysis_direction_unresolved");

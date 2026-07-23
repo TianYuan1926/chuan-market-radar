@@ -86,6 +86,7 @@ const FAMILY_CASES = [
       "PRE_MOVE_FLOW_LEADS_LONG",
       "TIMING_EARLY_OR_NOT_CONSUMED",
       "LOCATION_STRUCTURAL_GOOD",
+      "SPACE_STRUCTURAL_GOOD",
       "CROSS_VENUE_CONFIRMED",
     ],
     expectedStructure: "COMPRESSION_WITH_DIRECTIONAL_PRESSURE",
@@ -98,6 +99,7 @@ const FAMILY_CASES = [
       "BREAKOUT_ROLE_FLIP_LONG",
       "BREAKOUT_PARTICIPATION_CONFIRMED",
       "LOCATION_STRUCTURAL_GOOD",
+      "SPACE_STRUCTURAL_GOOD",
       "CROSS_VENUE_CONFIRMED",
     ],
     expectedStructure: "ROLE_FLIP_RETEST_HOLD",
@@ -112,6 +114,7 @@ const FAMILY_CASES = [
       "TREND_MOMENTUM_RESUMES",
       "TIMING_EARLY_OR_NOT_CONSUMED",
       "LOCATION_STRUCTURAL_GOOD",
+      "SPACE_STRUCTURAL_GOOD",
       "CROSS_VENUE_CONFIRMED",
     ],
     expectedStructure: "STRUCTURAL_PULLBACK_HOLD",
@@ -125,6 +128,7 @@ const FAMILY_CASES = [
       "REVERSAL_RANGE_LOW_REACTION",
       "PARTICIPATION_CONFIRMED",
       "LOCATION_STRUCTURAL_GOOD",
+      "SPACE_STRUCTURAL_GOOD",
       "CROSS_VENUE_CONFIRMED",
     ],
     expectedStructure: "LIQUIDITY_SWEEP_RECLAIM_OR_REJECTION",
@@ -138,6 +142,7 @@ const FAMILY_CASES = [
       "RELATIVE_PEER_PERSISTENCE",
       "PARTICIPATION_CONFIRMED",
       "LOCATION_STRUCTURAL_GOOD",
+      "SPACE_STRUCTURAL_GOOD",
       "CROSS_VENUE_CONFIRMED",
     ],
     expectedStructure: "BENCHMARK_ADJUSTED_DIVERGENCE",
@@ -151,6 +156,7 @@ const FAMILY_CASES = [
       "STRUCTURE_CONTEXT_CONFIRMED",
       "TIMING_EARLY_OR_NOT_CONSUMED",
       "LOCATION_STRUCTURAL_GOOD",
+      "SPACE_STRUCTURAL_GOOD",
       "CROSS_VENUE_CONFIRMED",
     ],
     expectedStructure: "PRICE_POSITIONING_DIVERGENCE",
@@ -166,6 +172,7 @@ const SHORT_FAMILY_CASES = [
       "PRE_MOVE_FLOW_LEADS_SHORT",
       "TIMING_EARLY_OR_NOT_CONSUMED",
       "LOCATION_STRUCTURAL_GOOD",
+      "SPACE_STRUCTURAL_GOOD",
     ],
   },
   {
@@ -175,6 +182,7 @@ const SHORT_FAMILY_CASES = [
       "BREAKOUT_ROLE_FLIP_SHORT",
       "BREAKOUT_PARTICIPATION_CONFIRMED",
       "LOCATION_STRUCTURAL_GOOD",
+      "SPACE_STRUCTURAL_GOOD",
     ],
   },
   {
@@ -185,6 +193,7 @@ const SHORT_FAMILY_CASES = [
       "TREND_PULLBACK_SHORT_HOLDS",
       "TREND_MOMENTUM_RESUMES",
       "LOCATION_STRUCTURAL_GOOD",
+      "SPACE_STRUCTURAL_GOOD",
     ],
   },
   {
@@ -195,6 +204,7 @@ const SHORT_FAMILY_CASES = [
       "REVERSAL_RANGE_HIGH_REACTION",
       "PARTICIPATION_CONFIRMED",
       "LOCATION_STRUCTURAL_GOOD",
+      "SPACE_STRUCTURAL_GOOD",
     ],
   },
   {
@@ -206,6 +216,7 @@ const SHORT_FAMILY_CASES = [
       "RELATIVE_PEER_PERSISTENCE",
       "PARTICIPATION_CONFIRMED",
       "LOCATION_STRUCTURAL_GOOD",
+      "SPACE_STRUCTURAL_GOOD",
     ],
   },
   {
@@ -216,6 +227,7 @@ const SHORT_FAMILY_CASES = [
       "STRUCTURE_CONTEXT_CONFIRMED",
       "TIMING_EARLY_OR_NOT_CONSUMED",
       "LOCATION_STRUCTURAL_GOOD",
+      "SPACE_STRUCTURAL_GOOD",
     ],
   },
 ] as const satisfies readonly FamilyCase[];
@@ -231,8 +243,12 @@ function fixture(familyCase: FamilyCase): M3FamilyAnalysisInput {
       evidenceId: `evidence:${slug}:${index + 1}`,
       category: definition.category,
       stance: definition.stance,
+      criticality: "REQUIRED" as const,
       factIds: definition.stance === "MISSING" ? [] : [`fact:${slug}:${index + 1}`],
       featureIds: [],
+      independenceGroupIds: definition.stance === "MISSING"
+        ? []
+        : [`source-group:${slug}:${index + 1}`],
       observedAt: CUTOFF,
       quality: definition.stance === "MISSING"
         ? {
@@ -289,7 +305,7 @@ function fixture(familyCase: FamilyCase): M3FamilyAnalysisInput {
       uncertainty,
     },
     evidence: {
-      schemaVersion: "evidence-package.v1",
+      schemaVersion: "evidence-package.v2",
       releaseId: RELEASE,
       producerModule: "deep_validation",
       generatedAt: EVIDENCE_AT,
@@ -298,11 +314,17 @@ function fixture(familyCase: FamilyCase): M3FamilyAnalysisInput {
       evidencePackageId,
       episodeId,
       thesisId,
-      tier: "A",
       items: evidenceItems,
-      completenessRatio: 1,
+      completenessRatio: evidenceItems.filter((item) => item.stance !== "MISSING").length /
+        evidenceItems.length,
       uncertainty,
-      quality: fresh,
+      quality: evidenceItems.some((item) => item.stance === "MISSING")
+        ? {
+          status: "PARTIAL",
+          ageMs: 0,
+          reasonCodes: ["fixture_required_evidence_missing"],
+        }
+        : fresh,
     },
     marketContext: {
       schemaVersion: "market-context-snapshot.v2",
@@ -352,7 +374,8 @@ test("builds six distinct family analyses without strategy authority", () => {
     assert.equal(result.analysis?.directionBias, familyCase.direction);
     assert.equal(result.analysis?.structureState, familyCase.expectedStructure);
     assert.equal(result.analysis?.analysisAuthority, "TEST_ONLY_UNCALIBRATED");
-    assert.equal(result.analysis?.schemaVersion, "analysis-snapshot.v2");
+    assert.equal(result.analysis?.spaceQuality, "GOOD");
+    assert.equal(result.analysis?.schemaVersion, "analysis-snapshot.v3");
   }
 });
 

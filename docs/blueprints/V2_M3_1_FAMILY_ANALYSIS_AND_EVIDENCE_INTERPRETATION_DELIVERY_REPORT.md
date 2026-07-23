@@ -106,3 +106,7 @@ git diff --check
 ## 13. 下一轮建议
 
 本地工程只进入 M3.2 Evidence/Setup 双评级与校准资格合同；生产线保持 P0R 单一 WIP，禁止跨过 fresh P0 启动 migration。
+
+## 14. 后续 schema 说明
+
+M3.2 已把 Evidence Package 升级到 v2、Analysis Snapshot 升级到 v3，并加入 required/supplemental evidence、independence groups 和 `spaceQuality`。本报告保留 M3.1 当时的 v2 交付事实；当前 consumer 必须服从最新 runtime schema，不得继续生成旧 v2 Analysis。

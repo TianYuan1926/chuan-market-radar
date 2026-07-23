@@ -5,6 +5,7 @@ import type {
   CandidateEpisode,
   DecisionSnapshot,
   DiscoveryCandidate,
+  EvidenceQualificationAssessment,
   EvidenceItem,
   EvidencePackage,
   ExecutableTradePlan,
@@ -16,6 +17,7 @@ import type {
   PortfolioRiskView,
   PriceZone,
   ReadyStrategyDecision,
+  SetupQualificationAssessment,
   SignalQualification,
   StrategyDecision,
   StrategyDraft,
@@ -636,22 +638,58 @@ export const EvidenceItemSchema = z.strictObject({
   evidenceId: NonEmptyStringSchema,
   category: NonEmptyStringSchema,
   stance: z.enum(["SUPPORTING", "CONTRADICTING", "MISSING"]),
+  criticality: z.enum(["REQUIRED", "SUPPLEMENTAL"]),
   factIds: z.array(NonEmptyStringSchema),
   featureIds: z.array(NonEmptyStringSchema),
+  independenceGroupIds: z.array(NonEmptyStringSchema),
   observedAt: IsoDateTimeSchema,
   quality: QualityAssessmentSchema,
-  reasonCodes: ReasonCodesSchema,
+  reasonCodes: ReasonCodesSchema.min(1),
 }).superRefine((item, context) => {
-  if (
-    item.factIds.length === 0 &&
-    item.featureIds.length === 0 &&
-    item.stance !== "MISSING"
-  ) {
+  const lineageCount = item.factIds.length + item.featureIds.length;
+  if (item.stance !== "MISSING" && lineageCount === 0) {
     context.addIssue({
       code: "custom",
       message: "non-missing evidence requires fact or feature lineage",
       path: ["factIds"],
     });
+  }
+  if (item.stance !== "MISSING" && item.independenceGroupIds.length === 0) {
+    context.addIssue({
+      code: "custom",
+      message: "non-missing evidence requires an explicit independence group",
+      path: ["independenceGroupIds"],
+    });
+  }
+  if (
+    item.stance === "MISSING" &&
+    (lineageCount > 0 || item.independenceGroupIds.length > 0)
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "missing evidence cannot claim source lineage or independence",
+      path: ["stance"],
+    });
+  }
+  if (item.stance === "MISSING" && item.quality.status === "FRESH") {
+    context.addIssue({
+      code: "custom",
+      message: "missing evidence cannot claim fresh quality",
+      path: ["quality", "status"],
+    });
+  }
+  for (const [path, values] of [
+    ["factIds", item.factIds],
+    ["featureIds", item.featureIds],
+    ["independenceGroupIds", item.independenceGroupIds],
+  ] as const) {
+    if (new Set(values).size !== values.length) {
+      context.addIssue({
+        code: "custom",
+        message: `${path} must be unique`,
+        path: [path],
+      });
+    }
   }
 }) satisfies z.ZodType<EvidenceItem>;
 
@@ -663,11 +701,49 @@ export const EvidencePackageSchema = z.strictObject({
   evidencePackageId: NonEmptyStringSchema,
   episodeId: NonEmptyStringSchema,
   thesisId: NonEmptyStringSchema,
-  tier: z.enum(["A", "B", "C"]),
-  items: z.array(EvidenceItemSchema),
+  items: z.array(EvidenceItemSchema).min(1),
   completenessRatio: RatioSchema,
   uncertainty: UncertaintyVectorSchema,
   quality: QualityAssessmentSchema,
+}).superRefine((evidence, context) => {
+  const evidenceIds = evidence.items.map((item) => item.evidenceId);
+  if (new Set(evidenceIds).size !== evidenceIds.length) {
+    context.addIssue({
+      code: "custom",
+      message: "evidence item ids must be unique",
+      path: ["items"],
+    });
+  }
+  const required = evidence.items.filter((item) => item.criticality === "REQUIRED");
+  if (required.length === 0) {
+    context.addIssue({
+      code: "custom",
+      message: "evidence package requires at least one required item",
+      path: ["items"],
+    });
+    return;
+  }
+  const observedRequired = required.filter((item) => item.stance !== "MISSING");
+  const expectedCompleteness = observedRequired.length / required.length;
+  if (Math.abs(evidence.completenessRatio - expectedCompleteness) > 1e-12) {
+    context.addIssue({
+      code: "custom",
+      message: "completeness ratio must equal observed required items over all required items",
+      path: ["completenessRatio"],
+    });
+  }
+  if (
+    evidence.quality.status === "FRESH" &&
+    required.some(
+      (item) => item.stance === "MISSING" || item.quality.status !== "FRESH",
+    )
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "fresh package quality requires every required item to be present and fresh",
+      path: ["quality", "status"],
+    });
+  }
 }) satisfies z.ZodType<EvidencePackage>;
 
 export const StructuralLevelSchema = z.strictObject({
@@ -709,6 +785,7 @@ export const AnalysisSnapshotSchema = z.strictObject({
   structureState: NonEmptyStringSchema,
   marketStage: NonEmptyStringSchema,
   locationQuality: z.enum(["GOOD", "ACCEPTABLE", "POOR", "UNKNOWN"]),
+  spaceQuality: z.enum(["GOOD", "ACCEPTABLE", "CONSTRAINED", "UNKNOWN"]),
   structuralLevels: z.array(StructuralLevelSchema),
   supportingReasons: ReasonCodesSchema,
   counterEvidence: ReasonCodesSchema,
@@ -727,14 +804,154 @@ export const AnalysisSnapshotSchema = z.strictObject({
 }) satisfies z.ZodType<AnalysisSnapshot>;
 
 export const CalibrationReferenceSchema = z.strictObject({
-  calibrationVersion: NonEmptyStringSchema,
+  status: z.enum(["UNCALIBRATED", "CALIBRATED"]),
+  calibrationVersion: NonEmptyStringSchema.nullable(),
+  targetDefinitionVersion: NonEmptyStringSchema.nullable(),
+  calibrationCohortId: NonEmptyStringSchema.nullable(),
+  untouchedHoldoutId: NonEmptyStringSchema.nullable(),
+  coveredRegimes: z.array(z.enum([
+    "TREND",
+    "RANGE",
+    "TRANSITION",
+    "STRESS",
+  ])),
   sampleSize: NonNegativeIntegerSchema,
+  estimatedProbability: RatioSchema.nullable(),
   confidenceInterval: z
-    .tuple([FiniteNumberSchema, FiniteNumberSchema])
+    .tuple([RatioSchema, RatioSchema])
     .refine(([lower, upper]) => lower <= upper, "interval must be ordered")
     .nullable(),
+  reliabilityError: RatioSchema.nullable(),
+  segment: z.strictObject({
+    opportunityFamily: z.enum(OPPORTUNITY_FAMILIES),
+    direction: DirectionHypothesisSchema,
+    regime: z.enum(["TREND", "RANGE", "TRANSITION", "STRESS", "UNKNOWN"]),
+  }),
+  evaluatedAt: IsoDateTimeSchema.nullable(),
   abstainReasonCodes: ReasonCodesSchema,
+}).superRefine((calibration, context) => {
+  if (calibration.status === "UNCALIBRATED") {
+    if (
+      calibration.calibrationVersion !== null ||
+      calibration.targetDefinitionVersion !== null ||
+      calibration.calibrationCohortId !== null ||
+      calibration.untouchedHoldoutId !== null ||
+      calibration.coveredRegimes.length !== 0 ||
+      calibration.sampleSize !== 0 ||
+      calibration.estimatedProbability !== null ||
+      calibration.confidenceInterval !== null ||
+      calibration.reliabilityError !== null ||
+      calibration.evaluatedAt !== null ||
+      calibration.abstainReasonCodes.length === 0
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "uncalibrated reference must abstain without invented metrics",
+        path: ["status"],
+      });
+    }
+    return;
+  }
+  if (
+    calibration.calibrationVersion === null ||
+    calibration.targetDefinitionVersion === null ||
+    calibration.calibrationCohortId === null ||
+    calibration.untouchedHoldoutId === null ||
+    calibration.sampleSize < 60 ||
+    calibration.estimatedProbability === null ||
+    calibration.confidenceInterval === null ||
+    calibration.reliabilityError === null ||
+    calibration.evaluatedAt === null ||
+    calibration.abstainReasonCodes.length !== 0
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "calibrated reference requires versioned probability evidence without abstention",
+      path: ["status"],
+    });
+    return;
+  }
+  if (
+    new Set(calibration.coveredRegimes).size !==
+      calibration.coveredRegimes.length ||
+    calibration.coveredRegimes.length < 3 ||
+    calibration.segment.regime === "UNKNOWN" ||
+    !calibration.coveredRegimes.includes(calibration.segment.regime)
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "calibrated reference requires unique coverage of at least three regimes including its segment",
+      path: ["coveredRegimes"],
+    });
+  }
+  if (
+    calibration.estimatedProbability < calibration.confidenceInterval[0] ||
+    calibration.estimatedProbability > calibration.confidenceInterval[1]
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "estimated probability must fall inside its confidence interval",
+      path: ["estimatedProbability"],
+    });
+  }
 }) satisfies z.ZodType<CalibrationReference>;
+
+const QualificationDimensionStatusSchema = z.enum([
+  "PASS",
+  "DEGRADED",
+  "FAIL",
+  "UNKNOWN",
+]);
+
+export const EvidenceQualificationAssessmentSchema = z.strictObject({
+  completenessStatus: QualificationDimensionStatusSchema,
+  independenceStatus: QualificationDimensionStatusSchema,
+  freshnessStatus: QualificationDimensionStatusSchema,
+  dataQualityStatus: QualificationDimensionStatusSchema,
+  lineageStatus: QualificationDimensionStatusSchema,
+  uncertaintyStatus: QualificationDimensionStatusSchema,
+  requiredItemCount: NonNegativeIntegerSchema,
+  observedRequiredItemCount: NonNegativeIntegerSchema,
+  freshItemCount: NonNegativeIntegerSchema,
+  totalItemCount: NonNegativeIntegerSchema,
+  independentGroupCount: NonNegativeIntegerSchema,
+  reasonCodes: ReasonCodesSchema.min(1),
+}).superRefine((assessment, context) => {
+  if (assessment.requiredItemCount === 0) {
+    context.addIssue({
+      code: "custom",
+      message: "evidence assessment requires at least one required item",
+      path: ["requiredItemCount"],
+    });
+  }
+  if (assessment.observedRequiredItemCount > assessment.requiredItemCount) {
+    context.addIssue({
+      code: "custom",
+      message: "observed required items cannot exceed required items",
+      path: ["observedRequiredItemCount"],
+    });
+  }
+  if (assessment.freshItemCount > assessment.totalItemCount) {
+    context.addIssue({
+      code: "custom",
+      message: "fresh items cannot exceed total items",
+      path: ["freshItemCount"],
+    });
+  }
+}) satisfies z.ZodType<EvidenceQualificationAssessment>;
+
+export const SetupQualificationAssessmentSchema = z.strictObject({
+  directionStatus: QualificationDimensionStatusSchema,
+  structureStatus: QualificationDimensionStatusSchema,
+  locationStatus: QualificationDimensionStatusSchema,
+  spaceStatus: QualificationDimensionStatusSchema,
+  timingStatus: QualificationDimensionStatusSchema,
+  fakeoutStatus: QualificationDimensionStatusSchema,
+  noiseStatus: QualificationDimensionStatusSchema,
+  regimeFitStatus: QualificationDimensionStatusSchema,
+  uncertaintyStatus: QualificationDimensionStatusSchema,
+  reasonCodes: ReasonCodesSchema.min(1),
+}) satisfies z.ZodType<SetupQualificationAssessment>;
 
 export const SignalQualificationSchema = z.strictObject({
   ...traceEnvelopeShape(
@@ -743,13 +960,150 @@ export const SignalQualificationSchema = z.strictObject({
   ),
   qualificationId: NonEmptyStringSchema,
   episodeId: NonEmptyStringSchema,
+  thesisId: NonEmptyStringSchema,
   evidencePackageId: NonEmptyStringSchema,
   analysisId: NonEmptyStringSchema,
+  marketContextSnapshotId: NonEmptyStringSchema,
+  opportunityFamily: z.enum(OPPORTUNITY_FAMILIES),
+  direction: DirectionHypothesisSchema,
+  qualificationPolicyVersion: NonEmptyStringSchema,
+  qualificationAuthority: z.enum([
+    "TEST_ONLY_UNCALIBRATED",
+    "REPLAY_CALIBRATED",
+    "SHADOW_CALIBRATED",
+    "LIMITED_CALIBRATED",
+    "PRODUCTION_CALIBRATED",
+  ]),
   evidenceGrade: z.enum(EVIDENCE_GRADES),
   setupGrade: z.enum(SETUP_GRADES),
+  evidenceAssessment: EvidenceQualificationAssessmentSchema,
+  setupAssessment: SetupQualificationAssessmentSchema,
   evidenceCalibration: CalibrationReferenceSchema,
   setupCalibration: CalibrationReferenceSchema,
-  reasonCodes: ReasonCodesSchema,
+  reasonCodes: ReasonCodesSchema.min(1),
+}).superRefine((qualification, context) => {
+  for (const [path, calibration] of [
+    ["evidenceCalibration", qualification.evidenceCalibration],
+    ["setupCalibration", qualification.setupCalibration],
+  ] as const) {
+    if (
+      calibration.segment.opportunityFamily !== qualification.opportunityFamily ||
+      calibration.segment.direction !== qualification.direction
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "calibration segment must match qualification family and direction",
+        path: [path, "segment"],
+      });
+    }
+    if (
+      calibration.evaluatedAt !== null &&
+      Date.parse(calibration.evaluatedAt) > Date.parse(qualification.generatedAt)
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "qualification cannot use calibration evidence from the future",
+        path: [path, "evaluatedAt"],
+      });
+    }
+  }
+  if (
+    qualification.evidenceCalibration.segment.regime !==
+      qualification.setupCalibration.segment.regime
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "evidence and setup calibration must use the same regime segment",
+      path: ["setupCalibration", "segment", "regime"],
+    });
+  }
+  const requiresUncalibrated =
+    qualification.qualificationAuthority === "TEST_ONLY_UNCALIBRATED";
+  const calibrationStatuses = [
+    qualification.evidenceCalibration.status,
+    qualification.setupCalibration.status,
+  ];
+  if (
+    requiresUncalibrated &&
+    calibrationStatuses.some((status) => status !== "UNCALIBRATED")
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "test-only qualification cannot claim calibrated evidence",
+      path: ["qualificationAuthority"],
+    });
+  }
+  if (
+    !requiresUncalibrated &&
+    calibrationStatuses.some((status) => status !== "CALIBRATED")
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "authorized qualification requires both calibrations",
+      path: ["qualificationAuthority"],
+    });
+  }
+  const evidence = qualification.evidenceAssessment;
+  const evidenceBaseReliable =
+    evidence.completenessStatus === "PASS" &&
+    evidence.freshnessStatus !== "FAIL" &&
+    evidence.freshnessStatus !== "UNKNOWN" &&
+    evidence.dataQualityStatus !== "FAIL" &&
+    evidence.dataQualityStatus !== "UNKNOWN" &&
+    evidence.lineageStatus === "PASS" &&
+    evidence.uncertaintyStatus !== "FAIL" &&
+    evidence.uncertaintyStatus !== "UNKNOWN";
+  const evidenceGradeInflated =
+    (qualification.evidenceGrade === "A" &&
+      (!evidenceBaseReliable ||
+        evidence.independenceStatus !== "PASS" ||
+        evidence.freshnessStatus !== "PASS" ||
+        evidence.dataQualityStatus !== "PASS" ||
+        evidence.uncertaintyStatus !== "PASS" ||
+        evidence.independentGroupCount < 3 ||
+        evidence.freshItemCount < 3)) ||
+    (qualification.evidenceGrade === "B" &&
+      (!evidenceBaseReliable ||
+        evidence.independentGroupCount < 2 ||
+        evidence.freshItemCount < 2)) ||
+    (qualification.evidenceGrade === "C" &&
+      (!evidenceBaseReliable || evidence.independentGroupCount < 1));
+  if (evidenceGradeInflated) {
+    context.addIssue({
+      code: "custom",
+      message: "evidence grade cannot exceed its explicit assessment",
+      path: ["evidenceGrade"],
+    });
+  }
+  const setupStatuses = [
+    qualification.setupAssessment.directionStatus,
+    qualification.setupAssessment.structureStatus,
+    qualification.setupAssessment.locationStatus,
+    qualification.setupAssessment.spaceStatus,
+    qualification.setupAssessment.timingStatus,
+    qualification.setupAssessment.fakeoutStatus,
+    qualification.setupAssessment.noiseStatus,
+    qualification.setupAssessment.regimeFitStatus,
+    qualification.setupAssessment.uncertaintyStatus,
+  ];
+  const setupHasUnknown = setupStatuses.includes("UNKNOWN");
+  const setupHasInvalidStructure =
+    qualification.setupAssessment.structureStatus === "FAIL" ||
+    qualification.setupAssessment.spaceStatus === "FAIL";
+  const setupGradeInflated =
+    (setupHasUnknown && qualification.setupGrade !== "UNKNOWN") ||
+    (setupHasInvalidStructure && qualification.setupGrade !== "INVALID") ||
+    (qualification.setupGrade === "PREMIUM" &&
+      setupStatuses.some((status) => status !== "PASS")) ||
+    (qualification.setupGrade === "QUALIFIED" &&
+      setupStatuses.some((status) => status === "FAIL" || status === "UNKNOWN"));
+  if (setupGradeInflated) {
+    context.addIssue({
+      code: "custom",
+      message: "setup grade cannot exceed or override its explicit assessment",
+      path: ["setupGrade"],
+    });
+  }
 }) satisfies z.ZodType<SignalQualification>;
 
 export const PriceZoneSchema = z.strictObject({
