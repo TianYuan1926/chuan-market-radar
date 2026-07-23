@@ -1,4 +1,8 @@
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
+import type { ClientRequest, IncomingMessage } from "node:http";
+import type { RequestOptions as HttpsRequestOptions } from "node:https";
+import { Readable } from "node:stream";
 import test from "node:test";
 import {
   runM1ExactSourceConformanceEntrypoint,
@@ -7,6 +11,8 @@ import {
   M1_EXACT_SOURCE_EXECUTION_POLICY,
   M1_EXACT_SOURCE_PROBE_DEFINITIONS,
   M1_EXACT_SOURCE_PROBE_PLAN_DIGEST,
+  createM1NodeHttpsTransport,
+  type M1HttpsRequestImplementation,
   runM1ExactSourceConformance,
 } from "./adapters/exact-source-conformance-runner";
 import {
@@ -28,6 +34,36 @@ function response(data: unknown): Response {
     status: 200,
     headers: { "content-type": "application/json" },
   });
+}
+
+function fixtureHttpsRequest(input: {
+  body: unknown;
+  observedOptions: HttpsRequestOptions[];
+  observedUrls: string[];
+  status?: number;
+}): M1HttpsRequestImplementation {
+  return (url, options, callback) => {
+    input.observedUrls.push(url.toString());
+    input.observedOptions.push(options);
+    const request = new EventEmitter() as EventEmitter & {
+      destroy: () => ClientRequest;
+      end: () => ClientRequest;
+      setTimeout: (timeout: number, handler: () => void) => ClientRequest;
+    };
+    request.destroy = () => request as unknown as ClientRequest;
+    request.setTimeout = () => request as unknown as ClientRequest;
+    request.end = () => {
+      queueMicrotask(() => {
+        const response = Readable.from([
+          Buffer.from(JSON.stringify(input.body)),
+        ]) as unknown as IncomingMessage;
+        response.statusCode = input.status ?? 200;
+        callback(response);
+      });
+      return request as unknown as ClientRequest;
+    };
+    return request as unknown as ClientRequest;
+  };
 }
 
 function binanceDerivativeRow(): Record<string, unknown> {
@@ -279,6 +315,76 @@ test("freezes exactly fifteen unique B1 source conformance probes", () => {
     15,
   );
   assert.match(M1_EXACT_SOURCE_PROBE_PLAN_DIGEST, /^sha256:[0-9a-f]{64}$/u);
+  assert.equal(
+    M1_EXACT_SOURCE_EXECUTION_POLICY.liveTransport,
+    "NODE_HTTPS_CORE_TLS_VERIFIED_NO_REDIRECT_JITLESS_COMPATIBLE",
+  );
+});
+
+test("uses Node core HTTPS for the hardened live transport without Web Fetch", async () => {
+  const observedOptions: HttpsRequestOptions[] = [];
+  const observedUrls: string[] = [];
+  const transport = createM1NodeHttpsTransport(fixtureHttpsRequest({
+    body: { serverTime: NOW_MS },
+    observedOptions,
+    observedUrls,
+  }));
+  const originalFetch = globalThis.fetch;
+  Object.defineProperty(globalThis, "fetch", {
+    configurable: true,
+    value: undefined,
+    writable: true,
+  });
+  try {
+    const result = await transport({
+      allowedHost: "fapi.binance.com",
+      headers: { accept: "application/json" },
+      maxResponseBytes: 1_024,
+      now: () => new Date(NOW),
+      timeoutMs: 500,
+      url: "https://fapi.binance.com/fapi/v1/time",
+    });
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.equal(result.response.status, 200);
+    assert.deepEqual(
+      JSON.parse(new TextDecoder().decode(result.response.body)),
+      { serverTime: NOW_MS },
+    );
+  } finally {
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: originalFetch,
+      writable: true,
+    });
+  }
+  assert.deepEqual(observedUrls, [
+    "https://fapi.binance.com/fapi/v1/time",
+  ]);
+  assert.equal(observedOptions[0]?.agent, false);
+  assert.equal(observedOptions[0]?.method, "GET");
+  assert.equal(observedOptions[0]?.rejectUnauthorized, true);
+  assert.equal(observedOptions[0]?.servername, "fapi.binance.com");
+});
+
+test("fails closed when the native HTTPS response exceeds its byte cap", async () => {
+  const transport = createM1NodeHttpsTransport(fixtureHttpsRequest({
+    body: { data: "x".repeat(256) },
+    observedOptions: [],
+    observedUrls: [],
+  }));
+  const result = await transport({
+    allowedHost: "api.bitget.com",
+    headers: { accept: "application/json" },
+    maxResponseBytes: 32,
+    now: () => new Date(NOW),
+    timeoutMs: 500,
+    url: "https://api.bitget.com/api/v2/public/time",
+  });
+  assert.deepEqual(result, {
+    failure: "SCHEMA_DRIFT_UNAVAILABLE",
+    ok: false,
+  });
 });
 
 test("runs all probes in a test harness without manufacturing live gate PASS", async () => {

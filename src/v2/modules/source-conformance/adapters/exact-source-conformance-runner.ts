@@ -1,4 +1,9 @@
 import { createHash } from "node:crypto";
+import type { ClientRequest, IncomingMessage } from "node:http";
+import {
+  request as nodeHttpsRequest,
+  type RequestOptions as HttpsRequestOptions,
+} from "node:https";
 import { z } from "zod";
 import {
   M1_SOURCE_CONFORMANCE_PROBE_IDS,
@@ -50,6 +55,34 @@ type PageResponse = Readonly<{
   status: number;
 }>;
 
+type TransportSuccess = Readonly<{
+  body: Uint8Array;
+  receivedAt: string;
+  status: number;
+}>;
+
+type TransportResult =
+  | Readonly<{ ok: true; response: TransportSuccess }>
+  | Readonly<{
+    ok: false;
+    failure: M1SourceConformanceFailure;
+  }>;
+
+export type M1SourceConformanceTransport = (input: Readonly<{
+  allowedHost: string;
+  headers: Readonly<Record<string, string>>;
+  maxResponseBytes: number;
+  now: () => Date;
+  timeoutMs: number;
+  url: string;
+}>) => Promise<TransportResult>;
+
+export type M1HttpsRequestImplementation = (
+  url: URL,
+  options: HttpsRequestOptions,
+  callback: (response: IncomingMessage) => void,
+) => ClientRequest;
+
 const MAX_RESPONSE_BYTES_PER_PAGE = 8 * 1024 * 1024;
 const REQUEST_TIMEOUT_MS = 12_000;
 
@@ -63,6 +96,8 @@ export const M1_EXACT_SOURCE_EXECUTION_POLICY = Object.freeze({
   maxResponseBytesPerPage: MAX_RESPONSE_BYTES_PER_PAGE,
   perSourceConcurrency: 1,
   requestTimeoutMs: REQUEST_TIMEOUT_MS,
+  liveTransport:
+    "NODE_HTTPS_CORE_TLS_VERIFIED_NO_REDIRECT_JITLESS_COMPATIBLE",
 });
 
 const BinanceSpotRowSchema = z.object({
@@ -607,12 +642,127 @@ function definitionDigest(definition: RuntimeProbeDefinition): string {
   });
 }
 
-async function readBoundedBody(response: Response): Promise<Uint8Array | null> {
+function transportFailure(
+  failure: M1SourceConformanceFailure,
+): TransportResult {
+  return { ok: false, failure };
+}
+
+export function createM1NodeHttpsTransport(
+  requestImplementation: M1HttpsRequestImplementation = nodeHttpsRequest,
+): M1SourceConformanceTransport {
+  return async (input) => {
+    let url: URL;
+    try {
+      url = new URL(input.url);
+    } catch {
+      return transportFailure("PROBE_DEFINITION_DRIFT");
+    }
+    if (
+      url.protocol !== "https:" ||
+      url.hostname !== input.allowedHost ||
+      url.username !== "" ||
+      url.password !== ""
+    ) {
+      return transportFailure("PROBE_DEFINITION_DRIFT");
+    }
+
+    return await new Promise<TransportResult>((resolvePromise) => {
+      let settled = false;
+      let request: ClientRequest | null = null;
+      const finish = (result: TransportResult): void => {
+        if (settled) return;
+        settled = true;
+        resolvePromise(result);
+      };
+
+      try {
+        request = requestImplementation(
+          url,
+          {
+            agent: false,
+            headers: input.headers,
+            method: "GET",
+            rejectUnauthorized: true,
+            servername: url.hostname,
+          },
+          (response) => {
+            const status = response.statusCode;
+            if (
+              status === undefined ||
+              !Number.isInteger(status) ||
+              status < 100 ||
+              status > 599
+            ) {
+              response.resume();
+              finish(transportFailure("TRANSPORT_FAILURE_UNAVAILABLE"));
+              return;
+            }
+
+            const receivedAt = input.now().toISOString();
+            const chunks: Uint8Array[] = [];
+            let total = 0;
+            response.on("data", (chunk: Buffer | string) => {
+              if (settled) return;
+              const bytes = Buffer.from(chunk);
+              total += bytes.byteLength;
+              if (total > input.maxResponseBytes) {
+                finish(transportFailure("SCHEMA_DRIFT_UNAVAILABLE"));
+                response.destroy();
+                return;
+              }
+              chunks.push(bytes);
+            });
+            response.once("aborted", () => {
+              finish(transportFailure("TRANSPORT_FAILURE_UNAVAILABLE"));
+            });
+            response.once("error", () => {
+              finish(transportFailure("TRANSPORT_FAILURE_UNAVAILABLE"));
+            });
+            response.once("end", () => {
+              if (settled) return;
+              const body = new Uint8Array(total);
+              let offset = 0;
+              for (const chunk of chunks) {
+                body.set(chunk, offset);
+                offset += chunk.byteLength;
+              }
+              finish({
+                ok: true,
+                response: {
+                  body,
+                  receivedAt,
+                  status,
+                },
+              });
+            });
+          },
+        );
+        request.once("error", () => {
+          finish(transportFailure("TRANSPORT_FAILURE_UNAVAILABLE"));
+        });
+        request.setTimeout(input.timeoutMs, () => {
+          finish(transportFailure("TRANSPORT_FAILURE_UNAVAILABLE"));
+          request?.destroy();
+        });
+        request.end();
+      } catch {
+        finish(transportFailure("TRANSPORT_FAILURE_UNAVAILABLE"));
+        request?.destroy();
+      }
+    });
+  };
+}
+
+async function readBoundedBody(
+  response: Response,
+  maximumBytes: number,
+): Promise<Uint8Array | null> {
   const declaredLength = response.headers.get("content-length");
   if (
     declaredLength !== null &&
     Number.isFinite(Number(declaredLength)) &&
-    Number(declaredLength) > MAX_RESPONSE_BYTES_PER_PAGE
+    Number(declaredLength) > maximumBytes
   ) {
     return null;
   }
@@ -628,7 +778,7 @@ async function readBoundedBody(response: Response): Promise<Uint8Array | null> {
       break;
     }
     total += chunk.value.byteLength;
-    if (total > MAX_RESPONSE_BYTES_PER_PAGE) {
+    if (total > maximumBytes) {
       await reader.cancel();
       return null;
     }
@@ -643,11 +793,46 @@ async function readBoundedBody(response: Response): Promise<Uint8Array | null> {
   return body;
 }
 
+function createM1FetchTransport(
+  fetchImplementation: typeof fetch,
+): M1SourceConformanceTransport {
+  return async (input) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), input.timeoutMs);
+    try {
+      const response = await fetchImplementation(input.url, {
+        cache: "no-store",
+        credentials: "omit",
+        headers: input.headers,
+        method: "GET",
+        redirect: "error",
+        referrerPolicy: "no-referrer",
+        signal: controller.signal,
+      });
+      const body = await readBoundedBody(response, input.maxResponseBytes);
+      return body === null
+        ? transportFailure("SCHEMA_DRIFT_UNAVAILABLE")
+        : {
+          ok: true,
+          response: {
+            body,
+            receivedAt: input.now().toISOString(),
+            status: response.status,
+          },
+        };
+    } catch {
+      return transportFailure("TRANSPORT_FAILURE_UNAVAILABLE");
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+}
+
 async function fetchPage(input: {
   definition: RuntimeProbeDefinition;
   url: string;
   apiKey: string | null;
-  fetchImplementation: typeof fetch;
+  transport: M1SourceConformanceTransport;
   now: () => Date;
 }): Promise<PageResponse | M1SourceConformanceFailure> {
   let url: URL;
@@ -665,56 +850,46 @@ async function fetchPage(input: {
     return "PROBE_DEFINITION_DRIFT";
   }
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  try {
-    const response = await input.fetchImplementation(url, {
-      cache: "no-store",
-      credentials: "omit",
-      headers: {
-        accept: "application/json",
-        ...(input.definition.requiresReadOnlyApiKey && input.apiKey !== null
-          ? { "CG-API-KEY": input.apiKey }
-          : {}),
-      },
-      method: "GET",
-      redirect: "error",
-      referrerPolicy: "no-referrer",
-      signal: controller.signal,
-    });
-    const receivedAt = input.now().toISOString();
-    if (response.status === 429) {
-      return "RATE_LIMIT_BACKOFF_NO_STALE_PROMOTION";
-    }
-    if (response.status === 401 || response.status === 403) {
-      return "AUTH_FAILURE_UNAVAILABLE";
-    }
-    if (!response.ok) {
-      return "HTTP_NON_2XX_UNAVAILABLE";
-    }
-    const body = await readBoundedBody(response);
-    if (body === null) {
-      return "SCHEMA_DRIFT_UNAVAILABLE";
-    }
-    let data: unknown;
-    try {
-      data = JSON.parse(new TextDecoder().decode(body)) as unknown;
-    } catch {
-      return "SCHEMA_DRIFT_UNAVAILABLE";
-    }
-    return {
-      data,
-      digest:
-        `sha256:${createHash("sha256").update(body).digest("hex")}`,
-      bytes: body.byteLength,
-      receivedAt,
-      status: response.status,
-    };
-  } catch {
-    return "TRANSPORT_FAILURE_UNAVAILABLE";
-  } finally {
-    clearTimeout(timer);
+  const transport = await input.transport({
+    allowedHost: input.definition.host,
+    headers: {
+      accept: "application/json",
+      ...(input.definition.requiresReadOnlyApiKey && input.apiKey !== null
+        ? { "CG-API-KEY": input.apiKey }
+        : {}),
+    },
+    maxResponseBytes: MAX_RESPONSE_BYTES_PER_PAGE,
+    now: input.now,
+    timeoutMs: REQUEST_TIMEOUT_MS,
+    url: url.toString(),
+  });
+  if (!transport.ok) {
+    return transport.failure;
   }
+  const response = transport.response;
+  if (response.status === 429) {
+    return "RATE_LIMIT_BACKOFF_NO_STALE_PROMOTION";
+  }
+  if (response.status === 401 || response.status === 403) {
+    return "AUTH_FAILURE_UNAVAILABLE";
+  }
+  if (response.status < 200 || response.status >= 300) {
+    return "HTTP_NON_2XX_UNAVAILABLE";
+  }
+  let data: unknown;
+  try {
+    data = JSON.parse(new TextDecoder().decode(response.body)) as unknown;
+  } catch {
+    return "SCHEMA_DRIFT_UNAVAILABLE";
+  }
+  return {
+    data,
+    digest:
+      `sha256:${createHash("sha256").update(response.body).digest("hex")}`,
+    bytes: response.body.byteLength,
+    receivedAt: response.receivedAt,
+    status: response.status,
+  };
 }
 
 function failedObservation(input: {
@@ -772,7 +947,7 @@ async function runProbe(input: {
   definition: RuntimeProbeDefinition;
   evidenceClass: M1SourceConformanceProbeObservation["evidenceClass"];
   apiKey: string | null;
-  fetchImplementation: typeof fetch;
+  transport: M1SourceConformanceTransport;
   now: () => Date;
 }): Promise<M1SourceConformanceProbeObservation> {
   const credentialDisposition =
@@ -883,7 +1058,7 @@ async function runProbe(input: {
       definition: input.definition,
       url,
       apiKey: input.apiKey,
-      fetchImplementation: input.fetchImplementation,
+      transport: input.transport,
       now: input.now,
     });
     if (typeof response === "string") {
@@ -974,18 +1149,33 @@ export async function runM1ExactSourceConformance(input: {
   networkEnvironment: M1SourceConformanceArtifact["networkEnvironment"];
   coinGlassApiKey?: string | null;
   fetchImplementation?: typeof fetch;
+  transportImplementation?: M1SourceConformanceTransport;
   now?: () => Date;
 }): Promise<M1SourceConformanceArtifact> {
-  const fetchImplementation = input.fetchImplementation ?? fetch;
+  if (
+    input.fetchImplementation !== undefined &&
+    input.transportImplementation !== undefined
+  ) {
+    throw new Error("source conformance accepts only one transport override");
+  }
+  const transport = input.transportImplementation ??
+    (
+      input.fetchImplementation === undefined
+        ? createM1NodeHttpsTransport()
+        : createM1FetchTransport(input.fetchImplementation)
+    );
   const now = input.now ?? (() => new Date());
   const evidenceClass: M1SourceConformanceArtifact["evidenceClass"] =
-    input.fetchImplementation === undefined ? "LIVE_READ_ONLY" : "TEST_ONLY";
+    input.fetchImplementation === undefined &&
+      input.transportImplementation === undefined
+      ? "LIVE_READ_ONLY"
+      : "TEST_ONLY";
   const networkEnvironment: M1SourceConformanceArtifact["networkEnvironment"] =
-    input.fetchImplementation === undefined
+    evidenceClass === "LIVE_READ_ONLY"
       ? input.networkEnvironment
       : "TEST_HARNESS";
   if (
-    input.fetchImplementation === undefined &&
+    evidenceClass === "LIVE_READ_ONLY" &&
     input.networkEnvironment === "TEST_HARNESS"
   ) {
     throw new Error("live source conformance cannot claim TEST_HARNESS");
@@ -1009,7 +1199,7 @@ export async function runM1ExactSourceConformance(input: {
             definition,
             evidenceClass,
             apiKey: normalizedApiKey,
-            fetchImplementation,
+            transport,
             now,
           }));
         }

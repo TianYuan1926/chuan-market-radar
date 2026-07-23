@@ -1,6 +1,6 @@
 # Market Radar V2 M1.1B0 腾讯实时来源一致性固定派发合同 v1
 
-状态：`LIVE_ATTEMPT_1_BLOCKED_BEFORE_BUSINESS_RESULT / ROOT_CAUSE_CLASS_IDENTIFIED / R1_DIRECTED_22_OF_22_PASS / PRODUCTION_CODE_AND_CONTAINER_IDENTITY_MATCH_BASELINE`
+状态：`LIVE_ATTEMPT_1_BLOCKED_BEFORE_BUSINESS_RESULT / LIVE_R1_0_OF_15_PASS_15_OF_15_COMMON_TRANSPORT_FAILURE / JITLESS_WEB_FETCH_ROOT_CAUSE_PROVEN / R2_NODE_HTTPS_DIRECTED_24_OF_24_AND_FULL_CI_PASS / COMMIT_AND_NEW_DISPATCH_PENDING / PRODUCTION_UNCHANGED`
 
 日期：2026-07-23
 
@@ -214,6 +214,35 @@ BLOCKED_ATTEMPT_NOT_COUNTED_AS_LIVE_B0_PASS
 ```
 
 R1 同时修复有界职责分离和失败证据，不原样重试旧 dispatch。
+
+R1 精确提交 `ad38524a7e0c97f714369d6e61c4417f485b6367` 随后以
+`m1b0-r1-live-source-20260723t155239z` 进入固定通道。该次执行形成了完整脱敏
+artifact/result，但 15 个探针全部以同一个 `TRANSPORT_FAILURE_UNAVAILABLE` 关闭，
+`httpStatus=null`，三个 Gate 均为 `BLOCKED`，结果为
+`BLOCKED_TENCENT_LIVE_READ_ONLY_SOURCE_CONFORMANCE`。生产 HEAD、clean worktree、
+11 个容器、timer、health、listener digest 和前后身份保持一致，
+`productionChanged=false`、`secretMaterialPresent=false`；因此它是有效失败证据，
+不是来源能力 PASS。
+
+现场使用固定 Node `v24.18.0` 复现得到：
+
+```text
+node --jitless + Web Fetch
+-> TypeError: fetch failed
+-> cause: WebAssembly is not defined
+
+node --jitless + node:https
+-> HTTP 200
+```
+
+这证明 15/15 共同失败来自 hardened runtime 与 Web Fetch 的确定性不兼容，不是
+Binance、OKX、Bybit、Bitget 和 CoinGlass 同时不可达。R2 保留
+`--jitless + MemoryDenyWriteExecute`，把 live 默认传输改为 Node core
+`https.request`，显式保持 TLS 证书校验、HTTPS/exact-host、无重定向、12 秒超时和
+8 MiB 上限；Web Fetch 仅保留为 TEST_ONLY 注入路径。该传输身份进入
+`probePlanDigest`，旧 R1 证据不能证明 R2。R2 当前通过 package 24/24、
+fixed dispatch 21/21、V2 Ops 125/125 和 ESLint；完整 CI、精确提交及新腾讯派发
+仍待完成。
 
 ## 10. 完成边界
 

@@ -4,6 +4,16 @@
 
 在不继承 Legacy 错误权威关系的前提下，先建立可信数据地基，再依次完成发现、验证、决策、工作台、学习、切换和实战准入。当前目标范围是四 Venue、加密永续、股票永续和上市生命周期，但旧三 Venue 加密证据只保留旧 `scopeEpoch` 效力。工程完成与时间证据分开计算，任何页面、提交、旧范围 PASS 或单次命中都不能冒充扩展能力完成。
 
+## 新增范围唯一落位
+
+| 新增范围 | M1 数据地基 | M2 发现与研究 | M3 决策与风险 | M4-M7 展示、学习与准入 | 独立验收原则 |
+| --- | --- | --- | --- | --- | --- |
+| Bitget | M1.1A 能力登记；M1.1B/B0 live conformance；M1.4B runtime Adapter；M1.5C Shadow；M1.6-D1 容量 | 与其他 Venue 使用同一 Detector 定义，但按 Venue 独立分母、缺失和漂移 | 只能使用带 Bitget lineage 的 Fact/Evidence，不能借用其他 Venue 的可用性 | 独立 Venue 状态、告警、Outcome、切换与回滚 | Bitget 的目录、行情、衍生品、公告、配额和 SLO 分别 PASS 后才开放对应 capability |
+| 上新、预上新及暂无合约的新币 | M1.1B 建立 listing/identity epoch 与生命周期账本；M1.4B 完成历史 bootstrap、checkpoint、gap 和增量；仅 watch 的资产不得伪装成 eligible contract | M2.3 Listing/Venue Event；M2.4 使用 warm-up cohort、matched control 和 sealed holdout | 事件本身不产生多空方向；必须等待可交易事实、结构、流动性、成本和反证 | 独立 warm-up 视图、漏报/误报复盘和 lifecycle readiness | Listing Lifecycle 不借 Bitget Venue PASS，也不借成熟币策略 PASS |
+| 股票单一标的及股票指数/ETF 合约 | M1.1B 只按官方 underlying mapping 分类；M1.4B 补齐 session、公司行动、FX、reference/mark/index、费用和地区能力 | M2.3 Equity Event/Basis；M2.4 使用成熟股票、指数/ETF 的独立 cohort 和 untouched holdout | M3.1A-M3.3A 独立 Analysis/Qualification/Strategy；缺 session、公司行动、FX、basis 或成本必须 abstain | Equity Workbench、Outcome、风险和切换分域；只有 Portfolio Risk 可跨域汇合 | 股票 Asset Domain 不借加密证据、总 precision 或旧 scopeEpoch PASS |
+
+这三条是新增范围的唯一责任映射，不再另建重叠路线。代码包可以为效率合并交付，但测试、状态、证据、回滚和完成判定必须按 `Venue / Listing Lifecycle / Asset Domain` 分开记账。
+
 ## Tasks
 
 - [x] **M0.0 干净开工基线**：从最新 `origin/main` 建立独立 V2 实施分支，记录设计来源、排除的旧 G0 祖先、生产只读状态和永久禁区。验证：实施分支相对 `origin/main` 仅含已审查 V2 提交，生产仍为零变更。
@@ -13,7 +23,7 @@
 - [x] **M1.1 三 Venue Identity + Fact 本地纵切（V1）**：实现固定 HTTPS/GET Transport、Binance/OKX/Bybit catalog/price Adapter、完整 instrument accounting、不可变 Fact/Quality、分页/冲突/缺失/429/transport/duplicate/out-of-order/gap/stale/recovery 门禁。原 `LAST_PRICE` 已在 B1-B2 被 `MARK_PRICE / MARK_PRICE_SNAPSHOT` 替代。状态：`LOCAL_PASS_FROZEN_PROVIDER_CONTRACT / SCOPE_EPOCH_V1_ONLY / PRODUCTION_UNCHANGED`。
 - [x] **M1.1A Four-Venue Capability Registry**：Binance、OKX、Bybit、Bitget 与 CoinGlass Hobbyist 已按 33 类能力形成 165 行穷举登记；每行显式记录 endpoint/channel、事实语义、鉴权/套餐、限速、分页、历史、时钟、权利、实现/运行状态、失败语义和 no-stale fallback。官方资料已纠正 Binance 股票永续旧结论；四 Venue 均有官方股票产品证明，但 Scope V2 Adapter/live 证明仍为 0。状态：`LOCAL_CONTRACT_PASS / OFFICIAL_DOCUMENTS_REVIEWED / PRODUCTION_UNCHANGED`。
 - [x] **M1.1B Exact Source Conformance + Multi-Asset Identity + Listing Intelligence 本地出口**：已完成 15 个精确只读探针、Bitget 与四 Venue catalog normalizer、多资产身份、官方 underlying mapping、listing/identity epoch、Bybit/Bitget 公告和生命周期账本；隔离编译、22/22 定向测试和完整 `ci:production` PASS。fixture 强制 `TEST_ONLY`，股票外观 symbol、Bitget `isRwa` 和 Bybit `symbolType=stock` 均不能静默细分为单股/ETF，费率组 `G9` 禁止作为 instrument 类型。状态：`LOCAL_IMPLEMENTATION_AND_FULL_CI_PASS / TEST_ONLY_CONFORMANCE_PASS / NO_LIVE_AUTHORITY / PRODUCTION_UNCHANGED`。
-- [ ] **M1.1B0 Tencent Isolated Live Source Conformance**：首次无密钥派发 `m1b0-live-source-20260723t141526z` 已在业务 artifact 前阻断，永久记为 `BLOCKED_ATTEMPT_NOT_COUNTED_AS_LIVE_B0_PASS`；现场 production HEAD、11 个容器、health、timer 和 CoinGlass 文件边界保持基线。R1 将 Bybit `type=new_crypto` 收窄为最新两页 `BOUNDED_COMPLETE` 一致性窗口，完整历史移交 M1.4B bootstrap/checkpoint/gap/incremental；Bitget `annType=coin_listings` 保持官方一个月完整 cursor。R1 已通过 package 22/22、fixed dispatch 21/21、V2 Ops 125/125 和独立干净克隆完整 CI；exact commit/push、fresh 生产身份绑定和腾讯 `LIVE_READ_ONLY` 15/15 重派发仍待完成，失败 capability 不得进入 M1.4B。状态：`ATTEMPT_1_BLOCKED_NOT_COUNTED / R1_LOCAL_AND_FULL_CI_PASS / EXACT_COMMIT_AND_REDISPATCH_PENDING / PRODUCTION_UNCHANGED`。
+- [ ] **M1.1B0 Tencent Isolated Live Source Conformance**：首次无密钥派发 `m1b0-live-source-20260723t141526z` 已在业务 artifact 前阻断且永久不计 live PASS。R1 精确提交 `ad38524a7e0c97f714369d6e61c4417f485b6367` 与派发 `m1b0-r1-live-source-20260723t155239z` 形成完整 artifact/result，但 15 个探针全部为共同 `TRANSPORT_FAILURE_UNAVAILABLE`，三个 Gate 均 BLOCKED；生产 HEAD、11 个容器、listener、timer、health、数据和 authority 未变。现场复现证明固定 Node `--jitless` 的 Web Fetch 因 `WebAssembly is not defined` 失败，而 Node core HTTPS 返回 200。R2 保留安全硬化并把 live 默认传输改为 TLS 验证、exact-host、无重定向、12 秒超时、8 MiB 上限的 `https.request`；Fetch 只保留 TEST_ONLY。Bybit 最新两页继续为 `BOUNDED_COMPLETE`，完整历史仍归 M1.4B；Bitget 官方一个月 cursor 不变。R2 已通过 package 24/24、fixed dispatch 21/21、V2 Foundation 422/428（6 项明确跳过）、V2 Ops 125/125、M0、Next build、Golden 16/16、安全扫描和完整 CI；exact commit/push、fresh 生产身份绑定和新腾讯 15/15 派发仍待完成。失败 capability 不得进入 M1.4B。状态：`ATTEMPT_1_BLOCKED_NOT_COUNTED / R1_LIVE_0_OF_15_COMMON_RUNTIME_TRANSPORT_BLOCKED / R2_NODE_HTTPS_DIRECTED_AND_FULL_CI_PASS_COMMIT_REDISPATCH_PENDING / PRODUCTION_UNCHANGED`。
 - [x] **M1.2 Point-in-Time Feature + Context 纯函数纵切**：已实现三 Venue 同一 underlying 的精确价格分散度、带独立 ONLINE/REPLAY run 证据的 FeatureQuality，以及只在证据充分时识别价格碎片化的最小非方向性 Market Context。状态：`LOCAL_PASS_84_OF_84_V2 / PRODUCTION_UNCHANGED`；不能访问 cutoff 后数据，不输出 Candidate、方向或交易计划。
 - [x] **M1.3 Fact Store + Replay + Runtime Truth**：已在隔离 PostgreSQL 16 演练 append-only artifact ledger、原子 Universe/Fact/Quality 分母、幂等冲突、retention metadata、双 cutoff replay manifest、五类 NOLOGIN capability role、完整 payload 篡改检测、两次 durable replay 和五维 Runtime Truth。状态：`LOCAL_POSTGRES16_REHEARSAL_PASS / PRODUCTION_UNCHANGED`；没有 production migration、live ingestion 或 authority。
 - [x] **M1.4 全 eligible Universe + Collector Runtime 本地纵切**：已从 BTC 三 Venue fixture 扩大到 21 observed / 15 eligible 的多标的版本化范围，完成启动全量、增量 mark-price、周期 reconciliation、配额/并发/背压、冷启动、目录 tombstone、恢复、strict telemetry 和真实 PG16 原子落库。状态：`LOCAL_POSTGRES16_REHEARSAL_PASS / LIVE_MARKET_UNPROVEN / PRODUCTION_UNCHANGED`。
@@ -127,9 +137,9 @@ M1.1B0 Tencent live conformance package and M1.4A capability-independent schedul
 ```text
 M0 engineering exit: LOCAL_PASS / PRODUCTION_UNCHANGED
 Last completed design package: V2-M0.4-EXPANDED-MARKET-SCOPE-AMENDMENT
-Last completed local package: V2-M1.1B0-TENCENT-LIVE-SOURCE-CONFORMANCE-NO-SECRET-DISPATCH-PACKAGE
-Last Scope V2 production attempt: V2-M1.1B0-TENCENT-ISOLATED-LIVE-SOURCE-CONFORMANCE = BLOCKED_BEFORE_BUSINESS_ARTIFACT_NOT_COUNTED
-Next Scope V2 evidence package: V2-M1.1B0-R1-TENCENT-ISOLATED-LIVE-SOURCE-CONFORMANCE
+Last completed local package: V2-M1.1B0-R2-JITLESS-NODE-HTTPS-TRANSPORT-DIRECTED-PASS
+Last Scope V2 production attempt: V2-M1.1B0-R1-TENCENT-ISOLATED-LIVE-SOURCE-CONFORMANCE = BLOCKED_0_OF_15_COMMON_RUNTIME_TRANSPORT_NOT_COUNTED
+Next Scope V2 evidence package: V2-M1.1B0-R2-TENCENT-ISOLATED-LIVE-SOURCE-CONFORMANCE
 Current conditional local package: V2-M1.4B-ENDPOINT-BATCHING-AND-RUNTIME-ADAPTER-PROFILES = BLOCKED_UNTIL_TENCENT_LIVE_B0_PASS
 Next conditional local package: V2-M1.4B-ENDPOINT-BATCHING-RUNTIME-ADAPTER-AND-LISTING-HISTORY, only for capabilities with live B0 PASS
 Paused local draft: V2-M3.4-EXECUTION-FEASIBILITY-CONTRACT = PARTIAL_UNCOMMITTED_REQUIRES_SCOPE_REBASE
@@ -137,7 +147,7 @@ Last production gate execution: V2-M1.6-P0-PRODUCTION-STORAGE-READ-ONLY-PREFLIGH
 Current execution entry: V2-M1.6-P0R-C-STS-ENCRYPTED-BACKUP-EXACT-RETRIEVAL-AND-ISOLATED-RESTORE; Object Lock 31d, age Keychain identity and exact transport bundle are complete
 Current blocked external entry: V2-M2.2-B0.2-B-EXACT-SOURCE-RIGHTS-AND-CAPABILITY-RESOLUTION
 Completed bounded shadow gate: V2-M1.5-B1-B-PASS_EARLY_SHADOW_BUSINESS_GATE
-Current status: SCOPE_EPOCH_V1_EVIDENCE_PRESERVED / SCOPE_EPOCH_V2_M1.1A_REGISTRY_AND_M1.1B_LOCAL_ADAPTER_IDENTITY_LISTING_PASS_TEST_ONLY / M1.1B0_ATTEMPT_1_BLOCKED_NOT_COUNTED_R1_LOCAL_AND_FULL_CI_PASS_EXACT_COMMIT_AND_REDISPATCH_PENDING / M1.4A_LOCAL_CONTRACT_AND_FULL_CI_PASS_NO_RUNTIME_AUTHORITY / M1.5-B1_COMPLETE_V1_ONLY / B1-B1_EXECUTION_INVALID_NOT_COUNTED / B1-B3_PASS_V1_ONLY / M1.6-P0_EXECUTED_BLOCKED_CAPACITY_AND_RECOVERY / M1.6-P0R_CLEAN_PRE_STS_BASELINE_PASS_STS_AND_RECOVERY_PENDING / M3.0-M3.3_LOCAL_CONTRACT_PASS_V1_ONLY_TEST_ONLY_UNCALIBRATED_NO_READY_AUTHORITY / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED / PRODUCTION_SERVICES_DATA_AND_AUTHORITY_UNCHANGED
+Current status: SCOPE_EPOCH_V1_EVIDENCE_PRESERVED / SCOPE_EPOCH_V2_M1.1A_REGISTRY_AND_M1.1B_LOCAL_ADAPTER_IDENTITY_LISTING_PASS_TEST_ONLY / M1.1B0_ATTEMPT_1_BLOCKED_NOT_COUNTED_R1_LIVE_0_OF_15_COMMON_RUNTIME_TRANSPORT_BLOCKED_R2_NODE_HTTPS_DIRECTED_AND_FULL_CI_PASS_COMMIT_AND_REDISPATCH_PENDING / M1.4A_LOCAL_CONTRACT_AND_FULL_CI_PASS_NO_RUNTIME_AUTHORITY / M1.5-B1_COMPLETE_V1_ONLY / B1-B1_EXECUTION_INVALID_NOT_COUNTED / B1-B3_PASS_V1_ONLY / M1.6-P0_EXECUTED_BLOCKED_CAPACITY_AND_RECOVERY / M1.6-P0R_CLEAN_PRE_STS_BASELINE_PASS_STS_AND_RECOVERY_PENDING / M3.0-M3.3_LOCAL_CONTRACT_PASS_V1_ONLY_TEST_ONLY_UNCALIBRATED_NO_READY_AUTHORITY / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED / PRODUCTION_SERVICES_DATA_AND_AUTHORITY_UNCHANGED
 ```
 
 M0 的减数只代表合同、运行时输入边界、Legacy 消费者地图和隔离门禁已经形成闭环；它不代表真实 Provider、全市场扫描、Detector、交易计划、页面或生产能力已经完成。
