@@ -86,6 +86,9 @@ export type M1HttpsRequestImplementation = (
 const MAX_RESPONSE_BYTES_PER_PAGE = 8 * 1024 * 1024;
 const REQUEST_TIMEOUT_MS = 12_000;
 
+export const M1_BINANCE_SPOT_CATALOG_URL =
+  "https://api.binance.com/api/v3/exchangeInfo?showPermissionSets=false";
+
 export const M1_EXACT_SOURCE_EXECUTION_POLICY = Object.freeze({
   announcementScope: Object.freeze({
     bitget: "OFFICIAL_ONE_MONTH_COIN_LISTINGS",
@@ -347,7 +350,7 @@ const RUNTIME_PROBE_DEFINITIONS = [
     requiresReadOnlyApiKey: false,
     paginationExpectation: "NOT_APPLICABLE",
     host: "api.binance.com",
-    initialUrl: "https://api.binance.com/api/v3/exchangeInfo",
+    initialUrl: M1_BINANCE_SPOT_CATALOG_URL,
     maxPages: 1,
     parsePage: simpleArrayParser(
       ["symbols"],

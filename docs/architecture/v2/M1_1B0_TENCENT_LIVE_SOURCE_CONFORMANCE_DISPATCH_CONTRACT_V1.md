@@ -1,6 +1,6 @@
 # Market Radar V2 M1.1B0 腾讯实时来源一致性固定派发合同 v1
 
-状态：`LIVE_ATTEMPT_1_BLOCKED_BEFORE_BUSINESS_RESULT / LIVE_R1_0_OF_15_PASS_15_OF_15_COMMON_TRANSPORT_FAILURE / JITLESS_WEB_FETCH_ROOT_CAUSE_PROVEN / R2_NODE_HTTPS_DIRECTED_24_OF_24_AND_FULL_CI_PASS / COMMIT_AND_NEW_DISPATCH_PENDING / PRODUCTION_UNCHANGED`
+状态：`LIVE_ATTEMPT_1_BLOCKED_BEFORE_BUSINESS_RESULT / LIVE_R1_0_OF_15_COMMON_TRANSPORT_FAILURE / R2_LIVE_14_OF_15_LISTING_GATE_BLOCKED / R3_BINANCE_SPOT_BOUNDED_QUERY_DIRECTED_AND_FULL_CI_PASS_COMMIT_REDISPATCH_PENDING / PRODUCTION_UNCHANGED`
 
 日期：2026-07-23
 
@@ -60,6 +60,14 @@ fixedDispatchRuntime = 100 seconds
 ```
 
 公告分页过滤属于探针定义和 `probePlanDigest`。改变过滤条件、最大页数、官方 host 或执行策略都会改变摘要，旧现场证据不能继续证明新计划。
+
+Binance 现货目录固定使用：
+
+```text
+GET /api/v3/exchangeInfo?showPermissionSets=false
+```
+
+该官方参数只省略本 Gate 不消费的 `permissionSets`，保留 `symbol`、`status`、`baseAsset` 和 `quoteAsset`。现场测得默认响应约 17,407,074 bytes，带参数响应为 6,629,806 bytes；因此 R3 不提高全局 8 MiB 上限，也不放宽 schema。
 
 ## 4. 唯一实现
 
@@ -240,9 +248,23 @@ Binance、OKX、Bybit、Bitget 和 CoinGlass 同时不可达。R2 保留
 `--jitless + MemoryDenyWriteExecute`，把 live 默认传输改为 Node core
 `https.request`，显式保持 TLS 证书校验、HTTPS/exact-host、无重定向、12 秒超时和
 8 MiB 上限；Web Fetch 仅保留为 TEST_ONLY 注入路径。该传输身份进入
-`probePlanDigest`，旧 R1 证据不能证明 R2。R2 当前通过 package 24/24、
-fixed dispatch 21/21、V2 Ops 125/125 和 ESLint；完整 CI、精确提交及新腾讯派发
-仍待完成。
+`probePlanDigest`，旧 R1 证据不能证明 R2。
+
+R2 精确提交 `d557c666e2e27b67842354b869a64271c91ceae1` 与派发
+`m1b0-r2-live-source-20260723t165411z` 随后形成完整脱敏 artifact/result：
+14 个探针 PASS，只有 `BINANCE_SPOT_CATALOG` 因默认
+`/api/v3/exchangeInfo` 响应超过 8 MiB 而以 `SCHEMA_DRIFT_UNAVAILABLE`
+失败；Identity Gate 和 CoinGlass Gate PASS，Listing Gate BLOCKED。
+`productionChanged=false`、`secretMaterialPresent=false`，生产 HEAD、11 个容器、
+timer 和 health 前后完全一致。该结果证明 R2 传输根因已修复，但仍不是 M1.1B0
+总包 PASS。
+
+R3 只把 Binance 现货目录切换到官方
+`showPermissionSets=false` 有界查询，并用导出常量与合同测试锁定 exact URL。
+全局 8 MiB、12 秒、TLS、exact-host、无重定向、schema 和 15 项分母均保持不变。
+当前定向 package 24/24、fixed dispatch 21/21、V2 Ops 125/125 和独立正确分支
+`ci:production` PASS；V2 Foundation 422 pass / 6 explicit skip、M0、Next build、
+Golden 16/16 与 security 全部通过。精确提交和腾讯重新派发仍待完成。
 
 ## 10. 完成边界
 

@@ -9,7 +9,7 @@
 ```text
 当前系统等级：R1 / 可运行但不完整 / 不能支撑实战
 V2 设计状态：ACTIVE_DESIGN_AUTHORITY
-V2 实现状态：M0_ENGINEERING_EXIT_LOCAL_PASS / M0.4_EXPANDED_SCOPE_DESIGN_PASS / M1.1A_REGISTRY_LOCAL_PASS / M1.1B_MULTI_ASSET_IDENTITY_LISTING_AND_EXACT_PROBE_LOCAL_IMPLEMENTATION_PASS_TEST_ONLY_CONFORMANCE_PASS_LIVE_ATTEMPTS_BLOCKED_NOT_COUNTED / M1.1B0_R1_LIVE_0_OF_15_COMMON_RUNTIME_TRANSPORT_BLOCKED_R2_NODE_HTTPS_DIRECTED_AND_FULL_CI_PASS_COMMIT_REDISPATCH_PENDING / M1.4A_ADAPTIVE_MULTI_ASSET_COLLECTOR_LOCAL_CONTRACT_AND_FULL_CI_PASS_NO_RUNTIME_AUTHORITY / SCOPE_EPOCH_V1_EVIDENCE_PRESERVED / M1.5-B1_EARLY_SHADOW_BUSINESS_GATE_PASS_V1_ONLY / M1.6-P0_EXECUTED_BLOCKED_CAPACITY_AND_RECOVERY / M1.6-P0R_CLEAN_PRE_STS_BASELINE_PASS_STS_AND_RECOVERY_PENDING / M2.2-B0.2-C1_FORWARD_ONLY_READY_V1_ONLY / M3.0-M3.3_LOCAL_CONTRACT_PASS_V1_ONLY_TEST_ONLY_UNCALIBRATED_NO_READY_AUTHORITY / PRODUCTION_FIXED_DISPATCH_FIRST_SIGNED_ACCEPTANCE_PASS / EXTERNAL_RIGHTS_AND_HISTORICAL_SOURCE_BLOCKED / BULK_AND_COHORT_BLOCKED / GATE_INSUFFICIENT / DETECTORS_DRAFT / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED
+V2 实现状态：M0_ENGINEERING_EXIT_LOCAL_PASS / M0.4_EXPANDED_SCOPE_DESIGN_PASS / M1.1A_REGISTRY_LOCAL_PASS / M1.1B_MULTI_ASSET_IDENTITY_LISTING_AND_EXACT_PROBE_LOCAL_IMPLEMENTATION_PASS_TEST_ONLY_CONFORMANCE_PASS_LIVE_ATTEMPTS_BLOCKED_NOT_COUNTED / M1.1B0_R1_LIVE_0_OF_15_COMMON_RUNTIME_TRANSPORT_BLOCKED_R2_LIVE_14_OF_15_LISTING_GATE_BLOCKED_R3_BINANCE_SPOT_BOUNDED_QUERY_DIRECTED_AND_FULL_CI_PASS_COMMIT_REDISPATCH_PENDING / M1.4A_ADAPTIVE_MULTI_ASSET_COLLECTOR_LOCAL_CONTRACT_AND_FULL_CI_PASS_NO_RUNTIME_AUTHORITY / SCOPE_EPOCH_V1_EVIDENCE_PRESERVED / M1.5-B1_EARLY_SHADOW_BUSINESS_GATE_PASS_V1_ONLY / M1.6-P0_EXECUTED_BLOCKED_CAPACITY_AND_RECOVERY / M1.6-P0R_CLEAN_PRE_STS_BASELINE_PASS_STS_AND_RECOVERY_PENDING / M2.2-B0.2-C1_FORWARD_ONLY_READY_V1_ONLY / M3.0-M3.3_LOCAL_CONTRACT_PASS_V1_ONLY_TEST_ONLY_UNCALIBRATED_NO_READY_AUTHORITY / PRODUCTION_FIXED_DISPATCH_FIRST_SIGNED_ACCEPTANCE_PASS / EXTERNAL_RIGHTS_AND_HISTORICAL_SOURCE_BLOCKED / BULK_AND_COHORT_BLOCKED / GATE_INSUFFICIENT / DETECTORS_DRAFT / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED
 V2 生产权限：false
 自动交易：永久禁止
 最新生产存储门禁：P0_BLOCKED_CAPACITY_AND_RECOVERY / APPLICATION_HEALTH_NOT_EVALUATED
@@ -17,7 +17,7 @@ V2 生产权限：false
 
 2026-07-21 M1.6-P0 已以 exact source 完成生产只读存储核验：PostgreSQL 16、V2 schema=`ABSENT_CLEAN`、旧/新 Fact=0、连接使用率 2%，数据库/服务/仓库 mutation 均为 0；但 120 GiB 系统盘按冻结模型预计使用率 90%，容量余量不足且 recovery evidence 缺失，因此准入结论是 `BLOCKED`。这不评价 `/api/health` 或生产业务 ready，不能扩写成全站健康或全站失败。
 
-P0R 本地恢复、六小时无扩容容量和 fresh P0 组合准入工程已通过；真实 COS 已启用并回读 Object Lock=`COMPLIANCE` 31 天，age X25519 身份仅保存在 macOS Keychain。当前生产恢复入口已绑定 exact source `bed938566d242394de7f6c31b309bd9f8198b71f`、run `p0r-20260721t183927z-221b4eebbf2ab34191c63608771b21ea` 和 transport bundle `1adae1348bd983ba0eb003ba3521a1404faa4ed4a5559ab89b8a70cf473dac00`；旧 staging、16 个 `/dev/shm` 旧文件和诊断文件已精确清理，clean pre-STS baseline 通过。STS、生产对象、backup/retrieval/restore、fresh topology、exact-release 校准和 fresh P0 尚未发生，P1 继续关闭。M1.1A 已收口四 Venue + CoinGlass 的 165 行能力分母；M1.1B 已本地实现 15 个精确探针、Bitget、四 Venue 多资产身份和上新生命周期，但证据仍是 TEST_ONLY。M1.1B0 首次腾讯派发在业务 artifact 前阻断；R1 随后取得完整 artifact/result，但 15 项均为共同 `TRANSPORT_FAILURE_UNAVAILABLE`。现场已证明根因是固定 Node `--jitless` 下 Web Fetch 依赖不可用 WebAssembly；R2 保留安全硬化，改用 Node core HTTPS，当前 package 24/24、fixed-dispatch 21/21、V2 Foundation 422/428（6 项明确跳过）、V2 Ops 125/125、M0、Next 生产构建、Golden 16/16、安全扫描和完整 `ci:production` PASS；精确提交和新腾讯派发待完成。M1.4A 已把 Bitget Venue、Listing Lifecycle 和股票 Asset Domain 分别纳入 T0-T3 有界调度，28/28 定向与独立 clone 完整 CI PASS，所有 runtime authority 为 false。原三 Venue 加密证据的正式范围标识为 `SCOPE_EPOCH_V1_CRYPTO_3V`，M3.0-M3.3 只保留该范围效力，M3.4 草稿暂停等待 scope rebase。
+P0R 本地恢复、六小时无扩容容量和 fresh P0 组合准入工程已通过；真实 COS 已启用并回读 Object Lock=`COMPLIANCE` 31 天，age X25519 身份仅保存在 macOS Keychain。当前生产恢复入口已绑定 exact source `bed938566d242394de7f6c31b309bd9f8198b71f`、run `p0r-20260721t183927z-221b4eebbf2ab34191c63608771b21ea` 和 transport bundle `1adae1348bd983ba0eb003ba3521a1404faa4ed4a5559ab89b8a70cf473dac00`；旧 staging、16 个 `/dev/shm` 旧文件和诊断文件已精确清理，clean pre-STS baseline 通过。STS、生产对象、backup/retrieval/restore、fresh topology、exact-release 校准和 fresh P0 尚未发生，P1 继续关闭。M1.1A 已收口四 Venue + CoinGlass 的 165 行能力分母；M1.1B 已本地实现 15 个精确探针、Bitget、四 Venue 多资产身份和上新生命周期，但本地证据仍是 TEST_ONLY。M1.1B0 R1 为 0/15 共同传输失败；R2 精确提交 `d557c666e2e27b67842354b869a64271c91ceae1` 与腾讯派发已取得 14/15，Identity/CoinGlass PASS，Listing 因唯一 Binance 现货目录超过 8 MiB 而 BLOCKED，生产不变。R3 仅使用官方 `showPermissionSets=false` 有界查询，现场响应 6,629,806 bytes；package 24/24、fixed dispatch 21/21、V2 Ops 125/125 和独立正确分支完整 CI PASS，提交和重派发待完成。M1.4A 已把 Bitget Venue、Listing Lifecycle 和股票 Asset Domain 分别纳入 T0-T3 有界调度，28/28 定向与独立 clone 完整 CI PASS，所有 runtime authority 为 false。原三 Venue 加密证据的正式范围标识为 `SCOPE_EPOCH_V1_CRYPTO_3V`，M3.0-M3.3 只保留该范围效力，M3.4 草稿暂停等待 scope rebase。
 
 固定生产派发通道的首个真实 signed dispatch 已在腾讯目标机完成 `publish -> pull -> verify -> launch -> package acceptance`，返回 `PASS_FIXED_DISPATCH_FIRST_SIGNED_ACCEPTANCE`。生产应用 HEAD、clean worktree、11 个容器、health、Redis 和 timer 前后保持基线，两项 OrcaTerm 复发事故均已取得目标验收并关闭。该结果只证明普通无 secret 包的运输与独立启动地基，不提升任何 G0、M1 或交易能力状态，也不运输 P0R 临时凭证。
 
@@ -27,8 +27,8 @@ Legacy G0 的七个生产出口继续作为历史安全义务，但它们不是 
 
 | 优先级 | 文档 | 唯一职责 |
 | ---: | --- | --- |
-| 1 | [V2 受控替换工程与运行蓝图 v1.31](./MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md) | 当前唯一产品、领域、工程、研究、运行与切换设计权威 |
-| 2 | [V2 机器追踪矩阵 v1.36](./market-radar-v2-controlled-replacement-traceability.v1.json) | Scope Epoch、18 个 Module、5 维状态、硬门槛和 M0-M7 的机器合同 |
+| 1 | [V2 受控替换工程与运行蓝图 v1.32](./MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md) | 当前唯一产品、领域、工程、研究、运行与切换设计权威 |
+| 2 | [V2 机器追踪矩阵 v1.37](./market-radar-v2-controlled-replacement-traceability.v1.json) | Scope Epoch、18 个 Module、5 维状态、硬门槛和 M0-M7 的机器合同 |
 | 2A | [M0.4 扩展市场范围与 Scope Epoch 合同](../architecture/v2/M0_4_EXPANDED_MARKET_SCOPE_AND_SCOPE_EPOCH_CONTRACT_V1.md) | Bitget、上新/新币 watch、股票合约、T0-T3 数据策略和跨范围证据隔离 |
 | 2B | [M0.4 交付报告](./V2_M0_4_EXPANDED_MARKET_SCOPE_AMENDMENT_DELIVERY_REPORT.md) | 设计变更、未实现边界、生产零变更和下一本地入口 |
 | 2C | [M1.1A 四 Venue 来源能力登记合同](../architecture/v2/M1_1A_FOUR_VENUE_SOURCE_CAPABILITY_REGISTRY_V1.md) | 4 Venue + CoinGlass、33 类能力、165 行穷举矩阵和运行未证明边界 |
@@ -111,7 +111,7 @@ Legacy G0 的七个生产出口继续作为历史安全义务，但它们不是 
 
 1. 与当前 release 身份对齐的新鲜生产只读证据。
 2. 永久安全、事实、交易、无 future leak 和无自动交易红线。
-3. V2 蓝图 v1.31 与机器追踪矩阵 v1.36。
+3. V2 蓝图 v1.32 与机器追踪矩阵 v1.37。
 4. `PROJECT_CONTEXT_FOR_CHATGPT.md` 中仍标为 current 的事实。
 5. Legacy 工程、运行和 readiness 文档中仍适用的安全与验收合同。
 6. 历史蓝图、旧请求、旧报告、旧 digest 和 Git history。

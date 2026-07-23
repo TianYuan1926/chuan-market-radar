@@ -8,6 +8,7 @@ import {
   runM1ExactSourceConformanceEntrypoint,
 } from "../../entrypoints/m1-exact-source-conformance";
 import {
+  M1_BINANCE_SPOT_CATALOG_URL,
   M1_EXACT_SOURCE_EXECUTION_POLICY,
   M1_EXACT_SOURCE_PROBE_DEFINITIONS,
   M1_EXACT_SOURCE_PROBE_PLAN_DIGEST,
@@ -318,6 +319,10 @@ test("freezes exactly fifteen unique B1 source conformance probes", () => {
   assert.equal(
     M1_EXACT_SOURCE_EXECUTION_POLICY.liveTransport,
     "NODE_HTTPS_CORE_TLS_VERIFIED_NO_REDIRECT_JITLESS_COMPATIBLE",
+  );
+  assert.equal(
+    M1_BINANCE_SPOT_CATALOG_URL,
+    "https://api.binance.com/api/v3/exchangeInfo?showPermissionSets=false",
   );
 });
 

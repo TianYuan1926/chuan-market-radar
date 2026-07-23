@@ -17,6 +17,7 @@
 - 执行前后绑定 production HEAD、clean worktree、容器 ID、listener、timer 和 health；任何变化均失败关闭。
 - request 通过后的前 artifact 故障必须持久化脱敏 phase/reason；Bitget Venue、Listing Lifecycle、股票 Asset Domain 分别记账，不能合并成一个能力状态。
 - R1 现场证明固定 Node `--jitless` 的 Web Fetch 因不可用 WebAssembly 统一失败；R2 保留 `--jitless + MemoryDenyWriteExecute`，改用 TLS 验证、exact-host、无重定向、12 秒超时和 8 MiB 上限的 Node core HTTPS live 传输，Fetch 仅保留 TEST_ONLY。
+- R2 现场只剩 Binance 现货目录超出 8 MiB；R3 仅改用官方 `showPermissionSets=false` 有界查询，不提高上限、不放宽 schema、不删探针。
 
 ### 核心链路影响
 
@@ -28,19 +29,20 @@
 - 确定性 bundle、secret 拒绝、身份/窗口篡改拒绝、blocked result、前 artifact 脱敏失败结果和 staging cleanup 均 PASS。
 - 固定派发回归 21/21、V2 Ops 125/125 PASS。
 - R2 独立正确分支克隆完整 `ci:production` PASS：V2 Foundation 422 pass / 6 skip、V2 Ops 125/125、M0、Next build、Golden 16/16 和 security 全部通过。
+- R3 定向 package 24/24、固定派发 21/21、V2 Ops 125/125 和独立正确分支完整 `ci:production` PASS；V2 Foundation 422 pass / 6 skip、M0、Next build、Golden 16/16 与 security 全部通过。
 - 本地 14 个公开探针的 reset/timeout 只登记为 `LOCAL_UNCOMMITTED_DIAGNOSTIC_NOT_AUTHORITY`。
 
 ### 是否部署
 
-首次派发 `m1b0-live-source-20260723t141526z` 在业务 artifact 前阻断。R1 精确提交 `ad38524a7e0c97f714369d6e61c4417f485b6367` 与派发 `m1b0-r1-live-source-20260723t155239z` 形成完整 artifact/result，但 15 个探针全部为共同 `TRANSPORT_FAILURE_UNAVAILABLE`，三个 Gate 均 BLOCKED。两次均不计 live PASS；现场生产 HEAD、clean worktree、11 个容器、listener、timer 和 health 保持基线，`productionChanged=false`、`secretMaterialPresent=false`。
+首次派发在业务 artifact 前阻断。R1 精确提交与派发形成 0/15 共同 `TRANSPORT_FAILURE_UNAVAILABLE` 证据。R2 精确提交 `d557c666e2e27b67842354b869a64271c91ceae1` 与派发 `m1b0-r2-live-source-20260723t165411z` 已形成 14/15：Identity/CoinGlass PASS，Listing 因唯一 `BINANCE_SPOT_CATALOG` 失败而 BLOCKED；现场生产 HEAD、clean worktree、11 个容器、listener、timer 和 health 保持基线，`productionChanged=false`、`secretMaterialPresent=false`。
 
 ### 风险与遗留问题
 
-R2 exact commit/push、fresh 生产身份绑定和腾讯 15/15 新派发尚未完成。股票目录可达也不能证明 session、公司行动、reference、成本或股票实战能力；Bybit 两页窗口也不能证明完整 listing history。
+R3 完整 CI、exact commit/push、fresh 生产身份绑定和腾讯 15/15 重派发尚未完成。股票目录可达也不能证明 session、公司行动、reference、成本或股票实战能力；Bybit 两页窗口也不能证明完整 listing history。
 
 ### 下一轮建议
 
-先完成 R2 精确提交，再构建绑定 fresh production identity 的无密钥派发包；只有 live PASS capability 进入 M1.4B，随后由 M1.4B 单独验收 listing 历史回填。P0R 保持独立生产第一关键路径。
+先完成 R3 完整 CI 和精确提交，再构建绑定 fresh production identity 的无密钥派发包；只有 live PASS capability 进入 M1.4B，随后由 M1.4B 单独验收 listing 历史回填。P0R 保持独立生产第一关键路径。
 
 ## 2026-07-23 / V2 M1.4A Adaptive Multi-Asset Collector Contracts
 
