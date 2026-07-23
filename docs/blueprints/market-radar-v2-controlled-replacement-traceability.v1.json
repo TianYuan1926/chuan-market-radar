@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.28",
-  "status": "m1_5_b1_pass_m1_6_p0_blocked_p0r_clean_pre_sts_baseline_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_m3_0_through_m3_3_local_contract_pass_test_only_uncalibrated_no_ready_authority_fixed_dispatch_first_signed_acceptance_pass_external_historical_source_blocked_m1_not_complete",
-  "generatedAt": "2026-07-23T13:43:27+08:00",
+  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.29",
+  "status": "m0_4_expanded_scope_design_pass_implementation_not_started_scope_epoch_v1_evidence_preserved_v2_multi_asset_4v_unproven_m1_5_b1_pass_v1_only_m1_6_p0_blocked_p0r_clean_pre_sts_baseline_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_v1_only_m3_0_through_m3_3_local_contract_pass_v1_only_test_only_uncalibrated_no_ready_authority_fixed_dispatch_first_signed_acceptance_pass_external_historical_source_blocked_m1_not_complete",
+  "generatedAt": "2026-07-23T15:49:49+08:00",
   "implementationAuthorized": true,
   "productionMutationAuthorized": false,
   "authority": {
@@ -10,7 +10,7 @@
     "index": "docs/blueprints/README.md",
     "currentFacts": "PROJECT_CONTEXT_FOR_CHATGPT.md",
     "recentChanges": "CHANGELOG_FOR_CHATGPT.md",
-    "deliveryReport": "docs/blueprints/V2_M3_3_STRATEGY_CONSTRUCTION_DELIVERY_REPORT.md",
+    "deliveryReport": "docs/blueprints/V2_M0_4_EXPANDED_MARKET_SCOPE_AMENDMENT_DELIVERY_REPORT.md",
     "buildSequence": "market-radar-v2-build-sequence.md",
     "baseManifest": "docs/architecture/v2/V2_BASE_MANIFEST.v1.json",
     "baselineDecision": "docs/architecture/v2/ADR-0001-CLEAN-BASELINE-AND-V2-ISOLATION.md",
@@ -20,6 +20,8 @@
     "runtimeSchemaRegistry": "src/v2/runtime-schema/registry.ts",
     "eventDefinition": "docs/architecture/v2/EVENT_AND_EARLY_DETECTION_DEFINITION_V1.md",
     "dataCapabilityBaseline": "docs/architecture/v2/DATA_CAPABILITY_AND_REPLAY_BASELINE_V1.md",
+    "expandedMarketScopeContract": "docs/architecture/v2/M0_4_EXPANDED_MARKET_SCOPE_AND_SCOPE_EPOCH_CONTRACT_V1.md",
+    "expandedMarketScopeDeliveryReport": "docs/blueprints/V2_M0_4_EXPANDED_MARKET_SCOPE_AMENDMENT_DELIVERY_REPORT.md",
     "m1FoundationSliceContract": "docs/architecture/v2/M1_FOUNDATION_VERTICAL_SLICE_CONTRACT_V1.md",
     "m1ProviderSourceContracts": "docs/architecture/v2/M1_1_PROVIDER_SOURCE_CONTRACTS_V1.md",
     "m1FeatureContextContract": "docs/architecture/v2/M1_2_FEATURE_CONTEXT_CONTRACT_V1.md",
@@ -83,7 +85,7 @@
   "currentBoundary": {
     "readiness": "R1",
     "status": "runnable_but_incomplete_not_practical_ready",
-    "v2ImplementationStatus": "m1_5_b1_complete_m1_6_p0_blocked_p0r_clean_pre_sts_baseline_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_m3_0_through_m3_3_local_contract_pass_test_only_uncalibrated_no_ready_authority_external_rights_blocked_detectors_draft_candidate_emission_false_m1_not_complete",
+    "v2ImplementationStatus": "m0_4_expanded_scope_design_pass_v1_evidence_preserved_v2_multi_asset_4v_implementation_not_started_m1_5_b1_complete_v1_only_m1_6_p0_blocked_p0r_clean_pre_sts_baseline_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_v1_only_m3_0_through_m3_3_local_contract_pass_v1_only_test_only_uncalibrated_no_ready_authority_external_rights_blocked_detectors_draft_candidate_emission_false_m1_not_complete",
     "v2ImplementationBranch": "codex/market-radar-v2-implementation",
     "v2ImplementationBaseCommit": "e5eb90026d8bfcd52b060359446515de5a5c32d6",
     "latestProductionFinalStatus": "storage_preflight_blocked_capacity_and_recovery_application_health_not_evaluated",
@@ -99,16 +101,175 @@
     "automaticTradingAllowed": false
   },
   "targetMarketScope": {
+    "currentDesignScopeEpoch": "SCOPE_EPOCH_V2_MULTI_ASSET_4V",
     "initialVenues": [
       "BINANCE_FUTURES",
       "OKX_SWAP",
       "BYBIT_LINEAR_PERPETUAL"
     ],
+    "expandedVenues": [
+      "BINANCE_FUTURES",
+      "OKX_SWAP",
+      "BYBIT_DERIVATIVES",
+      "BITGET_FUTURES"
+    ],
     "initialContractClass": "adapter_supported_linear_stablecoin_settled_perpetual",
+    "expandedAssetDomains": [
+      "CRYPTO_LINEAR_PERPETUAL",
+      "EQUITY_SINGLE_NAME_PERPETUAL",
+      "EQUITY_INDEX_ETF_PERPETUAL"
+    ],
+    "observedButNotInitiallyEligibleAssetDomains": [
+      "EQUITY_CFD",
+      "OTHER_RWA_DERIVATIVE"
+    ],
+    "watchOnlyCoverage": [
+      "CRYPTO_ASSET_OR_SPOT_LISTING_WITHOUT_SUPPORTED_CONTRACT"
+    ],
     "observedInstrumentAccountingPercentRequired": 100,
     "unsupportedContractsRemainInAccounting": true,
     "globalAllExchangeCoverageClaimAllowed": false,
     "scopeMustBeVersionedAndUserVisible": true
+  },
+  "scopeEpochs": [
+    {
+      "id": "SCOPE_EPOCH_V1_CRYPTO_3V",
+      "status": "historical_and_current_evidence_preserved_with_original_scope_only",
+      "venues": [
+        "BINANCE_FUTURES",
+        "OKX_SWAP",
+        "BYBIT_LINEAR_PERPETUAL"
+      ],
+      "assetDomains": [
+        "CRYPTO_LINEAR_PERPETUAL"
+      ],
+      "existingEvidenceMayProveExpandedScope": false
+    },
+    {
+      "id": "SCOPE_EPOCH_V2_MULTI_ASSET_4V",
+      "status": "design_scope_amendment_pass_implementation_shadow_capacity_calibration_and_production_unproven",
+      "venues": [
+        "BINANCE_FUTURES",
+        "OKX_SWAP",
+        "BYBIT_DERIVATIVES",
+        "BITGET_FUTURES"
+      ],
+      "assetDomains": [
+        "CRYPTO_LINEAR_PERPETUAL",
+        "EQUITY_SINGLE_NAME_PERPETUAL",
+        "EQUITY_INDEX_ETF_PERPETUAL"
+      ],
+      "listingLifecycleIncluded": true,
+      "spotOrAssetListingWatchWithoutContractIncluded": true,
+      "existingEvidenceMayProveExpandedScope": false
+    }
+  ],
+  "scopeCompatibilityRules": {
+    "newOrSupersedingArtifactScopeEpochRequired": true,
+    "preAmendmentImmutableArtifactBinding": "SCOPE_EPOCH_V1_CRYPTO_3V",
+    "preAmendmentImmutablePayloadRewriteAllowed": false,
+    "crossEpochReplayAllowed": false,
+    "crossEpochShadowEvidenceAllowed": false,
+    "crossAssetDomainCalibrationAllowed": false,
+    "crossVenueThresholdReuseWithoutHoldoutAllowed": false,
+    "v1EvidenceMayBeRenamedAsV2Pass": false,
+    "mixedScopeReportStatus": "INVALID"
+  },
+  "assetDomains": [
+    {
+      "id": "CRYPTO_LINEAR_PERPETUAL",
+      "priority": "primary",
+      "initialEligibility": "requires_v2_four_venue_reproof"
+    },
+    {
+      "id": "EQUITY_SINGLE_NAME_PERPETUAL",
+      "priority": "secondary",
+      "initialEligibility": "requires_independent_identity_session_reference_cost_risk_and_calibration"
+    },
+    {
+      "id": "EQUITY_INDEX_ETF_PERPETUAL",
+      "priority": "secondary",
+      "initialEligibility": "requires_independent_identity_session_reference_cost_risk_and_calibration"
+    },
+    {
+      "id": "EQUITY_CFD",
+      "priority": "observed_only",
+      "initialEligibility": "unsupported_until_independent_lot_session_swap_fee_and_execution_contract"
+    },
+    {
+      "id": "OTHER_RWA_DERIVATIVE",
+      "priority": "accounting_only",
+      "initialEligibility": "unsupported"
+    }
+  ],
+  "venueCapabilityBaseline": [
+    {
+      "venue": "BINANCE_FUTURES",
+      "cryptoPerpetualProduct": "officially_documented",
+      "listingLifecycleFields": "officially_documented",
+      "equityPerpetualProduct": "unverified_unavailable",
+      "runtimeAdapterEvidenceForV2": "missing"
+    },
+    {
+      "venue": "OKX_SWAP",
+      "cryptoPerpetualProduct": "officially_documented",
+      "listingLifecycleFields": "officially_documented",
+      "equityPerpetualProduct": "officially_documented",
+      "runtimeAdapterEvidenceForV2": "missing"
+    },
+    {
+      "venue": "BYBIT_DERIVATIVES",
+      "cryptoPerpetualProduct": "officially_documented",
+      "listingLifecycleFields": "officially_documented",
+      "equityPerpetualProduct": "officially_documented",
+      "runtimeAdapterEvidenceForV2": "missing"
+    },
+    {
+      "venue": "BITGET_FUTURES",
+      "cryptoPerpetualProduct": "officially_documented",
+      "listingLifecycleFields": "officially_documented",
+      "equityPerpetualProduct": "officially_documented",
+      "runtimeAdapterEvidenceForV2": "missing"
+    }
+  ],
+  "listingLifecycle": {
+    "states": [
+      "ANNOUNCED",
+      "OBSERVED_UNCONFIRMED",
+      "ANNOUNCED_WAITING_CATALOG",
+      "ASSET_OR_SPOT_LISTED_NO_CONTRACT",
+      "PRE_LAUNCH_OR_PREOPEN",
+      "TRADING_WARMUP",
+      "ESTABLISHED",
+      "MAINTENANCE",
+      "RESTRICTED",
+      "SUSPENDED",
+      "DELISTING",
+      "OFFLINE",
+      "UNRESOLVED"
+    ],
+    "evidenceChannels": [
+      "official_announcement",
+      "rest_catalog",
+      "websocket_instrument_or_config_update"
+    ],
+    "listingEventMayDirectlyCreateReady": false,
+    "coldStartRiskRequired": true
+  },
+  "dataAcquisitionPolicy": {
+    "goal": "maximize_useful_authorized_observability_within_no_new_paid_service_and_current_capacity",
+    "tiers": [
+      "T0_CATALOG_EVENT",
+      "T1_WIDE_MARKET",
+      "T2_CANDIDATE_BURST",
+      "T3_DEEP_VALIDATION"
+    ],
+    "t0IncludesSpotOrAssetListingWatchWithoutContract": true,
+    "t0AndT1EligibleDenominatorMayBeDroppedForCandidatePriority": false,
+    "providerFieldDispositionRequired": true,
+    "unboundedAllFieldAllInstrumentHighFrequencyRetentionAllowed": false,
+    "coinglassPlan": "HOBBYIST",
+    "newPaidDataPurchaseRequired": false
   },
   "constitutionalInvariants": {
     "candidateIsSignal": false,
@@ -123,6 +284,10 @@
     "outcomeEvaluatorMayApproveResearchPromotion": false,
     "automaticRulePromotionAllowed": false,
     "automaticTradingAllowed": false,
+    "scopeEpochMayBeOmittedFromAuthoritativeArtifact": false,
+    "historicalScopePassMayBeExpandedByRename": false,
+    "cryptoAndEquityMayShareCalibrationWithoutIndependentProof": false,
+    "providerAvailabilityMayBeInferredFromSymbolText": false,
     "minimumStructuralRewardRisk": 3,
     "unknownMayBecomeZero": false,
     "staleMayBecomeLive": false,
@@ -480,9 +645,50 @@
         "PRICE_OI_DIVERGENCE",
         "CROWDING_RELEASE",
         "FUNDING_BASIS_DISLOCATION"
+      ],
+      "implementedScopeEpochs": [
+        "SCOPE_EPOCH_V1_CRYPTO_3V"
       ]
+    },
+    {
+      "id": "listing_and_venue_event",
+      "priority": "expanded_core",
+      "independentLongShort": true,
+      "allowedDirections": ["LONG", "SHORT", "UNKNOWN"],
+      "patterns": [
+        "LISTING_ANNOUNCEMENT",
+        "ASSET_OR_SPOT_LISTING_WITHOUT_CONTRACT",
+        "PRE_LAUNCH_TRANSITION",
+        "TRADING_WARMUP",
+        "VENUE_RULE_CHANGE",
+        "DELISTING_OR_SUSPENSION",
+        "TRADING_RESUMPTION"
+      ],
+      "status": "DESIGN_ONLY_NO_CANDIDATE_EMISSION",
+      "targetScopeEpoch": "SCOPE_EPOCH_V2_MULTI_ASSET_4V"
+    },
+    {
+      "id": "equity_event_and_basis",
+      "priority": "expanded_core",
+      "independentLongShort": true,
+      "allowedDirections": ["LONG", "SHORT", "UNKNOWN"],
+      "patterns": [
+        "EARNINGS_OR_CORPORATE_ACTION",
+        "TRADITIONAL_SESSION_TRANSITION",
+        "OFF_HOURS_BASIS_DISLOCATION",
+        "REFERENCE_PRICE_DIVERGENCE",
+        "EQUITY_LIQUIDITY_SHIFT"
+      ],
+      "status": "DESIGN_ONLY_NO_CANDIDATE_EMISSION",
+      "targetScopeEpoch": "SCOPE_EPOCH_V2_MULTI_ASSET_4V"
     }
   ],
+  "opportunityFamilyScopePolicy": {
+    "existingSixFamiliesEvidenceScope": "SCOPE_EPOCH_V1_CRYPTO_3V",
+    "existingSixFamiliesRequireV2Recalibration": true,
+    "listingAndEquityEventFamiliesImplemented": false,
+    "singleCrossAssetTotalScoreAllowed": false
+  },
   "detectorLifecycle": [
     "DRAFT",
     "REPLAY_VALIDATED",
@@ -635,10 +841,16 @@
     "automaticTradingCount": 0,
     "automaticRulePromotionCount": 0,
     "silentInstrumentDropCount": 0,
-    "duplicateOrStaleReadyAlertCount": 0
+    "duplicateOrStaleReadyAlertCount": 0,
+    "authoritativeArtifactMissingScopeEpochCount": 0,
+    "v1EvidenceMisrepresentedAsV2Count": 0,
+    "crossAssetCalibrationReuseWithoutProofCount": 0,
+    "symbolTextAssetClassificationCount": 0,
+    "listingEventDirectReadyCount": 0
   },
   "initialOperationalTargets": {
     "observedInstrumentAccountingPercent": 100,
+    "venueAssetDomainAndListingStateAccountingRequired": true,
     "eligibleLightScanCoveragePercentMinimum": 95,
     "tierAMicrostructureCoveragePercentMinimum": 90,
     "tierAMicrostructureAgeP95SecondsMaximum": 5,
@@ -693,7 +905,7 @@
       "id": "M0",
       "name": "constitution_active_memory_and_legacy_freeze",
       "productionMutationAllowed": false,
-      "status": "local_engineering_exit_pass_production_unchanged",
+      "status": "local_engineering_exit_pass_m0_4_expanded_scope_design_pass_production_unchanged",
       "workPackages": [
         {
           "id": "M0.0",
@@ -714,6 +926,11 @@
           "id": "M0.3",
           "name": "legacy_consumer_map_runtime_schema_and_m1_vertical_slice_contract",
           "status": "local_pass_runtime_boundary_and_consumer_map"
+        },
+        {
+          "id": "M0.4",
+          "name": "expanded_market_scope_and_scope_epoch_contract",
+          "status": "design_scope_amendment_pass_implementation_not_started_production_unchanged"
         }
       ]
     },
@@ -724,8 +941,33 @@
       "dependsOn": [
         "M0"
       ],
-      "status": "b1b3_early_shadow_business_gate_pass_m1_5_b1_complete_m1_6_p0_executed_blocked_p0r_object_lock_31d_age_vault_transport_pass_sts_and_production_recovery_pending_m1_not_complete",
+      "status": "scope_epoch_v1_b1b3_early_shadow_business_gate_pass_m1_5_b1_complete_m1_6_p0_executed_blocked_p0r_object_lock_31d_age_vault_transport_pass_sts_and_production_recovery_pending_scope_epoch_v2_multi_asset_4v_not_implemented_m1_not_complete",
       "workPackages": [
+        {
+          "id": "M1.1A",
+          "name": "four_venue_source_capability_registry",
+          "status": "next_local_package_not_started"
+        },
+        {
+          "id": "M1.1B",
+          "name": "multi_asset_identity_and_listing_intelligence",
+          "status": "pending_after_m1_1a"
+        },
+        {
+          "id": "M1.4A",
+          "name": "adaptive_multi_asset_collector",
+          "status": "pending_after_m1_1b"
+        },
+        {
+          "id": "M1.5C",
+          "name": "four_venue_multi_asset_shadow",
+          "status": "pending_after_m1_4a"
+        },
+        {
+          "id": "M1.6-D1",
+          "name": "expanded_scope_no_cost_capacity_proof",
+          "status": "pending_after_m1_5c_real_fact_rate"
+        },
         {
           "id": "M1.5-B1-A",
           "name": "reachable_docker_runner_technical_preflight",
@@ -780,7 +1022,7 @@
       "dependsOn": [
         "M1"
       ],
-      "status": "m2_2_b0_2_c1_operational_capture_start_pass_forward_only_ready_external_resolution_bulk_and_cohort_blocked_real_replay_gate_insufficient_runtime_blocked_until_m1_exit",
+      "status": "scope_epoch_v1_m2_2_b0_2_c1_operational_capture_start_pass_forward_only_ready_external_resolution_bulk_and_cohort_blocked_real_replay_gate_insufficient_scope_epoch_v2_m2_3_and_m2_4_not_started_runtime_blocked_until_m1_exit",
       "workPackages": [
         {
           "id": "M2.0",
@@ -856,6 +1098,16 @@
           "id": "M2.2-D",
           "name": "independent_audit_and_lifecycle_proposal",
           "status": "pending"
+        },
+        {
+          "id": "M2.3",
+          "name": "listing_venue_and_equity_event_detection",
+          "status": "design_only_not_started_no_candidate_emission"
+        },
+        {
+          "id": "M2.4",
+          "name": "multi_asset_cohort_and_domain_sealed_holdout",
+          "status": "not_started_blocked_until_v2_fact_scope_and_historical_forward_evidence"
         }
       ]
     },
@@ -863,7 +1115,7 @@
       "order": 3,
       "id": "M3",
       "name": "analysis_qualification_strategy_feasibility_risk",
-      "status": "m3_0_through_m3_3_local_contract_pass_test_only_uncalibrated_main_stage_incomplete",
+      "status": "scope_epoch_v1_m3_0_through_m3_3_local_contract_pass_test_only_uncalibrated_scope_epoch_v2_extension_not_started_m3_4_partial_uncommitted_requires_scope_rebase_main_stage_incomplete",
       "dependsOn": [
         "M2"
       ],
@@ -922,13 +1174,37 @@
           "placeholderPriceAllowed": false,
           "strategyAuthorityAllowed": false,
           "productionAuthorityAllowed": false
+        },
+        {
+          "id": "M3.1A-M3.3A",
+          "name": "multi_asset_analysis_qualification_and_strategy_extension",
+          "status": "not_started_requires_domain_sealed_calibration",
+          "productionAuthorityAllowed": false
+        },
+        {
+          "id": "M3.4",
+          "name": "execution_feasibility",
+          "status": "partial_uncommitted_v1_scope_draft_paused_requires_scope_rebase_review",
+          "productionAuthorityAllowed": false
+        },
+        {
+          "id": "M3.5",
+          "name": "personal_and_portfolio_risk",
+          "status": "not_started",
+          "productionAuthorityAllowed": false
+        },
+        {
+          "id": "M3.6",
+          "name": "runtime_trigger_and_decision_gate",
+          "status": "not_started",
+          "productionAuthorityAllowed": false
         }
       ]
     },
     {
       "order": 4,
       "id": "M4",
-      "name": "read_model_alerts_workbench",
+      "name": "domain_separated_read_model_alerts_workbench",
       "dependsOn": [
         "M3"
       ]
@@ -936,7 +1212,7 @@
     {
       "order": 5,
       "id": "M5",
-      "name": "outcome_evaluation_and_research_governance",
+      "name": "scope_and_domain_stratified_outcome_evaluation_and_research_governance",
       "dependsOn": [
         "M2",
         "M3"
@@ -945,7 +1221,7 @@
     {
       "order": 6,
       "id": "M6",
-      "name": "controlled_cutover_and_legacy_retirement",
+      "name": "domain_by_domain_controlled_cutover_and_legacy_retirement",
       "dependsOn": [
         "M1",
         "M2",
@@ -957,7 +1233,7 @@
     {
       "order": 7,
       "id": "M7",
-      "name": "practical_readiness",
+      "name": "scope_epoch_and_domain_specific_practical_readiness",
       "dependsOn": [
         "M6"
       ]
@@ -973,6 +1249,12 @@
     "rollback_retention",
     "legacy_retirement"
   ],
+  "assetDomainCutoverOrder": [
+    "CRYPTO_LINEAR_PERPETUAL",
+    "EQUITY_SINGLE_NAME_PERPETUAL",
+    "EQUITY_INDEX_ETF_PERPETUAL"
+  ],
+  "bigBangMultiAssetCutoverAllowed": false,
   "legacyPolicy": {
     "allowedClassifications": [
       "EXTRACT",
@@ -1001,14 +1283,37 @@
     "id": "V2-M3.3-STRATEGY-CONSTRUCTION-CONTRACT",
     "name": "six_family_structural_strategy_draft_with_exact_reward_risk_and_abstention",
     "status": "local_contract_pass_test_only_uncalibrated_no_ready_authority",
+    "scopeEpoch": "SCOPE_EPOCH_V1_CRYPTO_3V",
     "productionMutationPerformed": false,
     "migrationPerformed": false,
     "legacyDeletionPerformed": false
+  },
+  "lastCompletedDesignEntry": {
+    "id": "V2-M0.4-EXPANDED-MARKET-SCOPE-AMENDMENT",
+    "name": "bitget_listing_lifecycle_useful_data_maximization_and_equity_contract_scope_epoch",
+    "status": "design_scope_amendment_pass_implementation_not_started",
+    "scopeEpoch": "SCOPE_EPOCH_V2_MULTI_ASSET_4V",
+    "productionMutationPerformed": false
+  },
+  "currentLocalImplementationEntry": {
+    "id": "V2-M1.1A-FOUR-VENUE-CAPABILITY-REGISTRY",
+    "name": "source_capability_entitlement_rate_limit_semantics_and_runtime_evidence_registry",
+    "status": "not_started",
+    "scopeEpoch": "SCOPE_EPOCH_V2_MULTI_ASSET_4V",
+    "productionMutationAllowed": false
+  },
+  "pausedLocalImplementationEntry": {
+    "id": "V2-M3.4-EXECUTION-FEASIBILITY-CONTRACT",
+    "name": "partial_uncommitted_v1_scope_draft",
+    "status": "paused_requires_scope_rebase_review_before_commit",
+    "scopeEpoch": "SCOPE_EPOCH_V1_CRYPTO_3V",
+    "productionMutationAllowed": false
   },
   "currentImplementationEntry": {
     "id": "V2-M1.6-P0R-C-STS-ENCRYPTED-BACKUP-EXACT-RETRIEVAL-AND-ISOLATED-RESTORE",
     "name": "exact_plan_sts_encrypted_backup_exact_version_retrieval_isolated_postgres16_restore_and_cleanup",
     "status": "clean_pre_sts_baseline_pass_sts_object_backup_retrieval_restore_pending",
+    "scopeEpoch": "SCOPE_EPOCH_V1_CRYPTO_3V",
     "productionMutationAllowed": false,
     "migrationAllowed": false,
     "legacyDeletionAllowed": false
