@@ -5,6 +5,7 @@ import {
   mkdtemp,
   readFile,
   rm,
+  writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -17,8 +18,13 @@ import {
   LIVE_RUNTIME_ADAPTER_ENTRYPOINT,
   LIVE_RUNTIME_ADAPTER_PACKAGE_ID,
   LIVE_RUNTIME_ADAPTER_RUNTIME_ENTRY,
+  canonicalJson,
+  sha256,
   validateLiveRuntimeAdapterRequest,
 } from "./m1-runtime-adapter-live-runner.mjs";
+import {
+  preflightLiveRuntimeAdapterDispatch,
+} from "./m1-runtime-adapter-live-dispatch-preflight.mjs";
 
 const execFileAsync = promisify(execFile);
 const SOURCE_COMMIT = "a".repeat(40);
@@ -65,6 +71,33 @@ function approval(currentPolicy) {
     revocationEpoch: 1,
     runnerUnitName: "market-radar-m1-4b-bundletest01",
     sourceRef: "refs/heads/codex/m1-4b-tencent-runtime",
+  };
+}
+
+function dispatchEnvelope(request, requestRaw) {
+  return {
+    approvalRequestSha256: sha256(requestRaw),
+    automaticRollbackRequired: true,
+    bundleSha256: request.transportBundleSha256,
+    dispatchId: request.dispatchId,
+    entrypointPath: LIVE_RUNTIME_ADAPTER_ENTRYPOINT,
+    expiresAt: request.approvalExpiresAt,
+    issuedAt: request.approvalIssuedAt,
+    launchSuccessMarker: request.launchSuccessMarker,
+    maxExecutions: 1,
+    noArbitraryCommand: true,
+    packageId: request.packageId,
+    productionMutation: true,
+    productionWipLimit: 1,
+    revocationEpoch: request.revocationEpoch,
+    runnerUnitName: request.runnerUnitName,
+    runtimeMaxSeconds: request.runtimeDeadlineSeconds + 30,
+    sessionIndependentExecutionRequired: true,
+    sourceRef: request.sourceRef,
+    stagingDirectory: request.stagingDirectory,
+    targetCommit: request.sourceCommit,
+    transportContainsSecrets: false,
+    transportMethod: "signed_git_bundle",
   };
 }
 
@@ -142,6 +175,45 @@ test("builds a deterministic no-secret fixed-dispatch runtime bundle", async () 
     );
     assert.match(entrypoint, /rm -rf -- "\$\{ACTUAL_SOURCE_ROOT\}"/u);
     assert.doesNotMatch(entrypoint, /\bgit\b|\bdocker\b|\bcurl\b/u);
+
+    const requestPath = join(root, "package-1/approval-request.json");
+    const requestRaw = await readFile(requestPath);
+    const envelope = dispatchEnvelope(first.request, requestRaw);
+    const dispatchPath = join(root, "package-1/dispatch.json");
+    await writeFile(dispatchPath, canonicalJson(envelope), { mode: 0o600 });
+    const preflight = await preflightLiveRuntimeAdapterDispatch({
+      bundlePath: join(root, "package-1/bundle.tar.gz"),
+      dispatchPath,
+      now: new Date(ISSUED_AT),
+      policy: currentPolicy,
+      requestPath,
+    });
+    assert.equal(
+      preflight.status,
+      "PASS_M1_4B_DISPATCH_CROSS_LAYER_PREFLIGHT",
+    );
+
+    for (const mutation of [
+      { runtimeMaxSeconds: 5_400 },
+      { sourceRef: "refs/heads/codex/wrong-source-ref" },
+    ]) {
+      await writeFile(
+        dispatchPath,
+        canonicalJson({ ...envelope, ...mutation }),
+        { mode: 0o600 },
+      );
+      await assert.rejects(
+        () =>
+          preflightLiveRuntimeAdapterDispatch({
+            bundlePath: join(root, "package-1/bundle.tar.gz"),
+            dispatchPath,
+            now: new Date(ISSUED_AT),
+            policy: currentPolicy,
+            requestPath,
+          }),
+        /runtime_dispatch_binding_invalid/u,
+      );
+    }
   } finally {
     await rm(root, { recursive: true, force: true });
   }

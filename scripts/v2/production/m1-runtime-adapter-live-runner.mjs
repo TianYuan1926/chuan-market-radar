@@ -640,18 +640,18 @@ async function validateManifest(stagingDirectory, request) {
   return manifest;
 }
 
-async function validateDispatchBinding(
-  stagingDirectory,
+export function validateLiveRuntimeAdapterDispatchEnvelope({
+  envelope,
+  marker,
   request,
   requestRaw,
-  bundleMarkerPath,
-) {
-  const { value: envelope } = await readCanonicalJson(
-    join(stagingDirectory, ".dispatch.json"),
+}) {
+  ensure(
+    envelope &&
+      typeof envelope === "object" &&
+      !Array.isArray(envelope),
     "runtime_dispatch_envelope_invalid",
-    512 * 1024,
   );
-  const marker = (await readFile(bundleMarkerPath, "utf8")).trim();
   ensure(
     marker === request.transportBundleSha256 &&
       envelope.bundleSha256 === request.transportBundleSha256 &&
@@ -681,6 +681,26 @@ async function validateDispatchBinding(
     "runtime_dispatch_binding_invalid",
   );
   return envelope;
+}
+
+async function validateDispatchBinding(
+  stagingDirectory,
+  request,
+  requestRaw,
+  bundleMarkerPath,
+) {
+  const { value: envelope } = await readCanonicalJson(
+    join(stagingDirectory, ".dispatch.json"),
+    "runtime_dispatch_envelope_invalid",
+    512 * 1024,
+  );
+  const marker = (await readFile(bundleMarkerPath, "utf8")).trim();
+  return validateLiveRuntimeAdapterDispatchEnvelope({
+    envelope,
+    marker,
+    request,
+    requestRaw,
+  });
 }
 
 function loadRuntimeBindings(stagingDirectory) {

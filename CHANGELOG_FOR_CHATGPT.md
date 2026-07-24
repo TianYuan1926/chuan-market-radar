@@ -92,11 +92,12 @@ M3.4-R0 只是范围与证据门禁，真正的多资产可执行性数学、分
 - Bitget Venue、Listing Lifecycle、Equity Asset Domain、Data Maximization 四轴独立记账；股票当前只做 catalog accounting，tradable Fact 为 0。
 - 纠正 15/15 endpoint conformance 与 14/15 scheduler route eligibility 的差异；Binance spot registry 仍为 `UNAVAILABLE`，不能进入 batch 或 Shadow。
 - 新增无 secret、内容寻址 Bundle/Runner/Entrypoint；14 个 route 跨五来源有界运行，同源并发 1，执行前后绑定生产 HEAD、容器、listener、timer 和 health。
+- 新增 request/envelope/bundle 跨层预检，在上传前拒绝 source ref、commit、approval hash、entrypoint、staging 和运行时限漂移；此前 5400 秒外层窗口与不在目标机 allowlist 的 source ref 都会本地失败。
 - blocked segment 不晋级 checkpoint；续跑必须绑定原 checkpoint、精确 `PASS` result 路径和 SHA-256，失败、孤儿或被篡改结果均拒绝。
 
 ### 核心链路影响
 
-`Live Source Conformance + Adaptive Intent -> Route-Eligible Profile -> Bounded Batch/Listing Checkpoint -> Exact Fixed Dispatch` 已形成本地工程链；没有腾讯持续网络执行、真实 checkpoint、Fact、Candidate、Strategy、READY 或生产 authority。
+`Live Source Conformance + Adaptive Intent -> Route-Eligible Profile -> Bounded Batch/Listing Checkpoint -> Exact Fixed Dispatch` 已完成腾讯 bootstrap 与 checkpoint-bound resume。它形成有界 no-authority 证据链，不形成持续 Collector、Fact、Candidate、Strategy、READY 或生产 authority。
 
 ### 测试结果
 
@@ -104,19 +105,20 @@ M3.4-R0 只是范围与证据门禁，真正的多资产可执行性数学、分
 - M1.4A 回归 28/28 PASS。
 - M1.4B 定向 23/23 PASS。
 - M1.4B 腾讯 fixed-dispatch package 9/9 PASS；包含四轴分母、零 blocked-route 请求、同源并发 1、Bundle 无 secret/无额外 payload、宿主不变、失败不晋级 checkpoint 和 PASS-result 续跑绑定。
-- 正式实施分支完整 `ci:production` PASS：V2 Foundation 454 total / 448 pass / 6 explicit skip、V2 Ops 131/131、M0、Next production build、Golden 16/16 与 security 全部通过。
+- 正式实施分支完整 `ci:production` PASS：V2 Foundation 494 total / 488 pass / 6 explicit skip、V2 Ops 131/131、M0 11/11、Next production build、Golden 16/16 与 security 全部通过。
+- 腾讯 bootstrap `m1-4b-runtime-live-20260723t232457z` 与 checkpoint-bound resume `m1-4b-runtime-live-20260723t233213z` 均为 14/14 route PASS、0 failed、1 registry blocked、request budget/attempts=203/80、listing gap=0 和两个 committed checkpoint；第二轮绑定第一轮 checkpoint 与原 `PASS` result。
 
 ### 是否部署
 
-未部署。生产服务、数据库、Redis、Worker、env、Feature Flag、数据和 authority 零变更。
+已执行无 authority 的隔离证据包并只保留脱敏 result/checkpoint；未部署 V2 应用，也未改变生产服务、数据库、Redis、Worker、env、Feature Flag、业务数据或 authority。生产 HEAD、clean worktree、11 容器、listener、timer 与 health 前后不变，两次 staging 均删除。
 
 ### 风险与遗留问题
 
-GitHub 实施分支同步、腾讯隔离 no-authority runtime、真实 Bybit/Bitget checkpoint、请求率/配额/完整分母、Binance spot registry 新 digest 复验、M1.5C 和 M1.6-D1 均未完成。
+M1.5C 四 Venue多资产持续 Shadow、M1.6-D1 扩展容量、Binance spot registry 新 digest 复验和股票 session/公司行动/FX/reference/basis/成本事实均未完成。M1.4B 四轴 PASS 只证明本包有界分母；股票 tradable Fact 仍为 0，不能宣称股票实战能力。
 
 ### 下一轮建议
 
-同步 GitHub 实施分支后，用 exact package 在腾讯执行 no-authority Adapter/listing runtime。P0R 的 fresh 7200 秒 exact-plan STS 仍是独立生产第一关键路径。
+Scope V2 下一证据包进入 M1.5C Four-Venue Multi-Asset Shadow，再用真实事实率进入 M1.6-D1。P0R 的 fresh 7200 秒 exact-plan STS 仍是独立生产第一关键路径。
 
 ## 2026-07-24 / V2 M1.1B0 Tencent Live Source Conformance Dispatch Package
 

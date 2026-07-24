@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.45",
-  "status": "m0_4_expanded_scope_design_pass_m1_1a_registry_local_pass_m1_1b_multi_asset_identity_listing_and_exact_probe_local_implementation_pass_test_only_conformance_pass_m1_1b0_attempt_1_blocked_r1_live_zero_of_15_common_runtime_transport_blocked_r2_live_14_of_15_listing_gate_blocked_r3_live_15_of_15_all_gates_pass_m1_4a_adaptive_multi_asset_collector_local_contract_and_full_ci_pass_no_runtime_authority_m1_4b_local_engineering_and_exact_dispatch_package_full_ci_pass_live_runtime_unproven_15_live_profiles_14_route_eligible_scope_epoch_v1_evidence_preserved_m1_5_b1_pass_v1_only_m1_6_p0_blocked_p0r_clean_pre_sts_baseline_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_v1_only_m3_0_through_m3_3_local_contract_pass_v1_only_test_only_uncalibrated_no_ready_authority_m3_1a_through_m3_3d_four_lane_local_research_contract_scaffold_and_full_ci_pass_no_real_calibration_or_authority_m3_4_r0_scope_rebase_governance_and_full_ci_pass_implementation_blocked_fixed_dispatch_first_signed_acceptance_pass_external_historical_source_blocked_m1_not_complete",
-  "generatedAt": "2026-07-24T06:34:52+08:00",
+  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.46",
+  "status": "m0_4_expanded_scope_design_pass_m1_1a_registry_local_pass_m1_1b_multi_asset_identity_listing_and_exact_probe_local_implementation_pass_test_only_conformance_pass_m1_1b0_attempt_1_blocked_r1_live_zero_of_15_common_runtime_transport_blocked_r2_live_14_of_15_listing_gate_blocked_r3_live_15_of_15_all_gates_pass_m1_4a_adaptive_multi_asset_collector_local_contract_and_full_ci_pass_no_runtime_authority_m1_4b_tencent_bootstrap_and_checkpoint_bound_resume_pass_no_runtime_authority_15_live_profiles_14_route_eligible_scope_epoch_v1_evidence_preserved_m1_5_b1_pass_v1_only_m1_6_p0_blocked_p0r_clean_pre_sts_baseline_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_v1_only_m3_0_through_m3_3_local_contract_pass_v1_only_test_only_uncalibrated_no_ready_authority_m3_1a_through_m3_3d_four_lane_local_research_contract_scaffold_and_full_ci_pass_no_real_calibration_or_authority_m3_4_r0_scope_rebase_governance_and_full_ci_pass_implementation_blocked_fixed_dispatch_first_signed_acceptance_pass_external_historical_source_blocked_m1_not_complete",
+  "generatedAt": "2026-07-24T07:54:00+08:00",
   "implementationAuthorized": true,
   "productionMutationAuthorized": false,
   "authority": {
@@ -43,6 +43,7 @@
     "m1ListingHistoryRuntimeImplementation": "src/v2/modules/multi-asset-universe/listing-history-runtime.ts",
     "m1RuntimeAdapterLiveBundle": "scripts/v2/production/m1-runtime-adapter-live-bundle.mjs",
     "m1RuntimeAdapterLiveRunner": "scripts/v2/production/m1-runtime-adapter-live-runner.mjs",
+    "m1RuntimeAdapterDispatchCrossLayerPreflight": "scripts/v2/production/m1-runtime-adapter-live-dispatch-preflight.mjs",
     "m1RuntimeAdapterLiveEntrypoint": "scripts/v2/production/m1-runtime-adapter-live-entrypoint.sh",
     "m1RuntimeAdapterAndListingHistoryDeliveryReport": "docs/blueprints/V2_M1_4B_ENDPOINT_BATCHING_RUNTIME_ADAPTER_AND_LISTING_HISTORY_DELIVERY_REPORT.md",
     "m1FoundationSliceContract": "docs/architecture/v2/M1_FOUNDATION_VERTICAL_SLICE_CONTRACT_V1.md",
@@ -111,7 +112,7 @@
   "currentBoundary": {
     "readiness": "R1",
     "status": "runnable_but_incomplete_not_practical_ready",
-    "v2ImplementationStatus": "m0_4_expanded_scope_design_pass_m1_1a_registry_local_pass_m1_1b_local_adapter_identity_listing_and_test_only_conformance_pass_m1_1b0_attempt_1_blocked_r1_live_zero_of_15_common_runtime_transport_blocked_r2_live_14_of_15_listing_gate_blocked_r3_live_15_of_15_all_gates_pass_m1_4a_local_contract_and_full_ci_pass_no_runtime_authority_m1_4b_local_engineering_and_exact_dispatch_package_9_of_9_full_ci_pass_live_runtime_unproven_15_live_profiles_14_route_eligible_v1_evidence_preserved_m1_5_b1_complete_v1_only_m1_6_p0_blocked_p0r_clean_pre_sts_baseline_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_v1_only_m3_0_through_m3_3_local_contract_pass_v1_only_test_only_uncalibrated_no_ready_authority_m3_1a_through_m3_3d_four_lane_local_research_contract_scaffold_pass_no_real_calibration_or_authority_external_rights_blocked_detectors_draft_candidate_emission_false_m1_not_complete",
+    "v2ImplementationStatus": "m0_4_expanded_scope_design_pass_m1_1a_registry_local_pass_m1_1b_local_adapter_identity_listing_and_test_only_conformance_pass_m1_1b0_attempt_1_blocked_r1_live_zero_of_15_common_runtime_transport_blocked_r2_live_14_of_15_listing_gate_blocked_r3_live_15_of_15_all_gates_pass_m1_4a_local_contract_and_full_ci_pass_no_runtime_authority_m1_4b_exact_dispatch_package_9_of_9_tencent_bootstrap_and_checkpoint_bound_resume_pass_no_runtime_authority_15_live_profiles_14_route_eligible_v1_evidence_preserved_m1_5_b1_complete_v1_only_m1_6_p0_blocked_p0r_clean_pre_sts_baseline_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_v1_only_m3_0_through_m3_3_local_contract_pass_v1_only_test_only_uncalibrated_no_ready_authority_m3_1a_through_m3_3d_four_lane_local_research_contract_scaffold_pass_no_real_calibration_or_authority_external_rights_blocked_detectors_draft_candidate_emission_false_m1_not_complete",
     "v2ImplementationBranch": "codex/market-radar-v2-implementation",
     "v2ImplementationBaseCommit": "e5eb90026d8bfcd52b060359446515de5a5c32d6",
     "latestProductionFinalStatus": "storage_preflight_blocked_capacity_and_recovery_application_health_not_evaluated",
@@ -160,6 +161,19 @@
   "scopeV2ResponsibilityAxes": {
     "status": "plan_frozen_independent_acceptance_required_no_cross_pass",
     "primaryMission": "early_and_broad_crypto_perpetual_opportunity_discovery",
+    "classificationDimensions": [
+      "venue",
+      "assetDomain",
+      "instrumentClass",
+      "listingLifecycle"
+    ],
+    "venueMayDetermineAssetDomain": false,
+    "decisionLanes": [
+      "FOUR_VENUE_ESTABLISHED_CRYPTO",
+      "CRYPTO_LISTING_WARMUP",
+      "SINGLE_NAME_EQUITY_ESTABLISHED",
+      "EQUITY_INDEX_ETF_ESTABLISHED"
+    ],
     "primaryVenueDenominator": [
       "BINANCE_FUTURES",
       "OKX_SWAP",
@@ -478,7 +492,7 @@
     "listingPageSchemaVersion": "v2-m1-listing-history-page.v1",
     "listingCheckpointSchemaVersion": "v2-m1-listing-history-checkpoint.v1",
     "listingGapSchemaVersion": "v2-m1-listing-history-gap.v1",
-    "status": "local_engineering_and_exact_dispatch_package_full_ci_pass_live_no_authority_runtime_unproven",
+    "status": "local_engineering_and_exact_dispatch_package_full_ci_pass_tencent_bootstrap_and_checkpoint_bound_resume_pass_no_authority",
     "scopeEpoch": "SCOPE_EPOCH_V2_MULTI_ASSET_4V",
     "liveConformantProfileCount": 15,
     "schedulerRouteEligibleProfileCount": 14,
@@ -504,7 +518,73 @@
     "directedContractTestFailCount": 0,
     "tencentRuntimePackageTestCount": 9,
     "tencentRuntimePackageTestFailCount": 0,
-    "tencentRuntimePackageStatus": "local_exact_fixed_dispatch_package_pass_live_unexecuted",
+    "tencentRuntimePackageStatus": "exact_fixed_dispatch_package_pass_tencent_bootstrap_and_checkpoint_bound_resume_pass",
+    "dispatchCrossLayerPreflightStatus": "pass_rejects_runtime_window_and_source_ref_drift",
+    "sourceCommit": "3c21a75009aeb4f4f7d9fd8954245238c38d9636",
+    "sourceTree": "26852907b4e53be1b339f80302ccbb1d2bcd2323",
+    "transportBundleSha256": "7313196e29704df4ae72fc282a495a07e2dc60b7f2f5d60d79e517c15efab38e",
+    "artifactManifestSha256": "3240a0eec10015c9514b49fc94048fa329ebd970f7d3cef50c0bcf61b2eb3e41",
+    "bootstrapArtifactFileSha256": "a56b24dd1e16da3bb5fc28e7f1577d87a2729dedaab968d364fceba18334234b",
+    "rejectedPrelaunchAttempts": [
+      {
+        "dispatchId": "m1-4b-runtime-live-20260723t230536z",
+        "signedDispatchCommit": "dc472c3550dc132b99b4288af7f7c9bae83caa58",
+        "status": "BLOCKED_PRE_LAUNCH",
+        "reason": "dispatch_source_ref_not_allowed",
+        "productionMutationPerformed": false
+      },
+      {
+        "dispatchId": "m1-4b-runtime-live-20260723t231943z",
+        "signedDispatchCommit": "b741f6adc9b3e6afed8e30e6099fa057dcc9738a",
+        "status": "BLOCKED_PACKAGE_BINDING_VALIDATION",
+        "reason": "runtime_dispatch_binding_invalid",
+        "outerRuntimeMaxSeconds": 5400,
+        "packageRuntimeMaxSeconds": 1860,
+        "productionMutationPerformed": false
+      }
+    ],
+    "bootstrapDispatchId": "m1-4b-runtime-live-20260723t232457z",
+    "bootstrapSignedDispatchCommit": "e20125652f179627cc25f09d9edfd29a74bf3684",
+    "bootstrapResultSha256": "1e185b10af05a3098d53534b79c5f6fdc64dc8582a3d75fbc0778a9dd7a6925d",
+    "resumeDispatchId": "m1-4b-runtime-live-20260723t233213z",
+    "resumeSignedDispatchCommit": "2b42338156d0694fb3b953ece889eac8012b3878",
+    "resumeResultSha256": "fd245a88b362a423a8a5cadf87f6c2fc16d1ea76436912e909c212285dd4eb3f",
+    "productionHead": "cec0b6572bb09ae91ff9e013f8bb160f73c045e2",
+    "productionContainerSetSha256": "b7ace09c4f97b505e8ab308fcbe9b6ca669331ab50add97a8433b66e5363079b",
+    "productionListenerSha256": "b6461e8061e91d27c4d62447c3b93e077685003b85188d6c203c20e896ee759c",
+    "noAuthorityRuntimeExecutionCompleted": true,
+    "bootstrapAndResumeExecutedProbeCount": 14,
+    "bootstrapAndResumeFailedProbeCount": 0,
+    "bootstrapAndResumeRequestTokenBudget": 203,
+    "bootstrapAndResumeRequestAttemptCount": 80,
+    "bootstrapAndResumeListingGapCount": 0,
+    "bootstrapAndResumeCommittedCheckpointCount": 2,
+    "acceptanceAxisStatuses": {
+      "BITGET_VENUE": "PASS",
+      "LISTING_LIFECYCLE": "PASS",
+      "EQUITY_ASSET_DOMAIN": "PASS_ACCOUNTING_BOUNDARY_ONLY",
+      "DATA_MAXIMIZATION": "PASS"
+    },
+    "bootstrapCheckpoints": {
+      "BITGET_FUTURES": {
+        "checkpointId": "listing-history-checkpoint:BITGET_FUTURES:db234d146c426d76",
+        "contentHash": "sha256:db234d146c426d76215e0e417ad7b45ef9ddc033568c47dbbd9960d12beadc35"
+      },
+      "BYBIT_DERIVATIVES": {
+        "checkpointId": "listing-history-checkpoint:BYBIT_DERIVATIVES:8f46eb81f10b008b",
+        "contentHash": "sha256:8f46eb81f10b008b43e58bdbe29db46281e7f89909e1a2cc6b94d82b94f3e608"
+      }
+    },
+    "resumeCheckpoints": {
+      "BITGET_FUTURES": {
+        "checkpointId": "listing-history-checkpoint:BITGET_FUTURES:a72beee67dfe9e6c",
+        "contentHash": "sha256:a72beee67dfe9e6c797f1b7f98756b6ab8066255e3f1fac8f8f986adab1ccc5d"
+      },
+      "BYBIT_DERIVATIVES": {
+        "checkpointId": "listing-history-checkpoint:BYBIT_DERIVATIVES:8e9884e65e45ef19",
+        "contentHash": "sha256:8e9884e65e45ef19c1db5b6869fa6fcc75a88641d82cef1d756c1d372d6f0aac"
+      }
+    },
     "runtimeRouteExecutionCount": 14,
     "registryBlockedRouteRequestCount": 0,
     "sourceGroupCount": 5,
@@ -518,8 +598,8 @@
     "m1_4aRegressionTestCount": 28,
     "eslintStatus": "pass",
     "priorCoreFullProductionCiStatus": "pass",
-    "v2FoundationTotalTestCount": 454,
-    "v2FoundationPassCount": 448,
+    "v2FoundationTotalTestCount": 494,
+    "v2FoundationPassCount": 488,
     "v2FoundationExplicitSkipCount": 6,
     "v2OpsTestCount": 131,
     "v2OpsTestFailCount": 0,
@@ -529,6 +609,7 @@
     "securityCheckStatus": "pass",
     "fullProductionCiStatus": "pass",
     "runtimeExecutionAllowed": false,
+    "sanitizedEvidenceAndCheckpointsPersisted": true,
     "factAuthorityGranted": false,
     "candidateAuthorityGranted": false,
     "strategyAuthorityGranted": false,
@@ -551,7 +632,7 @@
     },
     {
       "id": "SCOPE_EPOCH_V2_MULTI_ASSET_4V",
-      "status": "design_registry_m1_1b_adapter_identity_listing_r3_live_conformance_pass_m1_4a_scheduler_contract_full_ci_pass_m1_4b_local_engineering_and_exact_dispatch_package_full_ci_pass_live_runtime_shadow_capacity_calibration_and_production_unproven",
+      "status": "design_registry_m1_1b_adapter_identity_listing_r3_live_conformance_pass_m1_4a_scheduler_contract_full_ci_pass_m1_4b_tencent_bootstrap_and_checkpoint_bound_resume_pass_no_authority_shadow_capacity_calibration_and_production_authority_unproven",
       "venues": [
         "BINANCE_FUTURES",
         "OKX_SWAP",
@@ -1346,7 +1427,7 @@
       "dependsOn": [
         "M0"
       ],
-      "status": "scope_epoch_v1_b1b3_early_shadow_business_gate_pass_m1_5_b1_complete_m1_6_p0_executed_blocked_p0r_object_lock_31d_age_vault_transport_pass_sts_and_production_recovery_pending_scope_epoch_v2_m1_1a_registry_m1_1b_adapter_identity_listing_local_pass_r3_live_conformance_pass_m1_4a_local_contract_full_ci_pass_m1_4b_local_engineering_and_exact_dispatch_package_9_of_9_full_ci_pass_live_runtime_unproven_m1_not_complete",
+      "status": "scope_epoch_v1_b1b3_early_shadow_business_gate_pass_m1_5_b1_complete_m1_6_p0_executed_blocked_p0r_object_lock_31d_age_vault_transport_pass_sts_and_production_recovery_pending_scope_epoch_v2_m1_1a_registry_m1_1b_adapter_identity_listing_local_pass_r3_live_conformance_pass_m1_4a_local_contract_full_ci_pass_m1_4b_tencent_bootstrap_and_checkpoint_bound_resume_pass_no_runtime_authority_m1_not_complete",
       "workPackages": [
         {
           "id": "M1.1A",
@@ -1366,12 +1447,12 @@
         {
           "id": "M1.4B",
           "name": "live_passed_endpoint_batching_and_runtime_adapter_profiles",
-          "status": "local_core_23_of_23_and_exact_dispatch_package_9_of_9_full_ci_pass_live_runtime_unproven_15_live_profiles_14_route_eligible_no_authority"
+          "status": "local_core_23_of_23_exact_dispatch_package_9_of_9_tencent_bootstrap_and_checkpoint_bound_resume_pass_15_live_profiles_14_route_eligible_no_authority"
         },
         {
           "id": "M1.5C",
           "name": "four_venue_multi_asset_shadow",
-          "status": "pending_after_m1_4b_live_no_authority_runtime"
+          "status": "next_pending_exact_release_scope_v2_shadow_after_m1_4b_no_authority_runtime_pass"
         },
         {
           "id": "M1.6-D1",
@@ -1746,7 +1827,7 @@
   "lastCompletedDesignEntry": {
     "id": "V2-M0.4-EXPANDED-MARKET-SCOPE-AMENDMENT",
     "name": "bitget_listing_lifecycle_useful_data_maximization_and_equity_contract_scope_epoch",
-    "status": "design_scope_amendment_pass_m1_1a_source_registry_implemented_scope_v2_runtime_unproven",
+    "status": "design_scope_amendment_pass_m1_1a_source_registry_implemented_m1_4b_no_authority_runtime_pass_shadow_capacity_calibration_unproven",
     "scopeEpoch": "SCOPE_EPOCH_V2_MULTI_ASSET_4V",
     "productionMutationPerformed": false
   },
@@ -1786,8 +1867,14 @@
   "currentScopeV2EvidenceEntry": {
     "id": "V2-M1.4B-TENCENT-ISOLATED-NO-AUTHORITY-RUNTIME-AND-LISTING-CHECKPOINT",
     "name": "exact_release_runtime_adapter_listing_bootstrap_checkpoint_gap_incremental_and_request_budget_evidence",
-    "status": "local_exact_dispatch_package_and_full_ci_pass_live_execution_and_real_listing_checkpoint_evidence_pending",
+    "status": "tencent_bootstrap_and_checkpoint_bound_resume_pass_no_authority_real_listing_checkpoint_evidence_persisted",
     "scopeEpoch": "SCOPE_EPOCH_V2_MULTI_ASSET_4V",
+    "sourceCommit": "3c21a75009aeb4f4f7d9fd8954245238c38d9636",
+    "bootstrapDispatchId": "m1-4b-runtime-live-20260723t232457z",
+    "bootstrapResultSha256": "1e185b10af05a3098d53534b79c5f6fdc64dc8582a3d75fbc0778a9dd7a6925d",
+    "resumeDispatchId": "m1-4b-runtime-live-20260723t233213z",
+    "resumeResultSha256": "fd245a88b362a423a8a5cadf87f6c2fc16d1ea76436912e909c212285dd4eb3f",
+    "liveExecutionCompleted": true,
     "routeEligibleProfileCount": 14,
     "registryBlockedProbeIds": [
       "BINANCE_SPOT_CATALOG"
@@ -1802,6 +1889,7 @@
     "rawMarketBodyPersistenceAllowed": false,
     "blockedCheckpointPromotionAllowed": false,
     "priorCheckpointPassResultBindingRequired": true,
+    "sanitizedEvidenceAndCheckpointsPersisted": true,
     "productionMutationAllowed": false,
     "productionMutationPerformed": false,
     "migrationAllowed": false,

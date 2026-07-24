@@ -250,6 +250,7 @@ scripts/v2/production/m1-runtime-adapter-live-entrypoint.sh
 - Binance、OKX、Bybit、Bitget、CoinGlass 五个 source group 可跨来源并行；同一来源严格并发 1。
 - Bybit 与 Bitget listing segment 各最多 64 页；页间 request token、checkpoint、gap 和 prior `PASS` result 必须精确绑定。
 - Bundle 不含 secret；CoinGlass key 只在目标机从受限生产 env 进入一次性子进程，不写入 staging、日志、artifact、result 或 checkpoint。
+- 固定通道通用验签之后、发布之前必须运行 M1.4B 跨层预检；request 与 dispatch envelope 的 bundle、approval hash、dispatch/package identity、source ref/commit、runner、staging、entrypoint、marker、时限和 revocation 任一不一致都必须在本地失败。
 - 执行前后绑定 production HEAD、容器身份、listener、timer 和 health。任何漂移在证据晋级前失败关闭。
 - blocked segment 可以保留脱敏诊断 artifact/result，但不得写可续跑 checkpoint；历史 checkpoint 必须绑定原 `PASS` result 的路径和 SHA-256，孤儿、失败或被篡改结果一律拒绝。
 - 本地注入 transport 只能产生 `TEST_ONLY / TEST_HARNESS`；不能冒充腾讯 `LIVE_READ_ONLY`。
@@ -261,6 +262,10 @@ npm run test:v2-m1-source-conformance-multi-asset
 npm run test:v2-m1-adaptive-collector
 npm run test:v2-m1-runtime-adapter-listing-history
 npm run test:v2-m1-runtime-adapter-live-package
+npm run v2:m1:runtime-adapter:dispatch-preflight -- \
+  --request <outbox>/approval-request.json \
+  --dispatch <outbox>/dispatch.json \
+  --bundle <outbox>/bundle.tar.gz
 ```
 
 当前结果：
@@ -270,26 +275,48 @@ M1.1B source conformance + multi-asset regression: 26/26 PASS
 M1.4A adaptive collector regression: 28/28 PASS
 M1.4B runtime profile + listing history: 23/23 PASS
 M1.4B Tencent runtime fixed-dispatch package: 9/9 PASS
-V2 Foundation: 448 PASS / 6 explicit skip / 454 total
+M1.4B request/envelope cross-layer preflight: PASS
+M1.4B Tencent bootstrap: 14/14 PASS / 0 failed / 1 registry blocked
+M1.4B Tencent checkpoint-bound resume: 14/14 PASS / 0 failed / 1 registry blocked
+V2 Foundation: 488 PASS / 6 explicit skip / 494 total
 V2 Ops: 131/131 PASS
-M0 machine exit: PASS
+M0 machine exit: 11/11 PASS
 Next production build: PASS
 Golden cases: 16/16 PASS
 Security check: PASS
 full ci:production: PASS
 ```
 
-## 10. 本地出口与后续顺序
+## 10. 腾讯现场出口与后续顺序
 
-本地核心、精确派发包和正式实施分支完整 CI 已通过；GitHub 同步后，M1.4B 仍未完成现场运行验收。现场后续固定为：
+精确提交 `3c21a75009aeb4f4f7d9fd8954245238c38d9636` 已从正式实施分支完成两次腾讯隔离运行：
 
 ```text
-Tencent isolated no-authority runtime execution
--> real Bybit bootstrap + Bitget one-month checkpoint evidence
--> quota/request-rate/full-denominator verification
--> registry amendment + new-digest conformance for Binance spot
--> M1.5C Four-Venue Multi-Asset Shadow
--> M1.6-D1 Expanded-Scope No-Cost Capacity Proof
+bootstrap dispatch = m1-4b-runtime-live-20260723t232457z
+bootstrap result sha256 = 1e185b10af05a3098d53534b79c5f6fdc64dc8582a3d75fbc0778a89dd7a6925d
+checkpoint-bound resume dispatch = m1-4b-runtime-live-20260723t233213z
+resume result sha256 = fd245a88b362a423a8a5cadf87f6c2fc16d1ea76436912e909c212285dd4eb3f
 ```
 
-只有 Tencent isolated runtime、持久 checkpoint、完整分母、失败恢复和请求率均通过后，M1.4B 主步骤才可关闭。
+两次均满足：
+
+- 14/14 route-eligible Profile PASS，0 failed；15 个 live-conformant Profile 与 1 个 registry-blocked Profile 的完整分母未缩小。
+- `BINANCE_SPOT_CATALOG` 保持 registry blocked 和零请求。
+- request token budget=203，request attempts=80，listing gap=0，提交 Bitget/Bybit 两个 checkpoint。
+- 第二次运行精确绑定第一次的两个 checkpoint、原 `PASS` result 路径与 SHA-256，并生成新的内容寻址 checkpoint。
+- Bitget Venue、Listing Lifecycle、Equity Asset Domain、Data Maximization 四轴全部独立 PASS。
+- production HEAD、clean worktree、11 容器集合、listener、timer 和 health 前后不变；`productionChanged=false`、`secretMaterialPresent=false`。
+- 两次 staging 均精确清理。
+- 新增的本地跨层预检会拒绝此前暴露出的 5400 秒外层运行窗口和错误 source ref；固定通道通用验签与包级绑定必须同时通过。
+
+M1.4B 现场出口因此关闭，但它不授予持续 runtime、Fact、Candidate、Strategy 或 READY authority。后续固定为：
+
+```text
+M1.5C Four-Venue Multi-Asset Shadow
+-> M1.6-D1 Expanded-Scope No-Cost Capacity Proof
+-> M2.3/M2.4 domain-specific detector and real cohort calibration
+```
+
+Binance spot registry 修订与绑定新 digest 的 live conformance 保持独立 capability
+债务；股票当前仍只有 catalog accounting，tradable Fact batch=0。任何后续包都不得
+借 M1.4B 的四轴 PASS 宣称股票、上新策略、Shadow、容量或下游交易能力完成。
