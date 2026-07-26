@@ -35,6 +35,10 @@ const A0_SECURITY_REMEDIATION_COMMIT_PARTS = Object.freeze([
   "9f6d4731e6afbf0a68d3",
   "2a98df64da179f20d84a",
 ]);
+const A0_QUALIFICATION_SOURCE_COMMIT_PARTS = Object.freeze([
+  "9ef63b85d1a76f3ad7ac",
+  "815e081506c5dbc074a5",
+]);
 const APPROVED_FALSE_POSITIVE_CLASSIFICATIONS = new Set([
   "COMMIT_IDENTITY",
   "CONTENT_DIGEST",
@@ -972,28 +976,47 @@ export function validateGitleaksFalsePositivePolicy({
 export function validateSegmentedSecuritySourceIdentity({
   matrix,
   matrixPath,
+  qualificationReportPath,
+  qualificationReportSource,
   reportPath,
   reportSource,
 }) {
   const issues = [];
   const expectedParts = A0_SECURITY_SOURCE_COMMIT_PARTS;
   const expectedRemediationParts = A0_SECURITY_REMEDIATION_COMMIT_PARTS;
-  const candidateParts = [
-    matrix?.engineeringFoundationGate?.independentSecurityQuality
-      ?.sourceCommitParts,
-    matrix?.lastCompletedEngineeringControl?.sourceCommitParts,
-  ];
-  const segmentedIdentityIsExact = candidateParts.every((parts) => (
-    Array.isArray(parts)
-    && parts.length === 2
-    && parts.every((part) => /^[0-9a-f]{20}$/u.test(part))
-    && parts.join("") === expectedParts.join("")
-  ));
+  const expectedQualificationParts = A0_QUALIFICATION_SOURCE_COMMIT_PARTS;
+  const securityParts = matrix?.engineeringFoundationGate
+    ?.independentSecurityQuality?.sourceCommitParts;
+  const segmentedIdentityIsExact =
+    Array.isArray(securityParts)
+    && securityParts.length === 2
+    && securityParts.every((part) => /^[0-9a-f]{20}$/u.test(part))
+    && securityParts.join("") === expectedParts.join("");
   if (!segmentedIdentityIsExact) {
     issues.push(issue(
       "V2_A0_SECURITY_SOURCE_IDENTITY_NOT_SEGMENTED",
       matrixPath,
-      "both A0 security source identities must use the exact two-part binding",
+      "the A0 security source identity must use the exact two-part binding",
+    ));
+  }
+
+  const qualificationCandidateParts = [
+    matrix?.engineeringFoundationGate
+      ?.reproducibleReleaseAndResourceBaseline?.sourceCommitParts,
+    matrix?.lastCompletedEngineeringControl?.sourceCommitParts,
+  ];
+  const segmentedQualificationIdentityIsExact =
+    qualificationCandidateParts.every((parts) => (
+    Array.isArray(parts)
+    && parts.length === 2
+    && parts.every((part) => /^[0-9a-f]{20}$/u.test(part))
+    && parts.join("") === expectedQualificationParts.join("")
+  ));
+  if (!segmentedQualificationIdentityIsExact) {
+    issues.push(issue(
+      "V2_A0_QUALIFICATION_SOURCE_IDENTITY_NOT_SEGMENTED",
+      matrixPath,
+      "both A0 qualification source identities must use the exact two-part binding",
     ));
   }
 
@@ -1067,6 +1090,23 @@ export function validateSegmentedSecuritySourceIdentity({
       "V2_A0_SECURITY_REPORT_SOURCE_IDENTITY_DRIFT",
       reportPath,
       "the delivery report must use the exact two-part source identity only",
+    ));
+  }
+
+  const hasQualificationTruthMarker = qualificationReportSource.includes(
+    `Source commit parts: ${expectedQualificationParts[0]} / ${expectedQualificationParts[1]}`,
+  );
+  const hasQualificationCredentialShapedCommit =
+    /(?:Source commit|sourceCommit)\s*[:=]\s*`?[0-9a-f]{40}(?![0-9a-f])/u
+      .test(qualificationReportSource);
+  if (
+    !hasQualificationTruthMarker
+    || hasQualificationCredentialShapedCommit
+  ) {
+    issues.push(issue(
+      "V2_A0_QUALIFICATION_REPORT_SOURCE_IDENTITY_DRIFT",
+      qualificationReportPath,
+      "the qualification report must use the exact two-part source identity only",
     ));
   }
 
@@ -1340,8 +1380,11 @@ export function validateRepository(repositoryRoot) {
     "docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json";
   const securityDeliveryReportPath =
     "docs/blueprints/V2_A0_INDEPENDENT_SECURITY_QUALITY_DELIVERY_REPORT.md";
+  const qualificationDeliveryReportPath =
+    "docs/blueprints/V2_A0_REPRODUCIBLE_RELEASE_AND_RESOURCE_BASELINE_DELIVERY_REPORT.md";
   let traceability;
   let securityDeliveryReportSource = "";
+  let qualificationDeliveryReportSource = "";
   try {
     traceability = JSON.parse(
       readFileSync(resolve(repositoryRoot, traceabilityPath), "utf8"),
@@ -1350,17 +1393,27 @@ export function validateRepository(repositoryRoot) {
       resolve(repositoryRoot, securityDeliveryReportPath),
       "utf8",
     );
+    qualificationDeliveryReportSource = readFileSync(
+      resolve(repositoryRoot, qualificationDeliveryReportPath),
+      "utf8",
+    );
   } catch {
     issues.push(issue(
-      "V2_A0_SECURITY_SOURCE_IDENTITY_EVIDENCE_MISSING",
-      securityDeliveryReportPath,
-      "the traceability matrix and security delivery report must both exist",
+      "V2_A0_SOURCE_IDENTITY_EVIDENCE_MISSING",
+      qualificationDeliveryReportPath,
+      "the traceability matrix and both A0 delivery reports must exist",
     ));
   }
-  if (traceability !== undefined && securityDeliveryReportSource !== "") {
+  if (
+    traceability !== undefined
+    && securityDeliveryReportSource !== ""
+    && qualificationDeliveryReportSource !== ""
+  ) {
     issues.push(...validateSegmentedSecuritySourceIdentity({
       matrix: traceability,
       matrixPath: traceabilityPath,
+      qualificationReportPath: qualificationDeliveryReportPath,
+      qualificationReportSource: qualificationDeliveryReportSource,
       reportPath: securityDeliveryReportPath,
       reportSource: securityDeliveryReportSource,
     }));
@@ -1375,6 +1428,7 @@ export function validateRepository(repositoryRoot) {
       githubActionsFullSha: true,
       codeqlExactReviewedSuppressions: true,
       gitleaksExactReviewedFalsePositiveFingerprints: true,
+      qualificationSourceCommitIdentitySegmented: true,
       securitySourceCommitIdentitySegmented: true,
       independentSecurityWorkflow: true,
       independentReleaseQualificationWorkflow: true,

@@ -2,6 +2,40 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-27 / V2 A0 Reproducible Release and Resource Baseline
+
+### 本轮目标
+
+在同一 exact source 上关闭 A0 的可重复制品/回滚与冻结性能资源基线，不放宽门槛、不减少样本，并让完整质量和独立安全重新验收最终源码。
+
+### 修改范围
+
+- 新增最小 Collector application capsule，只包含冻结运行闭包、一个必需诊断、精确 runtime package 和内容寻址 manifest；两次序列化必须字节一致。
+- 新增两个独立 no-cache Buildx RootFS、canonical tree、exact image configuration、non-root 身份、read-only/no-network fail-closed smoke 和三个隔离 release-pointer rollback 场景。
+- 新增冻结三 Venue、1,440 eligible instrument 工程负载：5 次 warm-up、12 次 cold、60 次 incremental；延迟、CPU、event-loop、RSS、heap 和吞吐预算全部预先冻结。
+- 保留并根治远程红灯：Buildx RootFS ownership、合法 POSIX 路径、两处 evidence TOCTOU 和 event-loop p99 超限。证据读取改为单 `O_NOFOLLOW` 句柄前后 `fstat`；Collector 在四个既有重阶段间 cooperative yield。
+- 没有减少 instrument 分母、样本、Collector 工作、CodeQL 查询或安全扫描，也没有提高 `200 ms` event-loop p99 门槛。
+
+### 验收结果
+
+- source parts `9ef63b85d1a76f3ad7ac + 815e081506c5dbc074a5` 的 A0 run `30217335595` 两个 job 全部 PASS。
+- release provenance job `89833713538`：双 RootFS canonical digest、双 application capsule、exact image config、runtime smoke 和三个 rollback scenario 全部 PASS；artifact `8636196061`。
+- performance job `89833713570`：cold/incremental latency p95=`183.731/44.944 ms`，event-loop p99=`64.750 ms`，throughput p05=`31,510.967 instruments/s`，heap/RSS=`140.406/232.801 MiB`；artifact `8636187635`。
+- 同源 Full Quality `30217335543`、job `89833713330` PASS；Market 965 pass + 4 explicit skip、Workers 23/23、Historical 4/4、V2 Foundation 584 pass + 6 explicit skip、V2 Ops 170/170、M0、Next build、Golden 16/16 和 security 全部通过。
+- 同源 Security `30217335622` 三 job 全部 PASS：Gitleaks finding=0、CodeQL untriaged=0、Trivy HIGH=0/CRITICAL=0。
+
+### 核心链路影响
+
+A0 的材料、供应链、独立安全、可重复制品/回滚和冻结性能资源控制均已关闭。性能证据仍是 `TEST_ONLY_ENGINEERING_RESOURCE_BASELINE_NOT_LIVE_MARKET_CAPACITY`，不能证明四 Venue Scope V2、腾讯宿主机、真实 Provider 或 PostgreSQL 容量。
+
+### 是否部署
+
+未部署。腾讯生产未读、未写；服务、数据库、Redis、Worker、Web、Caddy、COS、env、Feature Flag、migration、GitHub main 和业务 authority 均未改变。
+
+### 风险与下一步
+
+A0 总门禁仍为 `INCOMPLETE_P0R_PENDING`，唯一剩余控制是 P0R 真实加密离机备份、精确 COS version 取回、独立 PostgreSQL 16 restore parity 和 cleanup。P0R 关闭前 M1.5C/M1.5D 继续 blocked。
+
 ## 2026-07-27 / V2 M1.4C + M2.1A Local Contracts and A0 Materials/Security
 
 ### 本轮目标
@@ -168,45 +202,3 @@ M1.5C 四 Venue多资产持续 Shadow、M1.6-D1 扩展容量、Binance spot regi
 ### 下一轮建议
 
 Scope V2 下一证据包进入 M1.5C Four-Venue Multi-Asset Shadow，再用真实事实率进入 M1.6-D1。P0R 的 fresh 7200 秒 exact-plan STS 仍是独立生产第一关键路径。
-
-## 2026-07-24 / V2 M1.1B0 Tencent Live Source Conformance Dispatch Package
-
-### 本轮目标
-
-把 M1.1B 的 15 个探针做成腾讯固定生产派发通道可以安全执行的无密钥、内容寻址、只读且失败关闭的 exact-release 包。
-
-### 修改范围
-
-- Bybit 公告 B0 固定为 `type=new_crypto` 最新两页 `BOUNDED_COMPLETE` 一致性窗口，完整历史移交 M1.4B bootstrap/checkpoint/gap/incremental；Bitget 保持 `annType=coin_listings` 官方一个月窗口和完整 cursor。
-- 五个来源组跨来源并行、同一来源严格串行；每页 12 秒超时、8 MiB 上限及 85 秒探针 deadline 全部进入摘要。
-- 新增确定性 bundle、目标机 runner、固定 entrypoint、独立最小 TypeScript 编译和 Zod 4.4.3 最小运行树。
-- CoinGlass Hobbyist key 只从目标机受限生产 env 读取并进入一次性子进程，不进入 Git、运输、staging、日志、artifact 或 result。
-- 执行前后绑定 production HEAD、clean worktree、容器 ID、listener、timer 和 health；任何变化均失败关闭。
-- request 通过后的前 artifact 故障必须持久化脱敏 phase/reason；Bitget Venue、Listing Lifecycle、股票 Asset Domain 分别记账，不能合并成一个能力状态。
-- R1 现场证明固定 Node `--jitless` 的 Web Fetch 因不可用 WebAssembly 统一失败；R2 保留 `--jitless + MemoryDenyWriteExecute`，改用 TLS 验证、exact-host、无重定向、12 秒超时和 8 MiB 上限的 Node core HTTPS live 传输，Fetch 仅保留 TEST_ONLY。
-- R2 现场只剩 Binance 现货目录超出 8 MiB；R3 仅改用官方 `showPermissionSets=false` 有界查询，不提高上限、不放宽 schema、不删探针。
-
-### 核心链路影响
-
-形成 `M1.1B local contract -> no-secret fixed dispatch -> Tencent LIVE_READ_ONLY B0 -> M1.4B live-passed Adapter` 的唯一入口；不产生 Fact、Candidate、Strategy 或 READY。
-
-### 测试结果
-
-- R2 定向 package tests 24/24 PASS。
-- 确定性 bundle、secret 拒绝、身份/窗口篡改拒绝、blocked result、前 artifact 脱敏失败结果和 staging cleanup 均 PASS。
-- 固定派发回归 21/21、V2 Ops 125/125 PASS。
-- R2 独立正确分支克隆完整 `ci:production` PASS：V2 Foundation 422 pass / 6 skip、V2 Ops 125/125、M0、Next build、Golden 16/16 和 security 全部通过。
-- R3 定向 package 24/24、固定派发 21/21、V2 Ops 125/125 和独立正确分支完整 `ci:production` PASS；V2 Foundation 422 pass / 6 skip、M0、Next build、Golden 16/16 与 security 全部通过。
-- 本地 14 个公开探针的 reset/timeout 只登记为 `LOCAL_UNCOMMITTED_DIAGNOSTIC_NOT_AUTHORITY`。
-
-### 是否部署
-
-首次派发在业务 artifact 前阻断。R1 精确提交与派发形成 0/15 共同 `TRANSPORT_FAILURE_UNAVAILABLE` 证据。R2 精确提交 `d557c666e2e27b67842354b869a64271c91ceae1` 与派发 `m1b0-r2-live-source-20260723t165411z` 形成 14/15。R3 精确提交 `06c1fd1fe0559dfed2097d1d64cb94382973ec62`、bundle `8483d1b8111cc34ddbf745f5fb44739a95c6b47de102f1d524589aef52407dc5` 与派发 `m1b0-r3-live-source-20260723t175033z` 已在腾讯取得 15/15，Identity、Listing、CoinGlass Gate 全部 PASS。artifact=`source-conformance:5a6d0c06c7085db00380f746`；现场生产 HEAD、clean worktree、11 个容器、listener、timer 和 health 前后保持基线，`productionChanged=false`、`secretMaterialPresent=false`，staging 已删除。
-
-### 风险与遗留问题
-
-M1.1B0 只关闭 exact source conformance。M1.4B runtime Adapter、Bybit 完整 listing history、四 Venue Shadow、扩展容量和持续 SLO 尚未完成；股票目录可达也不能证明 session、公司行动、FX、reference、basis、成本或股票实战能力。
-
-### 下一轮建议
-
-本地进入 M1.4B，只为 R3 live PASS capability 建设 endpoint batching/runtime Adapter，并单独验收 Bybit listing 历史 bootstrap/checkpoint/gap/incremental。P0R 继续保持独立生产第一关键路径。

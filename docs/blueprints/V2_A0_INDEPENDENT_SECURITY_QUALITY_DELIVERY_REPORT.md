@@ -102,10 +102,8 @@ This package did not:
 
 ## 7. Remaining A0 Controls
 
-A0 remains `INCOMPLETE` until all of the following obtain exact, reviewable evidence:
+At this report's original acceptance point, three controls remained: reproducible release provenance/rollback, the frozen performance/resource baseline, and P0R.
 
-1. reproducible release artifact provenance plus rollback drill;
-2. performance and resource baseline under the frozen workload;
-3. P0R real encrypted off-host backup, exact-version retrieval, isolated PostgreSQL 16 restore, and cleanup.
+The first two were subsequently closed on exact source parts `9ef63b85d1a76f3ad7ac + 815e081506c5dbc074a5` by A0 run `30217335595`, with same-source Full Quality `30217335543` and Security `30217335622` also passing. The current evidence is recorded in `docs/blueprints/V2_A0_REPRODUCIBLE_RELEASE_AND_RESOURCE_BASELINE_DELIVERY_REPORT.md`.
 
-The next engineering package should combine provenance/rollback and performance/resource work where their exact release identity is shared, while P0R remains the independent production recovery path. None of these controls may borrow this security PASS.
+A0 remains `INCOMPLETE_P0R_PENDING`. Its only remaining control is the real encrypted off-host backup, exact-version retrieval, isolated PostgreSQL 16 restore, and cleanup. None of the security, provenance, rollback or engineering-resource receipts may substitute for P0R.

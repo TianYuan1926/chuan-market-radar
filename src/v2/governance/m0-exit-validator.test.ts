@@ -37,6 +37,12 @@ test("M0 engineering exit remains closed unless every required proof passes", ()
           sourceCommitParts: string[];
         };
       };
+      reproducibleReleaseAndResourceBaseline: {
+        sourceCommitParts: string[];
+        status: string;
+        workflowRunId: number;
+        productionMutationPerformed: boolean;
+      };
     };
     lastCompletedImplementationEntry: { id: string };
     currentLocalImplementationEntry: { id: string; status: string };
@@ -44,8 +50,9 @@ test("M0 engineering exit remains closed unless every required proof passes", ()
       id: string;
       sourceCommitParts: string[];
       status: string;
-      securityWorkflowRunId: number;
+      releaseQualificationWorkflowRunId: number;
       fullQualityWorkflowRunId: number;
+      securityWorkflowRunId: number;
       productionMutationPerformed: boolean;
     };
     currentImplementationEntry: { id: string };
@@ -87,7 +94,7 @@ test("M0 engineering exit remains closed unless every required proof passes", ()
   );
   assert.equal(
     matrix.engineeringFoundationGate.status,
-    "ENGINEERING_MATERIALS_SUPPLY_CHAIN_AND_INDEPENDENT_SECURITY_PASS_TOTAL_GATE_INCOMPLETE",
+    "ENGINEERING_MATERIALS_SUPPLY_CHAIN_INDEPENDENT_SECURITY_REPRODUCIBLE_RELEASE_AND_RESOURCE_BASELINE_PASS_TOTAL_GATE_INCOMPLETE_P0R_PENDING",
   );
   assert.equal(
     matrix.longTermEngineeringGovernance.status,
@@ -115,11 +122,9 @@ test("M0 engineering exit remains closed unless every required proof passes", ()
   );
   assert.equal(
     matrix.currentLocalImplementationEntry.status,
-    "engineering_materials_supply_chain_exact_runtime_and_independent_security_remote_pass_total_gate_incomplete",
+    "engineering_materials_supply_chain_independent_security_reproducible_release_and_resource_baseline_remote_pass_total_gate_incomplete_p0r_pending",
   );
   assert.deepEqual(matrix.engineeringFoundationGate.pendingControls, [
-    "REPRODUCIBLE_ARTIFACT_PROVENANCE_AND_ROLLBACK_DRILL",
-    "PERFORMANCE_AND_RESOURCE_BASELINE",
     "P0R_REAL_ENCRYPTED_BACKUP_EXACT_RETRIEVAL_AND_ISOLATED_RESTORE",
   ]);
   assert.ok(
@@ -147,6 +152,16 @@ test("M0 engineering exit remains closed unless every required proof passes", ()
       "CREDENTIAL_SHAPED_IDENTITY_ROOT_CAUSE_REMEDIATION_FULL_QUALITY_RUN_30212437974",
     ),
   );
+  assert.ok(
+    matrix.engineeringFoundationGate.completedControls.includes(
+      "REPRODUCIBLE_ARTIFACT_PROVENANCE_AND_ROLLBACK_DRILL_RUN_30217335595",
+    ),
+  );
+  assert.ok(
+    matrix.engineeringFoundationGate.completedControls.includes(
+      "PERFORMANCE_AND_RESOURCE_BASELINE_RUN_30217335595",
+    ),
+  );
   assert.deepEqual(
     matrix.engineeringFoundationGate.independentSecurityQuality
       .postClosureRemediationValidation.sourceCommitParts,
@@ -155,16 +170,40 @@ test("M0 engineering exit remains closed unless every required proof passes", ()
       "2a98df64da179f20d84a",
     ],
   );
+  assert.deepEqual(
+    matrix.engineeringFoundationGate.reproducibleReleaseAndResourceBaseline
+      .sourceCommitParts,
+    [
+      "9ef63b85d1a76f3ad7ac",
+      "815e081506c5dbc074a5",
+    ],
+  );
+  assert.equal(
+    matrix.engineeringFoundationGate.reproducibleReleaseAndResourceBaseline
+      .status,
+    "PASS_REPRODUCIBLE_RELEASE_ROLLBACK_AND_FROZEN_ENGINEERING_RESOURCE_BASELINE",
+  );
+  assert.equal(
+    matrix.engineeringFoundationGate.reproducibleReleaseAndResourceBaseline
+      .workflowRunId,
+    30217335595,
+  );
+  assert.equal(
+    matrix.engineeringFoundationGate.reproducibleReleaseAndResourceBaseline
+      .productionMutationPerformed,
+    false,
+  );
   assert.deepEqual(matrix.lastCompletedEngineeringControl, {
-    id: "V2-A0-INDEPENDENT-SECURITY-QUALITY",
+    id: "V2-A0-REPRODUCIBLE-RELEASE-AND-RESOURCE-BASELINE",
     sourceCommitParts: [
-      "4f501b0fb8b917ce87e0",
-      "687eab8480b5c9595f27",
+      "9ef63b85d1a76f3ad7ac",
+      "815e081506c5dbc074a5",
     ],
     status:
-      "remote_secret_sast_and_collector_image_security_pass_production_unchanged",
-    securityWorkflowRunId: 30209898205,
-    fullQualityWorkflowRunId: 30209898207,
+      "remote_reproducible_release_rollback_resource_and_same_source_quality_security_pass_production_unchanged",
+    releaseQualificationWorkflowRunId: 30217335595,
+    fullQualityWorkflowRunId: 30217335543,
+    securityWorkflowRunId: 30217335622,
     productionMutationPerformed: false,
   });
 });

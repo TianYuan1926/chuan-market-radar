@@ -18,6 +18,11 @@ const SECURITY_REMEDIATION_SOURCE_PARTS = [
   "2a98df64da179f20d84a",
 ] as const;
 
+const A0_QUALIFICATION_SOURCE_PARTS = [
+  "9ef63b85d1a76f3ad7ac",
+  "815e081506c5dbc074a5",
+] as const;
+
 export type M0ExitCheck = Readonly<{
   id: string;
   passed: boolean;
@@ -202,6 +207,41 @@ export function buildM0ExitReport(repositoryRoot: string): M0ExitReport {
           productionMutationPerformed: boolean;
         };
       };
+      reproducibleReleaseAndResourceBaseline: {
+        sourceCommitParts: readonly string[];
+        status: string;
+        workflowRunId: number;
+        releaseProvenance: {
+          jobId: number;
+          status: string;
+          artifactId: number;
+          rollbackStatuses: readonly string[];
+        };
+        performanceAndResourceBaseline: {
+          jobId: number;
+          status: string;
+          evidenceClass: string;
+          measuredColdCycles: number;
+          measuredIncrementalCycles: number;
+          eventLoopDelayP99Ms: number;
+          artifactId: number;
+          liveCapacityClaimAllowed: boolean;
+        };
+        exactSourceFullQuality: {
+          workflowRunId: number;
+          jobId: number;
+          status: string;
+        };
+        exactSourceIndependentSecurity: {
+          workflowRunId: number;
+          status: string;
+          secretFindingCount: number;
+          codeqlUntriagedResultCount: number;
+          collectorImageHighCount: number;
+          collectorImageCriticalCount: number;
+        };
+        productionMutationPerformed: boolean;
+      };
     };
     currentLocalImplementationEntry: {
       id: string;
@@ -212,6 +252,9 @@ export function buildM0ExitReport(repositoryRoot: string): M0ExitReport {
       id: string;
       sourceCommitParts: readonly string[];
       status: string;
+      releaseQualificationWorkflowRunId: number;
+      fullQualityWorkflowRunId: number;
+      securityWorkflowRunId: number;
       productionMutationPerformed: boolean;
     };
     nextScopeV2ImplementationEntry: {
@@ -514,17 +557,64 @@ export function buildM0ExitReport(repositoryRoot: string): M0ExitReport {
       && securityRemediation.collectorImageScan.criticalCount === 0
       && securityRemediation.collectorImageScan.highCount === 0
       && !securityRemediation.productionMutationPerformed;
+    const qualification = executionMatrix.engineeringFoundationGate
+      .reproducibleReleaseAndResourceBaseline;
+    const qualificationEvidenceExact =
+      qualification.sourceCommitParts.length === 2
+      && qualification.sourceCommitParts.every(
+        (part) => /^[0-9a-f]{20}$/u.test(part),
+      )
+      && qualification.sourceCommitParts.join("")
+        === A0_QUALIFICATION_SOURCE_PARTS.join("")
+      && qualification.status
+        === "PASS_REPRODUCIBLE_RELEASE_ROLLBACK_AND_FROZEN_ENGINEERING_RESOURCE_BASELINE"
+      && qualification.workflowRunId === 30217335595
+      && qualification.releaseProvenance.jobId === 89833713538
+      && qualification.releaseProvenance.status
+        === "PASS_REPRODUCIBLE_ROOTFS_EXACT_CONFIG_PROVENANCE_AND_ROLLBACK"
+      && qualification.releaseProvenance.artifactId === 8636196061
+      && qualification.releaseProvenance.rollbackStatuses.join("|") ===
+        [
+          "PASS_POINTER_UNCHANGED",
+          "PASS_EXACT_BASELINE_RESTORED",
+          "PASS_EXACT_BASELINE_RESTORED",
+        ].join("|")
+      && qualification.performanceAndResourceBaseline.jobId === 89833713570
+      && qualification.performanceAndResourceBaseline.status
+        === "PASS_FROZEN_ENGINEERING_RESOURCE_BASELINE"
+      && qualification.performanceAndResourceBaseline.evidenceClass
+        === "TEST_ONLY_ENGINEERING_RESOURCE_BASELINE_NOT_LIVE_MARKET_CAPACITY"
+      && qualification.performanceAndResourceBaseline.measuredColdCycles === 12
+      && qualification.performanceAndResourceBaseline
+        .measuredIncrementalCycles === 60
+      && qualification.performanceAndResourceBaseline.eventLoopDelayP99Ms
+        === 64.75
+      && qualification.performanceAndResourceBaseline.artifactId === 8636187635
+      && !qualification.performanceAndResourceBaseline.liveCapacityClaimAllowed
+      && qualification.exactSourceFullQuality.workflowRunId === 30217335543
+      && qualification.exactSourceFullQuality.jobId === 89833713330
+      && qualification.exactSourceFullQuality.status === "PASS"
+      && qualification.exactSourceIndependentSecurity.workflowRunId
+        === 30217335622
+      && qualification.exactSourceIndependentSecurity.status
+        === "PASS_ZERO_UNTRIAGED_SECRET_SAST_AND_HIGH_CRITICAL_IMAGE_RESULTS"
+      && qualification.exactSourceIndependentSecurity.secretFindingCount === 0
+      && qualification.exactSourceIndependentSecurity
+        .codeqlUntriagedResultCount === 0
+      && qualification.exactSourceIndependentSecurity
+        .collectorImageHighCount === 0
+      && qualification.exactSourceIndependentSecurity
+        .collectorImageCriticalCount === 0
+      && !qualification.productionMutationPerformed;
     if (
       executionMatrix.currentLocalImplementationEntry.id !==
         executionMatrix.engineeringFoundationGate.id ||
       executionMatrix.engineeringFoundationGate.status !==
-        "ENGINEERING_MATERIALS_SUPPLY_CHAIN_AND_INDEPENDENT_SECURITY_PASS_TOTAL_GATE_INCOMPLETE" ||
+        "ENGINEERING_MATERIALS_SUPPLY_CHAIN_INDEPENDENT_SECURITY_REPRODUCIBLE_RELEASE_AND_RESOURCE_BASELINE_PASS_TOTAL_GATE_INCOMPLETE_P0R_PENDING" ||
       executionMatrix.currentLocalImplementationEntry.status !==
-        "engineering_materials_supply_chain_exact_runtime_and_independent_security_remote_pass_total_gate_incomplete" ||
+        "engineering_materials_supply_chain_independent_security_reproducible_release_and_resource_baseline_remote_pass_total_gate_incomplete_p0r_pending" ||
       executionMatrix.engineeringFoundationGate.pendingControls.join("|") !==
         [
-          "REPRODUCIBLE_ARTIFACT_PROVENANCE_AND_ROLLBACK_DRILL",
-          "PERFORMANCE_AND_RESOURCE_BASELINE",
           "P0R_REAL_ENCRYPTED_BACKUP_EXACT_RETRIEVAL_AND_ISOLATED_RESTORE",
         ].join("|") ||
       !executionMatrix.engineeringFoundationGate.completedControls.includes(
@@ -542,9 +632,22 @@ export function buildM0ExitReport(repositoryRoot: string): M0ExitReport {
       !executionMatrix.engineeringFoundationGate.completedControls.includes(
         "CREDENTIAL_SHAPED_IDENTITY_ROOT_CAUSE_REMEDIATION_FULL_QUALITY_RUN_30212437974",
       ) ||
+      !executionMatrix.engineeringFoundationGate.completedControls.includes(
+        "REPRODUCIBLE_ARTIFACT_PROVENANCE_AND_ROLLBACK_DRILL_RUN_30217335595",
+      ) ||
+      !executionMatrix.engineeringFoundationGate.completedControls.includes(
+        "PERFORMANCE_AND_RESOURCE_BASELINE_RUN_30217335595",
+      ) ||
+      !executionMatrix.engineeringFoundationGate.completedControls.includes(
+        "EXACT_QUALIFICATION_FULL_QUALITY_RUN_30217335543",
+      ) ||
+      !executionMatrix.engineeringFoundationGate.completedControls.includes(
+        "EXACT_QUALIFICATION_SECURITY_RUN_30217335622",
+      ) ||
       !securityRemediationEvidenceExact ||
+      !qualificationEvidenceExact ||
       executionMatrix.lastCompletedEngineeringControl.id !==
-        "V2-A0-INDEPENDENT-SECURITY-QUALITY" ||
+        "V2-A0-REPRODUCIBLE-RELEASE-AND-RESOURCE-BASELINE" ||
       executionMatrix.lastCompletedEngineeringControl.sourceCommitParts.length !==
         2 ||
       executionMatrix.lastCompletedEngineeringControl.sourceCommitParts.some(
@@ -552,9 +655,15 @@ export function buildM0ExitReport(repositoryRoot: string): M0ExitReport {
       ) ||
       executionMatrix.lastCompletedEngineeringControl.sourceCommitParts.join(
         "",
-      ) !== "4f501b0fb8b917ce87e0687eab8480b5c9595f27" ||
+      ) !== A0_QUALIFICATION_SOURCE_PARTS.join("") ||
       executionMatrix.lastCompletedEngineeringControl.status !==
-        "remote_secret_sast_and_collector_image_security_pass_production_unchanged" ||
+        "remote_reproducible_release_rollback_resource_and_same_source_quality_security_pass_production_unchanged" ||
+      executionMatrix.lastCompletedEngineeringControl
+        .releaseQualificationWorkflowRunId !== 30217335595 ||
+      executionMatrix.lastCompletedEngineeringControl.fullQualityWorkflowRunId
+        !== 30217335543 ||
+      executionMatrix.lastCompletedEngineeringControl.securityWorkflowRunId
+        !== 30217335622 ||
       executionMatrix.lastCompletedEngineeringControl.productionMutationPerformed ||
       executionMatrix.engineeringFoundationGate.m1_5cAllowed ||
       executionMatrix.engineeringFoundationGate.m1_5dAllowed

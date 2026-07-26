@@ -551,23 +551,32 @@ test("Gitleaks ignores only exact independently reviewed false positives", () =>
   );
 });
 
-test("A0 security source identities remain exact and credential-safe", () => {
+test("A0 security and qualification source identities remain exact and credential-safe", () => {
   const matrixPath =
     "docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json";
   const reportPath =
     "docs/blueprints/V2_A0_INDEPENDENT_SECURITY_QUALITY_DELIVERY_REPORT.md";
+  const qualificationReportPath =
+    "docs/blueprints/V2_A0_REPRODUCIBLE_RELEASE_AND_RESOURCE_BASELINE_DELIVERY_REPORT.md";
   const matrix = JSON.parse(readFileSync(matrixPath, "utf8"));
   const reportSource = readFileSync(reportPath, "utf8");
+  const qualificationReportSource = readFileSync(
+    qualificationReportPath,
+    "utf8",
+  );
 
   assert.deepEqual(validateSegmentedSecuritySourceIdentity({
     matrix,
     matrixPath,
+    qualificationReportPath,
+    qualificationReportSource,
     reportPath,
     reportSource,
   }), []);
 
   const parts =
-    matrix.lastCompletedEngineeringControl.sourceCommitParts;
+    matrix.engineeringFoundationGate.independentSecurityQuality
+      .sourceCommitParts;
   const contiguousReport = reportSource.replace(
     `Source commit parts: ${parts[0]} / ${parts[1]}`,
     `Source commit: ${parts.join("")}`,
@@ -575,6 +584,8 @@ test("A0 security source identities remain exact and credential-safe", () => {
   const contiguousIssues = validateSegmentedSecuritySourceIdentity({
     matrix,
     matrixPath,
+    qualificationReportPath,
+    qualificationReportSource,
     reportPath,
     reportSource: contiguousReport,
   });
@@ -582,17 +593,56 @@ test("A0 security source identities remain exact and credential-safe", () => {
     (item) => item.code === "V2_A0_SECURITY_REPORT_SOURCE_IDENTITY_DRIFT",
   ));
 
+  const qualificationParts = matrix.lastCompletedEngineeringControl
+    .sourceCommitParts;
+  const contiguousQualificationReport = qualificationReportSource.replace(
+    `Source commit parts: ${qualificationParts[0]} / ${qualificationParts[1]}`,
+    `Source commit: ${qualificationParts.join("")}`,
+  );
+  const contiguousQualificationIssues =
+    validateSegmentedSecuritySourceIdentity({
+      matrix,
+      matrixPath,
+      qualificationReportPath,
+      qualificationReportSource: contiguousQualificationReport,
+      reportPath,
+      reportSource,
+    });
+  assert.ok(contiguousQualificationIssues.some(
+    (item) => item.code ===
+      "V2_A0_QUALIFICATION_REPORT_SOURCE_IDENTITY_DRIFT",
+  ));
+
   const driftedMatrix = structuredClone(matrix);
-  driftedMatrix.lastCompletedEngineeringControl.sourceCommitParts[1] =
+  driftedMatrix.engineeringFoundationGate.independentSecurityQuality
+    .sourceCommitParts[1] =
     "00000000000000000000";
   const driftedIssues = validateSegmentedSecuritySourceIdentity({
     matrix: driftedMatrix,
     matrixPath,
+    qualificationReportPath,
+    qualificationReportSource,
     reportPath,
     reportSource,
   });
   assert.ok(driftedIssues.some(
     (item) => item.code === "V2_A0_SECURITY_SOURCE_IDENTITY_NOT_SEGMENTED",
+  ));
+
+  const driftedQualificationMatrix = structuredClone(matrix);
+  driftedQualificationMatrix.lastCompletedEngineeringControl
+    .sourceCommitParts[1] = "00000000000000000000";
+  const driftedQualificationIssues = validateSegmentedSecuritySourceIdentity({
+    matrix: driftedQualificationMatrix,
+    matrixPath,
+    qualificationReportPath,
+    qualificationReportSource,
+    reportPath,
+    reportSource,
+  });
+  assert.ok(driftedQualificationIssues.some(
+    (item) => item.code ===
+      "V2_A0_QUALIFICATION_SOURCE_IDENTITY_NOT_SEGMENTED",
   ));
 
   const driftedRemediationMatrix = structuredClone(matrix);
@@ -602,6 +652,8 @@ test("A0 security source identities remain exact and credential-safe", () => {
     validateSegmentedSecuritySourceIdentity({
       matrix: driftedRemediationMatrix,
       matrixPath,
+      qualificationReportPath,
+      qualificationReportSource,
       reportPath,
       reportSource,
     });
