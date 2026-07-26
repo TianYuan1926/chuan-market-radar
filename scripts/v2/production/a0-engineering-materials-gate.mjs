@@ -179,6 +179,46 @@ export function validateWorkflowPolicy(path, source) {
   return issues;
 }
 
+export function validateFullCiWorkflowPolicy(path, source) {
+  const issues = [];
+  if (
+    !/^\s*pull_request:\s*$/mu.test(source) ||
+    !/^\s*push:\s*$/mu.test(source) ||
+    !source.includes("npm run ci:production")
+  ) {
+    issues.push(issue(
+      "V2_FULL_CI_WORKFLOW_INCOMPLETE",
+      path,
+      "pull_request, push and ci:production are all required",
+    ));
+  }
+
+  const checkoutStart = source.search(
+    /^\s*uses:\s*actions\/checkout@[0-9a-f]{40}.*$/mu,
+  );
+  const nextStepStart = checkoutStart === -1
+    ? -1
+    : source.slice(checkoutStart).search(
+      /\n\s{6}-\s+(?:name|uses):/u,
+    );
+  const checkoutStep = checkoutStart === -1
+    ? ""
+    : source.slice(
+      checkoutStart,
+      nextStepStart === -1
+        ? source.length
+        : checkoutStart + nextStepStart,
+    );
+  if (!/^\s*fetch-depth:\s*0\s*$/mu.test(checkoutStep)) {
+    issues.push(issue(
+      "V2_FULL_CI_GIT_HISTORY_SHALLOW",
+      path,
+      "M0 ancestry proof requires checkout fetch-depth 0",
+    ));
+  }
+  return issues;
+}
+
 function filesBelow(root, predicate) {
   const files = [];
   for (const name of readdirSync(root)) {
@@ -246,18 +286,10 @@ export function validateRepository(repositoryRoot) {
       "automatic pull_request and push quality gate is required",
     ));
   }
-  if (
-    fullCiSource !== "" &&
-    (
-      !/^\s*pull_request:\s*$/mu.test(fullCiSource) ||
-      !/^\s*push:\s*$/mu.test(fullCiSource) ||
-      !fullCiSource.includes("npm run ci:production")
-    )
-  ) {
-    issues.push(issue(
-      "V2_FULL_CI_WORKFLOW_INCOMPLETE",
+  if (fullCiSource !== "") {
+    issues.push(...validateFullCiWorkflowPolicy(
       ".github/workflows/v2-full-quality.yml",
-      "pull_request, push and ci:production are all required",
+      fullCiSource,
     ));
   }
 

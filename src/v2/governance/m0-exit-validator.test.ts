@@ -25,6 +25,11 @@ test("M0 engineering exit remains closed unless every required proof passes", ()
   assert.equal(
     report.status,
     "PASS_M0_ENGINEERING_EXIT_PRODUCTION_UNCHANGED",
+    JSON.stringify(
+      report.checks.filter((check) => !check.passed),
+      null,
+      2,
+    ),
   );
   assert.equal(report.authorityOutputs, 30);
   assert.equal(report.runtimeSchemas, 30);

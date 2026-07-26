@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  validateFullCiWorkflowPolicy,
   validatePackagePolicy,
   validateWorkflowPolicy,
 } from "./a0-engineering-materials-gate.mjs";
@@ -105,4 +106,37 @@ test("workflow gate requires full action SHA and exact runner versions", () => {
   assert.ok(codes.includes("GITHUB_ACTION_NOT_PINNED_TO_FULL_SHA"));
   assert.ok(codes.includes("GITHUB_NODE_RUNTIME_NOT_EXACT"));
   assert.ok(codes.includes("GITHUB_RUNNER_FLOATING_LATEST"));
+});
+
+test("full quality workflow retains the Git ancestry required by M0", () => {
+  const workflow = [
+    "on:",
+    "  pull_request:",
+    "  push:",
+    "jobs:",
+    "  test:",
+    "    steps:",
+    "      - name: Checkout exact source",
+    "        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+    "        with:",
+    "          fetch-depth: 0",
+    "          persist-credentials: false",
+    "      - name: Run complete production CI",
+    "        run: npm run ci:production",
+  ].join("\n");
+  assert.deepEqual(
+    validateFullCiWorkflowPolicy(
+      ".github/workflows/v2-full-quality.yml",
+      workflow,
+    ),
+    [],
+  );
+
+  const issues = validateFullCiWorkflowPolicy(
+    ".github/workflows/v2-full-quality.yml",
+    workflow.replace("          fetch-depth: 0\n", ""),
+  );
+  assert.ok(
+    issues.some((item) => item.code === "V2_FULL_CI_GIT_HISTORY_SHALLOW"),
+  );
 });
