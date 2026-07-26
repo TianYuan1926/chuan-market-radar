@@ -14,6 +14,8 @@ const earlyShadowRunnerPath =
   "scripts/v2/production/m1-tencent-early-shadow-runner.mjs";
 const nodeBaseImage =
   "node:22-bookworm-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3";
+const runtimeBaseImage =
+  "gcr.io/distroless/nodejs22-debian13@sha256:6eae66c49774276f50ae1818db25bb89735971a909fb833633dd1400dbc450a1";
 const postgresImage =
   "postgres:16-bookworm@sha256:92620daddcd947f8d5ab5ba66e848702fe443d87fed30c4cea8e389fd78dfc55";
 
@@ -56,12 +58,21 @@ test("M1 shadow service is bounded, no-authority and receives no Legacy secret",
 test("M1 collector image contains only compiled V2 runtime and runs as non-root", async () => {
   const dockerfile = await readFile(dockerfilePath, "utf8");
 
-  assert.ok(dockerfile.includes("USER node"));
+  assert.ok(dockerfile.includes("USER 65532:65532"));
   assert.ok(dockerfile.includes("HEALTHCHECK NONE"));
+  assert.ok(dockerfile.includes(
+    'ENTRYPOINT ["/nodejs/bin/node", ".tmp/market-tests/v2/entrypoints/m1-collector-worker.js"]',
+  ));
   assert.ok(dockerfile.includes("/app/.tmp/market-tests/v2"));
   assert.equal(
     dockerfile.split("\n").filter((line) => line.startsWith(`FROM ${nodeBaseImage}`)).length,
     3,
+  );
+  assert.equal(
+    dockerfile.split("\n").filter((line) =>
+      line.startsWith(`FROM ${runtimeBaseImage}`)
+    ).length,
+    1,
   );
   assert.equal(
     dockerfile.split("\n").some((line) =>

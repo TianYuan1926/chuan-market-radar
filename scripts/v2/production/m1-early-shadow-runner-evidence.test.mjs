@@ -209,7 +209,7 @@ function fixture(conclusion = "PASS") {
       Architecture: "amd64",
       Config: {
         Entrypoint: [
-          "node",
+          "/nodejs/bin/node",
           ".tmp/market-tests/v2/entrypoints/m1-collector-worker.js",
         ],
         Env: [
@@ -217,7 +217,7 @@ function fixture(conclusion = "PASS") {
           "NODE_OPTIONS=--disable-proto=throw --unhandled-rejections=strict",
         ],
         Labels: { "org.opencontainers.image.revision": SOURCE_COMMIT },
-        User: "node",
+        User: "65532:65532",
       },
       Id: `sha256:${"1".repeat(64)}`,
       Os: "linux",
@@ -315,7 +315,7 @@ function fixture(conclusion = "PASS") {
       Config: {
         Cmd: null,
         Entrypoint: [
-          "node",
+          "/nodejs/bin/node",
           ".tmp/market-tests/v2/entrypoints/m1-collector-worker.js",
         ],
         Env: workerEnvironment(),

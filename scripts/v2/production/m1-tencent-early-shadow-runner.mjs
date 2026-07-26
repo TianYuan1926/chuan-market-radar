@@ -342,7 +342,8 @@ export async function runEarlyShadow() {
       "run", "--rm", "--network", "none", "--read-only",
       "--user", "1000:1000", "--cap-drop", "ALL",
       "--security-opt", "no-new-privileges", "--pids-limit", "32",
-      "--memory", "128m", "--cpus", "0.25", "--entrypoint", "node",
+      "--memory", "128m", "--cpus", "0.25",
+      "--entrypoint", "/nodejs/bin/node",
       names.collectorImage, "-e", probeProgram,
     ], { failureCode: "RUNTIME_PROBE_FAILED" }).stdout, "RUNTIME_PROBE_INVALID");
 
@@ -387,7 +388,7 @@ export async function runEarlyShadow() {
       "--security-opt", "no-new-privileges", "--pids-limit", "64",
       "--memory", "256m", "--cpus", "0.5",
       "--env", `BOOTSTRAP_DATABASE_URL=${adminDatabaseUrl}`,
-      "--entrypoint", "node", names.collectorImage,
+      "--entrypoint", "/nodejs/bin/node", names.collectorImage,
       "-e", bootstrapProgram(),
     ], { failureCode: "EPHEMERAL_SCHEMA_BOOTSTRAP_FAILED", timeout: 300_000 });
 
@@ -455,7 +456,7 @@ export async function runEarlyShadow() {
       "--security-opt", "no-new-privileges", "--pids-limit", "64",
       "--memory", "256m", "--cpus", "0.5",
       "--mount", `type=bind,src=${processOutputPath},dst=/evidence/process-output.jsonl,readonly`,
-      "--entrypoint", "node", names.collectorImage,
+      "--entrypoint", "/nodejs/bin/node", names.collectorImage,
       EARLY_SHADOW_REPORT_PATH,
       "--input", "/evidence/process-output.jsonl",
       "--release-id", releaseId,

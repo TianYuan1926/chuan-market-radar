@@ -151,10 +151,13 @@ function imageInspect({ idCharacter, labels = {}, user = "" }) {
   return [{
     Architecture: "amd64",
     Config: {
-      Entrypoint: user === "node"
-        ? ["node", ".tmp/market-tests/v2/entrypoints/m1-collector-worker.js"]
+      Entrypoint: user === "65532:65532"
+        ? [
+          "/nodejs/bin/node",
+          ".tmp/market-tests/v2/entrypoints/m1-collector-worker.js",
+        ]
         : null,
-      Env: user === "node"
+      Env: user === "65532:65532"
         ? [
           "NODE_ENV=production",
           "NODE_OPTIONS=--disable-proto=throw --unhandled-rejections=strict",
@@ -179,7 +182,7 @@ function fixture() {
   const collectorImageInspect = imageInspect({
     idCharacter: "1",
     labels: { "org.opencontainers.image.revision": SOURCE_COMMIT },
-    user: "node",
+    user: "65532:65532",
   });
   const nodeBaseImageInspect = imageInspect({ idCharacter: "2" });
   nodeBaseImageInspect[0].RepoDigests = [
@@ -200,7 +203,7 @@ function fixture() {
         "--test-reporter=tap",
         ".tmp/market-tests/v2/modules/market-fact/collector/collector-live.integration.test.js",
       ],
-      Entrypoint: ["node"],
+      Entrypoint: ["/nodejs/bin/node"],
       Env: [
         "NODE_ENV=production",
         "NODE_OPTIONS=--disable-proto=throw --unhandled-rejections=strict",

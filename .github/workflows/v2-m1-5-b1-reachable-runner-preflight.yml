@@ -70,7 +70,7 @@ jobs:
             --pids-limit 32 \
             --memory 128m \
             --cpus 0.25 \
-            --entrypoint node \
+            --entrypoint /nodejs/bin/node \
             "$COLLECTOR_IMAGE" \
             -e 'const fs=require("node:fs");const required=["/app/.tmp/market-tests/v2/entrypoints/m1-collector-worker.js","/app/.tmp/market-tests/v2/modules/market-fact/collector/collector-live.integration.test.js"];const forbidden=["/app/.env","/app/.git","/app/deploy","/app/scripts","/app/src"];const paths=Object.fromEntries([...required,...forbidden].map((path)=>[path,fs.existsSync(path)]));process.stdout.write(JSON.stringify({cwd:process.cwd(),gid:process.getgid(),paths,uid:process.getuid()}));' \
             > "$RUNNER_TEMP/v2-m1-b1a/runtime-probe.json"
@@ -126,7 +126,7 @@ jobs:
             --env V2_M1_LIVE_REHEARSAL=1 \
             --env "V2_M1_REHEARSAL_SOURCE_COMMIT=$GITHUB_SHA" \
             --env "V2_M1_REHEARSAL_DATABASE_URL=$database_url" \
-            --entrypoint node \
+            --entrypoint /nodejs/bin/node \
             "$COLLECTOR_IMAGE" \
             --test \
             --test-reporter=tap \

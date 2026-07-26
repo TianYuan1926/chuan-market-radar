@@ -49,7 +49,7 @@ const SHA256_PATTERN = /^sha256:[0-9a-f]{64}$/u;
 const COMMIT_PATTERN = /^[0-9a-f]{40}$/u;
 const MAX_PROCESS_OUTPUT_BYTES = 32 * 1024 * 1024;
 const EXPECTED_ENTRYPOINT = [
-  "node",
+  "/nodejs/bin/node",
   ".tmp/market-tests/v2/entrypoints/m1-collector-worker.js",
 ];
 const TARGET_VENUES = [
@@ -240,7 +240,7 @@ function validateImage(input) {
   assert.match(image.Id, SHA256_PATTERN);
   assert.equal(image.Os, "linux");
   assert.equal(image.Architecture, "amd64");
-  assert.equal(image.Config?.User, "node");
+  assert.equal(image.Config?.User, "65532:65532");
   assert.deepEqual(image.Config?.Entrypoint, EXPECTED_ENTRYPOINT);
   assert.equal(
     image.Config?.Labels?.["org.opencontainers.image.revision"],

@@ -53,7 +53,7 @@ const TENCENT_BUILD_MEMORY_SWAP_BYTES = 3 * 1024 * 1024 * 1024;
 const EXPECTED_TEST_PATH =
   ".tmp/market-tests/v2/modules/market-fact/collector/collector-live.integration.test.js";
 const EXPECTED_ENTRYPOINT = [
-  "node",
+  "/nodejs/bin/node",
   ".tmp/market-tests/v2/entrypoints/m1-collector-worker.js",
 ];
 const REQUIRED_RUNTIME_PATHS = [
@@ -389,7 +389,11 @@ function validateImageInspect(input, runnerProvider) {
   assert.match(collector.Id, SHA256_PATTERN, "collector image ID must be content addressed");
   assert.equal(collector.Os, "linux", "collector image OS must be linux");
   assert.equal(collector.Architecture, "amd64", "collector image architecture must be amd64");
-  assert.equal(collector.Config?.User, "node", "collector image must run as node");
+  assert.equal(
+    collector.Config?.User,
+    "65532:65532",
+    "collector image must run as the numeric distroless nonroot identity",
+  );
   assertExactArray(
     collector.Config?.Entrypoint,
     EXPECTED_ENTRYPOINT,
@@ -481,7 +485,11 @@ function validateWorkerContainer(input, runnerProvider) {
   const worker = oneInspect(input.workerContainerInspect, "worker container inspect");
   assert.equal(worker.Config?.Image, input.collectorImageReference);
   assert.equal(worker.Config?.User, "1000:1000", "worker must run as 1000:1000");
-  assertExactArray(worker.Config?.Entrypoint, ["node"], "worker test entrypoint");
+  assertExactArray(
+    worker.Config?.Entrypoint,
+    ["/nodejs/bin/node"],
+    "worker test entrypoint",
+  );
   assertExactArray(
     worker.Config?.Cmd,
     ["--test", "--test-reporter=tap", EXPECTED_TEST_PATH],

@@ -173,7 +173,13 @@ jobs:
             --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' \
             "$COLLECTOR_IMAGE")" = "$GITHUB_SHA"
           test "$(docker image inspect --format '{{ .Config.User }}' \
-            "$COLLECTOR_IMAGE")" = "node"
+            "$COLLECTOR_IMAGE")" = "65532:65532"
+          test "$(docker run --rm \
+            --network none \
+            --read-only \
+            --entrypoint /nodejs/bin/node \
+            "$COLLECTOR_IMAGE" \
+            --version)" = "v22.23.1"
 
       - name: Scan exact image with exact Trivy
         id: trivy
