@@ -25,6 +25,7 @@ import {
 } from "./fixed-channel/production-dispatch.mjs";
 import {
   buildP0RRebindBundle,
+  parseP0RRebindBundleArguments,
 } from "./m1-p0r-rebind-preflight-bundle.mjs";
 import {
   P0R_REBIND_CRITICAL_FILES,
@@ -519,6 +520,27 @@ test("bundle is deterministic, redacted and accepted by fixed dispatch", async (
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test("bundle CLI accepts its required sha256 option name", () => {
+  const digest = "a".repeat(64);
+  const options = parseP0RRebindBundleArguments([
+    "--expected-legacy-bundle-sha256",
+    digest,
+    "--revocation-epoch",
+    "0",
+  ]);
+  assert.equal(options["expected-legacy-bundle-sha256"], digest);
+  assert.equal(options["revocation-epoch"], "0");
+  assert.throws(
+    () => parseP0RRebindBundleArguments([
+      "--expected-legacy-bundle-sha256",
+      digest,
+      "--expected-legacy-bundle-sha256",
+      digest,
+    ]),
+    /p0r_rebind_bundle_arguments_invalid/u,
+  );
 });
 
 test("runner produces sanitized zero-drift evidence end to end", async () => {

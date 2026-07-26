@@ -422,14 +422,14 @@ export async function buildP0RRebindBundle({
   }
 }
 
-function parseArguments(argv) {
+export function parseP0RRebindBundleArguments(argv) {
   ensure(argv.length % 2 === 0, "p0r_rebind_bundle_arguments_invalid");
   const options = {};
   for (let index = 0; index < argv.length; index += 2) {
     const key = argv[index];
     const value = argv[index + 1];
     ensure(
-      /^--[a-z][a-z-]*$/u.test(key ?? "") &&
+      /^--[a-z][a-z0-9-]*$/u.test(key ?? "") &&
         typeof value === "string" &&
         !value.startsWith("--") &&
         options[key.slice(2)] === undefined,
@@ -441,7 +441,7 @@ function parseArguments(argv) {
 }
 
 async function main() {
-  const options = parseArguments(process.argv.slice(2));
+  const options = parseP0RRebindBundleArguments(process.argv.slice(2));
   const root = resolve(options.root ?? process.cwd());
   const sourceCommit = await git(root, ["rev-parse", "HEAD"]);
   const sourceTree = await git(root, ["rev-parse", "HEAD^{tree}"]);
