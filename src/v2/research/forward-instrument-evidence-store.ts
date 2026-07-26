@@ -3,6 +3,7 @@ import { constants as fsConstants } from "node:fs";
 import {
   chmod,
   link,
+  lstat,
   mkdir,
   open,
   realpath,
@@ -149,14 +150,25 @@ export type M2ForwardInstrumentEvidenceStore = Readonly<{
     bytes: Uint8Array,
   ): Promise<void>;
   readArtifact(reference: M2ForwardInstrumentArtifactReference): Promise<unknown>;
+  readRaw(evidence: M2ForwardInstrumentRawEvidence): Promise<Uint8Array>;
   readLastJournalRecord(): Promise<unknown | null>;
   readJournalRecords(): Promise<readonly unknown[]>;
   root: string;
   verifyRaw(evidence: M2ForwardInstrumentRawEvidence): Promise<void>;
 }>;
 
-async function ensureContainedDirectory(root: string, path: string): Promise<void> {
-  await mkdir(path, { recursive: true, mode: 0o700 });
+async function openContainedDirectory(
+  root: string,
+  path: string,
+  create: boolean,
+): Promise<void> {
+  if (create) {
+    await mkdir(path, { recursive: true, mode: 0o700 });
+  }
+  const facts = await lstat(path);
+  if (!facts.isDirectory() || facts.isSymbolicLink()) {
+    throw new Error("forward evidence directory must be a regular directory");
+  }
   const actual = await realpath(path);
   if (!pathIsWithin(root, actual)) {
     throw new Error("forward evidence directory escaped its external root");
@@ -231,14 +243,23 @@ async function writeContentAddressed(input: Readonly<{
 }
 
 export async function createM2ForwardInstrumentEvidenceStore(input: Readonly<{
+  mode?: "CREATE_OR_OPEN" | "READ_ONLY_EXISTING";
   repositoryRoot: string;
   root: string;
 }>): Promise<M2ForwardInstrumentEvidenceStore> {
   if (!isAbsolute(input.root) || !isAbsolute(input.repositoryRoot)) {
     throw new Error("forward evidence store paths must be absolute");
   }
+  const mode = input.mode ?? "CREATE_OR_OPEN";
+  const readOnly = mode === "READ_ONLY_EXISTING";
   const repositoryRoot = await realpath(input.repositoryRoot);
-  await mkdir(input.root, { recursive: true, mode: 0o700 });
+  if (!readOnly) {
+    await mkdir(input.root, { recursive: true, mode: 0o700 });
+  }
+  const rootFacts = await lstat(input.root);
+  if (!rootFacts.isDirectory() || rootFacts.isSymbolicLink()) {
+    throw new Error("forward evidence root must be a regular directory");
+  }
   const root = await realpath(input.root);
   if (
     pathIsWithin(repositoryRoot, root) ||
@@ -252,9 +273,9 @@ export async function createM2ForwardInstrumentEvidenceStore(input: Readonly<{
   const rawDirectory = join(root, "raw", "sha256");
   const artifactDirectory = join(root, "artifacts", "sha256");
   const journalDirectory = join(root, "journal");
-  await ensureContainedDirectory(root, rawDirectory);
-  await ensureContainedDirectory(root, artifactDirectory);
-  await ensureContainedDirectory(root, journalDirectory);
+  await openContainedDirectory(root, rawDirectory, !readOnly);
+  await openContainedDirectory(root, artifactDirectory, !readOnly);
+  await openContainedDirectory(root, journalDirectory, !readOnly);
   const journalPath = join(journalDirectory, "forward-instrument-captures.v2.jsonl");
   const lockPath = join(journalDirectory, "forward-instrument-captures.v2.lock");
 
@@ -314,9 +335,9 @@ export async function createM2ForwardInstrumentEvidenceStore(input: Readonly<{
     }
   };
 
-  const verifyRaw = async (
+  const readRaw = async (
     rawEvidence: M2ForwardInstrumentRawEvidence,
-  ): Promise<void> => {
+  ): Promise<Uint8Array> => {
     const evidence = M2ForwardInstrumentRawEvidenceSchema.parse(rawEvidence);
     const bytes = await fileBytes(
       storagePath(evidence.storageKey),
@@ -328,11 +349,21 @@ export async function createM2ForwardInstrumentEvidenceStore(input: Readonly<{
     ) {
       throw new Error("retained forward raw evidence failed verification");
     }
+    return bytes;
+  };
+
+  const verifyRaw = async (
+    rawEvidence: M2ForwardInstrumentRawEvidence,
+  ): Promise<void> => {
+    await readRaw(rawEvidence);
   };
 
   return Object.freeze({
     root,
     async putRaw(rawEvidence, bytes) {
+      if (readOnly) {
+        throw new Error("forward evidence store is read-only");
+      }
       const evidence = M2ForwardInstrumentRawEvidenceSchema.parse(rawEvidence);
       await writeContentAddressed({
         bytes,
@@ -343,6 +374,9 @@ export async function createM2ForwardInstrumentEvidenceStore(input: Readonly<{
     },
     verifyRaw,
     async putArtifact(artifactInput) {
+      if (readOnly) {
+        throw new Error("forward evidence store is read-only");
+      }
       const artifactDigest = DigestSchema.parse(artifactInput.artifactDigest);
       const digestField = {
         SNAPSHOT: "snapshotDigest",
@@ -410,7 +444,11 @@ export async function createM2ForwardInstrumentEvidenceStore(input: Readonly<{
       }
       return JSON.parse(new TextDecoder().decode(bytes)) as unknown;
     },
+    readRaw,
     async appendJournalRecord(record, expectedPreviousDigest) {
+      if (readOnly) {
+        throw new Error("forward evidence store is read-only");
+      }
       if (expectedPreviousDigest !== null) {
         DigestSchema.parse(expectedPreviousDigest);
       }

@@ -192,3 +192,56 @@ test("journal append compares the immutable head while holding its writer lock",
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("read-only mode neither creates storage nor permits mutation", async () => {
+  const root = await mkdtemp(join(tmpdir(), "forward-store-read-only-"));
+  try {
+    const missingRoot = join(root, "missing");
+    await assert.rejects(
+      createM2ForwardInstrumentEvidenceStore({
+        mode: "READ_ONLY_EXISTING",
+        repositoryRoot: process.cwd(),
+        root: missingRoot,
+      }),
+      (error: unknown) =>
+        (error as NodeJS.ErrnoException).code === "ENOENT",
+    );
+    await assert.rejects(stat(missingRoot), (error: unknown) =>
+      (error as NodeJS.ErrnoException).code === "ENOENT");
+
+    const writable = await createM2ForwardInstrumentEvidenceStore({
+      repositoryRoot: process.cwd(),
+      root: join(root, "evidence"),
+    });
+    const body = new TextEncoder().encode('{"rows":[1]}');
+    const evidence = buildM2ForwardInstrumentRawEvidence(
+      capturedPage(body),
+      TEST_FORWARD_INSTRUMENT_PROVENANCE,
+    );
+    await writable.putRaw(evidence, body);
+    const readOnly = await createM2ForwardInstrumentEvidenceStore({
+      mode: "READ_ONLY_EXISTING",
+      repositoryRoot: process.cwd(),
+      root: writable.root,
+    });
+    await readOnly.verifyRaw(evidence);
+    await assert.rejects(
+      readOnly.putRaw(evidence, body),
+      /store is read-only/u,
+    );
+    await assert.rejects(
+      readOnly.putArtifact({
+        artifact: {},
+        artifactDigest: `sha256:${"1".repeat(64)}`,
+        artifactKind: "SNAPSHOT",
+      }),
+      /store is read-only/u,
+    );
+    await assert.rejects(
+      readOnly.appendJournalRecord({}, null),
+      /store is read-only/u,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
