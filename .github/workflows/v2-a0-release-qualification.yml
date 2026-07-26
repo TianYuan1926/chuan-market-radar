@@ -20,7 +20,6 @@ jobs:
     env:
       BUILDX_IMAGE: docker/buildx-bin:0.31.1@sha256:49141c168b609ef38f2b11bc231d48e2492ec1f979c2b9aa4ab691790cce115d
       COLLECTOR_IMAGE: market-radar-v2-m1-collector:a0-${{ github.sha }}
-      EVIDENCE_ROOT: ${{ runner.temp }}/v2-a0-release
     steps:
       - name: Checkout exact source and full history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -33,6 +32,13 @@ jobs:
         with:
           node-version: 22.23.1
           cache: npm
+
+      - name: Bind isolated qualification workspace
+        shell: bash
+        run: |
+          printf '%s\n' \
+            "EVIDENCE_ROOT=$RUNNER_TEMP/v2-a0-release" \
+            >> "$GITHUB_ENV"
 
       - name: Verify exact clean source and runtime
         shell: bash
@@ -210,8 +216,6 @@ jobs:
     name: Frozen 1440-instrument engineering baseline
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    env:
-      EVIDENCE_ROOT: ${{ runner.temp }}/v2-a0-performance
     steps:
       - name: Checkout exact source and full history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -224,6 +228,13 @@ jobs:
         with:
           node-version: 22.23.1
           cache: npm
+
+      - name: Bind isolated performance workspace
+        shell: bash
+        run: |
+          printf '%s\n' \
+            "EVIDENCE_ROOT=$RUNNER_TEMP/v2-a0-performance" \
+            >> "$GITHUB_ENV"
 
       - name: Verify exact clean source and runtime
         shell: bash

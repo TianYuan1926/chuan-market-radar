@@ -473,6 +473,8 @@ export function validateA0ReleaseQualificationWorkflowPolicy(path, source) {
     "retention-days: 30",
     "case \"$EVIDENCE_ROOT\" in",
     "sudo rm -rf -- \"$EVIDENCE_ROOT\"",
+    "EVIDENCE_ROOT=$RUNNER_TEMP/v2-a0-release",
+    "EVIDENCE_ROOT=$RUNNER_TEMP/v2-a0-performance",
   ];
   const missing = requiredContracts.filter(
     (contract) => !source.includes(contract),
@@ -489,6 +491,13 @@ export function validateA0ReleaseQualificationWorkflowPolicy(path, source) {
       "V2_A0_RELEASE_INDEPENDENT_BUILD_COUNT_DRIFT",
       path,
       "exactly two independent no-cache rootfs builds are required",
+    ));
+  }
+  if (/EVIDENCE_ROOT:\s*\$\{\{\s*runner\.temp\s*\}\}/u.test(source)) {
+    issues.push(issue(
+      "V2_A0_RELEASE_RUNNER_CONTEXT_USED_BEFORE_RUNNER_ALLOCATION",
+      path,
+      "runner.temp must be bound from RUNNER_TEMP inside a runner step",
     ));
   }
   if (

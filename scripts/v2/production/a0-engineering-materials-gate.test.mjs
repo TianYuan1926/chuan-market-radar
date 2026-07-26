@@ -278,6 +278,21 @@ test("A0 release qualification keeps two independent builds and no production au
         item.code === "V2_A0_RELEASE_QUALIFICATION_WORKFLOW_INCOMPLETE",
     ),
   );
+
+  const prematureRunnerContext = validateA0ReleaseQualificationWorkflowPolicy(
+    path,
+    source.replace(
+      "      BUILDX_IMAGE:",
+      "      EVIDENCE_ROOT: ${{ runner.temp }}/unsafe\n      BUILDX_IMAGE:",
+    ),
+  );
+  assert.ok(
+    prematureRunnerContext.some(
+      (item) =>
+        item.code ===
+          "V2_A0_RELEASE_RUNNER_CONTEXT_USED_BEFORE_RUNNER_ALLOCATION",
+    ),
+  );
 });
 
 test("security evidence contract stays actionable and sanitized", () => {
