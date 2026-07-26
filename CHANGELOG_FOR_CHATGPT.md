@@ -2,7 +2,7 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
-## 2026-07-26 / V2 M1.4C + M2.1A Local Contracts and A0 Engineering Materials
+## 2026-07-27 / V2 M1.4C + M2.1A Local Contracts and A0 Materials/Security
 
 ### 本轮目标
 
@@ -17,22 +17,24 @@
 - 修复既存 M3.4-R1 草稿与当前 strict schema 的 import、枚举和 fixture 兼容阻断；只恢复全仓编译与回归，不把定向测试为 0 的草稿标成 M3.4 出口。
 - Provider Adapter 改入正式 adapter 边界并锁定 exact host/role/REST schema；Live Transport 补齐并发启动、停止结算、有界丢弃、超时、重连和 future-time 拒绝测试。exact Node 22 完整 CI 进一步发现负责 Promise 结算的 timeout 被错误 `unref`，已根治并以修复提交 `2ae438b394d289a05f02dbfa0c2846cd2194ea37` 复验。
 - A0 第一批锁定 Node `22.23.1`、npm `10.9.8` 和全部直接依赖，升级 Next/PostCSS/Sharp 安全补丁，删除未使用的 `shadcn` CLI/MCP 依赖和死 CSS 导入。
-- 新增许可证门禁、CycloneDX SBOM、零高危审计、GitHub Action/runner/base-image pin、ESLint + Biome 和 Sharp/PostCSS 原生烟测；蓝图升级到 v1.47、机器矩阵升级到 v1.52。
+- 新增许可证门禁、CycloneDX SBOM、零高危审计、GitHub Action/runner/base-image pin、ESLint + Biome 和 Sharp/PostCSS 原生烟测；完成独立安全验收后，蓝图升级到 v1.48、机器矩阵升级到 v1.53。
 - 首次 GitHub Ubuntu Full Quality `30198990064` 与 Signed Dispatch `30198990079` 均在同一 host tar `--uid=0` 兼容点失败；没有掩盖红灯。提交 `29ab47dec0b9fbbbe66e1cfe7ce90aa2e1e4c25d` 已用纯 Node USTAR 根治四个活跃 V2 Bundle 的宿主方言依赖，Legacy 历史制品保持冻结。
 - Signed Dispatch `30199692352` 已在 Ubuntu PASS；Full Quality `30199692349` 随后暴露 checkout depth-1 无法读取 M0 审查祖先。提交 `1d5638d0fb538bacec09086ec7b719d9e7a85ce9` 已改为完整 Git 历史，A0 门禁会阻止该配置回退，M0 失败会输出具体失败检查。
 - Full Quality `30200077285`、job `89788386319` 已在 exact HEAD `dc5e1823d08ac5a2d1630f3989257e735f829695` 的 Ubuntu 24.04 完整 PASS；SBOM artifact `8631398374` digest=`sha256:ba6de688e0b2163ccc7f17c06e39c9ef35406eb98235d744a137d849cb57e241`。exact-runtime remote CI 控制项正式完成。
+- 独立安全工作流已固定 full-history Gitleaks `8.30.1`、CodeQL action `4.37.3` + linked bundle `2.26.1` + JS query pack `2.4.1` + `AlertSuppression.ql`、exact collector image 与 Trivy `0.72.0`。Gitleaks 只接受 exact historical fingerprint；CodeQL suppression 只接受 exact rule/file/alert-line/review/invariant 且源码紧邻。
+- exact source `4f501b0fb8b917ce87e0687eab8480b5c9595f27` 的 Security `30209898205` 三 job 全部 PASS：完整历史 secret finding=0；CodeQL result=8、reviewed=8、blocking=0；镜像 HIGH=0、CRITICAL=0。脱敏 artifact `8634143821`、`8634167593`、`8634153873` 已核验。同源 Full Quality `30209898207`、job `89814245105` PASS。
 - 路线机器门禁把当前本地 A0、独立生产 P0R、A0 后 Scope V2 Shadow 和外部历史权利 Gate 分开表达；任一入口身份、阻断关系或生产权限漂移都会让 M0 失败。
 
 ### 核心链路影响
 
-`Point-in-time Fact -> Market Mechanics Feature -> Bidirectional Research Hypothesis` 已有本地可执行合同和 fail-closed Gate，工程材料第一批、跨平台归档与 exact-runtime remote CI 已收口。A0 总门禁仍缺独立 secret/SAST/镜像扫描、性能/资源、完整制品 provenance/回滚和 P0R 真实恢复；真实 Trade/Book/Liquidation forward data、Detector Candidate、cohort/holdout、校准和最终决策链仍未形成，因此系统等级仍是 R1，不能支撑实战。
+`Point-in-time Fact -> Market Mechanics Feature -> Bidirectional Research Hypothesis` 已有本地可执行合同和 fail-closed Gate，工程材料、跨平台归档、exact-runtime remote CI 与独立 secret/SAST/镜像扫描已收口。A0 总门禁仍缺性能/资源、完整制品 provenance/回滚和 P0R 真实恢复；真实 Trade/Book/Liquidation forward data、Detector Candidate、cohort/holdout、校准和最终决策链仍未形成，因此系统等级仍是 R1，不能支撑实战。
 
 ### 验证结果
 
 - M1.4C Microstructure + Cache 定向 22/22 PASS。
 - M2.1A Precursor Atlas 定向 13/13 PASS。
-- exact Node `22.23.1` / npm `10.9.8` 修复后完整 `ci:production` PASS：Market 969 total / 965 pass / 4 explicit skip、Workers 23/23、Historical 4/4、V2 Foundation 588 total / 582 pass / 6 explicit skip、V2 Ops 139/139、M0、Next production build、Golden 16/16 与 security 全部通过。
-- USTAR 定向 `2/2`、Production Dispatch `21/21`、Expanded Shadow `59/59`、ESLint、Biome、`git diff --check`、secret pattern、forbidden-file、零漏洞审计、SBOM 与原生材料烟测 PASS；GitHub exact-runtime Full Quality 与 Signed Dispatch 均 PASS。A0 总门禁仍为 `INCOMPLETE`，下一缺口为独立 secret/SAST、镜像扫描、性能资源、完整 provenance/回滚和 P0R。
+- exact Node `22.23.1` / npm `10.9.8` 最终树完整 `ci:production` PASS：Market 969 total / 965 pass / 4 explicit skip、Workers 23/23、Historical 4/4、V2 Foundation 589 total / 583 pass / 6 explicit skip、V2 Ops 152/152、M0、Next production build、Golden 16/16 与 security 全部通过。
+- A0 materials `9/9`、repository hygiene + CodeQL evidence `56/56`、ESLint、Biome、M0、remote-equivalent Gitleaks 与 GitHub Security/Full Quality 全部 PASS。A0 总门禁仍为 `INCOMPLETE`，下一缺口为性能资源、完整 provenance/rollback 和 P0R。
 
 ### 是否部署
 
@@ -44,7 +46,7 @@ M1.5D 尚未执行；没有历史 L2 时只能从启用时前向积累。当前�
 
 ### 下一轮建议
 
-P0R 继续作为生产第一关键路径。先关闭 A0 剩余工程门禁，再准备 M1.5C 与 M1.5D 同一 exact release 的 Scope V2 证据包，并保持两套状态和证据独立验收；通过后进入 M1.6-D1，再用真实 forward evidence 建设 M2.4A cohort/holdout。
+P0R 继续作为独立生产第一关键路径。A0 下一工程包把同一 exact release 的制品 provenance/rollback 与性能/资源基线合并建设，减少重复构建和远端操作但不合并验收；三项 A0 剩余控制全部关闭后，才准备 M1.5C 与 M1.5D 同源 Scope V2 证据包并保持两套状态独立验收。
 
 ## 2026-07-24 / V2 M3.1A-D Four-Lane Multi-Asset Decision Research Contract
 

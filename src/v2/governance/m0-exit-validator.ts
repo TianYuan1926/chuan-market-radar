@@ -156,13 +156,21 @@ export function buildM0ExitReport(repositoryRoot: string): M0ExitReport {
     engineeringFoundationGate: {
       id: string;
       status: string;
+      completedControls: readonly string[];
       pendingControls: readonly string[];
       m1_5cAllowed: boolean;
       m1_5dAllowed: boolean;
     };
     currentLocalImplementationEntry: {
       id: string;
+      status: string;
       productionMutationAllowed: boolean;
+    };
+    lastCompletedEngineeringControl: {
+      id: string;
+      sourceCommit: string;
+      status: string;
+      productionMutationPerformed: boolean;
     };
     nextScopeV2ImplementationEntry: {
       id: string;
@@ -378,8 +386,31 @@ export function buildM0ExitReport(repositoryRoot: string): M0ExitReport {
       executionMatrix.currentLocalImplementationEntry.id !==
         executionMatrix.engineeringFoundationGate.id ||
       executionMatrix.engineeringFoundationGate.status !==
-        "ENGINEERING_MATERIALS_AND_SUPPLY_CHAIN_LOCAL_PASS_TOTAL_GATE_INCOMPLETE" ||
-      executionMatrix.engineeringFoundationGate.pendingControls.length === 0 ||
+        "ENGINEERING_MATERIALS_SUPPLY_CHAIN_AND_INDEPENDENT_SECURITY_PASS_TOTAL_GATE_INCOMPLETE" ||
+      executionMatrix.currentLocalImplementationEntry.status !==
+        "engineering_materials_supply_chain_exact_runtime_and_independent_security_remote_pass_total_gate_incomplete" ||
+      executionMatrix.engineeringFoundationGate.pendingControls.join("|") !==
+        [
+          "REPRODUCIBLE_ARTIFACT_PROVENANCE_AND_ROLLBACK_DRILL",
+          "PERFORMANCE_AND_RESOURCE_BASELINE",
+          "P0R_REAL_ENCRYPTED_BACKUP_EXACT_RETRIEVAL_AND_ISOLATED_RESTORE",
+        ].join("|") ||
+      !executionMatrix.engineeringFoundationGate.completedControls.includes(
+        "INDEPENDENT_FULL_HISTORY_GITLEAKS_8_30_1_ZERO_FINDINGS_RUN_30209898205",
+      ) ||
+      !executionMatrix.engineeringFoundationGate.completedControls.includes(
+        "INDEPENDENT_CODEQL_ZERO_UNTRIAGED_RESULTS_RUN_30209898205",
+      ) ||
+      !executionMatrix.engineeringFoundationGate.completedControls.includes(
+        "COLLECTOR_IMAGE_TRIVY_ZERO_HIGH_CRITICAL_RUN_30209898205",
+      ) ||
+      executionMatrix.lastCompletedEngineeringControl.id !==
+        "V2-A0-INDEPENDENT-SECURITY-QUALITY" ||
+      executionMatrix.lastCompletedEngineeringControl.sourceCommit !==
+        "4f501b0fb8b917ce87e0687eab8480b5c9595f27" ||
+      executionMatrix.lastCompletedEngineeringControl.status !==
+        "remote_secret_sast_and_collector_image_security_pass_production_unchanged" ||
+      executionMatrix.lastCompletedEngineeringControl.productionMutationPerformed ||
       executionMatrix.engineeringFoundationGate.m1_5cAllowed ||
       executionMatrix.engineeringFoundationGate.m1_5dAllowed
     ) {
