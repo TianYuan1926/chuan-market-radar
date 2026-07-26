@@ -1,11 +1,7 @@
-name: V2 M1.5 B1 Reachable Docker Runner Preflight
+name: V2 M1.5 B1 GitHub Egress Diagnostic (Non-Gate)
 
 on:
-  push:
-    branches:
-      - codex/market-radar-v2-implementation
-    paths:
-      - .github/workflows/v2-m1-5-b1-reachable-runner-preflight.yml
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -16,10 +12,11 @@ concurrency:
 
 jobs:
   reachable-runner-preflight:
-    name: Exact-image live no-authority preflight
+    name: Exact-image GitHub egress diagnostic (non-gate)
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
+      B1A_LIVE_EGRESS_AUTHORITY: DIAGNOSTIC_ONLY_NO_GATE
       COLLECTOR_IMAGE: market-radar-v2-m1-collector:b1a-${{ github.sha }}
       EGRESS_NETWORK: v2-m1-b1a-egress-${{ github.run_id }}-${{ github.run_attempt }}
       NODE_BASE_IMAGE: node:22-bookworm-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3

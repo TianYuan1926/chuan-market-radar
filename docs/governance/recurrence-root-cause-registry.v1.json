@@ -199,6 +199,96 @@
         "OrcaTerm remains an explicit exception for cloud MFA, secret rotation and emergency recovery; the signed Git channel must never transport credentials.",
         "Visual transcription of long runtime identities is prohibited; identity-bound acceptance must use machine-generated sorted facts and an exact diff or digest before signing."
       ]
+    },
+    {
+      "id": "REC-2026-07-26-GITHUB-AZURE-PROVIDER-EGRESS",
+      "faultClass": "github_hosted.azure.provider_egress_restriction",
+      "affectedChannel": "github_hosted_ubuntu_live_provider_preflight",
+      "status": "CLOSED_VERIFIED",
+      "recurrenceCount": 4,
+      "firstObservedDate": "2026-07-20",
+      "lastObservedDate": "2026-07-26",
+      "affectedOperations": [
+        "github_hosted_three_venue_live_preflight"
+      ],
+      "prohibitedOperations": [
+        "github_hosted_three_venue_live_preflight"
+      ],
+      "remediationOperations": [
+        "github_hosted_container_quality_gate",
+        "tencent_isolated_three_venue_live_preflight"
+      ],
+      "fingerprint": {
+        "signature": "The exact no-authority Collector succeeds for OKX but repeatedly receives Binance provider_http_error and Bybit provider_http_auth_error from GitHub Azure runners.",
+        "stableConditions": [
+          "The workflow runs on GitHub-hosted ubuntu-24.04 in Azure eastus.",
+          "The same bounded three-venue live integration test and exact image contract are used."
+        ],
+        "observedEvidence": [
+          "Runs 29750661209 and 29751777350 failed with the same provider boundary on 2026-07-20.",
+          "Runs 30201192254 and 30202491840 repeated the same Binance and Bybit boundary on 2026-07-26.",
+          "Image build, minimal non-root runtime, isolated PostgreSQL and diagnostic publication all passed in run 30202491840."
+        ]
+      },
+      "rootCause": {
+        "boundary": "external_github_azure_egress_and_provider_policy",
+        "conclusion": "GitHub-hosted Azure egress is not a qualified network location for authoritative Binance and Bybit live reachability acceptance.",
+        "confidence": "CONTROLLED_A_B",
+        "evidence": [
+          "The failure repeats across four GitHub runs and independent source revisions.",
+          "The Tencent isolated no-authority Runner previously reached all three venues with zero provider failures.",
+          "The hardened image independently passed build, exact Node identity, CodeQL and HIGH/CRITICAL Trivy gates."
+        ]
+      },
+      "permanentFix": {
+        "status": "PASS",
+        "authorityPaths": [
+          ".github/workflows/v2-m1-5-b1-reachable-runner-preflight.yml",
+          "scripts/v2/production/m1-tencent-isolated-runner.mjs"
+        ],
+        "workaroundDisposition": "RETIRED_AFTER_BOOTSTRAP",
+        "evidence": [
+          "The GitHub live provider workflow is manual diagnostic-only and no longer runs automatically on push.",
+          "GitHub remains authoritative for deterministic container build, exact runtime identity, CodeQL and Trivy quality gates.",
+          "Tencent isolated no-authority execution remains the authoritative route for real three-venue reachability."
+        ]
+      },
+      "regression": {
+        "status": "PASS",
+        "redCase": "A source-only change repeatedly launches an unsuitable GitHub Azure live provider test and leaves a misleading failed quality check.",
+        "greenCommand": "npm run test:v2-m1-collector && npm run test:recurrence-gate",
+        "evidence": [
+          "The shadow package test requires workflow_dispatch and DIAGNOSTIC_ONLY_NO_GATE.",
+          "The shadow package test rejects any automatic push trigger on the GitHub egress diagnostic."
+        ]
+      },
+      "runtimeGate": {
+        "status": "PASS",
+        "evidence": [
+          "Security run 30202491844 built the hardened Collector image and passed exact Node runtime, CodeQL and HIGH/CRITICAL Trivy checks.",
+          "GitHub runs 30201192254 and 30202491840 preserved sanitized failure diagnostics instead of claiming provider readiness."
+        ]
+      },
+      "realTargetAcceptance": {
+        "status": "PASS",
+        "evidence": [
+          "Tencent isolated B1-A evidence sha256:a44cab89b8a4bf291e7c8f67eb6de2b76f2637f4f8265d91ebb8f1224d2a40c2 recorded 1,444 of 1,444 collected instruments and zero three-venue provider failures.",
+          "The Tencent B1-A run restored the exact 11-container, 4-network and 5-volume host baseline after cleanup.",
+          "The historical Tencent acceptance proves network-route suitability only; the current hardened release still requires its own bound isolated execution before promotion."
+        ]
+      },
+      "workaroundAccounting": {
+        "attemptCount": 4,
+        "postTriggerEmergencyWorkaroundCount": 0,
+        "durationMeasurement": "MEASURED",
+        "durationSeconds": 294,
+        "unknownReason": null
+      },
+      "remainingRisks": [
+        "Exchange egress policy can change independently for any cloud region.",
+        "A manually dispatched GitHub diagnostic may still fail and must never be interpreted as a product regression without provider-boundary classification.",
+        "The current hardened source commit requires a new Tencent isolated no-authority run before its live Collector release can be promoted."
+      ]
     }
   ]
 }

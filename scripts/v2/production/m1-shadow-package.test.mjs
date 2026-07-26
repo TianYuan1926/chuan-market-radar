@@ -85,13 +85,13 @@ test("M1 collector image contains only compiled V2 runtime and runs as non-root"
   assert.equal(dockerfile.includes(".env"), false);
 });
 
-test("M1 reachable-runner workflow is one-shot, pinned and no-authority", async () => {
+test("M1 GitHub egress diagnostic is manual, non-gating and no-authority", async () => {
   const workflow = await readFile(workflowPath, "utf8");
   const validator = await readFile(validatorPath, "utf8");
   for (const required of [
-    "codex/market-radar-v2-implementation",
-    "paths:",
-    workflowPath,
+    "V2 M1.5 B1 GitHub Egress Diagnostic (Non-Gate)",
+    "workflow_dispatch:",
+    "B1A_LIVE_EGRESS_AUTHORITY: DIAGNOSTIC_ONLY_NO_GATE",
     "permissions:\n  contents: read",
     "runs-on: ubuntu-24.04",
     "timeout-minutes: 20",
@@ -115,7 +115,7 @@ test("M1 reachable-runner workflow is one-shot, pinned and no-authority", async 
     assert.ok(workflow.includes(required), `missing preflight boundary: ${required}`);
   }
   for (const forbidden of [
-    "workflow_dispatch:",
+    "\n  push:",
     "pull_request:",
     "schedule:",
     "contents: write",
