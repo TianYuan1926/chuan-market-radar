@@ -15,6 +15,7 @@ import { dirname, join, resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
+  assertCanonicalTreeRelativePath,
   canonicalTreeIdentity,
   loadA0ReleaseQualificationPolicy,
   validateA0ReleaseQualificationPolicy,
@@ -100,6 +101,52 @@ test("canonical rootfs identity changes on bytes, modes and symlink targets", as
     const firstLink = await canonicalTreeIdentity(first);
     const secondLink = await canonicalTreeIdentity(second);
     assert.notEqual(firstLink.digest, secondLink.digest);
+  } finally {
+    await rm(temporary, { force: true, recursive: true });
+  }
+});
+
+test("canonical rootfs paths accept POSIX package names and reject traversal or spoofing", async () => {
+  for (const path of [
+    "usr/lib/x86_64-linux-gnu/libstdc++.so.6",
+    "app/node_modules/@scope/package+variant/package.json",
+    "usr/share/licenses/package name/LICENSE",
+  ]) {
+    assert.doesNotThrow(() =>
+      assertCanonicalTreeRelativePath(path, "rootfs path")
+    );
+  }
+  for (const path of [
+    "",
+    "/absolute",
+    "../escape",
+    "app/../escape",
+    "app//runtime.js",
+    "app\\runtime.js",
+    "app/\u0000runtime.js",
+    "app/\u202Egnp.js",
+    "app/e\u0301.js",
+  ]) {
+    assert.throws(() =>
+      assertCanonicalTreeRelativePath(path, "rootfs path")
+    );
+  }
+
+  const temporary = await mkdtemp(join(tmpdir(), "v2-a0-posix-tree-"));
+  try {
+    const scope = join(temporary, "node_modules", "@scope");
+    await mkdir(scope, { recursive: true });
+    await writeFile(join(temporary, "libstdc++.so.6"), "library\n");
+    await writeFile(join(scope, "package+variant.json"), "{}\n");
+    const identity = await canonicalTreeIdentity(temporary);
+    assert.equal(identity.fileCount, 2);
+    assert.equal(identity.entries.some(
+      (entry) => entry.path === "libstdc++.so.6",
+    ), true);
+    assert.equal(identity.entries.some(
+      (entry) =>
+        entry.path === "node_modules/@scope/package+variant.json",
+    ), true);
   } finally {
     await rm(temporary, { force: true, recursive: true });
   }

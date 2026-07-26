@@ -23,6 +23,8 @@ export const A0_SOURCE_DATE_EPOCH = 946_684_800;
 const SHA256_PATTERN = /^sha256:[0-9a-f]{64}$/u;
 const COMMIT_PATTERN = /^[0-9a-f]{40}$/u;
 const SAFE_PATH_PATTERN = /^[A-Za-z0-9.][A-Za-z0-9._/-]*$/u;
+const UNSAFE_CANONICAL_TREE_CHARACTER_PATTERN =
+  /[\p{Cc}\p{Cf}\p{Cs}\p{Zl}\p{Zp}]/u;
 const REQUIRED_SCENARIOS = Object.freeze([
   "TAMPERED_CANDIDATE_BLOCKED_BEFORE_ACTIVATION",
   "VALID_CANDIDATE_HEALTH_FAILURE_AUTO_RESTORES_EXACT_BASELINE",
@@ -84,6 +86,33 @@ function assertSafeRelativePath(value, label) {
     value.split("/").some((segment) => segment === "." || segment === ".."),
     false,
     `${label} cannot traverse`,
+  );
+}
+
+export function assertCanonicalTreeRelativePath(value, label) {
+  assert.equal(typeof value, "string", `${label} must be a string`);
+  assert.ok(value.length > 0, `${label} cannot be empty`);
+  assert.equal(value.startsWith("/"), false, `${label} must be relative`);
+  assert.equal(value.includes("\\"), false, `${label} cannot contain backslash`);
+  assert.equal(value.includes("//"), false, `${label} must be normalized`);
+  assert.equal(
+    UNSAFE_CANONICAL_TREE_CHARACTER_PATTERN.test(value),
+    false,
+    `${label} cannot contain control or formatting characters`,
+  );
+  assert.equal(
+    value.normalize("NFC"),
+    value,
+    `${label} must use canonical Unicode composition`,
+  );
+  const segments = value.split("/");
+  assert.equal(
+    segments.some(
+      (segment) =>
+        segment.length === 0 || segment === "." || segment === "..",
+    ),
+    false,
+    `${label} cannot be empty or traverse`,
   );
 }
 
@@ -259,7 +288,7 @@ export async function canonicalTreeIdentity(root, options = {}) {
     for (const child of children) {
       const path = join(directory, child.name);
       const relativePath = relative(absoluteRoot, path).split(sep).join("/");
-      assertSafeRelativePath(relativePath, "canonical tree path");
+      assertCanonicalTreeRelativePath(relativePath, "canonical tree path");
       const metadata = await lstat(path);
       const mode = metadata.mode & 0o777;
       if (metadata.isDirectory()) {
