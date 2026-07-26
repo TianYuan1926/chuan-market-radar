@@ -77,56 +77,9 @@ jobs:
           set -e
           export GITLEAKS_FULL_HISTORY_EXIT_CODE="$scan_status"
           export GITLEAKS_RESOLVED_VERSION="$version"
-          node - "$report" \
-            "$RUNNER_TEMP/v2-a0-security/gitleaks-full-history-summary.json" <<'NODE'
-          const fs = require("node:fs");
-          const crypto = require("node:crypto");
-          const [reportPath, outputPath] = process.argv.slice(2);
-          const reportPresent = fs.existsSync(reportPath);
-          const reportBytes = reportPresent ? fs.readFileSync(reportPath) : null;
-          const findings = reportBytes === null
-            ? []
-            : JSON.parse(reportBytes);
-          if (!Array.isArray(findings)) {
-            throw new Error("Gitleaks JSON report must be an array");
-          }
-          const summary = {
-            schemaVersion: "v2-a0-secret-scan-evidence.v1",
-            sourceCommit: process.env.GITHUB_SHA,
-            repository: process.env.GITHUB_REPOSITORY,
-            runId: process.env.GITHUB_RUN_ID,
-            runAttempt: process.env.GITHUB_RUN_ATTEMPT,
-            scanner: {
-              name: "gitleaks",
-              requiredVersion: "8.30.1",
-              resolvedVersion: process.env.GITLEAKS_RESOLVED_VERSION,
-              actionCommit: "e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e",
-              incrementalOutcome: process.env.GITLEAKS_INCREMENTAL_OUTCOME,
-              fullHistoryExitCode: Number(
-                process.env.GITLEAKS_FULL_HISTORY_EXIT_CODE,
-              ),
-            },
-            policy: {
-              fullReachableHistory: true,
-              redacted: true,
-              rawFindingArtifactUploaded: false,
-            },
-            findingCount: findings.length,
-            reportDigest: reportBytes === null
-              ? null
-              : `sha256:${crypto
-                .createHash("sha256")
-                .update(reportBytes)
-                .digest("hex")}`,
-            productionMutation: false,
-          };
-          fs.writeFileSync(outputPath, `${JSON.stringify(summary, null, 2)}\n`, {
-            mode: 0o600,
-          });
-          process.stdout.write(
-            `Gitleaks full-history findings=${findings.length}\n`,
-          );
-          NODE
+          node scripts/v2/production/a0-security-evidence.mjs \
+            "$report" \
+            "$RUNNER_TEMP/v2-a0-security/gitleaks-full-history-summary.json"
           test "$version_status" -eq 0
           test "$version" = "8.30.1"
           test "$scan_status" -eq 0

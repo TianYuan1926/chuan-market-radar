@@ -280,8 +280,7 @@ export function validateSecurityWorkflowPolicy(path, source) {
     "gitleaks git",
     "--redact",
     "--log-opts=\"--all\"",
-    "fullReachableHistory: true",
-    "rawFindingArtifactUploaded: false",
+    "node scripts/v2/production/a0-security-evidence.mjs",
     "tools: linked",
     "languages: javascript-typescript",
     "build-mode: none",
@@ -321,6 +320,30 @@ export function validateSecurityWorkflowPolicy(path, source) {
     ));
   }
   return issues;
+}
+
+export function validateSecurityEvidencePolicy(path, source) {
+  const requiredContracts = [
+    'schemaVersion: "v2-a0-secret-scan-evidence.v2"',
+    "fullReachableHistory: true",
+    "redacted: true",
+    "rawFindingArtifactUploaded: false",
+    'findingFields: ["commit", "file", "ruleId", "startLine"]',
+    "findingLocationsTruncated",
+    "reportDigest",
+    "productionMutation: false",
+  ];
+  const missingContracts = requiredContracts.filter(
+    (contract) => !source.includes(contract),
+  );
+
+  return missingContracts.length === 0
+    ? []
+    : [issue(
+      "V2_SECURITY_EVIDENCE_CONTRACT_INCOMPLETE",
+      path,
+      missingContracts.join(", "),
+    )];
 }
 
 function filesBelow(root, predicate) {
@@ -415,6 +438,27 @@ export function validateRepository(repositoryRoot) {
     issues.push(...validateSecurityWorkflowPolicy(
       ".github/workflows/v2-security-quality.yml",
       securityWorkflowSource,
+    ));
+  }
+
+  const securityEvidencePath = resolve(
+    repositoryRoot,
+    "scripts/v2/production/a0-security-evidence.mjs",
+  );
+  let securityEvidenceSource = "";
+  try {
+    securityEvidenceSource = readFileSync(securityEvidencePath, "utf8");
+  } catch {
+    issues.push(issue(
+      "V2_SECURITY_EVIDENCE_SCRIPT_MISSING",
+      "scripts/v2/production/a0-security-evidence.mjs",
+      "sanitized secret finding locations are required",
+    ));
+  }
+  if (securityEvidenceSource !== "") {
+    issues.push(...validateSecurityEvidencePolicy(
+      "scripts/v2/production/a0-security-evidence.mjs",
+      securityEvidenceSource,
     ));
   }
 

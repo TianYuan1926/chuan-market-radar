@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   validateFullCiWorkflowPolicy,
   validatePackagePolicy,
+  validateSecurityEvidencePolicy,
   validateSecurityWorkflowPolicy,
   validateWorkflowPolicy,
 } from "./a0-engineering-materials-gate.mjs";
@@ -179,6 +180,25 @@ test("security workflow keeps independent fail-closed no-authority controls", ()
   assert.ok(
     privileged.some(
       (item) => item.code === "V2_SECURITY_WORKFLOW_HAS_PRODUCTION_AUTHORITY",
+    ),
+  );
+});
+
+test("security evidence contract stays actionable and sanitized", () => {
+  const path = "scripts/v2/production/a0-security-evidence.mjs";
+  const source = readFileSync(path, "utf8");
+  assert.deepEqual(validateSecurityEvidencePolicy(path, source), []);
+
+  const incomplete = validateSecurityEvidencePolicy(
+    path,
+    source.replace(
+      'findingFields: ["commit", "file", "ruleId", "startLine"]',
+      "findingFields: []",
+    ),
+  );
+  assert.ok(
+    incomplete.some(
+      (item) => item.code === "V2_SECURITY_EVIDENCE_CONTRACT_INCOMPLETE",
     ),
   );
 });
