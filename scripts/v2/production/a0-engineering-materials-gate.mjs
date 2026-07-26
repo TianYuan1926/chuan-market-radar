@@ -13,6 +13,15 @@ const FULL_SHA_PATTERN = /^[0-9a-f]{40}$/u;
 const EXACT_SEMVER_PATTERN =
   /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/u;
 const FORBIDDEN_LICENSE_PATTERN = /\b(?:AGPL|GPL|SSPL|BUSL)-/u;
+const GITLEAKS_FINGERPRINT_PATTERN =
+  /^(?<commit>[0-9a-f]{40}):(?<path>[^:\r\n]+):(?<ruleId>[A-Za-z0-9._/-]+):(?<line>[1-9][0-9]*)$/u;
+const APPROVED_FALSE_POSITIVE_CLASSIFICATIONS = new Set([
+  "COMMIT_IDENTITY",
+  "CONTENT_DIGEST",
+  "PUBLIC_DOCUMENTATION_IDENTIFIER",
+  "SYNTHETIC_TEST_CREDENTIAL",
+  "SYNTHETIC_TEST_IDENTIFIER",
+]);
 const APPROVED_V2_ACTION_REVISIONS = new Map([
   ["actions/checkout", "3d3c42e5aac5ba805825da76410c181273ba90b1"],
   ["actions/setup-node", "820762786026740c76f36085b0efc47a31fe5020"],
@@ -346,6 +355,147 @@ export function validateSecurityEvidencePolicy(path, source) {
     )];
 }
 
+export function validateGitleaksFalsePositivePolicy({
+  ignorePath,
+  ignoreSource,
+  review,
+  reviewPath,
+}) {
+  const issues = [];
+  const ignoredFingerprints = ignoreSource
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) => line !== "" && !line.startsWith("#"));
+  const ignoredRecords = ignoredFingerprints.map((fingerprint, index) => {
+    const match = fingerprint.match(GITLEAKS_FINGERPRINT_PATTERN);
+    return match === null
+      ? null
+      : {
+        commit: match.groups.commit,
+        fingerprint,
+        ignoreLineNumber: index + 1,
+        line: Number(match.groups.line),
+        path: match.groups.path,
+        ruleId: match.groups.ruleId,
+      };
+  });
+  const entries = Array.isArray(review?.entries) ? review.entries : [];
+
+  if (
+    review?.schemaVersion
+      !== "market-radar-v2-a0-secret-history-false-positive-review.v1"
+    || review?.status !== "REVIEWED_FALSE_POSITIVES_ONLY"
+    || review?.scanner?.name !== "gitleaks"
+    || review?.scanner?.version !== "8.30.1"
+    || typeof review?.sourceEvidence?.sourceCommitPrefix !== "string"
+    || !/^[0-9a-f]{12}$/u.test(review.sourceEvidence.sourceCommitPrefix)
+    || review?.sourceEvidence?.findingCount !== entries.length
+    || review?.sourceEvidence?.findingLocationsTruncated !== false
+    || review?.reviewMethod?.sourceStructureReviewed !== true
+    || review?.reviewMethod?.literalValuesRedactedDuringHumanReview !== true
+    || review?.reviewMethod?.rawFindingArtifactUploaded !== false
+    || review?.reviewMethod?.rawCredentialValueRecorded !== false
+    || review?.productionMutation !== false
+  ) {
+    issues.push(issue(
+      "V2_GITLEAKS_FALSE_POSITIVE_REVIEW_INCOMPLETE",
+      reviewPath,
+      "review identity, count, redaction and no-production facts must be exact",
+    ));
+  }
+
+  if (
+    review?.policy?.allowlistScope !== "EXACT_FINGERPRINT_ONLY"
+    || review?.policy?.pathWideAllowlist !== false
+    || review?.policy?.ruleWideAllowlist !== false
+    || review?.policy?.commitWideAllowlist !== false
+    || review?.policy?.futureFindingsFailClosed !== true
+  ) {
+    issues.push(issue(
+      "V2_GITLEAKS_ALLOWLIST_SCOPE_TOO_BROAD",
+      reviewPath,
+      "only exact reviewed fingerprints may be ignored",
+    ));
+  }
+
+  const reviewedIgnoreLines = [];
+  const expectedEntryKeys = [
+    "classification",
+    "credentialRotationRequired",
+    "ignoreLineNumber",
+    "line",
+    "path",
+    "rationale",
+    "ruleId",
+  ];
+  for (const entry of entries) {
+    const entryKeys = entry !== null && typeof entry === "object"
+      ? Object.keys(entry).sort()
+      : [];
+    const pathIsSafe = typeof entry?.path === "string"
+      && !entry.path.startsWith("/")
+      && !entry.path.split("/").includes("..")
+      && !entry.path.includes(":");
+    const ignoredRecord = Number.isInteger(entry?.ignoreLineNumber)
+      ? ignoredRecords[entry.ignoreLineNumber - 1]
+      : undefined;
+    if (
+      entryKeys.join("\0") !== expectedEntryKeys.join("\0")
+      || ignoredRecord === undefined
+      || ignoredRecord === null
+      || ignoredRecord.ignoreLineNumber !== entry.ignoreLineNumber
+      || ignoredRecord.path !== entry.path
+      || ignoredRecord.ruleId !== entry.ruleId
+      || ignoredRecord.line !== entry.line
+      || !pathIsSafe
+      || !APPROVED_FALSE_POSITIVE_CLASSIFICATIONS.has(
+        entry?.classification,
+      )
+      || typeof entry?.rationale !== "string"
+      || entry.rationale.length < 20
+      || entry?.credentialRotationRequired !== false
+    ) {
+      issues.push(issue(
+        "V2_GITLEAKS_FALSE_POSITIVE_ENTRY_INVALID",
+        reviewPath,
+        Number.isInteger(entry?.ignoreLineNumber)
+          ? `ignore line ${entry.ignoreLineNumber}`
+          : "missing ignore line number",
+      ));
+      continue;
+    }
+    reviewedIgnoreLines.push(entry.ignoreLineNumber);
+  }
+
+  if (ignoredRecords.some((record) => record === null)) {
+    issues.push(issue(
+      "V2_GITLEAKS_IGNORE_NOT_EXACT_FINGERPRINT",
+      ignorePath,
+      "wildcards, path-wide, rule-wide and malformed entries are forbidden",
+    ));
+  }
+
+  const ignoredSet = new Set(ignoredFingerprints);
+  const reviewedLineSet = new Set(reviewedIgnoreLines);
+  if (
+    ignoredSet.size !== ignoredFingerprints.length
+    || reviewedLineSet.size !== reviewedIgnoreLines.length
+    || ignoredRecords.length !== reviewedIgnoreLines.length
+    || ignoredRecords.some(
+      (record) => record !== null
+        && !reviewedLineSet.has(record.ignoreLineNumber),
+    )
+  ) {
+    issues.push(issue(
+      "V2_GITLEAKS_IGNORE_REVIEW_DRIFT",
+      ignorePath,
+      "every exact ignore fingerprint must have one matching structured review",
+    ));
+  }
+
+  return issues;
+}
+
 function filesBelow(root, predicate) {
   const files = [];
   for (const name of readdirSync(root)) {
@@ -462,12 +612,48 @@ export function validateRepository(repositoryRoot) {
     ));
   }
 
+  const gitleaksIgnorePath = resolve(repositoryRoot, ".gitleaksignore");
+  const gitleaksReviewPath = resolve(
+    repositoryRoot,
+    "docs/governance/v2-a0-secret-history-false-positive-review.v1.json",
+  );
+  let gitleaksIgnoreSource = "";
+  let gitleaksReview;
+  try {
+    gitleaksIgnoreSource = readFileSync(gitleaksIgnorePath, "utf8");
+  } catch {
+    issues.push(issue(
+      "V2_GITLEAKS_IGNORE_MISSING",
+      ".gitleaksignore",
+      "reviewed historical false positives require exact fingerprints",
+    ));
+  }
+  try {
+    gitleaksReview = JSON.parse(readFileSync(gitleaksReviewPath, "utf8"));
+  } catch {
+    issues.push(issue(
+      "V2_GITLEAKS_FALSE_POSITIVE_REVIEW_MISSING",
+      "docs/governance/v2-a0-secret-history-false-positive-review.v1.json",
+      "every ignored fingerprint requires a structured review",
+    ));
+  }
+  if (gitleaksIgnoreSource !== "" && gitleaksReview !== undefined) {
+    issues.push(...validateGitleaksFalsePositivePolicy({
+      ignorePath: ".gitleaksignore",
+      ignoreSource: gitleaksIgnoreSource,
+      review: gitleaksReview,
+      reviewPath:
+        "docs/governance/v2-a0-secret-history-false-positive-review.v1.json",
+    }));
+  }
+
   return {
     schemaVersion: "v2-a0-engineering-materials-gate.v1",
     status: issues.length === 0 ? "PASS" : "BLOCKED",
     checkedPolicy: {
       directDependenciesExact: true,
       githubActionsFullSha: true,
+      gitleaksExactReviewedFalsePositiveFingerprints: true,
       independentSecurityWorkflow: true,
       githubRuntimeExact: true,
       licenseMetadataAndDenylist: true,

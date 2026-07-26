@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   validateFullCiWorkflowPolicy,
+  validateGitleaksFalsePositivePolicy,
   validatePackagePolicy,
   validateSecurityEvidencePolicy,
   validateSecurityWorkflowPolicy,
@@ -199,6 +200,72 @@ test("security evidence contract stays actionable and sanitized", () => {
   assert.ok(
     incomplete.some(
       (item) => item.code === "V2_SECURITY_EVIDENCE_CONTRACT_INCOMPLETE",
+    ),
+  );
+});
+
+test("Gitleaks ignores only exact independently reviewed false positives", () => {
+  const ignorePath = ".gitleaksignore";
+  const reviewPath =
+    "docs/governance/v2-a0-secret-history-false-positive-review.v1.json";
+  const ignoreSource = readFileSync(ignorePath, "utf8");
+  const reviewSource = readFileSync(reviewPath, "utf8");
+  const review = JSON.parse(reviewSource);
+
+  assert.doesNotMatch(
+    reviewSource,
+    /(?<![0-9a-f])[0-9a-f]{40}(?![0-9a-f])/u,
+    "the review document must not recursively resemble a secret",
+  );
+
+  assert.deepEqual(validateGitleaksFalsePositivePolicy({
+    ignorePath,
+    ignoreSource,
+    review,
+    reviewPath,
+  }), []);
+
+  const broadIgnoreIssues = validateGitleaksFalsePositivePolicy({
+    ignorePath,
+    ignoreSource: `${ignoreSource}src/.*\n`,
+    review,
+    reviewPath,
+  });
+  assert.ok(
+    broadIgnoreIssues.some(
+      (item) => item.code === "V2_GITLEAKS_IGNORE_NOT_EXACT_FINGERPRINT",
+    ),
+  );
+
+  const broadReviewIssues = validateGitleaksFalsePositivePolicy({
+    ignorePath,
+    ignoreSource,
+    review: {
+      ...review,
+      policy: { ...review.policy, pathWideAllowlist: true },
+    },
+    reviewPath,
+  });
+  assert.ok(
+    broadReviewIssues.some(
+      (item) => item.code === "V2_GITLEAKS_ALLOWLIST_SCOPE_TOO_BROAD",
+    ),
+  );
+
+  const driftedEntryIssues = validateGitleaksFalsePositivePolicy({
+    ignorePath,
+    ignoreSource,
+    review: {
+      ...review,
+      entries: review.entries.map((entry, index) => (
+        index === 0 ? { ...entry, line: entry.line + 1 } : entry
+      )),
+    },
+    reviewPath,
+  });
+  assert.ok(
+    driftedEntryIssues.some(
+      (item) => item.code === "V2_GITLEAKS_FALSE_POSITIVE_ENTRY_INVALID",
     ),
   );
 });
