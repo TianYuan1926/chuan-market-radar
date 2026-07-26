@@ -15,6 +15,8 @@ import { dirname, join } from "node:path";
 import test from "node:test";
 import { promisify } from "node:util";
 import {
+  extractDeterministicUstar,
+  readDeterministicUstar,
   writeDeterministicUstar,
 } from "../lib/deterministic-ustar.mjs";
 
@@ -125,6 +127,104 @@ test("deterministic USTAR rejects traversal, duplicates and special files", asyn
         root: payload,
       }),
       /deterministic_ustar_entry_not_regular_file/u,
+    );
+  } finally {
+    await rm(temporary, { recursive: true, force: true });
+  }
+});
+
+test("deterministic USTAR reader verifies and extracts the exact regular-file archive", async () => {
+  const temporary = await mkdtemp(join(tmpdir(), "deterministic-ustar-read-"));
+  const payload = join(temporary, "payload");
+  const archive = join(temporary, "payload.tar");
+  const extracted = join(temporary, "extracted");
+  try {
+    await mkdir(join(payload, "nested"), { recursive: true });
+    await writeFile(join(payload, "alpha.txt"), "alpha\n");
+    await chmod(join(payload, "alpha.txt"), 0o444);
+    await writeFile(
+      join(payload, "nested", "run.js"),
+      "module.exports=1;\n",
+    );
+    await chmod(join(payload, "nested", "run.js"), 0o555);
+    await writeDeterministicUstar({
+      archivePath: archive,
+      entries: ["nested/run.js", "alpha.txt"],
+      root: payload,
+      sourceDateEpoch: SOURCE_DATE_EPOCH,
+    });
+
+    const parsed = await readDeterministicUstar({
+      archivePath: archive,
+      sourceDateEpoch: SOURCE_DATE_EPOCH,
+    });
+    assert.equal(parsed.entryCount, 2);
+    assert.deepEqual(parsed.entries.map((entry) => entry.entry), [
+      "alpha.txt",
+      "nested/run.js",
+    ]);
+    assert.deepEqual(parsed.entries.map((entry) => entry.mode), [
+      0o444,
+      0o555,
+    ]);
+
+    await extractDeterministicUstar({
+      archivePath: archive,
+      destination: extracted,
+      sourceDateEpoch: SOURCE_DATE_EPOCH,
+    });
+    assert.equal(
+      await readFile(join(extracted, "alpha.txt"), "utf8"),
+      "alpha\n",
+    );
+    assert.equal(
+      await readFile(join(extracted, "nested", "run.js"), "utf8"),
+      "module.exports=1;\n",
+    );
+  } finally {
+    await rm(temporary, { recursive: true, force: true });
+  }
+});
+
+test("deterministic USTAR reader fails closed on header, padding and trailer tampering", async () => {
+  const temporary = await mkdtemp(join(tmpdir(), "deterministic-ustar-tamper-"));
+  const payload = join(temporary, "payload");
+  const archive = join(temporary, "payload.tar");
+  try {
+    await mkdir(payload);
+    await writeFile(join(payload, "payload.txt"), "trusted\n");
+    await writeDeterministicUstar({
+      archivePath: archive,
+      entries: ["payload.txt"],
+      root: payload,
+      sourceDateEpoch: SOURCE_DATE_EPOCH,
+    });
+    const original = await readFile(archive);
+
+    const headerTampered = Buffer.from(original);
+    headerTampered[100] = 0x37;
+    const headerPath = join(temporary, "header-tampered.tar");
+    await writeFile(headerPath, headerTampered);
+    await assert.rejects(
+      () => readDeterministicUstar({ archivePath: headerPath }),
+      /deterministic_ustar_checksum_mismatch/u,
+    );
+
+    const paddingTampered = Buffer.from(original);
+    paddingTampered[512 + Buffer.byteLength("trusted\n")] = 1;
+    const paddingPath = join(temporary, "padding-tampered.tar");
+    await writeFile(paddingPath, paddingTampered);
+    await assert.rejects(
+      () => readDeterministicUstar({ archivePath: paddingPath }),
+      /deterministic_ustar_padding_invalid/u,
+    );
+
+    const trailerTampered = Buffer.concat([original, Buffer.alloc(512)]);
+    const trailerPath = join(temporary, "trailer-tampered.tar");
+    await writeFile(trailerPath, trailerTampered);
+    await assert.rejects(
+      () => readDeterministicUstar({ archivePath: trailerPath }),
+      /deterministic_ustar_trailer_size_invalid/u,
     );
   } finally {
     await rm(temporary, { recursive: true, force: true });

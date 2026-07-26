@@ -4,6 +4,9 @@ import test from "node:test";
 
 const composePath = "deploy/v2/m1-collector/compose.shadow.yml";
 const dockerfilePath = "deploy/v2/m1-collector/Dockerfile";
+const imageTsconfigPath = "tsconfig.v2-m1-collector-image.json";
+const runtimePackagePath = "deploy/v2/m1-collector/runtime/package.json";
+const runtimeLockPath = "deploy/v2/m1-collector/runtime/package-lock.json";
 const workflowPath =
   ".github/workflows/v2-m1-5-b1-reachable-runner-preflight.yml";
 const validatorPath =
@@ -56,14 +59,31 @@ test("M1 shadow service is bounded, no-authority and receives no Legacy secret",
 });
 
 test("M1 collector image contains only compiled V2 runtime and runs as non-root", async () => {
-  const dockerfile = await readFile(dockerfilePath, "utf8");
+  const [dockerfile, imageTsconfig, runtimePackage, runtimeLock] =
+    await Promise.all([
+      readFile(dockerfilePath, "utf8"),
+      readFile(imageTsconfigPath, "utf8"),
+      readFile(runtimePackagePath, "utf8"),
+      readFile(runtimeLockPath, "utf8"),
+    ]);
+  const imageBuild = JSON.parse(imageTsconfig);
+  const runtimeManifest = JSON.parse(runtimePackage);
+  const runtimeDependencyLock = JSON.parse(runtimeLock);
 
   assert.ok(dockerfile.includes("USER 65532:65532"));
   assert.ok(dockerfile.includes("HEALTHCHECK NONE"));
   assert.ok(dockerfile.includes(
     'ENTRYPOINT ["/nodejs/bin/node", ".tmp/market-tests/v2/entrypoints/m1-collector-worker.js"]',
   ));
-  assert.ok(dockerfile.includes("/app/.tmp/market-tests/v2"));
+  assert.ok(dockerfile.includes("/app/.tmp/m1-collector-image/v2"));
+  assert.ok(dockerfile.includes("npm run build:v2-m1-collector-image"));
+  assert.ok(dockerfile.includes("npm ci --omit=dev --ignore-scripts"));
+  assert.ok(dockerfile.includes("ARG SOURCE_DATE_EPOCH=946684800"));
+  assert.ok(dockerfile.includes(
+    'RUN test "${SOURCE_DATE_EPOCH}" = "946684800"',
+  ));
+  assert.ok(dockerfile.includes(runtimePackagePath));
+  assert.ok(dockerfile.includes(runtimeLockPath));
   assert.equal(
     dockerfile.split("\n").filter((line) => line.startsWith(`FROM ${nodeBaseImage}`)).length,
     3,
@@ -83,6 +103,20 @@ test("M1 collector image contains only compiled V2 runtime and runs as non-root"
   assert.equal(dockerfile.includes("scripts/production"), false);
   assert.equal(dockerfile.includes("deploy/workers"), false);
   assert.equal(dockerfile.includes(".env"), false);
+  assert.deepEqual(imageBuild.include, []);
+  assert.deepEqual(imageBuild.files, [
+    "src/v2/entrypoints/m1-collector-worker.ts",
+    "src/v2/modules/market-fact/collector/collector-live.integration.test.ts",
+  ]);
+  assert.deepEqual(runtimeManifest.dependencies, {
+    pg: "8.16.3",
+    zod: "4.4.3",
+  });
+  assert.deepEqual(
+    runtimeDependencyLock.packages[""].dependencies,
+    runtimeManifest.dependencies,
+  );
+  assert.equal(runtimeDependencyLock.packages[""].devDependencies, undefined);
 });
 
 test("M1 GitHub egress diagnostic is manual, non-gating and no-authority", async () => {

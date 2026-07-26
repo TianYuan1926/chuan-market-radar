@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.market-test.json",
+  "compilerOptions": {
+    "outDir": ".tmp/m1-collector-image"
+  },
+  "files": [
+    "src/v2/entrypoints/m1-collector-worker.ts",
+    "src/v2/modules/market-fact/collector/collector-live.integration.test.ts"
+  ],
+  "include": []
+}

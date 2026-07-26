@@ -5,6 +5,9 @@ import {
 } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, relative, resolve } from "node:path";
+import {
+  validateA0ReleaseQualificationPolicy,
+} from "./a0-release-qualification-contract.mjs";
 
 const REQUIRED_NODE_VERSION = "22.23.1";
 const REQUIRED_NPM_VERSION = "10.9.8";
@@ -167,6 +170,72 @@ export function validatePackagePolicy(packageJson, packageLock) {
         "FORBIDDEN_STRONG_COPYLEFT_LICENSE",
         `package-lock.json#${packagePath}`,
         metadata.license,
+      ));
+    }
+  }
+  return issues;
+}
+
+export function validateCollectorRuntimePackagePolicy({
+  rootPackageLock,
+  runtimePackage,
+  runtimePackageLock,
+}) {
+  const issues = [];
+  const expectedDependencies = { pg: "8.16.3", zod: "4.4.3" };
+  if (
+    runtimePackage?.packageManager !== `npm@${REQUIRED_NPM_VERSION}` ||
+    runtimePackage?.engines?.node !== REQUIRED_NODE_VERSION ||
+    runtimePackage?.engines?.npm !== REQUIRED_NPM_VERSION ||
+    JSON.stringify(runtimePackage?.dependencies) !==
+      JSON.stringify(expectedDependencies) ||
+    runtimePackage?.devDependencies !== undefined
+  ) {
+    issues.push(issue(
+      "V2_COLLECTOR_RUNTIME_MANIFEST_DRIFT",
+      "deploy/v2/m1-collector/runtime/package.json",
+      "runtime must remain the exact pg and zod production closure",
+    ));
+  }
+  const runtimeRoot = runtimePackageLock?.packages?.[""];
+  const runtimePackages = Object.entries(runtimePackageLock?.packages ?? {});
+  if (
+    runtimePackageLock?.lockfileVersion !== 3 ||
+    JSON.stringify(runtimeRoot?.dependencies) !==
+      JSON.stringify(expectedDependencies) ||
+    runtimeRoot?.devDependencies !== undefined ||
+    runtimePackages.length < 10 ||
+    runtimePackages.length > 20
+  ) {
+    issues.push(issue(
+      "V2_COLLECTOR_RUNTIME_LOCK_BOUNDARY_DRIFT",
+      "deploy/v2/m1-collector/runtime/package-lock.json",
+      "runtime lock must stay exact, production-only and narrowly bounded",
+    ));
+  }
+  for (const [path, metadata] of runtimePackages) {
+    if (path === "") continue;
+    const rootMetadata = rootPackageLock?.packages?.[path];
+    if (
+      typeof metadata?.version !== "string" ||
+      metadata.version !== rootMetadata?.version ||
+      metadata.integrity !== rootMetadata?.integrity
+    ) {
+      issues.push(issue(
+        "V2_COLLECTOR_RUNTIME_LOCK_ROOT_DRIFT",
+        `deploy/v2/m1-collector/runtime/package-lock.json#${path}`,
+        "runtime dependency must match the authoritative root lock",
+      ));
+    }
+    if (
+      typeof metadata?.license !== "string" ||
+      metadata.license.length === 0 ||
+      FORBIDDEN_LICENSE_PATTERN.test(metadata.license)
+    ) {
+      issues.push(issue(
+        "V2_COLLECTOR_RUNTIME_LICENSE_REJECTED",
+        `deploy/v2/m1-collector/runtime/package-lock.json#${path}`,
+        String(metadata?.license ?? "missing"),
       ));
     }
   }
@@ -366,6 +435,70 @@ export function validateSecurityWorkflowPolicy(path, source) {
       "V2_SECURITY_WORKFLOW_HAS_PRODUCTION_AUTHORITY",
       path,
       "security quality jobs must remain GitHub-hosted and production-free",
+    ));
+  }
+  return issues;
+}
+
+export function validateA0ReleaseQualificationWorkflowPolicy(path, source) {
+  const issues = [];
+  const requiredContracts = [
+    "V2 A0 Release Qualification",
+    "pull_request:",
+    "push:",
+    "workflow_dispatch:",
+    "permissions:\n  contents: read",
+    "release-provenance-and-rollback:",
+    "performance-and-resource-baseline:",
+    "runs-on: ubuntu-24.04",
+    "node-version: 22.23.1",
+    "fetch-depth: 0",
+    "persist-credentials: false",
+    "docker/buildx-bin:0.31.1@sha256:49141c168b609ef38f2b11bc231d48e2492ec1f979c2b9aa4ab691790cce115d",
+    "npm run build:v2-m1-collector-image",
+    "a0-release-qualification.mjs",
+    "--output \"type=local,dest=/evidence/rootfs-a\"",
+    "--output \"type=local,dest=/evidence/rootfs-b\"",
+    "--network none",
+    "--read-only",
+    "a0-runtime-smoke-evidence.mjs",
+    "a0-rootfs-provenance-evidence.mjs",
+    "node --expose-gc",
+    "a0-performance-resource-baseline.mjs",
+    "TEST_ONLY_ENGINEERING_RESOURCE_BASELINE_NOT_LIVE_MARKET_CAPACITY",
+    "production_execution=false",
+    "production_mutation=false",
+    "production_credentials=false",
+    "automatic_trading=false",
+    "retention-days: 30",
+    "case \"$EVIDENCE_ROOT\" in",
+    "sudo rm -rf -- \"$EVIDENCE_ROOT\"",
+  ];
+  const missing = requiredContracts.filter(
+    (contract) => !source.includes(contract),
+  );
+  if (missing.length > 0) {
+    issues.push(issue(
+      "V2_A0_RELEASE_QUALIFICATION_WORKFLOW_INCOMPLETE",
+      path,
+      missing.join(", "),
+    ));
+  }
+  if ((source.match(/--no-cache/gmu) ?? []).length !== 2) {
+    issues.push(issue(
+      "V2_A0_RELEASE_INDEPENDENT_BUILD_COUNT_DRIFT",
+      path,
+      "exactly two independent no-cache rootfs builds are required",
+    ));
+  }
+  if (
+    /runs-on:\s*\[?self-hosted|environment:\s*production|secrets\.|contents:\s*write|id-token:\s*write|packages:\s*write|\bdocker push\b|\bssh\b|\bscp\b|cloud\.tencent\.com/iu
+      .test(source)
+  ) {
+    issues.push(issue(
+      "V2_A0_RELEASE_QUALIFICATION_HAS_PRODUCTION_AUTHORITY",
+      path,
+      "qualification must remain GitHub-hosted and production-free",
     ));
   }
   return issues;
@@ -923,6 +1056,23 @@ export function validateRepository(repositoryRoot) {
   );
   const issues = [
     ...validatePackagePolicy(packageJson, packageLock),
+    ...validateCollectorRuntimePackagePolicy({
+      rootPackageLock: packageLock,
+      runtimePackage: JSON.parse(readFileSync(
+        resolve(
+          repositoryRoot,
+          "deploy/v2/m1-collector/runtime/package.json",
+        ),
+        "utf8",
+      )),
+      runtimePackageLock: JSON.parse(readFileSync(
+        resolve(
+          repositoryRoot,
+          "deploy/v2/m1-collector/runtime/package-lock.json",
+        ),
+        "utf8",
+      )),
+    }),
     ...workflowFiles.flatMap((path) =>
       validateWorkflowPolicy(
         relative(repositoryRoot, path),
@@ -968,6 +1118,46 @@ export function validateRepository(repositoryRoot) {
     issues.push(...validateSecurityWorkflowPolicy(
       ".github/workflows/v2-security-quality.yml",
       securityWorkflowSource,
+    ));
+  }
+
+  const releaseQualificationWorkflowPath = resolve(
+    workflowRoot,
+    "v2-a0-release-qualification.yml",
+  );
+  let releaseQualificationWorkflowSource = "";
+  try {
+    releaseQualificationWorkflowSource = readFileSync(
+      releaseQualificationWorkflowPath,
+      "utf8",
+    );
+  } catch {
+    issues.push(issue(
+      "V2_A0_RELEASE_QUALIFICATION_WORKFLOW_MISSING",
+      ".github/workflows/v2-a0-release-qualification.yml",
+      "independent provenance, rollback and resource qualification is required",
+    ));
+  }
+  if (releaseQualificationWorkflowSource !== "") {
+    issues.push(...validateA0ReleaseQualificationWorkflowPolicy(
+      ".github/workflows/v2-a0-release-qualification.yml",
+      releaseQualificationWorkflowSource,
+    ));
+  }
+
+  const releaseQualificationPolicyPath = resolve(
+    repositoryRoot,
+    "docs/governance/v2-a0-release-qualification-policy.v1.json",
+  );
+  try {
+    validateA0ReleaseQualificationPolicy(JSON.parse(
+      readFileSync(releaseQualificationPolicyPath, "utf8"),
+    ));
+  } catch (error) {
+    issues.push(issue(
+      "V2_A0_RELEASE_QUALIFICATION_POLICY_INVALID",
+      "docs/governance/v2-a0-release-qualification-policy.v1.json",
+      error instanceof Error ? error.message : "policy validation failed",
     ));
   }
 
@@ -1117,11 +1307,13 @@ export function validateRepository(repositoryRoot) {
     status: issues.length === 0 ? "PASS" : "BLOCKED",
     checkedPolicy: {
       directDependenciesExact: true,
+      collectorRuntimeDependencyClosureExact: true,
       githubActionsFullSha: true,
       codeqlExactReviewedSuppressions: true,
       gitleaksExactReviewedFalsePositiveFingerprints: true,
       securitySourceCommitIdentitySegmented: true,
       independentSecurityWorkflow: true,
+      independentReleaseQualificationWorkflow: true,
       githubRuntimeExact: true,
       licenseMetadataAndDenylist: true,
       nextMinimumSecurityPatch: MINIMUM_SAFE_NEXT_VERSION,
@@ -1129,6 +1321,7 @@ export function validateRepository(repositoryRoot) {
       npmVersion: REQUIRED_NPM_VERSION,
       v2ActionsApprovedNode24Revisions: true,
       v2BaseImagesDigestPinned: true,
+      releaseQualificationPolicyFrozen: true,
     },
     issues,
   };

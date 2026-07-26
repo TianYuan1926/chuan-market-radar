@@ -1,0 +1,92 @@
+{
+  "schemaVersion": "market-radar-v2-a0-release-qualification-policy.v1",
+  "status": "FROZEN_PRE_EXECUTION_POLICY",
+  "qualificationId": "A0_REPRODUCIBLE_PROVENANCE_ROLLBACK_AND_RESOURCE_BASELINE",
+  "scope": {
+    "runtime": "V2_M1_COLLECTOR_NO_AUTHORITY",
+    "scopeEpoch": "SCOPE_EPOCH_V1_CRYPTO_3V_ENGINEERING_FIXTURE",
+    "businessAuthority": false,
+    "liveCapacityClaimAllowed": false,
+    "productionReadAllowed": false,
+    "productionMutationAllowed": false,
+    "automaticTradingAllowed": false
+  },
+  "runtimeArtifact": {
+    "dockerfile": "deploy/v2/m1-collector/Dockerfile",
+    "compileConfig": "tsconfig.v2-m1-collector-image.json",
+    "compiledRoot": ".tmp/m1-collector-image/v2",
+    "entrypoint": "entrypoints/m1-collector-worker.js",
+    "requiredDiagnostic": "modules/market-fact/collector/collector-live.integration.test.js",
+    "allowedCompiledTestCount": 1,
+    "minimumCompiledFileCount": 40,
+    "maximumCompiledFileCount": 80,
+    "runtimePackageManifest": "deploy/v2/m1-collector/runtime/package.json",
+    "runtimePackageLock": "deploy/v2/m1-collector/runtime/package-lock.json",
+    "externalDependencies": {
+      "pg": "8.16.3",
+      "zod": "4.4.3"
+    },
+    "nodeVersion": "22.23.1",
+    "npmVersion": "10.9.8",
+    "nodeBuildImage": "node:22-bookworm-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3",
+    "nodeRuntimeImage": "gcr.io/distroless/nodejs22-debian13@sha256:6eae66c49774276f50ae1818db25bb89735971a909fb833633dd1400dbc450a1",
+    "buildxImage": "docker/buildx-bin:0.31.1@sha256:49141c168b609ef38f2b11bc231d48e2492ec1f979c2b9aa4ab691790cce115d"
+  },
+  "reproducibility": {
+    "applicationCapsuleSerializationCount": 2,
+    "independentRootfsBuildCount": 2,
+    "sourceDateEpoch": 946684800,
+    "cleanExactSourceRequired": true,
+    "canonicalRootfsIdentityRequired": true,
+    "exactImageConfigRequired": true,
+    "deterministicApplicationCapsuleRequired": true,
+    "maximumApplicationCapsuleBytes": 33554432,
+    "maximumRootfsFileCount": 15000,
+    "maximumImageBytes": 268435456
+  },
+  "rollbackDrill": {
+    "evidenceClass": "ISOLATED_RELEASE_MECHANISM_DRILL_NOT_PRODUCTION_RECOVERY",
+    "temporaryRootRequired": true,
+    "productionPathAllowed": false,
+    "scenarios": [
+      "TAMPERED_CANDIDATE_BLOCKED_BEFORE_ACTIVATION",
+      "VALID_CANDIDATE_HEALTH_FAILURE_AUTO_RESTORES_EXACT_BASELINE",
+      "VALID_CANDIDATE_ACTIVATES_THEN_EXPLICIT_ROLLBACK_RESTORES_EXACT_BASELINE"
+    ],
+    "atomicPointerRequired": true,
+    "contentAddressedSlotsRequired": true,
+    "automaticRollbackRequired": true,
+    "exactBaselineDigestRequired": true
+  },
+  "performanceBaseline": {
+    "evidenceClass": "TEST_ONLY_ENGINEERING_RESOURCE_BASELINE_NOT_LIVE_MARKET_CAPACITY",
+    "workloadVersion": "v2-a0-three-venue-1440-instrument-collector.v1",
+    "assetCountPerVenue": 480,
+    "venueCount": 3,
+    "expectedObservedInstrumentCount": 1446,
+    "expectedEligibleInstrumentCount": 1440,
+    "cycleIntervalMs": 60000,
+    "warmupIncrementalCycles": 5,
+    "measuredColdCycles": 12,
+    "measuredIncrementalCycles": 60,
+    "minimumMeasuredCycles": 72,
+    "budgets": {
+      "coldLatencyP95Ms": 1800,
+      "incrementalLatencyP95Ms": 500,
+      "coldCpuP95Ms": 1500,
+      "incrementalCpuP95Ms": 400,
+      "eventLoopDelayP99Ms": 200,
+      "maximumRssMiB": 384,
+      "maximumHeapUsedMiB": 256,
+      "minimumIncrementalInstrumentThroughputPerSecond": 750
+    }
+  },
+  "evidence": {
+    "workflow": ".github/workflows/v2-a0-release-qualification.yml",
+    "retentionDays": 30,
+    "rawSecretsAllowed": false,
+    "environmentValuesAllowed": false,
+    "absolutePathsAllowed": false,
+    "productionMutation": false
+  }
+}

@@ -1,6 +1,12 @@
 import { constants as fsConstants } from "node:fs";
-import { open, writeFile } from "node:fs/promises";
-import { posix, resolve, sep } from "node:path";
+import {
+  chmod,
+  mkdir,
+  open,
+  readFile,
+  writeFile,
+} from "node:fs/promises";
+import { dirname, posix, resolve, sep } from "node:path";
 
 const BLOCK_BYTES = 512;
 const NAME_BYTES = 100;
@@ -106,6 +112,194 @@ function buildHeader({ entry, mode, size, sourceDateEpoch }) {
 
 function lexicalOrder(left, right) {
   return left < right ? -1 : left > right ? 1 : 0;
+}
+
+function nullTerminatedText(buffer, offset, length) {
+  const field = buffer.subarray(offset, offset + length);
+  const end = field.indexOf(0);
+  return field.subarray(0, end === -1 ? field.length : end).toString("utf8");
+}
+
+function parseOctalField(buffer, offset, length, reason) {
+  const value = buffer
+    .subarray(offset, offset + length)
+    .toString("ascii")
+    .replace(/\0.*$/u, "")
+    .trim();
+  ensure(/^[0-7]+$/u.test(value), reason);
+  const parsed = Number.parseInt(value, 8);
+  ensure(Number.isSafeInteger(parsed) && parsed >= 0, reason);
+  return parsed;
+}
+
+function allZero(buffer) {
+  return buffer.every((byte) => byte === 0);
+}
+
+function verifyHeaderChecksum(header) {
+  const expected = parseOctalField(
+    header,
+    148,
+    8,
+    "deterministic_ustar_checksum_invalid",
+  );
+  const checksumHeader = Buffer.from(header);
+  checksumHeader.fill(0x20, 148, 156);
+  let actual = 0;
+  for (const byte of checksumHeader) actual += byte;
+  ensure(actual === expected, "deterministic_ustar_checksum_mismatch");
+}
+
+export async function readDeterministicUstar({
+  archivePath,
+  maxArchiveBytes = 128 * 1024 * 1024,
+  maxEntries = 10_000,
+  sourceDateEpoch = DETERMINISTIC_USTAR_SOURCE_DATE_EPOCH,
+}) {
+  ensure(
+    Number.isSafeInteger(maxArchiveBytes) && maxArchiveBytes > BLOCK_BYTES * 2,
+    "deterministic_ustar_archive_limit_invalid",
+  );
+  ensure(
+    Number.isSafeInteger(maxEntries) && maxEntries > 0,
+    "deterministic_ustar_entry_limit_invalid",
+  );
+  const archive = await readFile(archivePath);
+  ensure(
+    archive.length >= BLOCK_BYTES * 2 &&
+      archive.length <= maxArchiveBytes &&
+      archive.length % BLOCK_BYTES === 0,
+    "deterministic_ustar_archive_size_invalid",
+  );
+
+  const entries = [];
+  const observed = new Set();
+  let offset = 0;
+  while (offset + BLOCK_BYTES * 2 <= archive.length) {
+    const header = archive.subarray(offset, offset + BLOCK_BYTES);
+    if (allZero(header)) {
+      ensure(
+        allZero(archive.subarray(offset)),
+        "deterministic_ustar_trailer_invalid",
+      );
+      ensure(
+        archive.length - offset === BLOCK_BYTES * 2,
+        "deterministic_ustar_trailer_size_invalid",
+      );
+      return Object.freeze({
+        archiveBytes: archive.length,
+        entries: Object.freeze(entries),
+        entryCount: entries.length,
+        sourceDateEpoch,
+      });
+    }
+
+    ensure(
+      entries.length < maxEntries,
+      "deterministic_ustar_entry_limit_exceeded",
+    );
+    verifyHeaderChecksum(header);
+    ensure(
+      header.subarray(257, 263).equals(Buffer.from("ustar\0", "ascii")) &&
+        header.subarray(263, 265).equals(Buffer.from("00", "ascii")),
+      "deterministic_ustar_format_invalid",
+    );
+    ensure(
+      header[156] === 0 || header[156] === 0x30,
+      "deterministic_ustar_non_regular_entry_rejected",
+    );
+    const name = nullTerminatedText(header, 0, NAME_BYTES);
+    const prefix = nullTerminatedText(header, 345, PREFIX_BYTES);
+    const entry = canonicalEntryPath(prefix === "" ? name : `${prefix}/${name}`);
+    ensure(!observed.has(entry), "deterministic_ustar_duplicate_entry");
+    observed.add(entry);
+    const mode = parseOctalField(
+      header,
+      100,
+      8,
+      "deterministic_ustar_mode_invalid",
+    );
+    const uid = parseOctalField(
+      header,
+      108,
+      8,
+      "deterministic_ustar_uid_invalid",
+    );
+    const gid = parseOctalField(
+      header,
+      116,
+      8,
+      "deterministic_ustar_gid_invalid",
+    );
+    const size = parseOctalField(
+      header,
+      124,
+      12,
+      "deterministic_ustar_size_invalid",
+    );
+    const mtime = parseOctalField(
+      header,
+      136,
+      12,
+      "deterministic_ustar_mtime_invalid",
+    );
+    ensure(
+      uid === 0 && gid === 0 && mode <= 0o777 && mtime === sourceDateEpoch,
+      "deterministic_ustar_metadata_drift",
+    );
+    const contentStart = offset + BLOCK_BYTES;
+    const contentEnd = contentStart + size;
+    ensure(
+      contentEnd <= archive.length - BLOCK_BYTES * 2,
+      "deterministic_ustar_entry_truncated",
+    );
+    const paddingBytes = (BLOCK_BYTES - (size % BLOCK_BYTES)) % BLOCK_BYTES;
+    const nextOffset = contentEnd + paddingBytes;
+    ensure(
+      nextOffset <= archive.length - BLOCK_BYTES * 2 &&
+        allZero(archive.subarray(contentEnd, nextOffset)),
+      "deterministic_ustar_padding_invalid",
+    );
+    entries.push(Object.freeze({
+      bytes: Buffer.from(archive.subarray(contentStart, contentEnd)),
+      entry,
+      mode,
+      size,
+    }));
+    offset = nextOffset;
+  }
+  throw new Error("deterministic_ustar_trailer_missing");
+}
+
+export async function extractDeterministicUstar({
+  archivePath,
+  destination,
+  maxArchiveBytes,
+  maxEntries,
+  sourceDateEpoch = DETERMINISTIC_USTAR_SOURCE_DATE_EPOCH,
+}) {
+  const parsed = await readDeterministicUstar({
+    archivePath,
+    maxArchiveBytes,
+    maxEntries,
+    sourceDateEpoch,
+  });
+  const destinationRoot = resolve(destination);
+  await mkdir(destinationRoot, { mode: 0o700, recursive: false });
+  for (const item of parsed.entries) {
+    const target = resolve(destinationRoot, ...item.entry.split("/"));
+    ensure(
+      target.startsWith(`${destinationRoot}${sep}`),
+      "deterministic_ustar_extract_boundary_rejected",
+    );
+    await mkdir(dirname(target), { mode: 0o700, recursive: true });
+    await writeFile(target, item.bytes, {
+      flag: "wx",
+      mode: item.mode,
+    });
+    await chmod(target, item.mode);
+  }
+  return parsed;
 }
 
 export async function writeDeterministicUstar({

@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
+  validateCollectorRuntimePackagePolicy,
   validateCodeqlEvidencePolicy,
   validateCodeqlSuppressionPolicy,
+  validateA0ReleaseQualificationWorkflowPolicy,
   validateFullCiWorkflowPolicy,
   validateGitleaksFalsePositivePolicy,
   validatePackagePolicy,
@@ -77,6 +79,39 @@ test("materials gate rejects latest, lock drift, vulnerable Next and GPL", () =>
   assert.ok(codes.includes("NEXT_SECURITY_PATCH_BELOW_MINIMUM"));
   assert.ok(codes.includes("NEXT_ESLINT_VERSION_DRIFT"));
   assert.ok(codes.includes("FORBIDDEN_STRONG_COPYLEFT_LICENSE"));
+});
+
+test("collector runtime lock remains a narrow production-only subset of the root lock", () => {
+  const runtimePackage = JSON.parse(readFileSync(
+    "deploy/v2/m1-collector/runtime/package.json",
+    "utf8",
+  ));
+  const runtimePackageLock = JSON.parse(readFileSync(
+    "deploy/v2/m1-collector/runtime/package-lock.json",
+    "utf8",
+  ));
+  const rootPackageLock = JSON.parse(readFileSync("package-lock.json", "utf8"));
+  assert.deepEqual(validateCollectorRuntimePackagePolicy({
+    rootPackageLock,
+    runtimePackage,
+    runtimePackageLock,
+  }), []);
+
+  const broadened = structuredClone(runtimePackage);
+  broadened.dependencies.next = "16.2.12";
+  assert.ok(validateCollectorRuntimePackagePolicy({
+    rootPackageLock,
+    runtimePackage: broadened,
+    runtimePackageLock,
+  }).some((item) => item.code === "V2_COLLECTOR_RUNTIME_MANIFEST_DRIFT"));
+
+  const relicensed = structuredClone(runtimePackageLock);
+  relicensed.packages["node_modules/pg"].license = "GPL-3.0";
+  assert.ok(validateCollectorRuntimePackagePolicy({
+    rootPackageLock,
+    runtimePackage,
+    runtimePackageLock: relicensed,
+  }).some((item) => item.code === "V2_COLLECTOR_RUNTIME_LICENSE_REJECTED"));
 });
 
 test("workflow gate requires full action SHA and exact runner versions", () => {
@@ -198,6 +233,49 @@ test("security workflow keeps independent fail-closed no-authority controls", ()
   assert.ok(
     privileged.some(
       (item) => item.code === "V2_SECURITY_WORKFLOW_HAS_PRODUCTION_AUTHORITY",
+    ),
+  );
+});
+
+test("A0 release qualification keeps two independent builds and no production authority", () => {
+  const path = ".github/workflows/v2-a0-release-qualification.yml";
+  const source = readFileSync(path, "utf8");
+  assert.deepEqual(
+    validateA0ReleaseQualificationWorkflowPolicy(path, source),
+    [],
+  );
+
+  const oneBuild = validateA0ReleaseQualificationWorkflowPolicy(
+    path,
+    source.replace("            --no-cache \\\n", ""),
+  );
+  assert.ok(
+    oneBuild.some(
+      (item) =>
+        item.code === "V2_A0_RELEASE_INDEPENDENT_BUILD_COUNT_DRIFT",
+    ),
+  );
+
+  const privileged = validateA0ReleaseQualificationWorkflowPolicy(
+    path,
+    `${source}\nenvironment: production\n`,
+  );
+  assert.ok(
+    privileged.some(
+      (item) =>
+        item.code ===
+          "V2_A0_RELEASE_QUALIFICATION_HAS_PRODUCTION_AUTHORITY",
+    ),
+  );
+
+  const unsafeCleanup = validateA0ReleaseQualificationWorkflowPolicy(
+    path,
+    source.replace('          sudo rm -rf -- "$EVIDENCE_ROOT"\n', ""),
+  );
+  assert.ok(
+    unsafeCleanup.some(
+      (item) =>
+        item.code === "V2_A0_RELEASE_QUALIFICATION_WORKFLOW_INCOMPLETE",
     ),
   );
 });

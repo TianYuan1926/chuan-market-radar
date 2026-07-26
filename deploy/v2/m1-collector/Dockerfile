@@ -1,3 +1,5 @@
+ARG SOURCE_DATE_EPOCH=946684800
+
 FROM node:22-bookworm-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3 AS dependencies
 
 WORKDIR /app
@@ -7,22 +9,24 @@ RUN npm ci
 FROM node:22-bookworm-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3 AS builder
 
 ARG V2_M1_COLLECTOR_SOURCE_COMMIT
+ARG SOURCE_DATE_EPOCH
 RUN case "${V2_M1_COLLECTOR_SOURCE_COMMIT}" in \
       [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ;; \
       *) echo "V2_M1_COLLECTOR_SOURCE_COMMIT must be a full lowercase commit" >&2; exit 1 ;; \
     esac
+RUN test "${SOURCE_DATE_EPOCH}" = "946684800"
 
 WORKDIR /app
 COPY --from=dependencies /app/node_modules ./node_modules
-COPY tsconfig.json tsconfig.market-test.json package.json package-lock.json ./
+COPY tsconfig.json tsconfig.market-test.json tsconfig.v2-m1-collector-image.json package.json package-lock.json ./
 COPY src ./src
-RUN npm run build:market-cli
+RUN npm run build:v2-m1-collector-image
 
 FROM node:22-bookworm-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3 AS production-dependencies
 
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+COPY deploy/v2/m1-collector/runtime/package.json deploy/v2/m1-collector/runtime/package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 FROM gcr.io/distroless/nodejs22-debian13@sha256:6eae66c49774276f50ae1818db25bb89735971a909fb833633dd1400dbc450a1 AS runtime
 
@@ -35,9 +39,9 @@ WORKDIR /app
 ENV NODE_ENV=production \
     NODE_OPTIONS="--disable-proto=throw --unhandled-rejections=strict"
 
-COPY --chown=65532:65532 package.json ./
+COPY --chown=65532:65532 deploy/v2/m1-collector/runtime/package.json ./package.json
 COPY --chown=65532:65532 --from=production-dependencies /app/node_modules ./node_modules
-COPY --chown=65532:65532 --from=builder /app/.tmp/market-tests/v2 ./.tmp/market-tests/v2
+COPY --chown=65532:65532 --from=builder /app/.tmp/m1-collector-image/v2 ./.tmp/market-tests/v2
 
 USER 65532:65532
 HEALTHCHECK NONE
