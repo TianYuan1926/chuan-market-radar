@@ -2,6 +2,36 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-27 / V2 M1.6-P0R Read-Only Source Rebind
+
+### 本轮目标
+
+根据当前源码与服务器历史 staging 的真实差异，阻止 superseded P0R 包被误执行，并建立无 secret、只读、可签名派发的现场重绑定入口。
+
+### 修改范围
+
+- 历史 `bed938...` staging 的成员、manifest、plan、bindings 和摘要继续保留为审计事实，但状态改为 `REJECTED_SUPERSEDED_SECURITY_SOURCE`，禁止执行、复用或绑定新 STS。
+- 根因是其三个目标机运行文件早于单句柄 `O_NOFOLLOW`、独占输出和有界读取修复；本地 bundle builder 也早于确定性 Node USTAR。
+- source parts `408803e0bdc21051124a + 79e307db8e9eb39c793c` 新增 deterministic no-secret rebind bundle、strict request、精确只读命令 allowlist、single-use runner、staging 自动清理和脱敏 evidence。
+- 重绑定核对生产 Git、容器、timer、listener、health、`/dev/shm`、P0R container/volume、腾讯 metadata `/32` 摘要与历史 staging 全成员；生产身份前后必须零漂移。
+- 证据发布改为同目录临时文件加原子硬链接，任何同名结果直接失败，不能覆盖已有证据。
+
+### 验收结果
+
+- rebind package `9/9 PASS`。
+- 完整 P0R `70/70 PASS`，Go COS helper PASS。
+- 完整本地 CI PASS：Market 965 pass / 4 explicit skip、Workers 23/23、Historical 4/4、V2 Foundation 584 pass / 6 explicit skip、V2 Ops 179/179、M0、Next build、Golden 16/16 与 security 全部通过。
+- exact-source Full Quality `30219999104`、A0 Release Qualification `30219999094` 与 Independent Security `30219999063` 全部 PASS；Security 明确证明 Gitleaks finding=`0`、CodeQL untriaged=`0`、Trivy HIGH/CRITICAL=`0`。
+- 三条远端工作流均声明 `production_execution=false`、`production_mutation=false` 且未使用生产凭证；该结果关闭源码资格前置，不等于腾讯现场重绑定完成。
+
+### 是否部署
+
+未部署。腾讯生产未执行命令；应用、数据库、Redis、Worker、容器、env、Feature Flag、migration、COS 对象和业务 authority 均未改变。
+
+### 下一步
+
+下一入口直接推进为 `V2-M1.6-P0R-R0-READ-ONLY-SOURCE-REBIND`。生产重绑定 PASS 后才允许从 current source 重建 plan/bundle；fresh STS 与 age identity 只能单独进入 `/dev/shm`，随后才能执行真实 backup、exact retrieval、isolated restore 与 cleanup。
+
 ## 2026-07-27 / V2 A0 Reproducible Release and Resource Baseline
 
 ### 本轮目标
@@ -160,45 +190,3 @@ M3.4-R0 只是范围与证据门禁，真正的多资产可执行性数学、分
 ### 下一轮建议
 
 完成精确提交与 GitHub 同步后，集中完成 P0R 的一次性 STS、加密备份、精确版本取回、隔离 PostgreSQL 16 恢复和清理。M3.4 后续只能基于本门禁重新实现，不能修补旧草稿后直接放行。
-
-## 2026-07-24 / V2 M1.4B Endpoint Batching, Runtime Adapter and Listing History
-
-### 本轮目标
-
-把 R3 exact live conformance 与 M1.4A 逐标的调度合同接成内容寻址、可批处理、可恢复但仍无 authority 的 Runtime Adapter 核心和腾讯固定派发包，并把 Bitget、上新、股票合约和数据最大化正确落到独立验收链。
-
-### 修改范围
-
-- 从 exact conformance artifact 生成绑定 registry/probe digest、HTTPS endpoint、分页、credential、恢复和 source-cutoff 的 Profile；TEST_ONLY 生成零 Profile。
-- 将 source-capability 的 ready intent 精确一次合并；snapshot batching 与 listing-history bootstrap 使用两本请求预算。
-- 建立 Bybit provider-available history 和 Bitget 官方一个月窗口的 bootstrap、resume、gap、incremental 状态机；token、ordinal、segment、内容冲突和 future knowledge 全部 fail closed。
-- Bitget Venue、Listing Lifecycle、Equity Asset Domain、Data Maximization 四轴独立记账；股票当前只做 catalog accounting，tradable Fact 为 0。
-- 纠正 15/15 endpoint conformance 与 14/15 scheduler route eligibility 的差异；Binance spot registry 仍为 `UNAVAILABLE`，不能进入 batch 或 Shadow。
-- 新增无 secret、内容寻址 Bundle/Runner/Entrypoint；14 个 route 跨五来源有界运行，同源并发 1，执行前后绑定生产 HEAD、容器、listener、timer 和 health。
-- 新增 request/envelope/bundle 跨层预检，在上传前拒绝 source ref、commit、approval hash、entrypoint、staging 和运行时限漂移；此前 5400 秒外层窗口与不在目标机 allowlist 的 source ref 都会本地失败。
-- blocked segment 不晋级 checkpoint；续跑必须绑定原 checkpoint、精确 `PASS` result 路径和 SHA-256，失败、孤儿或被篡改结果均拒绝。
-
-### 核心链路影响
-
-`Live Source Conformance + Adaptive Intent -> Route-Eligible Profile -> Bounded Batch/Listing Checkpoint -> Exact Fixed Dispatch` 已完成腾讯 bootstrap 与 checkpoint-bound resume。它形成有界 no-authority 证据链，不形成持续 Collector、Fact、Candidate、Strategy、READY 或生产 authority。
-
-### 测试结果
-
-- M1.1B 回归 26/26 PASS。
-- M1.4A 回归 28/28 PASS。
-- M1.4B 定向 23/23 PASS。
-- M1.4B 腾讯 fixed-dispatch package 9/9 PASS；包含四轴分母、零 blocked-route 请求、同源并发 1、Bundle 无 secret/无额外 payload、宿主不变、失败不晋级 checkpoint 和 PASS-result 续跑绑定。
-- 正式实施分支完整 `ci:production` PASS：V2 Foundation 494 total / 488 pass / 6 explicit skip、V2 Ops 131/131、M0 11/11、Next production build、Golden 16/16 与 security 全部通过。
-- 腾讯 bootstrap `m1-4b-runtime-live-20260723t232457z` 与 checkpoint-bound resume `m1-4b-runtime-live-20260723t233213z` 均为 14/14 route PASS、0 failed、1 registry blocked、request budget/attempts=203/80、listing gap=0 和两个 committed checkpoint；第二轮绑定第一轮 checkpoint 与原 `PASS` result。
-
-### 是否部署
-
-已执行无 authority 的隔离证据包并只保留脱敏 result/checkpoint；未部署 V2 应用，也未改变生产服务、数据库、Redis、Worker、env、Feature Flag、业务数据或 authority。生产 HEAD、clean worktree、11 容器、listener、timer 与 health 前后不变，两次 staging 均删除。
-
-### 风险与遗留问题
-
-M1.5C 四 Venue多资产持续 Shadow、M1.6-D1 扩展容量、Binance spot registry 新 digest 复验和股票 session/公司行动/FX/reference/basis/成本事实均未完成。M1.4B 四轴 PASS 只证明本包有界分母；股票 tradable Fact 仍为 0，不能宣称股票实战能力。
-
-### 下一轮建议
-
-Scope V2 下一证据包进入 M1.5C Four-Venue Multi-Asset Shadow，再用真实事实率进入 M1.6-D1。P0R 的 fresh 7200 秒 exact-plan STS 仍是独立生产第一关键路径。

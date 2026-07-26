@@ -1,6 +1,6 @@
 # V2 M1.6-P0R 生产恢复运行手册
 
-状态：`OBJECT_LOCK_31D_ENABLED_AND_VERIFIED / AGE_IDENTITY_KEYCHAIN_PASS / EXACT_BED938_STAGING_PASS / CLEAN_PRE_STS_BASELINE_PASS / NO_USABLE_STS / PRODUCTION_RECOVERY_NOT_EXECUTED / P0_BLOCKED`
+状态：`OBJECT_LOCK_31D_ENABLED_AND_VERIFIED / AGE_IDENTITY_KEYCHAIN_PASS / LEGACY_BED938_STAGING_REJECTED_SUPERSEDED_SECURITY_SOURCE / READ_ONLY_REBIND_PACKAGE_LOCAL_AND_EXACT_SOURCE_REMOTE_QUALIFICATION_PASS / PRODUCTION_REBIND_NOT_EXECUTED / NO_USABLE_STS / PRODUCTION_RECOVERY_NOT_EXECUTED / P0_BLOCKED`
 
 ## 1. 唯一目标
 
@@ -10,8 +10,11 @@
 
 ```text
 准备私有 COS 与独立密钥保管
--> 构建并核验 exact clean-commit transport bundle
--> 上传无 secret、含受限目标元数据的 checksum-bound bundle 与临时 secret 副本
+-> 隔离并拒绝执行 superseded 历史 staging
+-> 用 signed dispatch 执行 current-source 只读现场重绑定
+-> 从 exact pushed current source 重建 plan 与 checksum-bound transport bundle
+-> 上传无 secret、含受限目标元数据的 bundle
+-> 通过 /dev/shm 单独注入 fresh 7200 秒 STS 与临时 age identity
 -> 执行真实 backup / retrieval / isolated restore
 -> 封存脱敏 evidence，确认临时 secret 与容器/volume 已清理
 -> 执行并证明零付费容量驻留重设计
@@ -80,7 +83,22 @@ npm run v2:m1:p0r:bundle -- \
   --output /absolute/path/p0r-transport.tar.gz
 ```
 
-验收输出必须为 `PASS_P0R_PRODUCTION_TRANSPORT_BUNDLE`，并独立记录 source commit、bundle SHA-256、manifest digest 和 size。`6a81e865e61569f7d2d7c3bb3be1d78db72a9eab` 是 B1C 准备阶段的历史通过包；当前生产恢复入口已由更晚的 exact runner source `bed938566d242394de7f6c31b309bd9f8198b71f` 覆盖，run=`p0r-20260721t183927z-221b4eebbf2ab34191c63608771b21ea`、plan digest=`sha256:b01284de724cdbf3fe3907f91be67bf14655b744073e9de055444d5909015119`、transport bundle SHA-256=`1adae1348bd983ba0eb003ba3521a1404faa4ed4a5559ab89b8a70cf473dac00`。目标机 transport manifest 已只读复核为 exact `bed938...`、`reproducibleArchive=true`、production/database/service/repository mutation 全部禁止；当前 staging 不含私钥或临时 COS credential，尚未执行恢复。
+验收输出必须为 `PASS_P0R_PRODUCTION_TRANSPORT_BUNDLE`，并独立记录 source commit、bundle SHA-256、manifest digest 和 size。`6a81e865e61569f7d2d7c3bb3be1d78db72a9eab` 与 `bed938...` 均只保留为历史来源证据，不再拥有执行权。历史 `bed938...` staging 的 run、plan 和 transport bundle 已完整保留并校验，但其源码早于三项生产安全修复：backup/credential/recovery evidence 读取尚未统一使用单一 `O_NOFOLLOW` 句柄，部分输出尚未使用独占创建；其本地 bundle builder 也早于确定性 Node USTAR 替换。因此该 staging 的权威状态改为 `REJECTED_SUPERSEDED_SECURITY_SOURCE`，禁止执行、复制成新包或签发绑定它的 STS。
+
+当前重绑定实现 source parts 为 `408803e0bdc21051124a + 79e307db8e9eb39c793c`。它只生成无 secret、确定性、签名派发可验的只读包；本地 package `9/9`、P0R `70/70`、V2 Ops `179/179` 与完整 `ci:production` 已通过。exact-source GitHub Full Quality `30219999104`、A0 Release Qualification `30219999094` 和 Independent Security `30219999063` 已全部 PASS；Security 明确证明 Gitleaks finding=`0`、CodeQL untriaged=`0`、Trivy HIGH/CRITICAL=`0`，三条工作流均未执行生产或接触生产凭证。远端源码资格前置已关闭，但生产现场身份仍可能漂移；生产只读重绑定 PASS 之前不得构建新的执行级 P0R plan/bundle。
+
+### 4.1 只读现场重绑定
+
+只读重绑定必须通过 `v2:m1:p0r:rebind-bundle` 从 clean、已推送的 exact commit 构建，并通过固定 Ed25519 signed dispatch 通道执行。它只能：
+
+- 核对生产 HEAD、clean worktree、完整容器身份、timer、listener 和 health；
+- 证明 `/dev/shm` 无 P0R 临时 secret，且无 P0R container/volume；
+- 从腾讯实例 metadata 在内存读取公网 IPv4，只保留 `<IP>/32` 摘要并与历史 plan 绑定值比较；
+- 校验历史 staging 的每个成员、manifest、plan、bindings 和摘要；
+- 证明三个目标机运行文件已被当前安全源码替代；
+- 在 fixed dispatch evidence 根写入不可覆盖的脱敏结果，并清理自身精确 staging。
+
+它不得读取或输出 raw credential、bucket、object key、env、数据库业务行，也不得修改应用、数据库、Redis、Worker、生产仓库、COS 或历史 staging。唯一成功状态是 `PASS_P0R_READ_ONLY_REBIND_PREFLIGHT`；历史 staging 仍必须同时记录为 `REJECTED_SUPERSEDED_SECURITY_SOURCE`。
 
 ## 5. 临时凭证合同
 
@@ -159,11 +177,11 @@ age identity: /dev/shm/market-radar-v2-p0r-<run-id>.age-identity.txt
 
 staging/evidence 根目录和 source 目录必须是实际目录，不得是 symlink。解包后必须核验 transport bundle SHA-256、manifest、所有 file checksum 和 source commit。只上传 checksum-bound bundle、临时 credential file 与临时 age identity；不得同步源码仓库或生产 env。bundle 无 secret，但含受限 COS 目标元数据，执行后 staging 必须清理。
 
-2026-07-23 只读 inventory 最初发现两个 staging run：历史 `p0r-20260721t144414z-289549af427e1d918c9b87a24f046878` 与当前 `p0r-20260721t183927z-221b4eebbf2ab34191c63608771b21ea`。用户在动作时确认后，前者已被精确删除；复核结果只剩 staging 根目录与当前 exact run。后者的 `p0r-bindings.env` 与 `cos-provisioning-plan.json` SHA-256 已现场核对，执行文件仍完整存在，继续作为唯一执行入口。不得删除或重建当前 staging。
+2026-07-23 只读 inventory 最初发现两个 staging run；较早副本已在动作时确认后精确删除。剩余 `bed938...` staging 的成员和摘要仍作为历史审计材料保留，但不再是执行入口。只读重绑定通过前不得删除它；重绑定 PASS 后也只能在新的 current-source plan、bundle 和回滚证据全部绑定后，以独立精确清理动作删除，不能覆盖、修改或复用。
 
 ## 7. 执行
 
-先执行计划模式并保存脱敏输出：
+只有只读重绑定、current-source plan/bundle 和 fresh secret 边界全部 PASS 后，才允许对新 source 执行计划模式并保存脱敏输出：
 
 ```bash
 bash <source>/m1-production-storage-p0r-runner.sh plan
