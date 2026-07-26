@@ -1,0 +1,48 @@
+name: V2 A0 Runtime Candidate Probe
+
+on:
+  push:
+    paths:
+      - .github/workflows/v2-a0-runtime-candidate-probe.yml
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  probe-distroless-node22:
+    name: Probe Distroless Node 22 AMD64 candidate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Resolve candidate identity without production authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate="gcr.io/distroless/nodejs22-debian13:nonroot-amd64"
+          docker pull "$candidate"
+          digest="$(docker image inspect \
+            --format '{{ index .RepoDigests 0 }}' \
+            "$candidate")"
+          user="$(docker image inspect \
+            --format '{{ .Config.User }}' \
+            "$candidate")"
+          entrypoint="$(docker image inspect \
+            --format '{{ json .Config.Entrypoint }}' \
+            "$candidate")"
+          node_version="$(docker run --rm \
+            --entrypoint /nodejs/bin/node \
+            "$candidate" \
+            --version)"
+          printf 'candidate=%s\n' "$candidate"
+          printf 'resolved_digest=%s\n' "$digest"
+          printf 'configured_user=%s\n' "$user"
+          printf 'configured_entrypoint=%s\n' "$entrypoint"
+          printf 'node_version=%s\n' "$node_version"
+          test "$user" = "65532"
+          case "$node_version" in
+            v22.*) ;;
+            *) exit 1 ;;
+          esac
+          echo "production_execution=false"
+          echo "production_mutation=false"
+          echo "production_credentials=false"
