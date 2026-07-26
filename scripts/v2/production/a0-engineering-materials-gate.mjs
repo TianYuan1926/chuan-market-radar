@@ -366,9 +366,11 @@ export function validateSecurityEvidencePolicy(path, source) {
 
 export function validateCodeqlEvidencePolicy(path, source) {
   const requiredContracts = [
-    'schemaVersion: "v2-a0-codeql-sast-evidence.v2"',
+    'schemaVersion: "v2-a0-codeql-sast-evidence.v3"',
     "blockOnAnyUntriagedResult: true",
+    "exactSuppressionRegistryRequired: true",
     "rawSarifArtifactUploaded: false",
+    "reviewedInSourceSuppressionRequired: true",
     '"file"',
     '"startLine"',
     '"securitySeverity"',
@@ -380,6 +382,10 @@ export function validateCodeqlEvidencePolicy(path, source) {
     '"maxLevel"',
     '"maxSecuritySeverity"',
     "blockingResultCount",
+    "reviewedSuppressionCount",
+    "reviewedSuppressionLocations",
+    "reviewedSuppressionLocationsTruncated",
+    "loadReviewedCodeqlSuppressions",
     "sarifSetDigest",
     "productionMutation: false",
   ];
@@ -403,7 +409,7 @@ export function validateCodeqlSuppressionPolicy({
 }) {
   const issues = [];
   if (
-    review?.schemaVersion !== "v2-a0-codeql-reviewed-suppressions.v1"
+    review?.schemaVersion !== "v2-a0-codeql-reviewed-suppressions.v2"
     || !Array.isArray(review?.entries)
     || review?.policy?.directoryWideSuppression !== false
     || review?.policy?.pathWideSuppression !== false
@@ -449,6 +455,9 @@ export function validateCodeqlSuppressionPolicy({
     const location = typeof entry?.path === "string"
       ? entry.path
       : reviewPath;
+    const sourceLines = typeof sources?.[entry?.path] === "string"
+      ? sources[entry.path].split(/\r?\n/u)
+      : [];
     if (
       typeof entry?.id !== "string"
       || !/^MR-CODEQL-[0-9]{3}$/u.test(entry.id)
@@ -461,6 +470,10 @@ export function validateCodeqlSuppressionPolicy({
       || typeof entry?.ruleId !== "string"
       || !/^[A-Za-z0-9._/-]+$/u.test(entry.ruleId)
       || entry.ruleId.includes("*")
+      || !Number.isSafeInteger(entry?.alertLine)
+      || entry.alertLine <= 0
+      || typeof sourceLines[entry.alertLine - 1] !== "string"
+      || sourceLines[entry.alertLine - 1].trim() === ""
       || entry?.reviewStatus !== "APPROVED_EXACT"
       || typeof entry?.classification !== "string"
       || entry.classification.length < 8
@@ -497,6 +510,17 @@ export function validateCodeqlSuppressionPolicy({
         "V2_CODEQL_SUPPRESSION_UNREGISTERED",
         `${suppression.path}:${suppression.line}`,
         `${suppression.id}:${suppression.ruleId}`,
+      ));
+    }
+    if (
+      !Number.isSafeInteger(entry?.alertLine)
+      || entry.alertLine < suppression.line + 1
+      || entry.alertLine > suppression.line + 8
+    ) {
+      issues.push(issue(
+        "V2_CODEQL_SUPPRESSION_ALERT_LINE_DRIFT",
+        `${suppression.path}:${suppression.line}`,
+        `${suppression.id}:${String(entry?.alertLine ?? "missing")}`,
       ));
     }
   }
@@ -540,17 +564,47 @@ export function validateGitleaksFalsePositivePolicy({
       };
   });
   const entries = Array.isArray(review?.entries) ? review.entries : [];
+  const evidenceRuns = Array.isArray(review?.sourceEvidence?.runs)
+    ? review.sourceEvidence.runs
+    : [];
+  const evidenceFindingCount = evidenceRuns.reduce(
+    (total, run) => total + (
+      Number.isSafeInteger(run?.findingCount) ? run.findingCount : 0
+    ),
+    0,
+  );
+  const evidenceRunIds = new Set(
+    evidenceRuns.map((run) => run?.workflowRunId),
+  );
+  const evidenceArtifactIds = new Set(
+    evidenceRuns.map((run) => run?.artifactId),
+  );
+  const evidenceRunsValid = evidenceRuns.length > 0
+    && evidenceRuns.every((run) => (
+      typeof run?.workflowRunId === "string"
+      && /^[1-9][0-9]*$/u.test(run.workflowRunId)
+      && typeof run?.sourceCommitPrefix === "string"
+      && /^[0-9a-f]{12}$/u.test(run.sourceCommitPrefix)
+      && typeof run?.artifactId === "string"
+      && /^[1-9][0-9]*$/u.test(run.artifactId)
+      && typeof run?.artifactDigest === "string"
+      && /^sha256:[0-9a-f]{64}$/u.test(run.artifactDigest)
+      && Number.isSafeInteger(run?.findingCount)
+      && run.findingCount > 0
+      && run.findingLocationsTruncated === false
+    ))
+    && evidenceRunIds.size === evidenceRuns.length
+    && evidenceArtifactIds.size === evidenceRuns.length;
 
   if (
     review?.schemaVersion
-      !== "market-radar-v2-a0-secret-history-false-positive-review.v1"
+      !== "market-radar-v2-a0-secret-history-false-positive-review.v2"
     || review?.status !== "REVIEWED_FALSE_POSITIVES_ONLY"
     || review?.scanner?.name !== "gitleaks"
     || review?.scanner?.version !== "8.30.1"
-    || typeof review?.sourceEvidence?.sourceCommitPrefix !== "string"
-    || !/^[0-9a-f]{12}$/u.test(review.sourceEvidence.sourceCommitPrefix)
-    || review?.sourceEvidence?.findingCount !== entries.length
-    || review?.sourceEvidence?.findingLocationsTruncated !== false
+    || !evidenceRunsValid
+    || review?.sourceEvidence?.totalFindingCount !== entries.length
+    || evidenceFindingCount !== entries.length
     || review?.reviewMethod?.sourceStructureReviewed !== true
     || review?.reviewMethod?.literalValuesRedactedDuringHumanReview !== true
     || review?.reviewMethod?.rawFindingArtifactUploaded !== false
@@ -795,7 +849,7 @@ export function validateRepository(repositoryRoot) {
 
   const codeqlSuppressionReviewPath = resolve(
     repositoryRoot,
-    "docs/governance/v2-a0-codeql-reviewed-suppressions.v1.json",
+    "docs/governance/v2-a0-codeql-reviewed-suppressions.v2.json",
   );
   let codeqlSuppressionReview;
   try {
@@ -805,7 +859,7 @@ export function validateRepository(repositoryRoot) {
   } catch {
     issues.push(issue(
       "V2_CODEQL_SUPPRESSION_REVIEW_MISSING",
-      "docs/governance/v2-a0-codeql-reviewed-suppressions.v1.json",
+      "docs/governance/v2-a0-codeql-reviewed-suppressions.v2.json",
       "every source suppression requires an exact structured review",
     ));
   }
@@ -822,7 +876,7 @@ export function validateRepository(repositoryRoot) {
     issues.push(...validateCodeqlSuppressionPolicy({
       review: codeqlSuppressionReview,
       reviewPath:
-        "docs/governance/v2-a0-codeql-reviewed-suppressions.v1.json",
+        "docs/governance/v2-a0-codeql-reviewed-suppressions.v2.json",
       sources,
     }));
   }
@@ -830,7 +884,7 @@ export function validateRepository(repositoryRoot) {
   const gitleaksIgnorePath = resolve(repositoryRoot, ".gitleaksignore");
   const gitleaksReviewPath = resolve(
     repositoryRoot,
-    "docs/governance/v2-a0-secret-history-false-positive-review.v1.json",
+    "docs/governance/v2-a0-secret-history-false-positive-review.v2.json",
   );
   let gitleaksIgnoreSource = "";
   let gitleaksReview;
@@ -848,7 +902,7 @@ export function validateRepository(repositoryRoot) {
   } catch {
     issues.push(issue(
       "V2_GITLEAKS_FALSE_POSITIVE_REVIEW_MISSING",
-      "docs/governance/v2-a0-secret-history-false-positive-review.v1.json",
+      "docs/governance/v2-a0-secret-history-false-positive-review.v2.json",
       "every ignored fingerprint requires a structured review",
     ));
   }
@@ -858,7 +912,7 @@ export function validateRepository(repositoryRoot) {
       ignoreSource: gitleaksIgnoreSource,
       review: gitleaksReview,
       reviewPath:
-        "docs/governance/v2-a0-secret-history-false-positive-review.v1.json",
+        "docs/governance/v2-a0-secret-history-false-positive-review.v2.json",
     }));
   }
 

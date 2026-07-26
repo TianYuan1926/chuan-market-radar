@@ -4,7 +4,6 @@ import { execFile, spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import {
   access,
-  lstat,
   mkdir,
   open,
   readFile,
@@ -480,25 +479,27 @@ export async function worktreeFingerprint(files, { repoRoot = REPO_ROOT } = {}) 
     hash.update(`\0${filePath}\0`);
     try {
       const absolutePath = resolve(repoRoot, filePath);
-      const fileStat = await lstat(absolutePath);
-      if (fileStat.isSymbolicLink()) {
-        hash.update(`mode:${fileStat.mode & 0o111};type:symlink;`);
-        hash.update(await readlink(absolutePath));
-      } else {
-        const handle = await open(
+      let handle;
+      try {
+        handle = await open(
           absolutePath,
           fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
         );
-        try {
-          const openedStat = await handle.stat();
-          if (!openedStat.isFile()) {
-            throw new Error(`worktree fingerprint source is not a file: ${filePath}`);
-          }
-          hash.update(`mode:${openedStat.mode & 0o111};type:file;`);
-          hash.update(await handle.readFile());
-        } finally {
-          await handle.close();
+      } catch (error) {
+        if (error?.code !== "ELOOP") throw error;
+        hash.update("mode:0;type:symlink;");
+        hash.update(await readlink(absolutePath));
+        continue;
+      }
+      try {
+        const openedStat = await handle.stat();
+        if (!openedStat.isFile()) {
+          throw new Error(`worktree fingerprint source is not a file: ${filePath}`);
         }
+        hash.update(`mode:${openedStat.mode & 0o111};type:file;`);
+        hash.update(await handle.readFile());
+      } finally {
+        await handle.close();
       }
     } catch (error) {
       if (error?.code !== "ENOENT") throw error;

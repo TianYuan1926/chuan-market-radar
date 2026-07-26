@@ -3,11 +3,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { validateRepository } from "./a0-engineering-materials-gate.mjs";
+
 const SARIF_VERSION = "2.1.0";
 const RULE_ID_PATTERN = /^[A-Za-z0-9._:/-]{1,160}$/u;
 const WINDOWS_ABSOLUTE_PATH_PATTERN = /^[A-Za-z]:\//u;
 const MAX_REPOSITORY_PATH_LENGTH = 512;
 const MAX_RESULT_LOCATIONS = 1_000;
+const CODEQL_REVIEW_PATH =
+  "docs/governance/v2-a0-codeql-reviewed-suppressions.v2.json";
 const LEVEL_RANK = new Map([
   ["none", 0],
   ["note", 1],
@@ -101,15 +105,117 @@ function compareResultLocations(left, right) {
     || left.level.localeCompare(right.level);
 }
 
-export function summarizeCodeqlSarifDocuments(documents) {
+function resultLocation(result, descriptors) {
+  const ruleId = result?.ruleId;
+  if (typeof ruleId !== "string" || !RULE_ID_PATTERN.test(ruleId)) {
+    throw new TypeError("CodeQL SARIF result has an invalid rule id");
+  }
+  const descriptor = descriptors.get(ruleId);
+  const level = normalizedLevel(
+    result?.level ?? descriptor?.defaultConfiguration?.level,
+  );
+  const severity = securitySeverity(
+    result?.properties?.["security-severity"]
+      ?? descriptor?.properties?.["security-severity"],
+  );
+  const physicalLocation = result?.locations?.[0]?.physicalLocation;
+  return {
+    file: sanitizedRepositoryPath(
+      physicalLocation?.artifactLocation?.uri,
+    ),
+    level,
+    ruleId,
+    securitySeverity: severity,
+    startLine: sanitizedStartLine(
+      physicalLocation?.region?.startLine,
+    ),
+  };
+}
+
+function suppressionLocationKey({ file, ruleId, startLine }) {
+  return `${file}\0${ruleId}\0${String(startLine)}`;
+}
+
+export function loadReviewedCodeqlSuppressions(repositoryRoot) {
+  const materialsGate = validateRepository(repositoryRoot);
+  if (materialsGate.status !== "PASS") {
+    throw new Error(
+      "A0 engineering materials gate must pass before reviewed CodeQL suppressions can be trusted",
+    );
+  }
+
+  const review = JSON.parse(
+    fs.readFileSync(path.resolve(repositoryRoot, CODEQL_REVIEW_PATH), "utf8"),
+  );
+  const reviewedSuppressions = new Map();
+  for (const entry of review.entries) {
+    const source = fs.readFileSync(
+      path.resolve(repositoryRoot, entry.path),
+      "utf8",
+    );
+    const lines = source.split(/\r?\n/u);
+    const markerPrefix = `// ${entry.id}:`;
+    const markerIndexes = lines.flatMap((line, index) =>
+      line.trimStart().startsWith(markerPrefix) ? [index] : []
+    );
+    if (markerIndexes.length !== 1) {
+      throw new Error(
+        `reviewed CodeQL marker must occur exactly once: ${entry.id}`,
+      );
+    }
+    const markerIndex = markerIndexes[0];
+    const expectedSuppression = `// codeql[${entry.ruleId}]`;
+    if (lines[markerIndex + 1]?.trim() !== expectedSuppression) {
+      throw new Error(
+        `reviewed CodeQL suppression drifted from marker: ${entry.id}`,
+      );
+    }
+    const alertLine = entry.alertLine;
+    if (
+      !Number.isSafeInteger(alertLine)
+      || alertLine < markerIndex + 3
+      || alertLine > markerIndex + 10
+      || typeof lines[alertLine - 1] !== "string"
+      || lines[alertLine - 1].trim() === ""
+    ) {
+      throw new Error(
+        `reviewed CodeQL alert line is not bound to its source statement: ${entry.id}`,
+      );
+    }
+    const key = suppressionLocationKey({
+      file: entry.path,
+      ruleId: entry.ruleId,
+      startLine: alertLine,
+    });
+    if (reviewedSuppressions.has(key)) {
+      throw new Error(
+        `reviewed CodeQL suppression location is duplicated: ${entry.id}`,
+      );
+    }
+    reviewedSuppressions.set(key, entry.id);
+  }
+  return reviewedSuppressions;
+}
+
+export function summarizeCodeqlSarifDocuments(
+  documents,
+  { reviewedSuppressions = new Map() } = {},
+) {
   if (!Array.isArray(documents) || documents.length === 0) {
     throw new TypeError("at least one CodeQL SARIF document is required");
+  }
+  if (!(reviewedSuppressions instanceof Map)) {
+    throw new TypeError("reviewed CodeQL suppressions must be an exact location map");
   }
 
   const byRule = new Map();
   const resultLocations = [];
+  const reviewedSuppressionLocations = [];
+  const usedReviewedSuppressionIds = new Set();
   let runCount = 0;
   let resultCount = 0;
+  let blockingResultCount = 0;
+  let reviewedSuppressionCount = 0;
   for (const document of documents) {
     if (
       document === null
@@ -127,20 +233,37 @@ export function summarizeCodeqlSarifDocuments(documents) {
         continue;
       }
       for (const result of run.results) {
-        const ruleId = result?.ruleId;
-        if (typeof ruleId !== "string" || !RULE_ID_PATTERN.test(ruleId)) {
-          throw new TypeError("CodeQL SARIF result has an invalid rule id");
+        resultCount += 1;
+        const location = resultLocation(result, descriptors);
+        const reviewId = reviewedSuppressions.get(
+          suppressionLocationKey(location),
+        );
+        const hasInSourceSuppression = Array.isArray(result?.suppressions)
+          && result.suppressions.some(
+            (suppression) => suppression?.kind === "inSource",
+          );
+        if (
+          hasInSourceSuppression
+          && typeof reviewId === "string"
+          && !usedReviewedSuppressionIds.has(reviewId)
+        ) {
+          usedReviewedSuppressionIds.add(reviewId);
+          reviewedSuppressionCount += 1;
+          if (reviewedSuppressionLocations.length < MAX_RESULT_LOCATIONS) {
+            reviewedSuppressionLocations.push({
+              ...location,
+              reviewId,
+            });
+          }
+          continue;
         }
 
-        resultCount += 1;
-        const descriptor = descriptors.get(ruleId);
-        const level = normalizedLevel(
-          result?.level ?? descriptor?.defaultConfiguration?.level,
-        );
-        const severity = securitySeverity(
-          result?.properties?.["security-severity"]
-            ?? descriptor?.properties?.["security-severity"],
-        );
+        blockingResultCount += 1;
+        const {
+          level,
+          ruleId,
+          securitySeverity: severity,
+        } = location;
         const current = byRule.get(ruleId) ?? {
           count: 0,
           maxLevel: "none",
@@ -155,35 +278,29 @@ export function summarizeCodeqlSarifDocuments(documents) {
         byRule.set(ruleId, current);
 
         if (resultLocations.length < MAX_RESULT_LOCATIONS) {
-          const physicalLocation =
-            result?.locations?.[0]?.physicalLocation;
-          resultLocations.push({
-            file: sanitizedRepositoryPath(
-              physicalLocation?.artifactLocation?.uri,
-            ),
-            level,
-            ruleId,
-            securitySeverity: severity,
-            startLine: sanitizedStartLine(
-              physicalLocation?.region?.startLine,
-            ),
-          });
+          resultLocations.push(location);
         }
       }
     }
   }
 
   return {
-    blockingResultCount: resultCount,
+    blockingResultCount,
     resultCount,
     resultLocationCount: resultLocations.length,
     resultLocations: resultLocations.sort(compareResultLocations),
-    resultLocationsTruncated: resultCount > resultLocations.length,
+    resultLocationsTruncated:
+      blockingResultCount > resultLocations.length,
+    reviewedSuppressionCount,
+    reviewedSuppressionLocations:
+      reviewedSuppressionLocations.sort(compareResultLocations),
+    reviewedSuppressionLocationsTruncated:
+      reviewedSuppressionCount > reviewedSuppressionLocations.length,
     ruleCounts: [...byRule.values()].sort(
       (left, right) => left.ruleId.localeCompare(right.ruleId),
     ),
     runCount,
-    status: resultCount === 0
+    status: blockingResultCount === 0
       ? "PASS_ZERO_UNTRIAGED_RESULTS"
       : "BLOCKED_UNTRIAGED_RESULTS",
   };
@@ -211,6 +328,7 @@ function sarifFiles(root) {
 
 export function buildCodeqlEvidence({
   repository,
+  reviewedSuppressions = new Map(),
   runAttempt,
   runId,
   sarifInputs,
@@ -220,7 +338,9 @@ export function buildCodeqlEvidence({
     throw new TypeError("at least one CodeQL SARIF input is required");
   }
   const documents = sarifInputs.map(({ bytes }) => JSON.parse(bytes));
-  const summary = summarizeCodeqlSarifDocuments(documents);
+  const summary = summarizeCodeqlSarifDocuments(documents, {
+    reviewedSuppressions,
+  });
   const sarifDigests = sarifInputs
     .map(({ bytes, name }) => ({
       name,
@@ -230,7 +350,7 @@ export function buildCodeqlEvidence({
   const digestBytes = Buffer.from(JSON.stringify(sarifDigests));
 
   return {
-    schemaVersion: "v2-a0-codeql-sast-evidence.v2",
+    schemaVersion: "v2-a0-codeql-sast-evidence.v3",
     sourceCommit,
     repository,
     runId,
@@ -242,7 +362,9 @@ export function buildCodeqlEvidence({
     },
     policy: {
       blockOnAnyUntriagedResult: true,
+      exactSuppressionRegistryRequired: true,
       rawSarifArtifactUploaded: false,
+      reviewedInSourceSuppressionRequired: true,
       locationFields: [
         "ruleId",
         "file",
@@ -285,6 +407,7 @@ function runCli() {
     : path.dirname(sarifPath);
   const evidence = buildCodeqlEvidence({
     repository: process.env.GITHUB_REPOSITORY,
+    reviewedSuppressions: loadReviewedCodeqlSuppressions(process.cwd()),
     runAttempt: process.env.GITHUB_RUN_ATTEMPT,
     runId: process.env.GITHUB_RUN_ID,
     sarifInputs: files.map((file) => ({

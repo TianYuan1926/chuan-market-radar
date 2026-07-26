@@ -699,9 +699,12 @@ test("token avatars prefer real icon lookup without a fixed small whitelist", ()
   const tokenAvatarSource = readFileSync(resolve(process.cwd(), "src/components/token-avatar.tsx"), "utf8");
 
   assert.match(tokenAvatarSource, /logoLookupSymbol/);
+  const iconUrlLine = tokenAvatarSource
+    .split(/\r?\n/u)
+    .find((line) => line.includes("assets.coincap.io"));
   assert.equal(
-    tokenAvatarSource.includes("https://assets.coincap.io/assets/icons/"),
-    true,
+    iconUrlLine?.trim(),
+    "return key ? `https://assets.coincap.io/assets/icons/${key}@2x.png` : null",
   );
   assert.match(tokenAvatarSource, /onError=\{\(\) => setFailed\(true\)\}/);
   assert.doesNotMatch(tokenAvatarSource, /const REAL_LOGOS = new Set/);
@@ -1035,9 +1038,12 @@ test("production smoke keeps token chart and external intelligence truth checks"
 test("token avatar uses real logo lookup before generated fallback and no static placeholder logo", () => {
   const avatarSource = readFileSync(resolve(process.cwd(), "src/components/token-avatar.tsx"), "utf8");
 
+  const iconUrlLine = avatarSource
+    .split(/\r?\n/u)
+    .find((line) => line.includes("assets.coincap.io"));
   assert.equal(
-    avatarSource.includes("https://assets.coincap.io/assets/icons/"),
-    true,
+    iconUrlLine?.trim(),
+    "return key ? `https://assets.coincap.io/assets/icons/${key}@2x.png` : null",
   );
   assert.match(avatarSource, /GeneratedAvatar/);
   assert.match(avatarSource, /onError=\{\(\) => setFailed\(true\)\}/);

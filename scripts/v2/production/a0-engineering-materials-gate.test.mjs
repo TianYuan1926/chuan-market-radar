@@ -206,7 +206,7 @@ test("security evidence contract stays actionable and sanitized", () => {
   );
 });
 
-test("CodeQL evidence is sanitized and fails closed on every result", () => {
+test("CodeQL evidence is sanitized and fails closed on every untriaged result", () => {
   const path = "scripts/v2/production/a0-codeql-evidence.mjs";
   const source = readFileSync(path, "utf8");
   assert.deepEqual(validateCodeqlEvidencePolicy(path, source), []);
@@ -224,7 +224,7 @@ test("CodeQL evidence is sanitized and fails closed on every result", () => {
 
 test("CodeQL source suppressions require exact structured reviews", () => {
   const reviewPath =
-    "docs/governance/v2-a0-codeql-reviewed-suppressions.v1.json";
+    "docs/governance/v2-a0-codeql-reviewed-suppressions.v2.json";
   const review = JSON.parse(readFileSync(reviewPath, "utf8"));
   const sources = Object.fromEntries(review.entries.map((entry) => [
     entry.path,
@@ -264,12 +264,26 @@ test("CodeQL source suppressions require exact structured reviews", () => {
   assert.ok(broad.some(
     (item) => item.code === "V2_CODEQL_SUPPRESSION_POLICY_TOO_BROAD",
   ));
+
+  const driftedAlertLine = validateCodeqlSuppressionPolicy({
+    review: {
+      ...review,
+      entries: review.entries.map((entry, index) => index === 0
+        ? { ...entry, alertLine: entry.alertLine + 20 }
+        : entry),
+    },
+    reviewPath,
+    sources,
+  });
+  assert.ok(driftedAlertLine.some(
+    (item) => item.code === "V2_CODEQL_SUPPRESSION_ALERT_LINE_DRIFT",
+  ));
 });
 
 test("Gitleaks ignores only exact independently reviewed false positives", () => {
   const ignorePath = ".gitleaksignore";
   const reviewPath =
-    "docs/governance/v2-a0-secret-history-false-positive-review.v1.json";
+    "docs/governance/v2-a0-secret-history-false-positive-review.v2.json";
   const ignoreSource = readFileSync(ignorePath, "utf8");
   const reviewSource = readFileSync(reviewPath, "utf8");
   const review = JSON.parse(reviewSource);
@@ -328,6 +342,24 @@ test("Gitleaks ignores only exact independently reviewed false positives", () =>
   assert.ok(
     driftedEntryIssues.some(
       (item) => item.code === "V2_GITLEAKS_FALSE_POSITIVE_ENTRY_INVALID",
+    ),
+  );
+
+  const driftedEvidenceIssues = validateGitleaksFalsePositivePolicy({
+    ignorePath,
+    ignoreSource,
+    review: {
+      ...review,
+      sourceEvidence: {
+        ...review.sourceEvidence,
+        totalFindingCount: review.sourceEvidence.totalFindingCount - 1,
+      },
+    },
+    reviewPath,
+  });
+  assert.ok(
+    driftedEvidenceIssues.some(
+      (item) => item.code === "V2_GITLEAKS_FALSE_POSITIVE_REVIEW_INCOMPLETE",
     ),
   );
 });

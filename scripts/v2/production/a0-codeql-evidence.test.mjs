@@ -36,6 +36,9 @@ test("CodeQL evidence passes only with zero untriaged results", () => {
     resultLocationCount: 0,
     resultLocations: [],
     resultLocationsTruncated: false,
+    reviewedSuppressionCount: 0,
+    reviewedSuppressionLocations: [],
+    reviewedSuppressionLocationsTruncated: false,
     ruleCounts: [],
     runCount: 1,
     status: "PASS_ZERO_UNTRIAGED_RESULTS",
@@ -87,7 +90,7 @@ test("CodeQL evidence blocks and exposes sanitized repository locations", () => 
   assert.equal(evidence.resultLocationsTruncated, false);
   assert.equal(
     evidence.schemaVersion,
-    "v2-a0-codeql-sast-evidence.v2",
+    "v2-a0-codeql-sast-evidence.v3",
   );
   assert.doesNotMatch(
     JSON.stringify(evidence),
@@ -95,6 +98,62 @@ test("CodeQL evidence blocks and exposes sanitized repository locations", () => 
   );
   assert.equal(evidence.policy.rawSarifArtifactUploaded, false);
   assert.equal(evidence.productionMutation, false);
+});
+
+test("CodeQL evidence accepts only an exact registered in-source suppression", () => {
+  const exactLocation = {
+    physicalLocation: {
+      artifactLocation: { uri: "src/example.ts" },
+      region: { startLine: 42 },
+    },
+  };
+  const exactReviewedSuppressions = new Map([
+    [["src/example.ts", "js/example", "42"].join("\0"), "MR-CODEQL-999"],
+  ]);
+  const inSourceResult = {
+    locations: [exactLocation],
+    ruleId: "js/example",
+    suppressions: [{ kind: "inSource", status: "accepted" }],
+  };
+
+  const accepted = summarizeCodeqlSarifDocuments(
+    [sarif([inSourceResult])],
+    { reviewedSuppressions: exactReviewedSuppressions },
+  );
+  assert.equal(accepted.resultCount, 1);
+  assert.equal(accepted.blockingResultCount, 0);
+  assert.equal(accepted.reviewedSuppressionCount, 1);
+  assert.deepEqual(accepted.reviewedSuppressionLocations, [{
+    file: "src/example.ts",
+    level: "warning",
+    reviewId: "MR-CODEQL-999",
+    ruleId: "js/example",
+    securitySeverity: 8.1,
+    startLine: 42,
+  }]);
+  assert.equal(accepted.status, "PASS_ZERO_UNTRIAGED_RESULTS");
+
+  const missingSarifSuppression = summarizeCodeqlSarifDocuments(
+    [sarif([{ ...inSourceResult, suppressions: undefined }])],
+    { reviewedSuppressions: exactReviewedSuppressions },
+  );
+  assert.equal(missingSarifSuppression.blockingResultCount, 1);
+  assert.equal(missingSarifSuppression.reviewedSuppressionCount, 0);
+
+  const wrongLine = summarizeCodeqlSarifDocuments(
+    [sarif([{
+      ...inSourceResult,
+      locations: [{
+        physicalLocation: {
+          ...exactLocation.physicalLocation,
+          region: { startLine: 43 },
+        },
+      }],
+    }])],
+    { reviewedSuppressions: exactReviewedSuppressions },
+  );
+  assert.equal(wrongLine.blockingResultCount, 1);
+  assert.equal(wrongLine.reviewedSuppressionCount, 0);
 });
 
 test("CodeQL evidence does not expose absolute or traversing paths", () => {
