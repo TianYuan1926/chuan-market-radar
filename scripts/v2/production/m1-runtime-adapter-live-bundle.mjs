@@ -20,6 +20,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
+import { writeDeterministicUstar } from "../lib/deterministic-ustar.mjs";
 import {
   DEFAULT_LIVE_RUNTIME_ADAPTER_POLICY,
   LIVE_RUNTIME_ADAPTER_ENTRYPOINT,
@@ -450,19 +451,11 @@ export async function buildLiveRuntimeAdapterBundle({
     }
 
     const archivePath = join(temporary, "payload.tar");
-    await execFileAsync("tar", [
-      "-cf",
+    await writeDeterministicUstar({
       archivePath,
-      "--format=ustar",
-      "--uid=0",
-      "--gid=0",
-      "--numeric-owner",
-      "-C",
-      payload,
-      ...payloadFiles.map((file) => file.path).sort(),
-    ], {
-      env: { ...process.env, COPYFILE_DISABLE: "1", LC_ALL: "C" },
-      maxBuffer: 8 * 1024 * 1024,
+      entries: payloadFiles.map((file) => file.path),
+      root: payload,
+      sourceDateEpoch: SOURCE_DATE_EPOCH,
     });
     const { stdout: archiveBytes } = await execFileAsync(
       "gzip",

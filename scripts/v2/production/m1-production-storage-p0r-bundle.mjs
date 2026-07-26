@@ -17,6 +17,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
+import { writeDeterministicUstar } from "../lib/deterministic-ustar.mjs";
 import {
   validateP0RCosProvisioningPlan,
 } from "./m1-production-storage-p0r-cos-provisioning.mjs";
@@ -302,17 +303,11 @@ export async function buildP0RTransportBundle(input) {
     await mkdir(dirname(output), { recursive: true });
     const tarPath = join(temporaryRoot, "payload.tar");
     const names = fileBytes.map((file) => file.name).sort();
-    await execFileAsync("tar", [
-      "-cf", tarPath,
-      "--format=ustar",
-      "--uid=0",
-      "--gid=0",
-      "--numeric-owner",
-      "-C", payload,
-      ...names,
-    ], {
-      env: { ...process.env, COPYFILE_DISABLE: "1", LC_ALL: "C" },
-      maxBuffer: 4 * 1024 * 1024,
+    await writeDeterministicUstar({
+      archivePath: tarPath,
+      entries: names,
+      root: payload,
+      sourceDateEpoch: SOURCE_DATE_EPOCH,
     });
     const { stdout: compressed } = await execFileAsync(
       "gzip",

@@ -7,6 +7,9 @@ import { dirname, join, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import {
+  writeDeterministicUstar,
+} from "../../lib/deterministic-ustar.mjs";
+import {
   ACCEPTANCE_ENTRYPOINT,
   ACCEPTANCE_DOCKER_READ_ACCESS_MODE,
   ACCEPTANCE_MANIFEST,
@@ -96,15 +99,12 @@ export async function buildAcceptanceBundle({
     await writePayloadFile(payloadRoot, ACCEPTANCE_MANIFEST, manifestBytes, 0o600);
     const archivePath = join(temporary, "payload.tar");
     const archiveEntries = [ACCEPTANCE_ENTRYPOINT, ACCEPTANCE_MANIFEST, ACCEPTANCE_RUNNER].sort();
-    await execFileAsync("tar", [
-      "-cf", archivePath,
-      "--format=ustar",
-      "--uid=0",
-      "--gid=0",
-      "--numeric-owner",
-      "-C", payloadRoot,
-      ...archiveEntries,
-    ], { env: { ...process.env, COPYFILE_DISABLE: "1", LC_ALL: "C" } });
+    await writeDeterministicUstar({
+      archivePath,
+      entries: archiveEntries,
+      root: payloadRoot,
+      sourceDateEpoch: SOURCE_DATE_EPOCH,
+    });
     const { stdout: archiveBytes } = await execFileAsync("gzip", ["-n", "-9", "-c", archivePath], {
       encoding: null,
       maxBuffer: 8 * 1024 * 1024,
