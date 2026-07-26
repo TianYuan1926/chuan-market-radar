@@ -3,7 +3,7 @@
   "atlasSchemaVersion": "market-radar-legacy-capability-atlas.v1",
   "extractionPolicySchemaVersion": "market-radar-legacy-extraction-policy.v1",
   "reviewedAgainstCommit": "d9a3c12add2814ae8f307c815097868be82559ae",
-  "sourceGraphDigest": "sha256:f6744d036b4d655650d28315dcc005adcbad05ac25e23904b2e61a989c3c2daa",
+  "sourceGraphDigest": "sha256:367e1e2f60f38d0d26bd0925a58207d2259d7adcbf36ade7b392193604c9d797",
   "legacyRuntimeImportAllowed": false,
   "copyPasteWithoutBehavioralFixtureAllowed": false,
   "legacyDeletionAllowed": false,
@@ -48,7 +48,7 @@
         "src/lib/market/providers/public-light-scan.ts",
         "src/lib/market/providers/static-futures-universe-seed.ts"
       ],
-      "sourceDigest": "sha256:c2784585f9e2f7232014a1a56441a11ed005738a526d57b8d05a372669e604c6",
+      "sourceDigest": "sha256:df079921d3bf2084f5b4226379deeb817791a6c003a50936b1f584123ce3d6fa",
       "directRuntimeConsumers": [
         "src/app/api/admin/coinglass/capability/route.ts",
         "src/app/api/frontend/kline-contract/route.ts",
@@ -892,7 +892,7 @@
         "src/lib/candidate-episode/uuid-v7.test.ts",
         "src/lib/candidate-episode/uuid-v7.ts"
       ],
-      "sourceDigest": "sha256:05652635d99d79cecbc2ddc2a3ee1f1a2b9f51cc7544915a1e886bde5fb0b758",
+      "sourceDigest": "sha256:6650e6a4c5ee3dfb9f65c8d9965b160ebbdc4a334a064f2c0805662170682268",
       "directRuntimeConsumers": [
         "src/app/api/admin/candidate-shadow/run/route.ts",
         "src/lib/market/radar-snapshot.ts",
@@ -1378,7 +1378,7 @@
         "src/components/ui-schema/ui-layer-guard.test.ts",
         "src/data/mock-signals.ts"
       ],
-      "sourceDigest": "sha256:b45c671aa538e63d9d68410d35c97890cd369e9dfb0b246e798a96282f7ed0ad",
+      "sourceDigest": "sha256:963590aa1ff7b4d9f1614dcab29ff8de5b6dc948c8a1adff971ac5a4d04d1573",
       "directRuntimeConsumers": [
         "src/lib/market/providers/mock-market-provider.ts"
       ],
@@ -1713,7 +1713,7 @@
         "src/lib/runtime/worker-heartbeat.test.ts",
         "src/lib/runtime/worker-heartbeat.ts"
       ],
-      "sourceDigest": "sha256:e43f492b8ebe28e725369bad6f9c28b37fe339f23d098e0ee057a2b1ae8711fc",
+      "sourceDigest": "sha256:1bf91f357f3c1211ab007fc9b206ed1584fb199f794cf69a1561aa6e1e3d8644",
       "directRuntimeConsumers": [
         "src/app/api/admin/runtime/heartbeat/route.ts",
         "src/app/api/frontend/live-events/route.ts",
@@ -1917,7 +1917,7 @@
         "scripts/verify/production-check.sh",
         "scripts/verify/security-check.sh"
       ],
-      "sourceDigest": "sha256:ffa3abba9a2da2d9d7267e115938ac64d0ce10a8c6f1e4d9d9ebcfab6b14d85e",
+      "sourceDigest": "sha256:84d5ecfa8fc34f5637efdf60b3b65aacdb1e59bba0cb8c5279dc9211ea766178",
       "directRuntimeConsumers": [],
       "directTestConsumers": [],
       "runtimeEntrypoints": [
@@ -2229,7 +2229,7 @@
         "src/scripts/shadow/shadow-tracking.ts",
         "src/scripts/vercel-env-plan.ts"
       ],
-      "sourceDigest": "sha256:0429369420b73f59b903b1857cfd2ff13f8399b007b809a9f3e0b2febfec4541",
+      "sourceDigest": "sha256:0a6e8cfb1f5e9b1e601221355f783cdb96167ca4ae8a97ae865c23c29b4081eb",
       "directRuntimeConsumers": [
         "src/lib/frontend-contract-server.ts",
         "src/lib/market/providers/mock-market-provider.ts",

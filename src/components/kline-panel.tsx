@@ -176,6 +176,7 @@ export function KlinePanel({
       <div className="flex flex-wrap items-center border-b border-border px-3">
         {TFS.map((t) => (
           <button
+            type="button"
             key={t}
             onClick={() => setTf(t)}
             className={cn(

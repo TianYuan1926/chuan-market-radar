@@ -8,7 +8,7 @@ type ParsedDecimal = Readonly<{
   scale: number;
 }>;
 
-type RoundingMode = "FLOOR" | "CEIL" | "HALF_UP";
+export type DecimalRoundingMode = "FLOOR" | "CEIL" | "HALF_UP";
 
 function powerOfTen(exponent: number): bigint {
   let value = BigInt(1);
@@ -46,7 +46,7 @@ function formatScaled(value: bigint, scale: number): string {
 function roundedDivision(
   numerator: bigint,
   denominator: bigint,
-  mode: RoundingMode,
+  mode: DecimalRoundingMode,
 ): bigint {
   if (denominator <= 0) {
     throw new Error("decimal denominator must be positive");
@@ -105,7 +105,7 @@ export function shiftPriceByBps(
   price: string,
   bps: number,
   direction: "ADD" | "SUBTRACT",
-  rounding: RoundingMode,
+  rounding: DecimalRoundingMode,
   minimumOutputPrecision = 12,
 ): string {
   if (
@@ -130,6 +130,90 @@ export function shiftPriceByBps(
     throw new Error("basis-point shift produced a non-positive price");
   }
   return formatScaled(shifted, outputScale);
+}
+
+export function multiplyDecimalByBps(
+  value: string,
+  bps: number,
+  rounding: DecimalRoundingMode,
+  minimumOutputPrecision = 2,
+): string {
+  if (
+    !Number.isSafeInteger(bps) ||
+    bps < 0 ||
+    bps > 10_000 ||
+    !Number.isSafeInteger(minimumOutputPrecision) ||
+    minimumOutputPrecision < 0 ||
+    minimumOutputPrecision > 18
+  ) {
+    throw new Error("invalid basis-point decimal multiplication");
+  }
+  const parsed = parseDecimal(value);
+  const outputScale = Math.max(parsed.scale, minimumOutputPrecision);
+  const numerator =
+    parsed.coefficient *
+    BigInt(bps) *
+    powerOfTen(outputScale - parsed.scale);
+  const multiplied = roundedDivision(numerator, BigInt(10_000), rounding);
+  return formatScaled(multiplied, outputScale);
+}
+
+export function calculateSpreadBpsCeil(
+  bestBidPrice: string,
+  bestAskPrice: string,
+): number {
+  const { coefficients } = alignedCoefficients([
+    bestBidPrice,
+    bestAskPrice,
+  ]);
+  const bid = coefficients[0]!;
+  const ask = coefficients[1]!;
+  if (ask <= bid) {
+    throw new Error("best ask must be above best bid");
+  }
+  const spreadBps = roundedDivision(
+    (ask - bid) * BigInt(20_000),
+    ask + bid,
+    "CEIL",
+  );
+  const result = Number(spreadBps);
+  if (!Number.isSafeInteger(result) || result >= 10_000) {
+    throw new Error("spread is outside the supported basis-point range");
+  }
+  return result;
+}
+
+export function calculateAdverseDistanceBpsCeil(
+  referencePrice: string,
+  boundaryPrice: string,
+  direction: "LONG" | "SHORT",
+): number {
+  const { coefficients } = alignedCoefficients([
+    referencePrice,
+    boundaryPrice,
+  ]);
+  const reference = coefficients[0]!;
+  const boundary = coefficients[1]!;
+  const adverseDistance = direction === "LONG"
+    ? reference > boundary
+      ? reference - boundary
+      : BigInt(0)
+    : reference < boundary
+      ? boundary - reference
+      : BigInt(0);
+  if (adverseDistance === BigInt(0)) {
+    return 0;
+  }
+  const distanceBps = roundedDivision(
+    adverseDistance * BigInt(10_000),
+    boundary,
+    "CEIL",
+  );
+  const result = Number(distanceBps);
+  if (!Number.isSafeInteger(result) || result >= 10_000) {
+    throw new Error("adverse distance is outside the supported range");
+  }
+  return result;
 }
 
 export function isWithinDistanceBps(

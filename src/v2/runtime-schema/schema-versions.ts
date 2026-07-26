@@ -19,7 +19,7 @@ export const RUNTIME_OBJECT_SCHEMA_VERSIONS = Object.freeze({
   AnalysisSnapshot: "analysis-snapshot.v3",
   SignalQualification: "signal-qualification.v2",
   StrategyDraft: "strategy-draft.v2",
-  ExecutionFeasibilitySnapshot: "execution-feasibility-snapshot.v1",
+  ExecutionFeasibilitySnapshot: "execution-feasibility-snapshot.v2",
   StrategyDecision: "strategy-decision.v1",
   PersonalRiskView: "personal-risk-view.v1",
   PortfolioRiskView: "portfolio-risk-view.v1",

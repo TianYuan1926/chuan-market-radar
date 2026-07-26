@@ -401,7 +401,10 @@ export async function createM2ForwardInstrumentEvidenceStore(input: Readonly<{
         lock = await open(lockPath, "wx", 0o600);
       } catch (error) {
         if (errorCode(error) === "EEXIST") {
-          throw new Error("another forward capture writer holds the journal lock");
+          throw new Error(
+            "another forward capture writer holds the journal lock",
+            { cause: error },
+          );
         }
         throw error;
       }

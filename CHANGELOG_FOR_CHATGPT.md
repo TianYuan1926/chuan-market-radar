@@ -2,6 +2,44 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-26 / V2 M1.4C Microstructure Contract + M2.1A Bidirectional Precursor Atlas
+
+### 本轮目标
+
+在 M0.5 设计修订之后，把 Microstructure Fact/Feature/Cache 与双向前兆研究图谱真正落成可执行、可回放、可拒绝错误输入的本地合同，同时继续关闭 Candidate、Signal、READY 和生产权限。
+
+### 修改范围
+
+- M1.4C 实现六类 Microstructure Fact、LiquidityWallEpisode 生命周期、十三项 Market Mechanics Feature、exact source/identity/cutoff/freshness lineage，以及 ONLINE 与两个独立 REPLAY 的语义一致性。
+- 缓存合同冻结 L1 进程内、L2 Redis、L3 PostgreSQL、L4 COS 的 12 行 artifact policy；missing 不得变 0，stale 不得变 fresh，缓存不可取得 Decision authority。
+- M2.1A 实现八族各自 LONG/SHORT/UNKNOWN 共 24 个 DRAFT/UNCALIBRATED 假设，禁止用同一 Feature 的正负翻转冒充双向机制。
+- 研究 Gate 强制三 Outcome、point-in-time 板块关系、逐 family-direction 四 Venue/三 regime/三 liquidity segment、matched control、消融、sealed holdout、forward Shadow、rights 和独立审计。
+- 修复既存 M3.4-R1 草稿与当前 strict schema 的 import、枚举和 fixture 兼容阻断；只恢复全仓编译与回归，不把定向测试为 0 的草稿标成 M3.4 出口。
+- 蓝图升级到 v1.43、机器矩阵升级到 v1.48，并把 M1.5C + M1.5D 同 exact release、独立验收设为下一 Scope V2 真实证据包。
+
+### 核心链路影响
+
+`Point-in-time Fact -> Market Mechanics Feature -> Bidirectional Research Hypothesis` 已有本地可执行合同和 fail-closed Gate。真实 Trade/Book/Liquidation forward data、Detector Candidate、cohort/holdout、校准和最终决策链仍未形成，因此系统等级仍是 R1，不能支撑实战。
+
+### 验证结果
+
+- M1.4C Microstructure + Cache 定向 22/22 PASS。
+- M2.1A Precursor Atlas 定向 13/13 PASS。
+- ESLint、`git diff --check`、secret pattern 与 forbidden-file 检查 PASS。
+- 完整 `ci:production` PASS：V2 Foundation 529 total / 523 pass / 6 explicit skip、V2 Ops 131/131、M0、Next production build、Golden 16/16 与 security 全部通过。
+
+### 是否部署
+
+未部署。没有修改生产服务、数据库、Redis、Worker、env、Feature Flag、数据、GitHub main 或任何业务 authority。
+
+### 风险与遗留问题
+
+M1.5D 尚未执行；没有历史 L2 时只能从启用时前向积累。当前真实 Microstructure 样本、三 Outcome cohort、matched control 结果、跨 regime 校准和 untouched holdout 均为 0，不得宣称前兆图谱有效。M3.4-R1 仍缺独立定向测试和 Scope V2 上游证据。
+
+### 下一轮建议
+
+P0R 继续作为生产第一关键路径。Scope V2 下一真实证据包合并准备 M1.5C 与 M1.5D，同一 exact release 派发、两套状态和证据独立验收；通过后进入 M1.6-D1，再用真实 forward evidence 建设 M2.4A cohort/holdout。
+
 ## 2026-07-24 / V2 M3.1A-D Four-Lane Multi-Asset Decision Research Contract
 
 ### 本轮目标
@@ -161,41 +199,3 @@ M1.1B0 只关闭 exact source conformance。M1.4B runtime Adapter、Bybit 完整
 ### 下一轮建议
 
 本地进入 M1.4B，只为 R3 live PASS capability 建设 endpoint batching/runtime Adapter，并单独验收 Bybit listing 历史 bootstrap/checkpoint/gap/incremental。P0R 继续保持独立生产第一关键路径。
-
-## 2026-07-23 / V2 M1.4A Adaptive Multi-Asset Collector Contracts
-
-### 本轮目标
-
-把 Bitget、上新/无合约资产 watch、股票类合约和 CoinGlass Hobbyist 正确接入 Scope V2 自适应采集计划，避免新增范围只留在文字蓝图或与旧三 Venue 证据混用。
-
-### 修改范围
-
-- 新增 T0 catalog/event、T1 wide market、T2 candidate burst、T3 deep validation 四级有界调度合同。
-- Bitget 固定为第四 Venue 分母；listing watch 只进入 T0；股票类合约进入独立 asset domain，缺 session/corporate-action capability 时失败关闭。
-- live B0、外部人工 rights review、entitlement、jurisdiction、CoinGlass Hobbyist、quota/429/auth/source failure、checkpoint、backoff/circuit 均显式门禁。
-- 基础扫描保留位先于跨来源 burst，随后按 fairness cursor 轮转；超量意图保留为 deferred，不截断分母。
-- T2/T3 Candidate 必须有同 tier、同 capability matched control；Candidate/control 必须是 exact eligible established derivative。
-- subjects、grants、quota、checkpoints 和 policy 五组输入均进入内容寻址 lineage。
-
-### 核心链路影响
-
-`Source Capability + Multi-Asset Identity -> bounded collection intent plan` 已形成独立合同，但没有 Provider 调用、Fact、Candidate、Strategy、READY 或 runtime authority。
-
-### 测试结果
-
-- direct TypeScript compile PASS。
-- 定向合同 28/28 PASS；包含 400 subject 四 Venue全量 T0/T1 accounting。
-- 新实现 ESLint PASS。
-- 完整独立 Git clone `ci:production`：PASS；V2 Foundation 424 total / 418 pass / 6 explicit skip，V2 Ops 115/115，M0、Next build、Golden 16/16 和 security 全部 PASS。
-
-### 是否部署
-
-未部署。生产服务、数据库、Redis、Worker、env、Feature Flag、数据与业务 authority 零变更。
-
-### 风险与遗留问题
-
-腾讯 live B0 未执行；股票 session/corporate-action 当前 registry 仍 blocked；M1.4B batching/runtime Adapter、四 Venue Shadow、扩展容量和分域校准未完成。每意图 1 token 仍是保守预算上界。
-
-### 下一轮建议
-
-提交推送 M1.4A 后，准备 M1.1B0 无 secret 固定派发 runner/bundle；M1.4B 只能接入 live B0 实际 PASS 的 capability。P0R 继续作为独立生产第一关键路径。

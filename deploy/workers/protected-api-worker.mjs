@@ -225,7 +225,7 @@ async function callTask(task) {
   const elapsedMs = Date.now() - startedAt;
   const text = await response.text();
   const bodyPreview = text.slice(0, 500);
-  let body = null;
+  let body;
 
   try {
     body = text ? JSON.parse(text) : null;

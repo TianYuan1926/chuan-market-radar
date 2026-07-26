@@ -42,6 +42,37 @@ const partialQuality = {
   reasonCodes: ["fixture_context_scope_partial"],
 } as const;
 
+const executionFeasibilityCheckIds = [
+  "POINT_IN_TIME_FACTS",
+  "VENUE_TRADING_STATUS",
+  "SPREAD",
+  "DEPTH",
+  "SLIPPAGE",
+  "FEE_SCHEDULE",
+  "FUNDING_COST",
+  "FILLABILITY",
+  "PRICE_DRIFT",
+  "GAP_RISK",
+  "STOP_SWEEP_RISK",
+  "MARKET_LIQUIDITY",
+  "NET_REWARD_RISK",
+] as const;
+
+function executionFeasibilityChecks() {
+  return executionFeasibilityCheckIds.map((checkId) => ({
+    checkId,
+    status: "PASS" as const,
+    observedValue: "fixture-pass",
+    observedUnit: "fixture",
+    comparator: "PRESENT" as const,
+    thresholdValue: null,
+    thresholdVersion: "execution-threshold.v1",
+    sourceFactIds: ["execution-fact-fixture-1"],
+    quality: freshQuality,
+    reasonCodes: [`${checkId.toLowerCase()}_fixture_pass`],
+  }));
+}
+
 function uncertainty(): UncertaintyVector {
   return {
     data: {
@@ -550,19 +581,26 @@ const fixtures: RuntimeArtifactByName = {
       "execution_feasibility_final_decision",
     ),
     feasibilityId: "feasibility-fixture-1",
+    episodeId: "episode-fixture-1",
     draftId: "draft-fixture-1",
+    canonicalInstrumentId:
+      "BINANCE_FUTURES:BTCUSDT:LINEAR_PERPETUAL:USDT",
+    venue: "BINANCE_FUTURES",
+    opportunityFamily: "PRE_MOVE",
+    feasibilityAuthority: "REPLAY_CALIBRATED",
+    feasibilityPolicyVersion: "execution-feasibility-policy.v1",
+    executionCostModelVersion: "execution-cost-model.v1",
     status: "PASS",
-    checks: [
-      {
-        checkId: "liquidity-fixture-1",
-        status: "PASS",
-        observedValue: "healthy",
-        thresholdVersion: "liquidity-threshold.v1",
-        reasonCodes: [],
-      },
-    ],
+    checks: executionFeasibilityChecks(),
+    conservativeEntryPrice: "101",
+    executionFeePerSideBps: 10,
+    estimatedSlippagePerSideBps: 5,
+    conservativeFundingCostBps: 1,
+    estimatedAllInCostBps: 31,
     estimatedNetRewardRisk: 3.2,
     maximumExecutableNotional: "1000",
+    inputFactIds: ["execution-fact-fixture-1"],
+    blockers: [],
     quality: freshQuality,
     uncertainty: uncertainty(),
   },

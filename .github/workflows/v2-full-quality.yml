@@ -1,0 +1,68 @@
+name: V2 Full Quality and Materials Gate
+
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v2-full-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  full-quality:
+    name: Exact-runtime full CI
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Setup exact Node runtime
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.23.1
+          cache: npm
+
+      - name: Verify runtime identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(node --version)" = "v22.23.1"
+          test "$(npm --version)" = "10.9.8"
+
+      - name: Install exact lockfile
+        run: npm ci
+
+      - name: Verify A0 materials policy
+        run: npm run v2:a0:materials:verify
+
+      - name: Generate CycloneDX SBOM
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/v2-a0"
+          npm sbom --sbom-format cyclonedx \
+            > "$RUNNER_TEMP/v2-a0/market-radar.cdx.json"
+          node -e 'const fs=require("node:fs");const p=process.argv[1];const value=JSON.parse(fs.readFileSync(p,"utf8"));if(value.bomFormat!=="CycloneDX"||!Array.isArray(value.components)||value.components.length===0)process.exit(1);' \
+            "$RUNNER_TEMP/v2-a0/market-radar.cdx.json"
+
+      - name: Audit high and critical dependency advisories
+        run: npm audit --audit-level=high
+
+      - name: Run complete production CI
+        run: npm run ci:production
+
+      - name: Upload non-secret SBOM evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: v2-a0-sbom-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/v2-a0/market-radar.cdx.json
+          if-no-files-found: warn
+          retention-days: 30

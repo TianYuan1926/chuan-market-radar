@@ -76,7 +76,7 @@ export function LoginTerminal() {
     })
 
     const done = setTimeout(async () => {
-      let authenticated = false
+      let authenticated: boolean
       try {
         const response = await fetch('/api/auth/session', {
           body: JSON.stringify({
@@ -352,7 +352,10 @@ export function LoginTerminal() {
 
           <p className="mt-6 text-center text-xs text-muted-foreground">
             首次接入雷达？{' '}
-            <button className="text-neon underline-offset-4 hover:underline">
+            <button
+              type="button"
+              className="text-neon underline-offset-4 hover:underline"
+            >
               申请操作员权限
             </button>
           </p>

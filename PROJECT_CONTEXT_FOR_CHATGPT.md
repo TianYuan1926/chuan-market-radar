@@ -1,5 +1,5 @@
 # Market Radar 项目当前上下文
-更新日期：2026-07-24
+更新日期：2026-07-26
 用途：让 Codex、ChatGPT 和外部审计员在几分钟内获得当前真实状态、唯一蓝图、风险和下一入口。本文件只保存当前事实，不保存施工流水账，不包含 secret。
 ## 1. 项目一句话定义
 Market Radar 是以加密合约为首要核心、并扩展到股票永续的多资产人工决策雷达：持续覆盖目标 CEX 的合格合约和上市生命周期，尽可能提前发现主升/主跌前兆，同时识别其他高赔率结构机会，经过深度验证后给出严格计划，并用真实结果持续改进。
@@ -44,7 +44,7 @@ Universe Registry
 -> Strategy Draft
 -> Execution Feasibility + Final Decision
 -> Personal Risk + Portfolio Risk
--> Decision Snapshot + Alerts
+-> Decision Snapshot + Evidence Overlay + Alerts
 -> Outcome Evaluation
 -> Research Governance
 ```
@@ -55,8 +55,8 @@ Runtime / Security / Release Control 贯穿全链。
 
 当前唯一设计权威：
 
-- `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`，内容版本 v1.41。
-- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.46。
+- `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`，内容版本 v1.43。
+- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.48。
 - `docs/blueprints/README.md`，权威解析入口。
 - `market-radar-v2-build-sequence.md`，当前正确施工依赖与减数规则。
 
@@ -64,7 +64,7 @@ Runtime / Security / Release Control 贯穿全链。
 
 ```text
 ACTIVE_DESIGN_AUTHORITY
-M0_ENGINEERING_EXIT_LOCAL_PASS / M0.4_EXPANDED_SCOPE_DESIGN_PASS / M1.1A_REGISTRY_LOCAL_PASS / M1.1B_MULTI_ASSET_IDENTITY_LISTING_AND_EXACT_PROBE_LOCAL_IMPLEMENTATION_PASS_TEST_ONLY_CONFORMANCE_PASS / M1.1B0_R1_LIVE_0_OF_15_COMMON_RUNTIME_TRANSPORT_BLOCKED_R2_LIVE_14_OF_15_LISTING_GATE_BLOCKED_R3_LIVE_15_OF_15_ALL_GATES_PASS / M1.4A_ADAPTIVE_MULTI_ASSET_COLLECTOR_LOCAL_CONTRACT_AND_FULL_CI_PASS_NO_RUNTIME_AUTHORITY / M1.4B_TENCENT_BOOTSTRAP_AND_CHECKPOINT_BOUND_RESUME_PASS_NO_RUNTIME_AUTHORITY_15_LIVE_PROFILES_14_ROUTE_ELIGIBLE / M3.4-R0_SCOPE_REBASE_GOVERNANCE_AND_FULL_CI_PASS_IMPLEMENTATION_BLOCKED / SCOPE_EPOCH_V1_EVIDENCE_PRESERVED
+M0_ENGINEERING_EXIT_LOCAL_PASS / M0.4_EXPANDED_SCOPE_DESIGN_PASS / M0.5_MARKET_MECHANICS_MICROSTRUCTURE_PRECURSOR_ATLAS_DESIGN_PASS / M1.1A_REGISTRY_LOCAL_PASS / M1.1B_MULTI_ASSET_IDENTITY_LISTING_AND_EXACT_PROBE_LOCAL_IMPLEMENTATION_PASS_TEST_ONLY_CONFORMANCE_PASS / M1.1B0_R1_LIVE_0_OF_15_COMMON_RUNTIME_TRANSPORT_BLOCKED_R2_LIVE_14_OF_15_LISTING_GATE_BLOCKED_R3_LIVE_15_OF_15_ALL_GATES_PASS / M1.4A_ADAPTIVE_MULTI_ASSET_COLLECTOR_LOCAL_CONTRACT_AND_FULL_CI_PASS_NO_RUNTIME_AUTHORITY / M1.4B_TENCENT_BOOTSTRAP_AND_CHECKPOINT_BOUND_RESUME_PASS_NO_RUNTIME_AUTHORITY_15_LIVE_PROFILES_14_ROUTE_ELIGIBLE / M1.4C_LOCAL_CONTRACT_PASS_22_OF_22_NO_RUNTIME_AUTHORITY / M1.5D_FORWARD_EXECUTION_NOT_STARTED / M2.1A_LOCAL_RESEARCH_CONTRACT_PASS_13_OF_13_REAL_COHORT_MISSING_NO_CANDIDATE_EMISSION / M3.4-R0_SCOPE_REBASE_GOVERNANCE_PASS_R1_PARTIAL_TEST_ONLY_DRAFT_NO_DIRECTED_EXIT / SCOPE_EPOCH_V1_EVIDENCE_PRESERVED
 M1.1_IDENTITY_FACT_LOCAL_PASS
 M1.2_FEATURE_CONTEXT_LOCAL_PASS
 M1.3_STORE_REPLAY_RUNTIME_TRUTH_LOCAL_PASS
@@ -129,25 +129,25 @@ automaticTradingAllowed=false
 - 实施分支 `codex/market-radar-v2-implementation` 从 `origin/main@e5eb9002` 直接分叉，不继承旧 G0 的 70 个中间提交。
 - `src/v2/` 已建立物理隔离，架构测试禁止 V2 读取 Legacy，也禁止 Legacy 在切换前读取 V2。
 - 已冻结 18 Module、五维状态、四类不确定性、核心对象 TypeScript 合同、唯一 READY 联合类型与 RR validator。
-- 已建立爆发行情/提前发现评价合同、数据许可/成本/回放基线、Capability 级 Legacy Atlas 和第一条 M1 test-only fixture。
+- 已建立爆发行情/提前发现评价合同、数据许可/成本/回放基线、Capability 级 Legacy Atlas 和第一条 M1 test-only fixture；M0.5 冻结 Market Mechanics 三轴、双向前兆图谱、LiquidityWallEpisode、压力-价格响应、板块传播、补充来源、缓存读路径和 Evidence Overlay。M1.4C 与 M2.1A 本地合同已实现并通过完整 CI，但仍没有真实微观结构数据、cohort 或运行 authority。
 - 30 个唯一权威产物各有一个 strict Zod runtime schema；29 个 envelope 产物锁定精确 schema version，`UserFit` 为严格标量枚举。跨 API、进程、存储和回放的 decoder 对未知字段、版本漂移、错误状态、时间倒流、恶意对象、过大载荷和不完整 READY fail closed。
 - Legacy Consumer Map 已覆盖 22 个 capability、539 个源文件、273 条直接运行消费者边、118 条测试消费者边、109 个运行入口、13 个提取候选和 21 个存储对象；Legacy 删除权限仍为 false。
 - M0 十项机器出口与 `ci:production` 已通过。这些是本地工程地基，不是市场运行能力。
 - M1.1 已建立 `SCOPE_EPOCH_V1_CRYPTO_3V` 的三 Venue Identity/Fact；M1.1A 已把 Binance/OKX/Bybit/Bitget + CoinGlass Hobbyist 按 33 类能力形成 165 行穷举登记。M1.1B 已在独立 Scope V2 层实现 15 个精确只读探针、四 Venue catalog normalizer、Bitget、多资产身份、官方 underlying mapping、listing/identity epoch、Bybit/Bitget 公告和生命周期账本。M1.1B0 首次腾讯派发在业务 artifact 前阻断；R1 形成 0/15 共同传输失败，R2 取得 14/15。R3 精确提交 `06c1fd1fe0559dfed2097d1d64cb94382973ec62` 使用官方 `showPermissionSets=false` 查询，在不提高 8 MiB 上限、不放宽 schema、不删探针的条件下，由派发 `m1b0-r3-live-source-20260723t175033z` 真实取得 15/15，Identity、Listing、CoinGlass Gate 全部 PASS。生产前后 HEAD、clean worktree、11 个容器、listener、timer 与 health 一致，`productionChanged=false`、`secretMaterialPresent=false`，staging 已删除。Bybit 两页 `BOUNDED_COMPLETE` 与 M1.4B 历史 bootstrap/checkpoint/gap/incremental 继续分责，Bitget 官方一个月完整 cursor 不变。
 - M1.2 已实现 `UNDERLYING_GROUP` 级跨三 Venue `MARK_PRICE` 分散 Feature、精确十进制计算、同 cutoff/future-read 门禁、独立 ONLINE/REPLAY run 和语义哈希证据，以及最小非方向性 Market Context。低分散不会被包装成健康流动性，regime/volatility/breadth/correlation/方向不凭空生成。
 - M1.3 已建立无 memory fallback 的 PostgreSQL artifact store、Universe/Fact/FactQuality 原子事务、完整 payload digest、严格幂等冲突、event/knowledge 双 cutoff Manifest、五类 NOLOGIN capability role、两次 durable replay 和固定 profile 的 Runtime Truth v2。隔离 PG16 真实演练 1/1 PASS：8 artifact、权限、append-only、污染检测、parity 和 deterministic replay 均通过；结果保持 `REHEARSAL/PARTIAL`。
-- M1.4 已建立 21 observed / 15 eligible 的 V1 三 Venue fixture、reconciliation、quota/backpressure、故障恢复与 PG16 原子持久化。M1.4A 已把 Bitget、listing watch、股票独立资产域和 CoinGlass Hobbyist 纳入 Scope V2 T0-T3 有界调度合同并通过 28/28。M1.4B 本地核心与无 secret fixed-dispatch package 已实现，现场包 9/9、V2 Foundation 488/494（6 explicit skip）、V2 Ops 131/131、M0 11/11、Next build、Golden 16/16 与 security 全部 PASS。精确 source `3c21a75009aeb4f4f7d9fd8954245238c38d9636` 的腾讯 bootstrap `m1-4b-runtime-live-20260723t232457z` 和 checkpoint-bound resume `m1-4b-runtime-live-20260723t233213z` 均取得 14/14 route PASS、0 failed、1 registry blocked、request budget/attempts=203/80、listing gap=0 和两个持久 checkpoint；第二轮绑定第一轮 checkpoint、原 `PASS` result 路径和 SHA-256。15 个 live Profile 中只执行 14 个 route eligible，`BINANCE_SPOT_CATALOG` 请求数固定为 0。新增跨层预检在上传前拒绝 request/envelope 的时限、source ref、commit、bundle 和 approval hash 漂移。Bitget Venue、Listing Lifecycle、Equity Asset Domain、Data Maximization 四轴独立；股票仅 catalog accounting、tradable Fact 为 0，全部持续 runtime/Fact/Candidate/Strategy/READY authority 仍为 false。
+- M1.4 已建立 21 observed / 15 eligible 的 V1 三 Venue fixture、reconciliation、quota/backpressure、故障恢复与 PG16 原子持久化。M1.4A 已把 Bitget、listing watch、股票独立资产域和 CoinGlass Hobbyist 纳入 Scope V2 T0-T3 有界调度合同并通过 28/28。M1.4B 本地核心与无 secret fixed-dispatch package 已实现；精确 source `3c21a75009aeb4f4f7d9fd8954245238c38d9636` 的腾讯 bootstrap `m1-4b-runtime-live-20260723t232457z` 和 checkpoint-bound resume `m1-4b-runtime-live-20260723t233213z` 均取得 14/14 route PASS、0 failed、1 registry blocked、request budget/attempts=203/80、listing gap=0 和两个持久 checkpoint；`BINANCE_SPOT_CATALOG` 请求数固定为 0。M1.4C 已实现六类 Microstructure Fact、LiquidityWallEpisode、十三项 Market Mechanics Feature、ONLINE/双 REPLAY parity 和 L1/Redis/PostgreSQL/COS 缓存真值边界，定向 22/22 PASS。当前完整 CI 为 V2 Foundation 529 total / 523 pass / 6 explicit skip、V2 Ops 131/131、M0、Next build、Golden 16/16 与 security 全部 PASS。Bitget Venue、Listing Lifecycle、Equity Asset Domain、Data Maximization 四轴独立；股票 tradable Fact 为 0，M1.5D forward Shadow 尚未执行，全部持续 runtime/Fact/Candidate/Strategy/READY authority 仍为 false。
 - M1.5-A 已建立独立 additive checkpoint migration、artifact 引用与 digest 防线、精确 release/config/sequence/schedule 恢复、固定节拍 skip-missed Worker、优雅停止、强制 telemetry sink、分离 reader/writer 身份的 NO_AUTHORITY 进程入口和三态 SLO evaluator。隔离 PG16 已证明关闭连接后的精确增量恢复、append-only、幂等、越权拒绝和 checkpoint 不领先 artifact。
 - M1.5-B0 已补齐显式 reader/writer role assumption 与会话身份核验、两个 secret-file database URL、完整 strict observation JSONL、固定 30 分钟/24 小时有限 Shadow profile，以及无 Legacy secret、非 root、只读 filesystem、无端口的专用容器边界。定向 41/41、全 V2 136 pass / 0 fail / 4 explicit external-dependency skips、三项隔离 PG16 回归与完整 `ci:production` 均通过；B1-A 已随后补齐 exact image build、三 Venue egress 与隔离 Docker Runner 证明。
 - M1.6 v1 日分区迁移 checksum 保持不可变，新增 additive v2 六小时 UTC 分区和小时级 retention cutoff。隔离 PG16 已证明非空 v1 拒绝升级、8 个连续分区、dump/restore/replay parity、引用阻断和原子淘汰；8 周期/11,552 Fact 校准得到稳态/峰值 59%/67% 本地无扩容模型 PASS。Object Lock 已回读 `COMPLIANCE` 31 天，真实 age 身份仅在 macOS Keychain；当前 P0R source commit=`bed938566d242394de7f6c31b309bd9f8198b71f`、run=`p0r-20260721t183927z-221b4eebbf2ab34191c63608771b21ea`、plan digest=`sha256:b01284de724cdbf3fe3907f91be67bf14655b744073e9de055444d5909015119`、脱敏 bundle=`1adae1348bd983ba0eb003ba3521a1404faa4ed4a5559ab89b8a70cf473dac00` 已在服务器精确 staging。2026-07-24 再次只读证明生产 HEAD=`cec0b6572bb09ae91ff9e013f8bb160f73c045e2`、detached/clean、四个 staging 哈希 exact、`/dev/shm` 空、无 P0R container/volume、无 unhealthy/restarting，runner plan 为零 mutation；当前仍无可用 STS，COS 对象、真实 recovery、fresh topology 和 fresh P0 均未执行，P1 关闭。
 - M2.0 已冻结六个机会族、十四种模式、family-specific direction、Detector event/knowledge 双 cutoff、Candidate/Episode/Thesis strict v2 schema、Detector emission authority、UTC Episode 去重、生命周期、三层运行漏斗和 19 个 test-only point-in-time fixture；fixture 递归拒绝 Outcome/MFE/MAE 等未来材料。该结论只证明本地合同，不证明 Detector、Deep Validation、真实市场发现率或生产能力。
-- M2.1 已建立三个 Pre-Move 与两个 Breakout/Retest 独立 DRAFT 纯回放内核，包含显式长短/UNKNOWN、late/noise/fakeout veto、unavailable 降级、顺序无关 digest 和 Detector 注册身份防篡改。阈值固定标记 `UNCALIBRATED_DRAFT_THRESHOLDS`，Candidate emission=false；定向 10/10、M2.0 回归 16/16、全 V2 167 pass / 0 fail / 5 explicit skips。没有历史 cohort、真实指标或生命周期升级证据。
+- M2.1 已建立三个 Pre-Move 与两个 Breakout/Retest 独立 DRAFT 纯回放内核。M2.1A 又建立八族各自 LONG/SHORT/UNKNOWN 共 24 个 DRAFT/UNCALIBRATED 假设、三 Outcome、point-in-time 板块传播、逐 family-direction 的 Venue/regime/liquidity 分层，以及 matched control、消融、sealed holdout、forward Shadow、rights 和独立审计 Gate；定向 13/13 PASS。它只能返回 research blocker 或进入 replay validation 的无发射状态，Candidate emission=false；没有真实 cohort、真实指标或生命周期升级证据。
 - M2.2-A 已建立真实历史数据接纳、完整 Candidate 背景窗口、candidate/event/matched-non-event 三业务分母、固定 Detector 分母、purge/embargo、holdout group isolation 与独立 custody、target-blind 首次发现、Wilson CI/lead-time 秩区间和四态 lifecycle proposal Gate。独立 custody 下 research Bundle 物理禁止 inline holdout，Gate 只打开 commitment 匹配的 sealed artifact；lead time 使用数据实际可知的 knowledge cutoff。当前仓库 accepted real cohort=0，Top20 ranking、threshold sensitivity 和真实 untouched holdout 均缺失，因此 Gate=`INSUFFICIENT`；五个 Detector 保持 DRAFT、Candidate 禁发。
 - M2.2-B0 已把来源权利、point-in-time instrument history、knowledge-time、逐 Detector 数据覆盖、精确对象/checksum、磁盘预算、Git 外原始区和单对象技术验证做成 fail-closed 合同。真实 BTCUSDT 1m 月文件 1,838,455 bytes 与官方 SHA-256 一致，验证后原始字节强制删除；但权利审查、历史合约身份和 L2 不足，故 bulk acquisition=false、cohort freeze=false。
 - M2.2-B0.1 已为五个 DRAFT Detector 增加 target-blind relative-rule-margin diagnostic strength，明确不是概率、等级或交易结论；固定 Detector 分母 Top20、TRAIN-only 六维事件阈值、matched/background、pre-cutoff regime/liquidity、observed/modeled knowledge-time、purge/embargo 和 1+4 trial registry 已由 version/digest 绑定到 dataset/experiment/holdout v2。定向 45/45 PASS；真实 cohort 仍为 0、Gate=`INSUFFICIENT`、Detector 仍 DRAFT、Candidate 禁发。
 - M2.2-B0.2-A 已把来源权利升级为内容寻址、限定账户/法域、带有效期且只能由账户所有者或合格法律审查者作出的外部结论；把历史 instrument identity、onboard/delist、状态区间、knowledge time、symbol reuse epoch 和全分母覆盖核算做成 fail-closed Gate。当前五个来源候选全部为 `RESEARCH_ONLY`，合格历史来源仍为 0；Agent、当前快照和 archive presence 均不能自证通过。
 - M2.2-B0.2-C/C1 已建立 release-bound 三 Venue exact raw capture、工作区外内容寻址 store、完整分母、三类 identity evidence、identity epoch、持续缺席非 delist、全链 journal 验证与 clean-HEAD CLI。冻结 release `4139cc631d3d760876c3e39404c494462541a910` 连续取得两轮三 Venue COMPLETE；Binance/OKX/Bybit 分别 841/426/746 rows，目标 654/272/642，out-of-scope 187/154/104，unresolved=0；跨度约 368.5 秒，三家均 2/2 complete、gap/conflict/blocker=0、`FORWARD_ONLY_READY`。这只通过前向捕获起点，不回填历史、不解锁 B0.2-B/B1 historical acquisition、Detector 或 Candidate。
-- M3.0-M3.3 已冻结 V1 六族的 Final Decision authority、双评级、Analysis 和 `StrategyDraft v2`，M3 合计 81/81、全 V2 360/0/6、ops 115/115；这些测试只属于三 Venue 加密 fixture。M3.4-R0 Scope Rebase Gate 已本地 12/12、ESLint 0/0，正式实施分支身份完整 CI 为 V2 Foundation 460 pass + 6 explicit skip、V2 Ops 131/131、M0 11/11、Next、Golden 16/16 和 security 全部 PASS；它把四 Venue、assetDomain、lifecycle、release、通用/加密/股票/warm-up 前置证据机器化。旧草稿 typecheck FAIL 3、lint 1 warning、测试 0，保持用户原样并继续隔离。V2 股票/上新 Analysis、校准、Execution Feasibility、Risk、runtime 和 READY authority 均未完成。
+- M3.0-M3.3 已冻结 V1 六族的 Final Decision authority、双评级、Analysis 和 `StrategyDraft v2`，这些测试只属于三 Venue 加密 fixture。M3.4-R0 Scope Rebase Gate 已本地 12/12，把四 Venue、assetDomain、lifecycle、release、通用/加密/股票/warm-up 前置证据机器化。R1 test-only 草稿的 schema/import/fixture 编译阻断已按当前 strict schema 根治，全仓 typecheck/lint/CI 通过；但其自身定向测试仍为 0，且缺真实 Scope V2 上游证据，所以不计 M3.4 出口，也没有 Feasibility、Risk、runtime 或 READY authority。
 - M1.5-B1-A 已在腾讯宿主机隔离 no-authority Runner 以 exact commit `97f10e75ce296b07d933e9c362c40ba2be0997ea` 构建专用镜像并真实运行两周期。每周期 eligible/collected 均 1,444/1,444、三 Venue provider failure=0、checkpoint/persistence=`INSERTED`，宿主机 11 容器/4 network/5 volume 已按 digest 精确恢复；evidence `sha256:a44cab89b8a4bf291e7c8f67eb6de2b76f2637f4f8265d91ebb8f1224d2a40c2` 独立重算通过。技术 Runner=`PASS`，业务 readiness=`FAIL`：READY 0/2，fresh 1,441 后降至 1,274，原因包括 stale、duplicate 和 missed schedule。31 周期 Shadow、语义整改、24h SLO、生产 migration、API、页面和生产 authority 仍未证明。
 - M1.5-B1-B0 已冻结单进程 31 周期、60 秒 cadence、完整分母、strict process summary、独立业务 SLO、内容寻址 domain/runner evidence 和宿主 Docker 精确恢复；中断、短包或跨进程/config 拼接全部拒绝。
 - M1.5-B1-B1 exact commit `3908f9f5d0066849311e9d3ac875cc6a76acc69e` 虽观察到进程运行 31 周期，但 Runner 使用 1 小时 reconciliation、validator 仍要求旧 24 小时值，导致完整脱敏证据未生成且原始字节已按清理合同删除。两个失败报告 digest 已独立重算、宿主精确恢复；该窗口只能记 `EXECUTION_INVALID_NOT_COUNTED`，不得推断业务 PASS/FAIL。
@@ -210,7 +210,7 @@ V2 前端目标不是保留这些页面名称，而是确保所有页面只读�
 
 ### 9.1 当前来源
 
-- 当前有持续生产运行证明的来源仍是 Binance Futures、OKX Swap、Bybit Linear Perpetual 的公开目录、mark-price、Kline 和 WebSocket。Bitget、四 Venue listing lifecycle 与股票/RWA 合约已进入 Scope V2 能力登记、本地 Adapter、身份和生命周期合同；M1.1B0 R3 已取得腾讯 exact `LIVE_READ_ONLY` 15/15 来源一致性证明，M1.4B 又取得两次 14/14 route-eligible no-authority 有界运行与真实 Bitget/Bybit checkpoint，但尚无 Scope V2 持续 Collector Shadow、容量或生产运行 authority。Binance 股票产品已由官方资料确认，不能继续标为产品不可用。
+- 当前有持续生产运行证明的来源仍是 Binance Futures、OKX Swap、Bybit Linear Perpetual 的公开目录、mark-price、Kline 和 WebSocket。Bitget、四 Venue listing lifecycle 与股票/RWA 合约已进入 Scope V2 能力登记、本地 Adapter、身份和生命周期合同；M1.1B0 R3 已取得腾讯 exact `LIVE_READ_ONLY` 15/15 来源一致性证明，M1.4B 又取得两次 14/14 route-eligible no-authority 有界运行与真实 Bitget/Bybit checkpoint，但尚无 Scope V2 持续 Collector Shadow、容量或生产运行 authority。Binance 股票产品已由官方资料确认。CoinGecko 免费 API、DefiLlama/链上和新闻社交现仅为待登记、权利/live/增量价值审查的补充来源，不具有运行或决策 authority。
 - CoinGlass 授权能力，用于部分 OI、Funding、pairs market 等衍生品验证；套餐、限速、鉴权和端点能力必须逐项如实表达。
 - PostgreSQL 持久化业务状态，Redis 保存短生命周期状态和轻扫快照。
 
@@ -291,7 +291,7 @@ npm run security:check
 系统等级：R1
 工程描述：可运行但不完整
 实战描述：不能支撑实战
-V2：M1.1A 能力登记、M1.1B 四 Venue/多资产身份/上新生命周期和 M1.1B0 R3 15/15 endpoint conformance 已通过。M1.4A 本地合同通过；M1.4B 已完成腾讯 bootstrap 与 checkpoint-bound resume，两轮均为 14/14 route PASS、0 failed、1 registry blocked，Binance spot 保持零请求。Bitget、Listing、Equity 与 Data Maximization 分别核算，股票 tradable Fact=0；Scope V2 持续 Shadow、容量、真实 cohort/holdout、校准和生产 authority 未完成。M3.1A-D-R0 四轨 Analysis/Qualification/Strategy research contract 定向 28/28 与完整 CI PASS，但不计真实 M3.1A-M3.3D 完成；原 M3.0-M3.3 只保留 V1 效力。M3.4-R0 治理 gate PASS，旧草稿隔离；P0R 无新 STS，COS 恢复/fresh topology/P0 未执行，M1 未完成；Detector=DRAFT、Candidate 禁发，无 Signal Grade/Strategy/Feasibility/持续 runtime/READY authority
+V2：M0.5 已把 Market Mechanics、Microstructure、双向前兆、板块传播、补充来源、缓存和 Evidence Overlay 融入权威设计；M1.4C 本地合同 22/22、M2.1A research-only 合同 13/13 和完整 CI 均 PASS，但 M1.5D、真实微观结构数据、cohort/holdout、校准与 authority 未完成。M1.1A/M1.1B 与 R3 15/15 endpoint conformance 已通过；M1.4B 腾讯 bootstrap/resume 两轮均为 14/14 route PASS、0 failed、1 registry blocked，Binance spot 保持零请求。Bitget、Listing、Equity 与 Data Maximization 分别核算，股票 tradable Fact=0；Scope V2 持续 Shadow 和容量未完成。M3.1A-D-R0 四轨 research contract 通过但不计真实 M3.1A-M3.3D；M3.4-R0 治理 gate PASS，R1 草稿只恢复 compile compatibility、定向测试 0。P0R 无新 STS，COS 恢复/fresh topology/P0 未执行，M1 未完成；Detector=DRAFT、Candidate 禁发，无 Signal Grade/Strategy/Feasibility/持续 runtime/READY authority
 本轮业务服务、数据库、Redis、Worker 与业务 authority 变更：0；Runtime Control 新增 fixed dispatch timer/service；外部安全状态：COS Object Lock COMPLIANCE 31 天已启用
 当前生产存储门禁：P0_BLOCKED_CAPACITY_AND_RECOVERY；P0R_OBJECT_LOCK_31D_AGE_VAULT_TRANSPORT_AND_CLEAN_PRE_STS_BASELINE_PASS_STS_RECOVERY_AND_FRESH_TOPOLOGY_PENDING；应用业务健康未在本包评估
 固定生产执行通道：PRODUCTION_OPERATIONAL_FIRST_SIGNED_DISPATCH_ACCEPTED；机器复发门禁 2 项 CLOSED、0 项 open，旧 approved_orcaterm_bundle_upload 包禁止伪装成 signed_git_bundle
@@ -350,7 +350,7 @@ Cycle final
 - M2.2-A/B0.1/B0.2-A 已能拒绝 future leak、病例对照 precision 膨胀、任意排序/构造政策、伪 holdout、Agent 自批权利和当前快照倒推历史，但 accepted real historical cohort=0；真实来源权利、完整背景实际构造、真实 Top20/sensitivity、独立 holdout custody/result 和审计都未完成，Gate 必须保持 INSUFFICIENT，禁止发 Candidate 或宣称 Detector 有效。
 - M2.2-B0 证明官方归档技术链可用；B0.2-A 进一步证明公开下载、当前 snapshot 和 archive presence 都不能给出历史 eligibility。五个候选全部 `RESEARCH_ONLY`，Kline 也不支持 L2 Liquidity Shift，故 bulk/cohort 继续 blocked。
 - C1 前向捕获起点已通过，但当前只有两轮、约 6 分钟目录证据；它不能替代持续采集、历史 instrument source、历史权利、真实 cohort 或长期 SLO，旧未绑定 release 的诊断根不得并入正式链。
-- M3.0-M3.3 只验证 V1 三 Venue加密 fixture；M3.1A-D-R0 只验证 Scope V2 四轨 research contract 能拒绝串轨、缺证、未来读和伪成本，不能证明真实 Detector、cohort/holdout、校准或 Strategy 有效。M3.4-R0 也只证明前置门禁，不证明 Feasibility。持续 Adapter、listing checkpoint、Deep Validation、真实执行成本、风险和 runtime 仍缺失，任何 V2 Signal Grade、Strategy authority 或 READY 声明均为 P1 风险。
+- M3.0-M3.3 只验证 V1 三 Venue加密 fixture；M3.1A-D-R0 只验证 Scope V2 四轨 research contract 能拒绝串轨、缺证、未来读和伪成本，不能证明真实 Detector、cohort/holdout、校准或 Strategy 有效。M0.5 也只冻结设计，订单墙、主动流、板块传播和 CoinGecko 等补充来源尚无真实前向证据或消融，任何“主力/控盘分”、固定美元阈值或个案规律都无权进入 Signal。M3.4-R0 也只证明前置门禁，不证明 Feasibility。持续 Adapter、listing checkpoint、Deep Validation、真实执行成本、风险和 runtime 仍缺失，任何 V2 Signal Grade、Strategy authority 或 READY 声明均为 P1 风险。
 
 ### P2
 
@@ -364,10 +364,10 @@ Cycle final
 1. COS 是否保持单 AZ/私有/versioned/SSE-COS/Object Lock 31d；STS 是否 exact-plan 最小权限，上传前 key absent、加密备份、exact version retrieval、独立 PG16 restore、无明文 dump 和临时 secret 清理是否真实通过；fresh P0 是否继承全部非容量 blocker并满足稳态 60% / 峰值 70%。
 2. `scopeEpoch` 是否覆盖所有权威对象；V1 C1/B1-B3/D0 是否保持原范围；M1.4B 是否区分 15 live Profile 与 14 route eligibility、区分 snapshot/history 预算并保持四条新增责任链独立；Binance spot 是否在 registry 修订和新 digest live conformance 前保持 blocked。
 3. M1.6 production Gate 是否绑定旧 Fact=0、migration checksum、预建窗口、容量阈值、备份恢复和 Audit/Retention 分权。
-4. Candidate/Evidence/Setup/Action/User Fit 是否越层。
+4. Candidate/Evidence/Setup/Action/User Fit 是否越层；静态订单墙、固定美元大单阈值、单 Venue 现象、AI 或自定义指标是否越权。
 5. M3 四轨是否继续保持 exact Venue/domain/lifecycle 分离；Evidence/Setup 是否独立且只接受真实 cohort/holdout；股票 session/公司行动/FX/reference/basis/成本缺失是否弃权；Strategy 是否禁止 0 补缺、未验证 Fib、缩 stop 和 RR 篡改；READY 是否只由同 release/id/time lineage 的完整后端链产生。
 6. 数据缺失、CoinGlass 失败、429、stale 和数据库故障是否诚实降级。
-7. 前端是否只读 Decision Snapshot。
+7. 前端是否只读 Decision Snapshot/Evidence Overlay；灵敏度是否只改变提醒和展示。
 8. 发布是否绑定 commit、artifact、image、schema、feature/rule version、rollback 和 evidence。
 9. 旧代码删除是否有消费者扫描、replacement 稳定期和 absence test。
 
@@ -389,7 +389,7 @@ Cycle final
 V2-M1.6-P0R-C-STS-ENCRYPTED-BACKUP-EXACT-RETRIEVAL-AND-ISOLATED-RESTORE
 ```
 
-B1-B3 已关闭 V1 M1.5-B1；P0 已执行并因容量与 recovery evidence BLOCKED。Object Lock 31 天、age Keychain 身份、source=`bed938566d242394de7f6c31b309bd9f8198b71f` 和 exact staging 已通过。生产 P0R 下一步仍是 fresh exact-plan 7200 秒 STS、受限上传、加密备份、精确取回、隔离恢复和 cleanup；随后刷新 topology、重跑校准与 fresh P0。签名通道不能运输 P0R secret。Scope V2 的 M1.4B 腾讯 bootstrap/resume 已通过，下一证据包是 M1.5C 四 Venue 多资产 Shadow，随后使用真实事实率进入 M1.6-D1 无付费容量证明。M3.1A-D-R0 四轨合同已本地通过，但必须等待 M2.3/M2.4 真实 cohort/holdout 后才能进入真实 M3.1A-M3.3D 校准。M3.4-R0 旧草稿仍隔离；四轴证据不得混用。外部门 B0.2-B 未解决前 historical bulk、Detector lifecycle 和 runtime 一律关闭。
+B1-B3 已关闭 V1 M1.5-B1；P0 已执行并因容量与 recovery evidence BLOCKED。Object Lock 31 天、age Keychain 身份、source=`bed938566d242394de7f6c31b309bd9f8198b71f` 和 exact staging 已通过。生产 P0R 下一步仍是 fresh exact-plan 7200 秒 STS、受限上传、加密备份、精确取回、隔离恢复和 cleanup；随后刷新 topology、重跑校准与 fresh P0。签名通道不能运输 P0R secret。Scope V2 的 M1.4B 腾讯 bootstrap/resume、M1.4C 本地合同和 M2.1A research-only 合同已通过；下一真实证据包应把 M1.5C 四 Venue 多资产 Shadow 与 M1.5D 微观结构 forward Shadow 绑定同一 exact release 并独立验收，M1.6-D1 同时消费两者真实事实率。M3.1A-D-R0 四轨合同已本地通过，但必须等待 M2.3/M2.4 真实 cohort/holdout 后才能进入真实校准。M3.4-R1 只有 compile-compatible 草稿、没有定向出口；四轴证据不得混用。外部门 B0.2-B 未解决前 historical bulk、Detector lifecycle 和 runtime 一律关闭。
 
 ## 19. 活跃记忆维护规则
 

@@ -253,7 +253,12 @@ function CoverageRing({ pct }: { pct: number | null }) {
   }, [])
   return (
     <div className="relative grid size-[120px] shrink-0 place-items-center">
-      <svg width="120" height="120" className="-rotate-90">
+      <svg
+        aria-hidden="true"
+        width="120"
+        height="120"
+        className="-rotate-90"
+      >
         <circle cx="60" cy="60" r={r} fill="none" stroke="var(--border)" strokeWidth="8" />
         <circle
           cx="60"

@@ -49,6 +49,7 @@ export function ChuanLogo({
           />
         )}
         <svg
+          aria-hidden="true"
           viewBox="0 0 100 100"
           width={size}
           height={size}

@@ -1,6 +1,6 @@
 # Market Radar 权威蓝图目录
 
-更新日期：2026-07-24
+更新日期：2026-07-26
 
 本目录只回答三件事：当前真实状态是什么、V2 应该怎样建设、哪些历史材料只能作参考。任何旧报告、旧周期身份或旧蓝图都不能绕过这里重新成为当前权威。
 
@@ -9,7 +9,7 @@
 ```text
 当前系统等级：R1 / 可运行但不完整 / 不能支撑实战
 V2 设计状态：ACTIVE_DESIGN_AUTHORITY
-V2 实现状态：M0_ENGINEERING_EXIT_LOCAL_PASS / M0.4_EXPANDED_SCOPE_DESIGN_PASS / M1.1A_REGISTRY_LOCAL_PASS / M1.1B_MULTI_ASSET_IDENTITY_LISTING_AND_EXACT_PROBE_LOCAL_IMPLEMENTATION_PASS_TEST_ONLY_CONFORMANCE_PASS / M1.1B0_R1_LIVE_0_OF_15_COMMON_RUNTIME_TRANSPORT_BLOCKED_R2_LIVE_14_OF_15_LISTING_GATE_BLOCKED_R3_LIVE_15_OF_15_ALL_GATES_PASS / M1.4A_ADAPTIVE_MULTI_ASSET_COLLECTOR_LOCAL_CONTRACT_AND_FULL_CI_PASS_NO_RUNTIME_AUTHORITY / M1.4B_TENCENT_BOOTSTRAP_AND_CHECKPOINT_BOUND_RESUME_PASS_NO_RUNTIME_AUTHORITY_15_LIVE_PROFILES_14_ROUTE_ELIGIBLE / SCOPE_EPOCH_V1_EVIDENCE_PRESERVED / M1.5-B1_EARLY_SHADOW_BUSINESS_GATE_PASS_V1_ONLY / M1.6-P0_EXECUTED_BLOCKED_CAPACITY_AND_RECOVERY / M1.6-P0R_CLEAN_PRE_STS_BASELINE_PASS_STS_AND_RECOVERY_PENDING / M2.2-B0.2-C1_FORWARD_ONLY_READY_V1_ONLY / M3.0-M3.3_LOCAL_CONTRACT_PASS_V1_ONLY_TEST_ONLY_UNCALIBRATED_NO_READY_AUTHORITY / M3.1A-M3.3D_FOUR_LANE_LOCAL_RESEARCH_CONTRACT_SCAFFOLD_PASS_NO_REAL_CALIBRATION_OR_AUTHORITY / M3.4-R0_SCOPE_REBASE_GOVERNANCE_AND_FULL_CI_PASS_IMPLEMENTATION_BLOCKED / PRODUCTION_FIXED_DISPATCH_FIRST_SIGNED_ACCEPTANCE_PASS / EXTERNAL_RIGHTS_AND_HISTORICAL_SOURCE_BLOCKED / BULK_AND_COHORT_BLOCKED / GATE_INSUFFICIENT / DETECTORS_DRAFT / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED
+V2 实现状态：M0_ENGINEERING_EXIT_LOCAL_PASS / M0.4_EXPANDED_SCOPE_DESIGN_PASS / M0.5_MARKET_MECHANICS_MICROSTRUCTURE_PRECURSOR_ATLAS_DESIGN_PASS / M1.1A_REGISTRY_LOCAL_PASS / M1.1B_MULTI_ASSET_IDENTITY_LISTING_AND_EXACT_PROBE_LOCAL_IMPLEMENTATION_PASS_TEST_ONLY_CONFORMANCE_PASS / M1.1B0_R1_LIVE_0_OF_15_COMMON_RUNTIME_TRANSPORT_BLOCKED_R2_LIVE_14_OF_15_LISTING_GATE_BLOCKED_R3_LIVE_15_OF_15_ALL_GATES_PASS / M1.4A_ADAPTIVE_MULTI_ASSET_COLLECTOR_LOCAL_CONTRACT_AND_FULL_CI_PASS_NO_RUNTIME_AUTHORITY / M1.4B_TENCENT_BOOTSTRAP_AND_CHECKPOINT_BOUND_RESUME_PASS_NO_RUNTIME_AUTHORITY_15_LIVE_PROFILES_14_ROUTE_ELIGIBLE / M1.4C_MICROSTRUCTURE_FACT_FEATURE_CACHE_LOCAL_CONTRACT_PASS_22_OF_22_NO_RUNTIME_AUTHORITY / M1.5D_FORWARD_EXECUTION_NOT_STARTED / M2.1A_BIDIRECTIONAL_PRECURSOR_ATLAS_LOCAL_RESEARCH_CONTRACT_PASS_13_OF_13_REAL_COHORT_MISSING_NO_CANDIDATE_EMISSION / SCOPE_EPOCH_V1_EVIDENCE_PRESERVED / M1.5-B1_EARLY_SHADOW_BUSINESS_GATE_PASS_V1_ONLY / M1.6-P0_EXECUTED_BLOCKED_CAPACITY_AND_RECOVERY / M1.6-P0R_CLEAN_PRE_STS_BASELINE_PASS_STS_AND_RECOVERY_PENDING / M2.2-B0.2-C1_FORWARD_ONLY_READY_V1_ONLY / M3.0-M3.3_LOCAL_CONTRACT_PASS_V1_ONLY_TEST_ONLY_UNCALIBRATED_NO_READY_AUTHORITY / M3.1A-M3.3D_FOUR_LANE_LOCAL_RESEARCH_CONTRACT_SCAFFOLD_PASS_NO_REAL_CALIBRATION_OR_AUTHORITY / M3.4-R0_SCOPE_REBASE_GOVERNANCE_PASS_R1_PARTIAL_TEST_ONLY_DRAFT_NO_DIRECTED_EXIT / PRODUCTION_FIXED_DISPATCH_FIRST_SIGNED_ACCEPTANCE_PASS / EXTERNAL_RIGHTS_AND_HISTORICAL_SOURCE_BLOCKED / BULK_AND_COHORT_BLOCKED / GATE_INSUFFICIENT / DETECTORS_DRAFT / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED
 V2 生产权限：false
 自动交易：永久禁止
 最新生产存储门禁：P0_BLOCKED_CAPACITY_AND_RECOVERY / APPLICATION_HEALTH_NOT_EVALUATED
@@ -17,7 +17,7 @@ V2 生产权限：false
 
 2026-07-21 M1.6-P0 已以 exact source 完成生产只读存储核验：PostgreSQL 16、V2 schema=`ABSENT_CLEAN`、旧/新 Fact=0、连接使用率 2%，数据库/服务/仓库 mutation 均为 0；但 120 GiB 系统盘按冻结模型预计使用率 90%，容量余量不足且 recovery evidence 缺失，因此准入结论是 `BLOCKED`。这不评价 `/api/health` 或生产业务 ready，不能扩写成全站健康或全站失败。
 
-P0R 本地恢复、六小时无扩容容量和 fresh P0 组合准入工程已通过；真实 COS 已启用并回读 Object Lock=`COMPLIANCE` 31 天，age X25519 身份仅保存在 macOS Keychain。当前生产恢复入口已绑定 exact source `bed938566d242394de7f6c31b309bd9f8198b71f`、run `p0r-20260721t183927z-221b4eebbf2ab34191c63608771b21ea` 和 transport bundle `1adae1348bd983ba0eb003ba3521a1404faa4ed4a5559ab89b8a70cf473dac00`；旧 staging、16 个 `/dev/shm` 旧文件和诊断文件已精确清理，clean pre-STS baseline 通过。STS、生产对象、backup/retrieval/restore、fresh topology、exact-release 校准和 fresh P0 尚未发生，P1 继续关闭。M1.1B0 R3 已真实取得 15/15 exact endpoint conformance。M1.4B 已以 source `3c21a75009aeb4f4f7d9fd8954245238c38d9636` 完成腾讯 bootstrap 与 checkpoint-bound resume；两轮均为 14/14 route PASS、0 failed、1 registry blocked、零 listing gap 和两个 committed checkpoint，生产应用身份不变。`BINANCE_SPOT_CATALOG` 请求数固定为 0。Bitget Venue、Listing Lifecycle、Equity Asset Domain 与 Data Maximization 四轴独立核算；股票 tradable Fact 仍为 0。原三 Venue 加密证据的正式范围标识为 `SCOPE_EPOCH_V1_CRYPTO_3V`，M3.0-M3.3 只保留该范围效力。Scope V2 四轨 Analysis/Qualification/Strategy research contract 已完成 28/28 定向测试和完整 CI，但真实 cohort、holdout、校准和 authority 均为 0；M3.1A-M3.3D 不能据此减为完成。M3.4-R0 已完成 scope rebase 治理门禁；旧草稿继续隔离。
+P0R 本地恢复、六小时无扩容容量和 fresh P0 组合准入工程已通过；真实 COS 已启用并回读 Object Lock=`COMPLIANCE` 31 天，age X25519 身份仅保存在 macOS Keychain。当前生产恢复入口已绑定 exact source `bed938566d242394de7f6c31b309bd9f8198b71f`、run `p0r-20260721t183927z-221b4eebbf2ab34191c63608771b21ea` 和 transport bundle `1adae1348bd983ba0eb003ba3521a1404faa4ed4a5559ab89b8a70cf473dac00`；旧 staging、16 个 `/dev/shm` 旧文件和诊断文件已精确清理，clean pre-STS baseline 通过。STS、生产对象、backup/retrieval/restore、fresh topology、exact-release 校准和 fresh P0 尚未发生，P1 继续关闭。M1.1B0 R3 已真实取得 15/15 exact endpoint conformance。M1.4B 已以 source `3c21a75009aeb4f4f7d9fd8954245238c38d9636` 完成腾讯 bootstrap 与 checkpoint-bound resume；两轮均为 14/14 route PASS、0 failed、1 registry blocked、零 listing gap 和两个 committed checkpoint，生产应用身份不变。`BINANCE_SPOT_CATALOG` 请求数固定为 0。M1.4C 22/22 与 M2.1A 13/13 本地合同出口、V2 Foundation 529 total / 523 pass / 6 explicit skip 及完整 CI 已通过；M1.5D 和真实 cohort 未开始。Bitget Venue、Listing Lifecycle、Equity Asset Domain 与 Data Maximization 四轴独立核算；股票 tradable Fact 仍为 0。原三 Venue 加密证据的正式范围标识为 `SCOPE_EPOCH_V1_CRYPTO_3V`，M3.0-M3.3 只保留该范围效力。Scope V2 四轨 Analysis/Qualification/Strategy research contract 已完成 28/28 定向测试和完整 CI，但真实 cohort、holdout、校准和 authority 均为 0；M3.1A-M3.3D 不能据此减为完成。M3.4-R0 已完成 scope rebase 治理门禁；R1 草稿只恢复全仓 compile compatibility，定向出口仍为 0。
 
 固定生产派发通道的首个真实 signed dispatch 已在腾讯目标机完成 `publish -> pull -> verify -> launch -> package acceptance`，返回 `PASS_FIXED_DISPATCH_FIRST_SIGNED_ACCEPTANCE`。生产应用 HEAD、clean worktree、11 个容器、health、Redis 和 timer 前后保持基线，两项 OrcaTerm 复发事故均已取得目标验收并关闭。该结果只证明普通无 secret 包的运输与独立启动地基，不提升任何 G0、M1 或交易能力状态，也不运输 P0R 临时凭证。
 
@@ -27,8 +27,8 @@ Legacy G0 的七个生产出口继续作为历史安全义务，但它们不是 
 
 | 优先级 | 文档 | 唯一职责 |
 | ---: | --- | --- |
-| 1 | [V2 受控替换工程与运行蓝图 v1.41](./MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md) | 当前唯一产品、领域、工程、研究、运行与切换设计权威 |
-| 2 | [V2 机器追踪矩阵 v1.46](./market-radar-v2-controlled-replacement-traceability.v1.json) | Scope Epoch、18 个 Module、5 维状态、硬门槛和 M0-M7 的机器合同 |
+| 1 | [V2 受控替换工程与运行蓝图 v1.43](./MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md) | 当前唯一产品、领域、工程、研究、运行与切换设计权威 |
+| 2 | [V2 机器追踪矩阵 v1.48](./market-radar-v2-controlled-replacement-traceability.v1.json) | Scope Epoch、18 个 Module、5 维状态、硬门槛和 M0-M7 的机器合同 |
 | 2A | [M0.4 扩展市场范围与 Scope Epoch 合同](../architecture/v2/M0_4_EXPANDED_MARKET_SCOPE_AND_SCOPE_EPOCH_CONTRACT_V1.md) | Bitget、上新/新币 watch、股票合约、T0-T3 数据策略和跨范围证据隔离 |
 | 2B | [M0.4 交付报告](./V2_M0_4_EXPANDED_MARKET_SCOPE_AMENDMENT_DELIVERY_REPORT.md) | 设计变更、未实现边界、生产零变更和下一本地入口 |
 | 2C | [M1.1A 四 Venue 来源能力登记合同](../architecture/v2/M1_1A_FOUR_VENUE_SOURCE_CAPABILITY_REGISTRY_V1.md) | 4 Venue + CoinGlass、33 类能力、165 行穷举矩阵和运行未证明边界 |
@@ -45,6 +45,8 @@ Legacy G0 的七个生产出口继续作为历史安全义务，但它们不是 
 | 2N | [M3.4-R0 交付报告](./V2_M3_4R0_EXECUTION_FEASIBILITY_SCOPE_REBASE_GATE_DELIVERY_REPORT.md) | 12 项定向验证、旧草稿隔离、未完成边界和正确后续顺序 |
 | 2O | [M3.1A-D 四轨多资产决策研究合同](../architecture/v2/M3_1A_D_FOUR_LANE_MULTI_ASSET_DECISION_RESEARCH_CONTRACT_V1.md) | 四轨绑定、独立校准、成本/reference/Fib/RR 和 no-authority 边界 |
 | 2P | [M3.1A-D 四轨研究合同交付报告](./V2_M3_1A_D_FOUR_LANE_MULTI_ASSET_DECISION_RESEARCH_CONTRACT_DELIVERY_REPORT.md) | 28 项定向测试、真实 calibration 未完成和生产零变更 |
+| 2Q | [M0.5 Market Mechanics、Microstructure 与双向前兆图谱设计修订](../architecture/v2/M0_5_MARKET_MECHANICS_MICROSTRUCTURE_AND_PRECURSOR_ATLAS_AMENDMENT_V1.md) | 三轴市场机制、订单墙生命周期、压力响应、双向前兆、板块传播、补充来源、缓存和工作台边界 |
+| 2R | [M1.4C Microstructure 与 M2.1A 双向前兆本地合同交付报告](./V2_M1_4C_MICROSTRUCTURE_AND_M2_1A_BIDIRECTIONAL_PRECURSOR_LOCAL_CONTRACT_DELIVERY_REPORT.md) | 22/22 + 13/13、本地合同、完整 CI、无 runtime/Candidate 权限与下一 forward Shadow |
 | 3 | [项目当前上下文](../../PROJECT_CONTEXT_FOR_CHATGPT.md) | 当前事实、风险、生产未知项和唯一下一入口 |
 | 4 | [最近变更日志](../../CHANGELOG_FOR_CHATGPT.md) | 最近最多 5 个重要变化，不保存历史流水账 |
 | 5 | [正确搭建顺序](../../market-radar-v2-build-sequence.md) | 当前唯一施工依赖、Critical Path、并行边界和减数规则 |
@@ -119,7 +121,7 @@ Legacy G0 的七个生产出口继续作为历史安全义务，但它们不是 
 
 1. 与当前 release 身份对齐的新鲜生产只读证据。
 2. 永久安全、事实、交易、无 future leak 和无自动交易红线。
-3. V2 蓝图 v1.41 与机器追踪矩阵 v1.46。
+3. V2 蓝图 v1.43 与机器追踪矩阵 v1.48。
 4. `PROJECT_CONTEXT_FOR_CHATGPT.md` 中仍标为 current 的事实。
 5. Legacy 工程、运行和 readiness 文档中仍适用的安全与验收合同。
 6. 历史蓝图、旧请求、旧报告、旧 digest 和 Git history。
@@ -141,7 +143,7 @@ Universe Registry
 -> Strategy Draft
 -> Execution Feasibility + Final Decision
 -> Personal Risk + Portfolio Risk
--> Decision Snapshot + Alerts
+-> Decision Snapshot + Evidence Overlay + Alerts
 -> Outcome Evaluation
 -> Research Governance
 ```
@@ -162,13 +164,13 @@ Runtime / Security / Release Control 贯穿全链。任何 Module 不得跳过�
 
 ## 6. 当前实施入口
 
-M0.0-M0.3、M1.1-M1.6、M2.0-M2.2 已列本地包、C1、M3.0-M3.3 已通过各自工程、业务、运行起点或合同出口。Scope V2 的 M3.1A-D-R0 四轨 research contract scaffold 已通过定向测试与完整 CI，但真实 M3.1A-M3.3D 仍等待 M2.3/M2.4 cohort、untouched holdout 和分域校准。B1-B1 永久 `INVALID_NOT_COUNTED`，B1-B3 已取得 V1 业务 PASS。M1.6-P0 因容量与 recovery evidence `BLOCKED`；Object Lock 31 天、age Keychain 身份、exact transport bundle 与 clean pre-STS baseline 已通过，STS、生产恢复、fresh topology/calibration/P0 仍待执行。历史来源仍 `RESEARCH_ONLY`，Gate=INSUFFICIENT、Detector=DRAFT；M3.4-R0 只完成 Scope V2 治理门禁，旧草稿继续隔离，仍无 Feasibility/runtime/READY authority。当前生产执行入口是：
+M0.0-M0.5、M1.1-M1.6、M2.0-M2.2 已列本地包、C1、M3.0-M3.3 已通过各自工程、业务、运行起点或合同出口。M1.4C 已取得 22/22 本地合同与完整 CI 出口，M2.1A 已取得 13/13 research-only 合同与完整 CI 出口；M1.5D、真实微观结构数据、cohort、holdout 和校准仍未开始，故两包均无 runtime/Candidate/Signal/READY authority。Scope V2 的 M3.1A-D-R0 四轨 research contract scaffold 已通过定向测试与完整 CI，但真实 M3.1A-M3.3D 仍等待 M2.3/M2.4 cohort、untouched holdout 和分域校准。B1-B1 永久 `INVALID_NOT_COUNTED`，B1-B3 已取得 V1 业务 PASS。M1.6-P0 因容量与 recovery evidence `BLOCKED`；Object Lock 31 天、age Keychain 身份、exact transport bundle 与 clean pre-STS baseline 已通过，STS、生产恢复、fresh topology/calibration/P0 仍待执行。历史来源仍 `RESEARCH_ONLY`，Gate=INSUFFICIENT、Detector=DRAFT；M3.4-R0 只完成 Scope V2 治理门禁，R1 草稿已恢复 compile compatibility 但没有独立测试出口，仍无 Feasibility/runtime/READY authority。当前生产执行入口是：
 
 ```text
 V2-M1.6-P0R-C-STS-ENCRYPTED-BACKUP-EXACT-RETRIEVAL-AND-ISOLATED-RESTORE
 ```
 
-P0R clean pre-STS baseline 已通过。下一步只签发与 frozen plan 完全一致的 7200 秒 STS，执行受限上传、真实加密离机备份、exact version retrieval、独立 PG16 restore parity 和 cleanup。随后刷新 production health/topology，在 exact clean release 重跑容量校准和 fresh P0；不得清缓存、缩短核心扫描分母或改阈值。只有新 P0 PASS 才能请求 P1，并严格按 `P1 schema -> P2 identities -> P3 partitions+dormant Worker -> P4 isolated-write Shadow -> M1.7 24h` 推进。固定通道只作为普通无 secret 包的默认运输层，不重复首单验收，也不替代 P0R `/dev/shm` 凭证边界或任一业务包自身 Gate。Scope V2 的 M1.4B 腾讯 bootstrap/resume 已通过；派发前必须同时通过固定通道通用验签和包级 request/envelope/bundle 跨层预检。只允许 live PASS 且 registry route eligible 的 capability 进入 batch。Bybit 只声明 provider-available history，Bitget 只声明官方一个月窗口；Binance spot 必须修订 registry 后用新 digest 重跑 live conformance。Bitget Venue、Listing Lifecycle、Equity Asset Domain、Data Maximization 四条新增责任链不能互相借 PASS。下一包是 M1.5C 四 Venue多资产 Shadow，随后以真实事实率进入 M1.6-D1。外部门 `V2-M2.2-B0.2-B-EXACT-SOURCE-RIGHTS-AND-CAPABILITY-RESOLUTION` 仍需人工来源权利和合格历史身份；M1.7 前不得让 M2/M3 runtime 写 Candidate、接页面或生成真实等级/计划。
+P0R clean pre-STS baseline 已通过。下一步只签发与 frozen plan 完全一致的 7200 秒 STS，执行受限上传、真实加密离机备份、exact version retrieval、独立 PG16 restore parity 和 cleanup。随后刷新 production health/topology，在 exact clean release 重跑容量校准和 fresh P0；不得清缓存、缩短核心扫描分母或改阈值。只有新 P0 PASS 才能请求 P1，并严格按 `P1 schema -> P2 identities -> P3 partitions+dormant Worker -> P4 isolated-write Shadow -> M1.7 24h` 推进。固定通道只作为普通无 secret 包的默认运输层，不重复首单验收，也不替代 P0R `/dev/shm` 凭证边界或任一业务包自身 Gate。Scope V2 的 M1.4B 腾讯 bootstrap/resume 已通过；派发前必须同时通过固定通道通用验签和包级 request/envelope/bundle 跨层预检。只允许 live PASS 且 registry route eligible 的 capability 进入 batch。Bybit 只声明 provider-available history，Bitget 只声明官方一个月窗口；Binance spot 必须修订 registry 后用新 digest 重跑 live conformance。Bitget Venue、Listing Lifecycle、Equity Asset Domain、Data Maximization 四条新增责任链不能互相借 PASS。M1.4C 与 M2.1A 本地出口已通过；下一真实证据包应把 M1.5C 四 Venue 多资产 Shadow 与 M1.5D 微观结构 forward Shadow 绑定同一 exact release 派发并分别验收，M1.6-D1 必须使用两者真实事实率。外部门 `V2-M2.2-B0.2-B-EXACT-SOURCE-RIGHTS-AND-CAPABILITY-RESOLUTION` 仍需人工来源权利和合格历史身份；M1.7 前不得让 M2/M3 runtime 写 Candidate、接页面或生成真实等级/计划。
 
 ## 7. Legacy 参考材料
 

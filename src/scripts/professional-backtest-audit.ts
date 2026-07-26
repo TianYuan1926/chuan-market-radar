@@ -286,7 +286,9 @@ async function fetchJson(url: string, context: string) {
       signal: controller.signal,
     });
   } catch (error) {
-    throw new Error(`${context} fetch failed: ${errorMessage(error)}`);
+    throw new Error(`${context} fetch failed: ${errorMessage(error)}`, {
+      cause: error,
+    });
   } finally {
     clearTimeout(timeout);
   }

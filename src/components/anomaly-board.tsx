@@ -140,6 +140,7 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
             const active = filter === f.id
             return (
               <button
+                type="button"
                 key={f.id}
                 onClick={() => setFilter(f.id)}
                 className={cn(
@@ -204,6 +205,7 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
             ] as [SortKey, string][]
           ).map(([k, label]) => (
             <button
+              type="button"
               key={k}
               onClick={() => setSort(k)}
               className={cn(
@@ -297,19 +299,26 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
                 {/* 主行 */}
                 <div
                   className={cn(
-                    'grid cursor-pointer items-center gap-2 px-3 py-2.5 text-[13px] transition-colors hover:bg-secondary/40',
+                    'relative grid items-center gap-2 px-3 py-2.5 text-[13px] transition-colors hover:bg-secondary/40 [&>:not(button)]:pointer-events-none',
                     isOpen && 'bg-secondary/50',
                     COLS,
                   )}
-                  onClick={() => setOpen(isOpen ? null : card.id)}
                 >
                   <button
+                    type="button"
+                    aria-label={`${isOpen ? '收起' : '展开'} ${t.symbol} 证据`}
+                    aria-expanded={isOpen}
+                    className="absolute inset-0 z-0 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-neon"
+                    onClick={() => setOpen(isOpen ? null : card.id)}
+                  />
+                  <button
+                    type="button"
                     aria-label="收藏"
                     onClick={(e) => {
                       e.stopPropagation()
                       setStarred((s) => ({ ...s, [card.id]: !s[card.id] }))
                     }}
-                    className="text-muted-foreground transition-transform hover:scale-125 hover:text-neon"
+                    className="relative z-10 text-muted-foreground transition-transform hover:scale-125 hover:text-neon"
                   >
                     <Star
                       className={cn('size-3.5', isStar && 'fill-neon text-neon')}
@@ -517,6 +526,7 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
           </span>
           <div className="flex items-center gap-1">
             <button
+              type="button"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={safePage <= 1}
               className="flex items-center gap-1 border border-border px-2.5 py-1.5 text-[12px] font-semibold transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
@@ -538,6 +548,7 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
                       <span className="px-1 text-[12px] text-muted-foreground">…</span>
                     )}
                     <button
+                      type="button"
                       onClick={() => setPage(p)}
                       className={cn(
                         'min-w-8 px-2 py-1.5 text-center font-mono text-[12px] font-semibold transition-colors',
@@ -552,6 +563,7 @@ export function AnomalyBoard({ cards }: { cards: SignalCard[] }) {
                 ))}
             </div>
             <button
+              type="button"
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={safePage >= totalPages}
               className="flex items-center gap-1 border border-border px-2.5 py-1.5 text-[12px] font-semibold transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"

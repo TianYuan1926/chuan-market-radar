@@ -86,7 +86,9 @@ function fetchWithTimeout(fetcher: typeof fetch, timeoutMs: number, label: strin
       });
     } catch (error) {
       if (controller.signal.aborted) {
-        throw new Error(`${label} timed out after ${timeoutMs}ms`);
+        throw new Error(`${label} timed out after ${timeoutMs}ms`, {
+          cause: error,
+        });
       }
 
       throw error;

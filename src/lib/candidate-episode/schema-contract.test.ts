@@ -22,7 +22,7 @@ function ddlFields(sql: string) {
   for (const match of sql.matchAll(/CREATE TABLE(?: IF NOT EXISTS)? candidate_authority\.([a-z_]+) \(([\s\S]*?)\n\);/g)) {
     const table = match[1];
     for (const line of match[2].split("\n")) {
-      const column = /^  ([a-z][a-z0-9_]*)\s+/.exec(line)?.[1];
+      const column = /^ {2}([a-z][a-z0-9_]*)\s+/.exec(line)?.[1];
       if (column) {
         fields.push(`${table}.${column}`);
       }

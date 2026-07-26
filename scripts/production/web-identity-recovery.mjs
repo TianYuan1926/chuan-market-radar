@@ -145,7 +145,7 @@ export async function inspectRunner(root) {
     webOnlyRecovery: /IDENTITY_COMPOSE\[@\][^\n]*up -d --no-deps --no-build --force-recreate web/.test(source),
     baselineRollback: /BASELINE_COMPOSE\[@\][^\n]*up -d --no-deps --no-build --force-recreate web/.test(source),
     noSourceSync: !/git\s+(?:-[^\s]+\s+)*(?:fetch|pull|merge|rebase|checkout)/.test(source),
-    noBuild: !/\}\"\s+build\s/.test(source),
+    noBuild: !/\}"\s+build\s/.test(source),
     noMigration: !/(migration:runner|candidate:migrate|persistence\/migrate)/.test(source),
     noOtherServiceMutation: !/(?:up|start|restart|run)[^\n]*(?:postgres|redis|worker|caddy)/.test(source),
     noEnvWrite: !/(?:sed\s+-i|tee\s+[^|]|cat\s+>)[^\n]*(?:\.env|ENV_FILE)/.test(source),

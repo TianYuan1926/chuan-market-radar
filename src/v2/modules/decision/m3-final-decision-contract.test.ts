@@ -21,6 +21,37 @@ type BundleOptions = {
 };
 
 const fresh = { status: "FRESH", ageMs: 0, reasonCodes: [] } as const;
+const executionFeasibilityCheckIds = [
+  "POINT_IN_TIME_FACTS",
+  "VENUE_TRADING_STATUS",
+  "SPREAD",
+  "DEPTH",
+  "SLIPPAGE",
+  "FEE_SCHEDULE",
+  "FUNDING_COST",
+  "FILLABILITY",
+  "PRICE_DRIFT",
+  "GAP_RISK",
+  "STOP_SWEEP_RISK",
+  "MARKET_LIQUIDITY",
+  "NET_REWARD_RISK",
+] as const;
+
+function executionFeasibilityChecks() {
+  return executionFeasibilityCheckIds.map((checkId) => ({
+    checkId,
+    status: "PASS" as const,
+    observedValue: "fixture-pass",
+    observedUnit: "fixture",
+    comparator: "PRESENT" as const,
+    thresholdValue: null,
+    thresholdVersion: "execution-threshold.v1",
+    sourceFactIds: ["execution-fact-m3-one"],
+    quality: fresh,
+    reasonCodes: [`${checkId.toLowerCase()}_fixture_pass`],
+  }));
+}
+
 const uncertainty = {
   data: {
     dimension: "data",
@@ -476,21 +507,32 @@ function bundle(
         ],
     },
     feasibility: {
-      ...trace("execution_feasibility_final_decision", "execution-feasibility-snapshot.v1", "2026-01-15T00:00:25.000Z"),
+      ...trace("execution_feasibility_final_decision", "execution-feasibility-snapshot.v2", "2026-01-15T00:00:25.000Z"),
       feasibilityId: "feasibility-m3-one",
+      episodeId: "episode-m3-one",
       draftId: "draft-m3-one",
+      canonicalInstrumentId:
+        "BINANCE_FUTURES:TESTUSDT:LINEAR_PERPETUAL:USDT",
+      venue: "BINANCE_FUTURES",
+      opportunityFamily: "BREAKOUT_RETEST",
+      feasibilityAuthority: authorized
+        ? "REPLAY_CALIBRATED"
+        : "TEST_ONLY_UNCALIBRATED",
+      feasibilityPolicyVersion: "execution-feasibility-policy.v1",
+      executionCostModelVersion: "execution-cost-model.v1",
       status: "PASS",
-      checks: [
-        {
-          checkId: "spread-check",
-          status: "PASS",
-          observedValue: 3,
-          thresholdVersion: "execution-threshold.v1",
-          reasonCodes: ["spread_within_limit"],
-        },
-      ],
+      checks: executionFeasibilityChecks(),
+      conservativeEntryPrice: "101",
+      executionFeePerSideBps: 4,
+      estimatedSlippagePerSideBps: 5,
+      conservativeFundingCostBps: 1,
+      estimatedAllInCostBps: 19,
       estimatedNetRewardRisk: plan.estimatedNetRewardRisk,
       maximumExecutableNotional: "1000",
+      inputFactIds: ["execution-fact-m3-one"],
+      blockers: authorized
+        ? []
+        : ["execution_feasibility_authority_test_only_uncalibrated"],
       quality: fresh,
       uncertainty,
     },

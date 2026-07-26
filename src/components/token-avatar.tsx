@@ -84,7 +84,12 @@ function GeneratedAvatar({
       }}
       aria-hidden
     >
-      <svg width={size * 0.66} height={size * 0.66} viewBox="0 0 24 24">
+      <svg
+        aria-hidden="true"
+        width={size * 0.66}
+        height={size * 0.66}
+        viewBox="0 0 24 24"
+      >
         <defs>
           <linearGradient id={gid} x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor="oklch(1 0 0 / 0.95)" />

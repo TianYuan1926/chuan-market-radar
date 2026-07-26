@@ -15,7 +15,7 @@ concurrency:
 jobs:
   v3-forward-map-review:
     name: Trigger protected v3 forward map review
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Call Chuan v3 forward map review API

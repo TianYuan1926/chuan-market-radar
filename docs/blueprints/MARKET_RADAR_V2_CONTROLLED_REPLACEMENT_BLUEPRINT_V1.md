@@ -1,6 +1,6 @@
-# Market Radar V2 受控替换工程与运行蓝图 v1.41
+# Market Radar V2 受控替换工程与运行蓝图 v1.43
 
-状态：`ACTIVE_DESIGN_AUTHORITY / M0.4_EXPANDED_SCOPE_DESIGN_PASS / M1.1A_FOUR_VENUE_CAPABILITY_REGISTRY_LOCAL_PASS / M1.1B_MULTI_ASSET_AND_LISTING_LOCAL_IMPLEMENTATION_PASS_TEST_ONLY_CONFORMANCE_PASS / M1.1B0_R1_LIVE_0_OF_15_COMMON_TRANSPORT_FAILURE_R2_LIVE_14_OF_15_LISTING_GATE_BLOCKED_R3_LIVE_15_OF_15_ALL_GATES_PASS / M1.4A_ADAPTIVE_MULTI_ASSET_COLLECTOR_LOCAL_CONTRACT_AND_FULL_CI_PASS_NO_RUNTIME_AUTHORITY / M1.4B_TENCENT_BOOTSTRAP_AND_CHECKPOINT_BOUND_RESUME_PASS_NO_RUNTIME_AUTHORITY / M1.1-M1.6_SCOPE_EPOCH_V1_LOCAL_PASS / M1.5-B1_EARLY_SHADOW_BUSINESS_GATE_PASS_V1_ONLY / B1-B1_EXECUTION_INVALID_NOT_COUNTED / B1-B3_PASS_V1_ONLY / M1.6-P0_EXECUTED_BLOCKED_CAPACITY_AND_RECOVERY / M1.6-P0R_CLEAN_PRE_STS_BASELINE_PASS_STS_AND_RECOVERY_PENDING / M2.2-B0.2-C1_FORWARD_ONLY_READY_V1_ONLY / M3.0-M3.3_LOCAL_CONTRACT_PASS_TEST_ONLY_UNCALIBRATED_NO_READY_AUTHORITY_V1_ONLY / M3.1A-M3.3D_FOUR_LANE_LOCAL_RESEARCH_CONTRACT_SCAFFOLD_PASS_NO_REAL_CALIBRATION_OR_AUTHORITY / M3.4-R0_SCOPE_REBASE_GOVERNANCE_AND_FULL_CI_PASS_IMPLEMENTATION_BLOCKED / PRODUCTION_FIXED_DISPATCH_FIRST_SIGNED_ACCEPTANCE_PASS / B0.2_EXTERNAL_RESOLUTION_BLOCKED / SCOPE_EPOCH_V2_SHADOW_CAPACITY_AND_CALIBRATION_UNPROVEN / M1_NOT_COMPLETE / PRODUCTION_SERVICES_DATA_AND_AUTHORITY_UNCHANGED`
+状态：`ACTIVE_DESIGN_AUTHORITY / M0.4_EXPANDED_SCOPE_DESIGN_PASS / M0.5_MARKET_MECHANICS_MICROSTRUCTURE_AND_PRECURSOR_ATLAS_DESIGN_PASS / M1.1A_FOUR_VENUE_CAPABILITY_REGISTRY_LOCAL_PASS / M1.1B_MULTI_ASSET_AND_LISTING_LOCAL_IMPLEMENTATION_PASS_TEST_ONLY_CONFORMANCE_PASS / M1.1B0_R1_LIVE_0_OF_15_COMMON_TRANSPORT_FAILURE_R2_LIVE_14_OF_15_LISTING_GATE_BLOCKED_R3_LIVE_15_OF_15_ALL_GATES_PASS / M1.4A_ADAPTIVE_MULTI_ASSET_COLLECTOR_LOCAL_CONTRACT_AND_FULL_CI_PASS_NO_RUNTIME_AUTHORITY / M1.4B_TENCENT_BOOTSTRAP_AND_CHECKPOINT_BOUND_RESUME_PASS_NO_RUNTIME_AUTHORITY / M1.4C_MICROSTRUCTURE_FACT_FEATURE_CACHE_LOCAL_CONTRACT_PASS_22_OF_22_NO_RUNTIME_AUTHORITY / M1.5D_NOT_STARTED / M2.1A_BIDIRECTIONAL_PRECURSOR_ATLAS_LOCAL_RESEARCH_CONTRACT_PASS_13_OF_13_REAL_COHORT_MISSING_NO_CANDIDATE_EMISSION / M1.1-M1.6_SCOPE_EPOCH_V1_LOCAL_PASS / M1.5-B1_EARLY_SHADOW_BUSINESS_GATE_PASS_V1_ONLY / B1-B1_EXECUTION_INVALID_NOT_COUNTED / B1-B3_PASS_V1_ONLY / M1.6-P0_EXECUTED_BLOCKED_CAPACITY_AND_RECOVERY / M1.6-P0R_CLEAN_PRE_STS_BASELINE_PASS_STS_AND_RECOVERY_PENDING / M2.2-B0.2-C1_FORWARD_ONLY_READY_V1_ONLY / M3.0-M3.3_LOCAL_CONTRACT_PASS_TEST_ONLY_UNCALIBRATED_NO_READY_AUTHORITY_V1_ONLY / M3.1A-M3.3D_FOUR_LANE_LOCAL_RESEARCH_CONTRACT_SCAFFOLD_PASS_NO_REAL_CALIBRATION_OR_AUTHORITY / M3.4-R0_SCOPE_REBASE_GOVERNANCE_PASS_R1_PARTIAL_TEST_ONLY_DRAFT_NO_DIRECTED_EXIT / PRODUCTION_FIXED_DISPATCH_FIRST_SIGNED_ACCEPTANCE_PASS / B0.2_EXTERNAL_RESOLUTION_BLOCKED / SCOPE_EPOCH_V2_SHADOW_CAPACITY_AND_CALIBRATION_UNPROVEN / M1_NOT_COMPLETE / PRODUCTION_SERVICES_DATA_AND_AUTHORITY_UNCHANGED`
 
 设计日期：2026-07-21
 
@@ -91,6 +91,10 @@ v1.39 完成 Scope V2 四轨 M3 Research Contract Scaffold：成熟加密、list
 v1.40 登记四轨研究合同的正式实施分支完整 CI：V2 Foundation 494 total / 488 pass / 6 explicit skip、V2 Ops 131/131、M0 11/11、Next production build、Golden 16/16 与 security 全部 PASS。该结果只证明新增 Bitget、上新 warm-up、单股和指数/ETF 四条合同与现有工程门禁兼容，不增加真实 Detector、cohort、holdout、校准、Signal Grade、Strategy、READY 或生产 authority。
 
 v1.41 登记 M1.4B 腾讯现场出口：正式实施分支 source `3c21a75009aeb4f4f7d9fd8954245238c38d9636` 先完成 bootstrap `m1-4b-runtime-live-20260723t232457z`，再以两个精确 checkpoint、原 PASS result 路径和 SHA-256 完成 resume `m1-4b-runtime-live-20260723t233213z`。两轮均为 14/14 route PASS、0 failed、1 registry blocked、request budget/attempts=203/80、listing gap=0、committed checkpoint=2；Bitget Venue、Listing Lifecycle、Equity Asset Domain、Data Maximization 四轴全部独立 PASS。成功前两次 pre-launch 拒绝分别保留为 source ref allowlist 不匹配和 5400/1860 秒跨层时限不匹配，均未进入网络业务执行且生产零变更；新增 request/envelope/bundle 强制预检在上传前拒绝同类漂移。生产 HEAD、clean worktree、11 容器集合、listener、timer、health 前后不变，staging 均删除。M1.4B 因此关闭，但 M1.5C、M1.6-D1、股票 tradable Fact、分域 Detector/cohort/calibration 和全部持续 runtime/Fact/Candidate/Strategy/READY authority 仍未完成。
+
+v1.42 完成 Market Mechanics、Microstructure 与双向前兆图谱设计修订：把近期对山寨币上涨/下跌爆发前异常、安静吸筹/派发、主动成交与价格响应、订单墙生命周期、流动性真空、板块传播、外部数据、缓存读路径和专业图表交互的讨论，正式落入现有 18 Module，而不新建第二套权威。新增 `M1.4C Microstructure Fact/Feature Contract`、`M1.5D Adaptive Microstructure Forward Shadow` 和 `M2.1A Bidirectional Precursor Atlas and Market Mechanics Research` 三个受控包；Market Mechanics Cube 固定为价格结构、参与杠杆、流动性响应三轴，Venue/timeframe/regime/liquidity/lifecycle/sector 作为强制分层。静态订单墙、固定美元大单阈值、单 Venue 现象、未经校准的“主力/控盘/89分”和 AI 自由解读均禁止成为事实、Grade 或 READY。CoinGecko 免费 API、DefiLlama/链上和新闻社交只作为待资格审查的补充来源；任何 key 不进入 Git。该版本只完成设计融合，真实微观结构采集、cohort、holdout、校准、页面和生产 authority 均未开始，P0R 与 M1.5C 当前入口不变。详细合同为 `docs/architecture/v2/M0_5_MARKET_MECHANICS_MICROSTRUCTURE_AND_PRECURSOR_ATLAS_AMENDMENT_V1.md`。
+
+v1.43 完成 M1.4C 与 M2.1A 的本地无权限出口。M1.4C 冻结六类微观结构事实、LiquidityWallEpisode 生命周期、十三项 Market Mechanics Feature、四层缓存真值边界、精确 lineage/cutoff/freshness、ONLINE 与两个独立 REPLAY 的语义一致性，并以 22/22 定向测试通过；M2.1A 冻结八个前兆族各自独立的 LONG/SHORT/UNKNOWN 共 24 个研究假设、三类 Outcome、point-in-time 板块传播、逐 family-direction 的 Venue/regime/liquidity 分层、matched control、消融、sealed holdout、Shadow 和独立审计门禁，并以 13/13 定向测试通过。正式实施工作树完整 `ci:production` PASS：V2 Foundation 529 total / 523 pass / 6 explicit skip、V2 Ops 131/131、M0、Next production build、Golden 16/16 与 security 全部通过。M3.4-R1 先前的 schema/import/fixture 编译阻断已按当前 strict schema 根治，但该草稿仍没有独立工作包出口或任何 Feasibility authority。M1.5D、真实微观结构数据、cohort、holdout、校准、Candidate、Signal、READY 和生产运行仍未完成，生产服务、数据与 authority 零变更。交付报告为 `docs/blueprints/V2_M1_4C_MICROSTRUCTURE_AND_M2_1A_BIDIRECTIONAL_PRECURSOR_LOCAL_CONTRACT_DELIVERY_REPORT.md`。
 
 ---
 
@@ -416,6 +420,8 @@ status / ageMs / qualityReasons
 - Provider 只在 Adapter 内部，Detection、Analysis 和页面都不得直连交易所。
 - `SourceCapabilityRegistry` 必须记录端点、授权用途、速率、保留、再分发和套餐限制；未经许可的抓取或数据再分发不得进入生产。
 - 数据按 T0 catalog/event、T1 wide market、T2 candidate burst 和 T3 deep validation 分层；所有 eligible 保留 T0/T1 分母，Candidate 只能提高深度，不能让非候选静默消失。
+- 微观结构原始事实必须区分 `TradeFact / TopOfBookFact / OrderBookSnapshotFact / OrderBookDeltaFact / LiquidationFact`；交易所原生事实、授权聚合事实和派生代理不得共用同一 quality 语义。
+- 静态盘口快照不能直接写成“支撑”“压制”或“主力意图”；订单墙只有在后续 Feature Engine 形成带创建、持续、补单、撤单、成交和迁移 lineage 的 `LiquidityWallEpisode` 后，才能作为研究证据。
 - 股票事实必须区分交易所合约价格、mark、index、underlying reference、FX、传统市场 session、公司行动和休市 basis；缺失不能由加密字段替代。
 - 快速滚动窗口放 Redis；可审计聚合和索引放 PostgreSQL；高频原始事实按保留策略进入对象存储。
 
@@ -448,6 +454,8 @@ sourceFactIds / sourceCutoff / computedAt
 - rolling window、缺失值、warm-up、乱序修正和时区规则全部写入 `FeatureDefinitionRegistry`。
 - 禁止使用 cutoff 之后的数据补齐当时缺失，禁止用未来完整 K 线计算未收盘时点特征。
 - Detector、Market Context 和 Analyzer 不得自行重复实现同名特征。
+- Market Mechanics Feature Set 必须分别保留价格/结构、参与/杠杆、流动性/响应三轴，不生成综合总分；至少登记 `aggressiveFlowImbalance / priceResponseEfficiency / buyAbsorptionStrength / sellAbsorptionStrength / wallPersistence / wallCancelVelocity / wallRefillRatio / wallMigrationBps / executedWallRatio / liquidityVacuumRisk / crossVenueAgreement / spoofRisk`。
+- 大额成交阈值必须按 instrument、Venue、regime 和 liquidity segment 归一化。固定 `10万/50万/100万` 只允许作为页面过滤器，禁止成为跨标的 Detector 权威。
 - 每次 release 做 online/offline parity、重放确定性和特征 lineage 检查。
 
 **权威输出**：`FeatureSetSnapshot` 和 `FeatureQualitySnapshot`。
@@ -469,6 +477,7 @@ sourceFactIds / sourceCutoff / computedAt
 - 输出趋势、波动、广度、相关性、流动性和风险环境，不输出单币交易方向。
 - 所有计算绑定 fact cutoff、feature set、Universe 版本和 context rule version。
 - 加密、单一股票和股票指数/ETF 使用独立 Context；传统市场 session、休市、财报/公司行动、FX 和合约 basis 不得被加密 regime 抹平。
+- 加密 Context 可以消费带 knowledge time 的 `AssetRelationshipSnapshot`，用于表达 BTC/ETH beta、板块 taxonomy、leader/peer/laggard 和 point-in-time 传播状态；禁止按事后涨跌重新编组或把共同市场 beta 包装成板块传播。
 - 明确区分 observed facts、derived regime、confidence 和 unknown。
 - Detector 与 Analyzer 只能消费同一 `MarketContextSnapshot`，不得各自重新定义“大盘环境”。
 - BTC/ETH 风险环境可以形成反证或适用性约束，但不能凭空生成单币计划。
@@ -494,6 +503,8 @@ sourceFactIds / sourceCutoff / computedAt
 - Detector 不直接访问 provider，不读取 Outcome，不生成证据等级或交易计划。
 - 多个 Detector 发现同一标的时保留各自假设，由 Candidate Lifecycle 合并资源，不丢失来源。
 - 做多和做空使用显式不对称规则，不以简单符号反转实现。
+- 主动买入、主动卖出、订单墙和大额成交只能与价格响应、结构位置、流动性和跨 Venue 证据共同形成研究假设；单一颜色、单笔成交或单次盘口不能直接决定方向。
+- Pre-Move Detector 必须覆盖安静吸筹/派发、flow-price divergence、position build/unwind、liquidity shift、relative/sector propagation 和 failed auction/trap 等可证伪假设；成交量放大不得成为所有前兆的硬前置。
 - 每个结果记录 `firstDetectedAt / observedPrice / factCutoff / featureSetVersion / detectorVersion / reasonCodes / counterHints`。
 
 **Detector 生命周期**：
@@ -833,6 +844,39 @@ Pre-Move 是最高优先研究方向，但不享有越权：
 - 股票 CFD、商品、外汇、债券和其他 RWA 先进入完整 accounting；独立交易机制、成本和风险未证明前不进入 eligible 或机会检测。
 - 未来新增机会族必须注册独立 Detector、Analyzer、Strategy Template、反例、holdout 和退化指标，不得塞进现有通用总分。
 
+### 7.5 Market Mechanics Cube 与双向前兆图谱
+
+Market Mechanics Cube 只组织证据，不产生总分：
+
+| 轴 | 观察内容 | 禁止的捷径 |
+| --- | --- | --- |
+| 价格与结构 | 多周期结构、位置、压缩、扩张、关键位、相对强弱和剩余空间 | 单根 K 线或单一指标直接给方向 |
+| 参与与杠杆 | 现货/永续成交、主动流、OI、Funding、Basis、Liquidation 和拥挤 | 主动买=涨、主动卖=跌、OI 增加=趋势确认 |
+| 流动性与响应 | spread、depth、订单墙生命周期、吸收、价格响应和流动性真空 | 静态挂单=真实支撑/压制，固定美元阈值跨币复用 |
+
+`timeframe / venue / assetDomain / listingLifecycle / regime / liquiditySegment / sectorSnapshot` 是强制分层，不得被综合分吞掉。
+
+首批双向前兆研究族固定为：
+
+- Compression / Energy。
+- Quiet Accumulation / Distribution。
+- Flow-Price Divergence / Absorption。
+- Position Build / Unwind。
+- Liquidity Shift / Wall Migration / Liquidity Vacuum。
+- Relative Strength/Weakness and Sector Propagation。
+- Failed Auction / Trap。
+- Event and Listing Transition。
+
+每一族必须分别登记 long、short、unknown、反证和 unavailable。个案和截图只能提出 `RESEARCH_HYPOTHESIS`；真实 cohort、matched control、untouched holdout、消融和 Shadow 通过前不得升级现有 Detector 生命周期。
+
+### 7.6 板块传播与跨标的机会
+
+- 使用带 source、version、knowledge time 的 `AssetRelationshipSnapshot`；同名、包装资产、跨链映射、1000 倍面值和不同合约不能静默合并。
+- 分别研究先涨扩散、先跌扩散、龙头延续、龙头失败、滞后补涨/补跌和未跟随 control。
+- 传播关系必须先调整 BTC/ETH beta、全市场共同因子、regime 和 liquidity；事后按涨跌重新定义板块属于 future leak。
+- 板块信息可以形成 Context、Candidate Priority 或独立 Thesis，不能直接生成 Grade、Strategy 或 READY。
+- M5 必须报告传播特征的独立增量、误报、漏报、稳定 lead-lag 和数据成本；无增量时退役，不因界面好看保留。
+
 ---
 
 ## 8. 数据与存储蓝图
@@ -878,7 +922,7 @@ runtime       worker run / release / drift / evidence / incident / audit
 
 | 数据 | 初始保留 |
 | --- | --- |
-| 高频原始 trades/book deltas | 热存 7 天，对象存储 90 天，之后按研究价值压缩或删除 |
+| 高频原始 trades/book deltas | 只保留有界 Candidate/research trigger + matched control；热存目标不超过 7 天，对象存储目标不超过 90 天，实际值由权利与 M1.6-D1 无付费容量 Gate 决定 |
 | 1m Kline/聚合事实 | 至少 2 年 |
 | Episode/Evidence/Decision/Outcome | 长期保留，按隐私和容量年度评审 |
 | Alert delivery | 180 天 |
@@ -900,6 +944,36 @@ runtime       worker run / release / drift / evidence / incident / audit
 | T3 Deep Validation | Deep Episode | CoinGlass Hobbyist 许可能力、跨 Venue 衍生品和真实执行成本 |
 
 每个可用字段必须在 Capability Registry 中登记为 adopted、derived、unsupported、unlicensed、low-value-high-cost 或 unavailable。T2/T3 可以按机会价值提高采样深度，但不能删除 T0/T1 的全分母。四 Venue与多资产真实事实率形成前，旧容量模型只能证明 V1；扩展生产必须重新通过 `M1.6-D1` 无付费容量 Gate。
+
+### 8.6 补充数据源优先级
+
+| 层 | 来源 | 允许用途 | 权威边界 |
+| --- | --- | --- | --- |
+| A | Binance、OKX、Bybit、Bitget 第一方接口 | 身份、价格、成交、盘口、mark/index、funding、OI 和公告 | 市场事实主来源，仍需逐 capability live/SLO 通过 |
+| B | CoinGlass Hobbyist | 套餐允许的衍生品补充验证 | 不越过套餐、限速、历史和再分发边界 |
+| B | CoinGecko 免费 API | token metadata、市值、类别、全局市场和上新辅助 watch | 不作为执行价格、盘口或 READY 单一依据 |
+| C | DefiLlama、合规链上浏览器和其他公开来源候选 | TVL、协议、链和生态上下文 | 先通过权利、身份、时效和增量价值审查 |
+| D | 新闻、公告聚合、社交热度和 KOL 内容 | EventContext、催化和风险提醒 | 低权威研究证据，不能独立决定方向 |
+
+新来源必须依次通过 `SourceCapabilityRegistry -> official semantics/rights/plan/jurisdiction -> exact live conformance -> quota/checkpoint/freshness -> capacity -> cohort incremental value`。API key 只进入受限 env 或 secret file，不得写入 Git、蓝图、报告、缓存 key 或日志。现阶段不要求新增付费服务。
+
+### 8.7 缓存与权威读路径
+
+```text
+L1 process memory: 极短窗口、可丢失、非权威
+L2 Redis: 热窗口、锁、配额、heartbeat、短期快照、可重建
+L3 PostgreSQL: Fact index、Feature、Episode、Evidence、Decision 和状态权威
+L4 COS: 获授权原始事件、分区聚合、回放和恢复对象
+```
+
+- 前端只访问 Market Radar 后端，不直连 Provider。
+- cache key 必须包含 source、Venue、instrument、fact type、schema/feature version、window 和 cutoff。
+- TTL 由事实类型、新鲜度合同和 Provider cadence 决定，不使用一套通用 TTL。
+- 使用 singleflight、jitter、bounded retry、quota-aware scheduling 和 circuit breaker 防止缓存击穿与 Provider 风暴。
+- stale cache 只能以 `STALE/DEGRADED` 返回；关键执行事实 stale 时阻断 READY，不能以后台刷新冒充当前。
+- negative cache 必须短时并保留原因；missing 不能改写为 0 或“无异动”。
+- warm-up 只覆盖版本化 Universe 的 T0/T1 和活跃 Candidate/control，不做无边界全量预热。
+- 每层记录 hit/miss、age、source request、quota wait、fallback reason 和 payload size。
 
 ---
 
@@ -1035,6 +1109,21 @@ user_execution_deviation / unknown
 
 漂移只能触发 `WARN -> DEGRADE -> SUSPEND -> RESEARCH`，不能自动调权或自动重新训练后上线。恢复 ACTIVE 必须生成新证据和 Promotion Decision Record。
 
+### 9.12 Market Mechanics 与前兆图谱研究门禁
+
+每个前兆族、LiquidityWall 特征和板块传播特征必须额外满足：
+
+1. 上涨、下跌、无显著行情三个结果类别同时存在。
+2. Candidate、真实 Event、相似未爆发三个分母同时存在。
+3. 按 Venue、direction、regime、liquidity、listing lifecycle 和 asset domain 分层。
+4. 主动流、订单墙、OI、板块传播和补充数据分别做消融，证明独立增量。
+5. 报告 spoof、单 Venue 假象、数据延迟、低流动性和事后分类等失败案例。
+6. 固定金额阈值与 instrument-normalized 阈值作为预登记 Challenger 比较，不能挑胜者后改试验身份。
+7. 历史 L2 不可得时保持 `HISTORICAL_UNAVAILABLE / FORWARD_ONLY_RESEARCH`，不得用 Kline 代理冒充 order-book lifecycle。
+8. validation、untouched holdout、独立审计和 realtime no-authority Shadow 均通过前，所有结果保持 research-only。
+
+未经校准的“强支撑 89 分”“主力控盘”或类似评分没有合法状态位。允许展示的只能是带 factor、样本量、版本、cutoff、quality 和 uncertainty 的相对诊断强度。
+
 ---
 
 ## 10. 验收指标
@@ -1147,11 +1236,12 @@ user_execution_deviation / unknown
 - 多周期结构和关键位。
 - 0.382/0.5/0.618 等候选区域及其共振来源。
 - 价格、成交、盘口、OI、Funding、Basis 和跨 Venue 证据。
+- 按 event time 锚定的主动成交、LiquidityWall 生命周期、Liquidation、新闻/公告和 Market Mechanics Evidence Overlay。
 - 冲突、缺失、晚到、假突破和流动性风险。
 - Strategy Decision 与 Personal Risk View。
 - Episode、Decision、Alert 和 Outcome 时间线。
 
-图表只呈现后端 key levels 和 plan lines，不自行计算交易计划。
+图表只呈现后端 key levels、plan lines 和 Evidence Overlay，不自行计算交易计划。盘口、主动成交、OI、Funding、Liquidation、新闻、结构和计划分层开关；默认保持稀疏，细节通过 hover、zoom 和 Evidence Timeline 展开，不得以大量气泡遮挡价格结构。
 
 ### 11.4 Review Center
 
@@ -1171,6 +1261,9 @@ user_execution_deviation / unknown
 - 状态不能只靠颜色；键盘和屏幕阅读器可达。
 - 页面不显示内部枚举、原始错误堆栈、secret 或无法操作的技术噪音。
 - 所有关键状态有 `asOf`、source 和 degraded reason。
+- 多周期状态必须显示结构理由、冲突和失效，不能只有红绿多空；“主力”“控盘”“巨鲸”只在身份和算法可证时使用，否则改为可观察的主动成交、订单墙或链上事实。
+- 高灵敏/标准/低噪声只改变 Alert/read-model 聚合和展示密度，不改变 Fact、Analysis、Grade、Decision、Risk 或 READY。
+- AI 只总结既有 Decision Snapshot、缺失和反证，不能创建事实、关键位、方向、分数或计划；自定义指标编辑器延后为无生产 authority 的 Research Sandbox。
 - 使用 Playwright E2E、可访问性、视觉回归和浏览器性能证据验收。
 
 ---
@@ -1379,6 +1472,7 @@ M0.0 Clean Git Baseline + Production Read-only Truth
 -> M0.2 V2 Namespace + Import Fences + CI
 -> M0.3 Legacy Consumer Map + First M1 Vertical Slice Contract
 -> M0.4 Expanded Market Scope + Scope Epoch Contract
+-> M0.5 Market Mechanics + Microstructure + Bidirectional Precursor Atlas Design Amendment
 ```
 
 当前事实：
@@ -1388,6 +1482,7 @@ M0.0 Clean Git Baseline + Production Read-only Truth
 - `M0.2`：`LOCAL_PASS_INITIAL_FENCE`。`src/v2` 与 Legacy 双向 import fence、fixture 隔离和独立 CI 测试入口已建立。
 - `M0.3`：`LOCAL_PASS_RUNTIME_BOUNDARY_AND_CONSUMER_MAP`。30 个权威产物各有一个 strict runtime schema；其中 29 个 envelope 产物锁定精确 schema version，`UserFit` 是严格标量枚举。fail-closed decoder 覆盖 API、进程、存储和回放边界；22 个 Legacy capability 已展开为 539 个源文件、273 条直接运行消费者边、118 条测试消费者边和 109 个运行入口。13 个提取候选与 21 个存储对象已审查，删除权限保持关闭。
 - `M0.4`：`DESIGN_SCOPE_AMENDMENT_PASS / M1.1A_LOCAL_CONTRACT_PASS / M1.1B_LOCAL_IMPLEMENTATION_PASS_TEST_ONLY / SCOPE_V2_LIVE_UNPROVEN`。Bitget、上新生命周期、受控数据最大化和股票合约已进入 `SCOPE_EPOCH_V2_MULTI_ASSET_4V`；V1 三 Venue 加密证据保持原效力但不能跨 epoch。M1.1A 已完成四 Venue + CoinGlass 的 165 行来源能力登记，M1.1B 已建立 15 个精确探针、四 Venue 身份和上新生命周期本地合同；详细权威为 `docs/architecture/v2/M0_4_EXPANDED_MARKET_SCOPE_AND_SCOPE_EPOCH_CONTRACT_V1.md`、`docs/architecture/v2/M1_1A_FOUR_VENUE_SOURCE_CAPABILITY_REGISTRY_V1.md` 与 `docs/architecture/v2/M1_1B_EXACT_SOURCE_CONFORMANCE_MULTI_ASSET_IDENTITY_AND_LISTING_INTELLIGENCE_V1.md`。
+- `M0.5`：`DESIGN_AMENDMENT_PASS / IMPLEMENTATION_NOT_STARTED / REAL_COHORT_NOT_AVAILABLE / NO_AUTHORITY / PRODUCTION_UNCHANGED`。Market Mechanics 三轴、LiquidityWallEpisode、压力-价格响应、双向前兆图谱、板块传播、补充来源、缓存和 Evidence Overlay 已落入现有 18 Module；M1.4C、M1.5D 与 M2.1A 分别承担合同、前向证据和 research-only 验证。详细权威为 `docs/architecture/v2/M0_5_MARKET_MECHANICS_MICROSTRUCTURE_AND_PRECURSOR_ATLAS_AMENDMENT_V1.md`。
 
 M0 机器出口为 `PASS_M0_ENGINEERING_EXIT_PRODUCTION_UNCHANGED`：V2/Legacy 双向 import violation 为 0，受保护 Legacy 源码相对审查提交漂移为 0，V2 测试 38/38，完整 `ci:production` PASS。生产仍为 `UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION`，本出口没有执行任何生产命令。
 
@@ -1409,6 +1504,10 @@ M0 机器出口为 `PASS_M0_ENGINEERING_EXIT_PRODUCTION_UNCHANGED`：V2/Legacy �
 
 `V2-M1.4B Endpoint Batching + Runtime Adapter Profiles + Listing History Runtime` 当前为 `LOCAL_ENGINEERING_AND_FULL_CI_PASS / TENCENT_BOOTSTRAP_AND_CHECKPOINT_BOUND_RESUME_PASS / NO_RUNTIME_AUTHORITY`：本地已把 exact conformance、registry/probe digest、HTTPS endpoint、分页、credential、恢复和四条独立验收轴冻结成内容寻址 Profile，并把 M1.4A ready intent 精确一次合并为 source-capability batch。正式实施分支 source `3c21a75009aeb4f4f7d9fd8954245238c38d9636` 的 bootstrap 与绑定原 PASS result 的 resume 两轮均真实取得 14/14 route PASS、0 failed、1 registry blocked、request budget/attempts=203/80、listing gap=0 和两个持久 checkpoint；`BINANCE_SPOT_CATALOG` 继续零请求。生产 HEAD、clean worktree、11 容器集合、listener、timer 和 health 前后不变，staging 均删除。Bitget Venue、Listing Lifecycle、Equity Asset Domain 与 Data Maximization 四轴分别 PASS，但股票仍只做 catalog accounting、tradable Fact batch 为 0。M1.4B 已关闭；四 Venue Shadow、扩展容量、股票事实、分域 Detector/cohort/calibration 和下游 authority 未证明。
 
+`V2-M1.4C Microstructure Fact, Market Mechanics Feature and Cache Contract` 已达到 `LOCAL_CONTRACT_PASS_22_OF_22 / FULL_CI_PASS / NO_RUNTIME_FACT_CANDIDATE_OR_DECISION_AUTHORITY / PRODUCTION_UNCHANGED`。六类原始事实、LiquidityWallEpisode 生命周期、十三项压力-价格响应/吸收/撤单/补单/迁移/真空/跨 Venue/spoof uncertainty Feature 已绑定 exact source capability、Venue、instrument、cutoff、freshness 和内容哈希；ONLINE 与两个独立 REPLAY 要求语义一致。L1 进程内、L2 Redis、L3 PostgreSQL、L4 COS 的 12 行 artifact policy 明确区分缓存、结构化审计真值和不可变回放真值，missing 不得变 0、stale 不得冒充 fresh。该出口不更改 M1.4B 来源身份，也不把 fixture、旧轻扫 proxy 或固定美元大单阈值升格为真实 Fact/Detector。
+
+`V2-M1.5D Adaptive Microstructure Forward Capture and Quality Shadow` 当前为 `M1.4C_LOCAL_EXIT_PASS / EXACT_SCOPE_V2_RELEASE_AND_FORWARD_EXECUTION_NOT_STARTED / NO_CANDIDATE_AUTHORITY`。M1.5D 可以与 M1.5C 使用同一 exact release 超级包运行，但必须独立报告 trades/book coverage、gap、event latency、matched-control parity、Redis/PostgreSQL/COS 成本和宿主恢复；M2 runtime 未开放前只允许冻结 research trigger、确定性轮转样本和 matched control，不能伪装成生产 Candidate。
+
 **当前进度**：`V2-M1.5-B1-B3 Mark Price Same-Gate 31-Cycle Retest` 已达到 `PASS_EARLY_SHADOW_BUSINESS_GATE / M1.5-B1_COMPLETE`。旧 `LAST_PRICE` 已替换为三 Venue 统一 `MARK_PRICE / MARK_PRICE_SNAPSHOT`；Collector 明确拆分 providerObserved/accounted/eligible/collected/usablePrice/fresh 六计数，任何聚合都必须等于 Venue 求和。Runner 和 validator 共用一个冻结 environment 合同，旧 schema 证据禁止进入新 Gate。
 
 本机 live no-authority probe 已真实运行两轮，但本地网络出口对 Binance、OKX、Bybit 三家公开 HTTPS endpoint 均在建连/请求阶段超时，因此每轮均为 0 providerObserved、0 eligible、`DEGRADED`，明确不是 live PASS。该失败不降低门槛，也不说明 provider 当前全局不可用，只说明本执行环境无法形成 live 证据。
@@ -1429,13 +1528,15 @@ M0 机器出口为 `PASS_M0_ENGINEERING_EXIT_PRODUCTION_UNCHANGED`：V2/Legacy �
 
 ### M2 - Detection, Candidate and Deep Validation
 
-**目标**：先完成 Pre-Move 与 Breakout/Retest 两个完整 Detector、Opportunity Thesis 和 Candidate 生命周期，再接其他四个加密机会族；V2 扩展另以 M2.3/M2.4 建立 Listing/Venue Event、Equity Event/Basis 和逐资产域 cohort/holdout。
+**目标**：先完成 Pre-Move 与 Breakout/Retest 两个完整 Detector、Opportunity Thesis 和 Candidate 生命周期，再接其他四个加密机会族；M2.1A 以 research-only 方式扩展双向前兆图谱、Market Mechanics 和板块传播；V2 扩展另以 M2.3/M2.4 建立 Listing/Venue Event、Equity Event/Basis 和逐资产域 cohort/holdout。
 
 **首个纵向证据**：实时 Discovery -> Candidate Episode + Opportunity Thesis -> Tier A Deep -> Evidence Package，全程无 Signal/Plan。
 
 **当前进度**：`V2-M2.0 Discovery Contracts and Golden Fixtures` 已达到 `LOCAL_CONTRACT_PASS`。六个机会族、十四种模式、family-specific direction、Detector event/knowledge 双 cutoff、Candidate/Episode/Thesis strict v2 schema、UTC Episode key、生命周期/去重、三层运行漏斗和 19 个 test-only point-in-time fixture 已冻结。该出口不证明 Detector、Deep Validation、真实 recall/precision/lead time 或生产能力；M1.5-B1/M1.7 前 M2 runtime 仍封闭。
 
 `V2-M2.1 Pre-Move and Breakout/Retest DRAFT Replay Kernels` 已达到 `LOCAL_DRAFT_KERNEL_PASS`：三个 Pre-Move 与两个 Breakout/Retest 内核使用独立长短规则、明确 UNKNOWN/冲突、late/noise/fakeout veto、unavailable 降级和确定性/身份防篡改。阈值明确为 `UNCALIBRATED_DRAFT_THRESHOLDS`，Detector 生命周期仍为 DRAFT，不能发 Candidate；合成样本通过不构成历史 replay 或生命周期晋级证据。
+
+`V2-M2.1A Bidirectional Precursor Atlas, Market Mechanics and Sector Propagation Research` 已达到 `LOCAL_RESEARCH_CONTRACT_PASS_13_OF_13 / FULL_CI_PASS / REAL_COHORT_MISSING / NO_CANDIDATE_EMISSION / PRODUCTION_UNCHANGED`。Compression、Quiet Accumulation/Distribution、Flow-Price Divergence/Absorption、Position Build/Unwind、Liquidity Shift、Relative/Sector Propagation、Failed Auction/Trap 和 Event/Listing Transition 八族各自登记 LONG/SHORT/UNKNOWN，合计 24 个 DRAFT/UNCALIBRATED 假设；long/short 不能用相同 Feature 的机械符号翻转冒充独立机制。任何晋级前必须让每个 family-direction 独立覆盖四 Venue、至少三个 regime 和三个 liquidity segment，并具备三 Outcome、matched control、消融、sealed untouched holdout、forward Shadow、来源权利和独立审计。历史 L2 缺失时保持 forward-only，不得用 Kline 或截图补造订单墙生命周期；理论 Gate 即使通过也只能进入 replay validation，不能发 Candidate。
 
 `V2-M2.2-A Historical Replay Contract and Lifecycle Gate Harness` 已达到 `LOCAL_HARNESS_PASS / REAL_EVIDENCE_INSUFFICIENT`：真实来源 license/retention/replay rights、完整 Candidate 背景窗口、固定 Detector 分母、purge/embargo、holdout group isolation、主 Bundle 与 sealed holdout 载荷物理分离、target-blind 首次发现、knowledge-time lead、Wilson CI、lead-time 秩区间和 PASS/FAIL/INSUFFICIENT/INVALID 语义已冻结。定向合成样本只验证合同；当前 accepted real dataset=0，不能执行生命周期晋级。
 
@@ -1473,9 +1574,9 @@ V2 多资产下一步不是继续扩写 fixture，而是用真实 Scope V2 Fact�
 
 ### M4 - Read Model, Alerts and Workbench
 
-**目标**：建立 Decision Snapshot、站内 Alert 和真正服务后台的专业工作台；加密、股票、指数/ETF 和上市 warm-up 先分域呈现，不能混成一个总榜或总分。
+**目标**：建立 Decision Snapshot、Evidence Overlay Snapshot、站内 Alert 和真正服务后台的专业工作台；加密、股票、指数/ETF 和上市 warm-up 先分域呈现，不能混成一个总榜或总分。图层、Evidence Timeline、多周期冲突和灵敏度模式只展示后端真值，不生成新判断。
 
-**出口**：所有页面同一真值、五维状态和不确定性一致、页面零 provider/decision 调用、E2E/a11y/visual/performance、端到端 trace 和注意力预算通过。
+**出口**：所有页面同一真值、五维状态和不确定性一致、页面零 provider/decision 调用、AI/自定义指标零 authority、E2E/a11y/visual/performance、端到端 trace 和注意力预算通过。
 
 ### M5 - Outcome Evaluation and Research Governance
 
@@ -1521,7 +1622,8 @@ V2 historical replay
 
 - Universe/Fact 与 Runtime/Security 在不共享写入文件时并行。
 - 不同 Detector 以同一 Fact Interface 独立开发。
-- Workbench 信息架构可用固定 schema fixture 提前开发，但不能接入生产或自造事实。
+- Workbench 信息架构、Evidence Overlay 和图层交互可用固定 schema fixture 提前开发，但不能接入生产、自造事实或把 AI/自定义指标升级为 authority。
+- M1.4C Microstructure 合同与 M2.1A 前兆图谱研究合同可在生产恢复和 Scope V2 Shadow 期间并行；真实 forward capture、cohort、holdout 和校准仍服从上游 Gate。
 - 长观察期间继续开发不改变观察 release 的下一 Module。
 - 同一不可变 release 的基础门禁形成内容寻址收据，避免重复跑相同工作。
 
@@ -1556,7 +1658,7 @@ M1.6-P0 fresh read-only preflight
 -> M1 exit
 ```
 
-不触碰生产 authority 的工程并行：M1.1A 四 Venue Capability Registry、M1.1B 多资产身份/上新合同、M2 historical tooling、M3 strict decision contracts、M4 DecisionSnapshot/workbench contracts、Runtime/Security/Release tests。并行产物只能停留在合同、fixture、测试和 no-authority 工具层，M1 exit、V2 扩展 Shadow/容量与真实历史 Gate 通过前不得发 Candidate、生成 READY/交易计划或接入生产页面。
+不触碰生产 authority 的工程并行：M1.1A 四 Venue Capability Registry、M1.1B 多资产身份/上新合同、M1.4C Microstructure Fact/Feature/Cache 合同、M2.1A 双向前兆图谱、M2 historical tooling、M3 strict decision contracts、M4 DecisionSnapshot/Evidence Overlay/workbench contracts、Runtime/Security/Release tests。并行产物只能停留在合同、fixture、测试和 no-authority 工具层，M1 exit、V2 扩展 Shadow/容量与真实历史 Gate 通过前不得发 Candidate、生成 READY/交易计划或接入生产页面。
 
 ### 17.6 重复问题根因门禁
 
@@ -1640,7 +1742,7 @@ M1.6-P0 fresh read-only preflight
 
 ## 20. 当前执行入口
 
-M0.0-M0.4、M1.1A、M1.1B 本地实现、M1.1B0 R3 live conformance、M1.1-M1.5-B0、M1.5-B1-A/B0/B2/B3、M1.6、M2.0、M2.1、M2.2-A、M2.2-B0、B0.1、B0.2-A、B0.2-C/C1 和 M3.0-M3.3 已通过各自设计、本地、技术、业务、运行起点或合同出口。M1.4B 已完成本地核心、定向回归、完整 CI、腾讯 bootstrap 和 checkpoint-bound resume：两轮均为 14/14 route PASS、0 failed、1 registry blocked、listing gap=0，并分别提交两个 Bitget/Bybit checkpoint；第二轮严格绑定第一轮 checkpoint、原 `PASS` result 路径和 SHA-256。B1-B1 因证据包装失败永久记为不计数，B1-B3 已用新 schema 重新取得完整业务 PASS。M1.1B0 首次腾讯派发已真实阻断且不计 live B0；R1 形成 0/15 共同传输失败，R2 以 Node core HTTPS 取得 14/15，R3 已在官方有界查询下取得 15/15 且三个 Gate 全部 PASS，生产身份和 secret 边界未变。R3 15/15 中当前只有 14/15 scheduler route eligible；Binance spot 的 registry disposition 仍为 `UNAVAILABLE`。M1.4B 两次有界 no-authority 运行只证明 exact release、route、请求预算和 checkpoint 恢复链；它不证明四 Venue 持续 Shadow、扩展容量、股票 tradable Fact、分域校准或任何生产 authority。M1.6-P0 已执行并因容量与 recovery evidence 真实 BLOCKED；P0R-D0 和 fresh P0 组合准入工具本地 PASS，Object Lock 31 天、age Keychain 身份、exact transport bundle 和 clean pre-STS baseline 已通过，STS、对象、真实恢复、fresh topology、exact-release 校准与 fresh P0 生产结论仍待执行。M2.2 真实能力 Gate、外部来源解决、bulk historical acquisition、生产存储和持续 SLO 尚未通过；M3.0-M3.3 不构成 M3 runtime、真实校准、真实可执行 Strategy 或 READY authority。生产当前执行入口是：
+M0.0-M0.5、M1.1A、M1.1B 本地实现、M1.1B0 R3 live conformance、M1.1-M1.5-B0、M1.5-B1-A/B0/B2/B3、M1.6、M2.0、M2.1、M2.2-A、M2.2-B0、B0.1、B0.2-A、B0.2-C/C1 和 M3.0-M3.3 已通过各自设计、本地、技术、业务、运行起点或合同出口。M1.4C 已取得本地合同 22/22 与完整 CI 出口，M2.1A 已取得本地 research-only 13/13 与完整 CI 出口；两者均无 runtime/Candidate/Signal/READY authority，M1.5D 和真实数据证据仍未开始。M1.4B 已完成本地核心、定向回归、完整 CI、腾讯 bootstrap 和 checkpoint-bound resume：两轮均为 14/14 route PASS、0 failed、1 registry blocked、listing gap=0，并分别提交两个 Bitget/Bybit checkpoint；第二轮严格绑定第一轮 checkpoint、原 `PASS` result 路径和 SHA-256。B1-B1 因证据包装失败永久记为不计数，B1-B3 已用新 schema 重新取得完整业务 PASS。M1.1B0 首次腾讯派发已真实阻断且不计 live B0；R1 形成 0/15 共同传输失败，R2 以 Node core HTTPS 取得 14/15，R3 已在官方有界查询下取得 15/15 且三个 Gate 全部 PASS，生产身份和 secret 边界未变。R3 15/15 中当前只有 14/15 scheduler route eligible；Binance spot 的 registry disposition 仍为 `UNAVAILABLE`。M1.4B 两次有界 no-authority 运行只证明 exact release、route、请求预算和 checkpoint 恢复链；它不证明四 Venue 持续 Shadow、扩展容量、股票 tradable Fact、分域校准或任何生产 authority。M1.6-P0 已执行并因容量与 recovery evidence 真实 BLOCKED；P0R-D0 和 fresh P0 组合准入工具本地 PASS，Object Lock 31 天、age Keychain 身份、exact transport bundle 和 clean pre-STS baseline 已通过，STS、对象、真实恢复、fresh topology、exact-release 校准与 fresh P0 生产结论仍待执行。M2.2 真实能力 Gate、外部来源解决、bulk historical acquisition、生产存储和持续 SLO 尚未通过；M3.0-M3.3 不构成 M3 runtime、真实校准、真实可执行 Strategy 或 READY authority。生产当前执行入口是：
 
 ```text
 V2-M1.6-P0R-C-STS-ENCRYPTED-BACKUP-EXACT-RETRIEVAL-AND-ISOLATED-RESTORE
@@ -1648,7 +1750,7 @@ V2-M1.6-P0R-C-STS-ENCRYPTED-BACKUP-EXACT-RETRIEVAL-AND-ISOLATED-RESTORE
 
 P0R 不允许以 Object Lock、Keychain 身份、transport bundle、临时清理、阈值下调或 backup exit 0 冒充生产可恢复；临时凭证、对象上传、exact version retrieval、隔离 restore 和 cleanup 均是独立、可审计动作。付费扩容已退出活跃路线，六小时零付费本地机器模型与组合准入实现已通过，但这不取消原 P0 blocker：fresh 证据必须同时满足所有旧非容量门禁、稳态 60% / 峰值 70%、完整恢复和健康门禁，否则 P1 继续 BLOCKED。P0R 生产动作完成后只允许重新执行 fresh P0，不直接授权 migration、身份创建、分区预建、Worker 启动或生产写入。B0.2-B 继续并行等待账户所有者或合格审查者给出 exact source 权利结论和合格历史身份；它仍是 historical B1 acquisition 的硬前置，C1 不能替代或解锁它。
 
-Scope V2 的 M1.4B 已以 exact source `3c21a75009aeb4f4f7d9fd8954245238c38d9636` 完成腾讯隔离 bootstrap `m1-4b-runtime-live-20260723t232457z` 和 checkpoint-bound resume `m1-4b-runtime-live-20260723t233213z`；生产应用、数据库、Redis、Worker、env、Feature Flag 和 authority 均未改变。派发前现在必须同时通过固定通道签名校验与 M1.4B 跨层预检，后者拒绝 request/envelope 的 source ref、commit、bundle、approval hash、entrypoint、staging、时限或身份不一致，避免把 5400 秒外层窗口等错误推迟到目标机才发现。只允许 live conformance PASS 且 registry route eligible 的 capability 进入 batch；当前 Binance spot 请求数固定为 0，必须先修订 registry 并用新 digest 重跑 conformance。Bybit provider-available history 与 Bitget 官方一个月窗口已取得 bootstrap、持久 checkpoint、零 gap 和绑定原 `PASS` result 的 resume 证据，但不得扩写为超出 provider/window 边界的完整历史。Bitget Venue、Listing Lifecycle、Equity Asset Domain 与 Data Maximization 的运行、研究和决策证据继续分开；股票 tradable Fact 仍为 0，session、公司行动、FX、reference、basis、规格和成本仍是后续硬前置。下一 Scope V2 路径固定为 `M1.5C Four-Venue Multi-Asset Shadow -> M1.6-D1 Expanded-Scope No-Cost Capacity`。同时保持 `B0.2 rights + point-in-time instrument metadata -> B1 immutable raw acquisition -> B2 cohort construction -> B3 split + sealed holdout -> C registered replay` 的真实研究顺序。M3.4-R0 已完成治理门禁，旧范围草稿继续隔离；M3.4-R1 不得在 Scope V2 上游证据齐备前接页面或产生 READY。全程禁止读取 Legacy 运行模块作为 V2 authority、写 Candidate Store、自动调权/晋级、生成真实 Signal/Plan、删除 Legacy 代码或宣称四 Venue/股票/上新持续实战能力完成。
+Scope V2 的 M1.4B 已以 exact source `3c21a75009aeb4f4f7d9fd8954245238c38d9636` 完成腾讯隔离 bootstrap `m1-4b-runtime-live-20260723t232457z` 和 checkpoint-bound resume `m1-4b-runtime-live-20260723t233213z`；生产应用、数据库、Redis、Worker、env、Feature Flag 和 authority 均未改变。派发前现在必须同时通过固定通道签名校验与 M1.4B 跨层预检，后者拒绝 request/envelope 的 source ref、commit、bundle、approval hash、entrypoint、staging、时限或身份不一致，避免把 5400 秒外层窗口等错误推迟到目标机才发现。只允许 live conformance PASS 且 registry route eligible 的 capability 进入 batch；当前 Binance spot 请求数固定为 0，必须先修订 registry 并用新 digest 重跑 conformance。Bybit provider-available history 与 Bitget 官方一个月窗口已取得 bootstrap、持久 checkpoint、零 gap 和绑定原 `PASS` result 的 resume 证据，但不得扩写为超出 provider/window 边界的完整历史。Bitget Venue、Listing Lifecycle、Equity Asset Domain 与 Data Maximization 的运行、研究和决策证据继续分开；股票 tradable Fact 仍为 0，session、公司行动、FX、reference、basis、规格和成本仍是后续硬前置。M1.4C 与 M2.1A 的本地 no-authority 合同出口已经通过；下一 Scope V2 真实证据路径是使用同一 exact release 合并派发 `M1.5C Four-Venue Multi-Asset Shadow + M1.5D Adaptive Microstructure Forward Shadow`，两包独立验收，再由 M1.6-D1 同时消费基础与微观结构事实率。研究线保持 `M1.5D forward evidence + B0.2 rights/point-in-time metadata -> B1 immutable raw acquisition -> B2 cohort construction -> B3 split + sealed holdout -> C registered replay -> M2.4A` 的真实顺序。M2.1A 当前只证明 research-only 合同，真实结论仍等待 forward evidence 和 cohort/holdout。M3.4-R1 的 schema 兼容阻断已消除，但没有独立测试出口，且不得在 Scope V2 上游证据齐备前接页面或产生 READY。全程禁止读取 Legacy 运行模块作为 V2 authority、写 Candidate Store、自动调权/晋级、生成真实 Signal/Plan、删除 Legacy 代码或宣称四 Venue/股票/上新/微观结构持续实战能力完成。
 
 ---
 

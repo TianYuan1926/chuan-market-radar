@@ -30,6 +30,7 @@ import {
   OPPORTUNITY_DIRECTIONS_BY_FAMILY,
   OPPORTUNITY_FAMILIES,
   OPPORTUNITY_PATTERNS,
+  TARGET_VENUES,
 } from "../domain/product-constitution";
 import {
   ACTION_STATES,
@@ -1346,12 +1347,33 @@ export const StrategyDraftSchema = z.strictObject({
 }) satisfies z.ZodType<StrategyDraft>;
 
 export const FeasibilityCheckSchema = z.strictObject({
-  checkId: NonEmptyStringSchema,
+  checkId: z.enum([
+    "POINT_IN_TIME_FACTS",
+    "VENUE_TRADING_STATUS",
+    "SPREAD",
+    "DEPTH",
+    "SLIPPAGE",
+    "FEE_SCHEDULE",
+    "FUNDING_COST",
+    "FILLABILITY",
+    "PRICE_DRIFT",
+    "GAP_RISK",
+    "STOP_SWEEP_RISK",
+    "MARKET_LIQUIDITY",
+    "NET_REWARD_RISK",
+  ]),
   status: z.enum(["PASS", "FAIL", "UNAVAILABLE"]),
   observedValue: z
     .union([NonEmptyStringSchema, FiniteNumberSchema])
     .nullable(),
+  observedUnit: NonEmptyStringSchema,
+  comparator: z.enum(["LTE", "GTE", "EQ", "PRESENT"]),
+  thresholdValue: z
+    .union([NonEmptyStringSchema, FiniteNumberSchema])
+    .nullable(),
   thresholdVersion: NonEmptyStringSchema,
+  sourceFactIds: z.array(NonEmptyStringSchema),
+  quality: QualityAssessmentSchema,
   reasonCodes: ReasonCodesSchema,
 }) satisfies z.ZodType<FeasibilityCheck>;
 
@@ -1361,14 +1383,79 @@ export const ExecutionFeasibilitySnapshotSchema = z.strictObject({
     RUNTIME_OBJECT_SCHEMA_VERSIONS.ExecutionFeasibilitySnapshot,
   ),
   feasibilityId: NonEmptyStringSchema,
+  episodeId: NonEmptyStringSchema,
   draftId: NonEmptyStringSchema,
+  canonicalInstrumentId: NonEmptyStringSchema,
+  venue: z.enum(TARGET_VENUES),
+  opportunityFamily: z.enum(OPPORTUNITY_FAMILIES),
+  feasibilityAuthority: z.enum([
+    "TEST_ONLY_UNCALIBRATED",
+    "REPLAY_CALIBRATED",
+    "SHADOW_CALIBRATED",
+    "LIMITED_CALIBRATED",
+    "PRODUCTION_CALIBRATED",
+  ]),
+  feasibilityPolicyVersion: NonEmptyStringSchema,
+  executionCostModelVersion: NonEmptyStringSchema,
   status: z.enum(["PASS", "FAIL", "UNAVAILABLE"]),
-  checks: z.array(FeasibilityCheckSchema).min(1),
+  checks: z.array(FeasibilityCheckSchema).length(13),
+  conservativeEntryPrice: PositiveDecimalStringSchema,
+  executionFeePerSideBps: z.number().int().nonnegative().max(10_000),
+  estimatedSlippagePerSideBps: z.number().int().nonnegative().max(10_000),
+  conservativeFundingCostBps: z.number().int().nonnegative().max(10_000),
+  estimatedAllInCostBps: z.number().int().nonnegative().max(50_000),
   estimatedNetRewardRisk: NonNegativeFiniteSchema.nullable(),
   maximumExecutableNotional: NonNegativeDecimalStringSchema.nullable(),
+  inputFactIds: z.array(NonEmptyStringSchema).min(1),
+  blockers: ReasonCodesSchema,
   quality: QualityAssessmentSchema,
   uncertainty: UncertaintyVectorSchema,
 }).superRefine((snapshot, context) => {
+  const expectedCheckIds = [
+    "POINT_IN_TIME_FACTS",
+    "VENUE_TRADING_STATUS",
+    "SPREAD",
+    "DEPTH",
+    "SLIPPAGE",
+    "FEE_SCHEDULE",
+    "FUNDING_COST",
+    "FILLABILITY",
+    "PRICE_DRIFT",
+    "GAP_RISK",
+    "STOP_SWEEP_RISK",
+    "MARKET_LIQUIDITY",
+    "NET_REWARD_RISK",
+  ] as const;
+  const checkIds = snapshot.checks.map((check) => check.checkId);
+  if (
+    new Set(checkIds).size !== expectedCheckIds.length ||
+    expectedCheckIds.some((checkId) => !checkIds.includes(checkId))
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "execution feasibility must account for every required check exactly once",
+      path: ["checks"],
+    });
+  }
+  if (new Set(snapshot.inputFactIds).size !== snapshot.inputFactIds.length) {
+    context.addIssue({
+      code: "custom",
+      message: "execution feasibility input fact ids must be unique",
+      path: ["inputFactIds"],
+    });
+  }
+  const inputFacts = new Set(snapshot.inputFactIds);
+  if (
+    snapshot.checks.some((check) =>
+      check.sourceFactIds.some((factId) => !inputFacts.has(factId))
+    )
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "every feasibility check fact must exist in input fact lineage",
+      path: ["checks"],
+    });
+  }
   if (
     snapshot.status === "PASS" &&
     snapshot.checks.some((check) => check.status !== "PASS")
@@ -1380,6 +1467,29 @@ export const ExecutionFeasibilitySnapshotSchema = z.strictObject({
     });
   }
   if (
+    snapshot.status === "FAIL" &&
+    !snapshot.checks.some((check) => check.status === "FAIL")
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "FAIL feasibility requires at least one failed check",
+      path: ["checks"],
+    });
+  }
+  if (
+    snapshot.status === "UNAVAILABLE" &&
+    (
+      snapshot.checks.some((check) => check.status === "FAIL") ||
+      !snapshot.checks.some((check) => check.status === "UNAVAILABLE")
+    )
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "UNAVAILABLE feasibility requires unavailable checks and no failed check",
+      path: ["checks"],
+    });
+  }
+  if (
     snapshot.status === "PASS" &&
     snapshot.estimatedNetRewardRisk === null
   ) {
@@ -1387,6 +1497,40 @@ export const ExecutionFeasibilitySnapshotSchema = z.strictObject({
       code: "custom",
       message: "PASS feasibility requires estimated net reward-risk",
       path: ["estimatedNetRewardRisk"],
+    });
+  }
+  if (
+    snapshot.estimatedAllInCostBps !==
+      2 * snapshot.executionFeePerSideBps +
+      2 * snapshot.estimatedSlippagePerSideBps +
+      snapshot.conservativeFundingCostBps
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "all-in execution cost must match fee, slippage and funding inputs",
+      path: ["estimatedAllInCostBps"],
+    });
+  }
+  if (
+    snapshot.feasibilityAuthority === "TEST_ONLY_UNCALIBRATED" &&
+    !snapshot.blockers.includes(
+      "execution_feasibility_authority_test_only_uncalibrated",
+    )
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "test-only feasibility must retain its no-authority blocker",
+      path: ["blockers"],
+    });
+  }
+  if (
+    snapshot.status === "PASS" &&
+    snapshot.quality.status !== "FRESH"
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "PASS feasibility requires fresh aggregate execution quality",
+      path: ["quality", "status"],
     });
   }
 }) satisfies z.ZodType<ExecutionFeasibilitySnapshot>;

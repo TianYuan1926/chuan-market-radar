@@ -509,21 +509,58 @@ export type StrategyDraft = TraceEnvelope & {
 };
 
 export type FeasibilityCheck = {
-  checkId: string;
+  checkId:
+    | "POINT_IN_TIME_FACTS"
+    | "VENUE_TRADING_STATUS"
+    | "SPREAD"
+    | "DEPTH"
+    | "SLIPPAGE"
+    | "FEE_SCHEDULE"
+    | "FUNDING_COST"
+    | "FILLABILITY"
+    | "PRICE_DRIFT"
+    | "GAP_RISK"
+    | "STOP_SWEEP_RISK"
+    | "MARKET_LIQUIDITY"
+    | "NET_REWARD_RISK";
   status: "PASS" | "FAIL" | "UNAVAILABLE";
   observedValue: string | number | null;
+  observedUnit: string;
+  comparator: "LTE" | "GTE" | "EQ" | "PRESENT";
+  thresholdValue: string | number | null;
   thresholdVersion: string;
+  sourceFactIds: readonly string[];
+  quality: QualityAssessment;
   reasonCodes: readonly string[];
 };
 
 export type ExecutionFeasibilitySnapshot = TraceEnvelope & {
   producerModule: "execution_feasibility_final_decision";
   feasibilityId: string;
+  episodeId: string;
   draftId: string;
+  canonicalInstrumentId: string;
+  venue: TargetVenue;
+  opportunityFamily: OpportunityFamily;
+  feasibilityAuthority:
+    | "TEST_ONLY_UNCALIBRATED"
+    | "REPLAY_CALIBRATED"
+    | "SHADOW_CALIBRATED"
+    | "LIMITED_CALIBRATED"
+    | "PRODUCTION_CALIBRATED";
+  feasibilityPolicyVersion: string;
+  executionCostModelVersion: string;
   status: "PASS" | "FAIL" | "UNAVAILABLE";
   checks: readonly FeasibilityCheck[];
+  conservativeEntryPrice: string;
+  executionFeePerSideBps: number;
+  estimatedSlippagePerSideBps: number;
+  conservativeFundingCostBps: number;
+  estimatedAllInCostBps: number;
   estimatedNetRewardRisk: number | null;
   maximumExecutableNotional: string | null;
+  inputFactIds: readonly string[];
+  blockers: readonly string[];
   quality: QualityAssessment;
   uncertainty: UncertaintyVector;
 };

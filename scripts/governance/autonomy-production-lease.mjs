@@ -104,7 +104,9 @@ export async function acquireProductionLease({
   } catch (error) {
     if (error?.code !== "EEXIST") throw error;
     const existing = await readJson(resolve(lockPath, "lease.json"));
-    if (new Date(existing.expiresAt) > now) throw new Error("production_lease_already_held");
+    if (new Date(existing.expiresAt) > now) {
+      throw new Error("production_lease_already_held", { cause: error });
+    }
     await rename(lockPath, resolve(root, "history", `expired-${existing.fencingToken}-${randomUUID()}`));
     await mkdir(lockPath, { mode: 0o700 });
   }
@@ -204,7 +206,9 @@ export async function consumeProductionApproval({
       consumedAt: consumedAt.toISOString(),
     }, null, 2)}\n`);
   } catch (error) {
-    if (error?.code === "EEXIST") throw new Error("production_approval_already_consumed");
+    if (error?.code === "EEXIST") {
+      throw new Error("production_approval_already_consumed", { cause: error });
+    }
     throw error;
   } finally {
     await handle?.close();

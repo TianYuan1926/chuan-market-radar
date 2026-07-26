@@ -257,7 +257,7 @@ export async function executeM2HistoricalTechnicalPilot(input: Readonly<{
   await mkdir(objectDirectory, { recursive: true, mode: 0o700 });
   const partialPath = join(objectDirectory, `${object.expectedFileName}.partial`);
   const verifiedPath = join(objectDirectory, `${object.expectedFileName}.verified`);
-  let resumedFromBytes = 0;
+  let resumedFromBytes: number;
   try {
     const checksumResponse = await fetchAllowlisted({
       fetchImpl,

@@ -486,7 +486,7 @@ async function fetchJson(baseUrl, path) {
       "\n__MARKET_RADAR_HTTP_STATUS__:%{http_code}",
       url,
     ];
-    let output = "";
+    let output;
     try {
       output = execFileSync("curl", curlArgs, {
         encoding: "utf8",
@@ -511,7 +511,7 @@ async function fetchJson(baseUrl, path) {
       }
     }
     const { bodyText, status } = parseCurlJsonOutput(output);
-    let body = null;
+    let body;
     try {
       body = bodyText ? JSON.parse(bodyText) : null;
     } catch {
@@ -534,7 +534,7 @@ async function fetchJson(baseUrl, path) {
     },
   });
   const text = await response.text();
-  let body = null;
+  let body;
   try {
     body = text ? JSON.parse(text) : null;
   } catch {
@@ -1948,7 +1948,7 @@ function validateEvidenceZip(zipPath) {
   const errors = [];
   const warnings = [];
   let mode = "unknown";
-  let requiredFiles = [];
+  let requiredFiles;
   const readOptionalText = (dir, file) => {
     const path = join(dir, file);
     if (!existsSync(path)) {

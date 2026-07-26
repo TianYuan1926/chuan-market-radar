@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.46",
-  "status": "m0_4_expanded_scope_design_pass_m1_1a_registry_local_pass_m1_1b_multi_asset_identity_listing_and_exact_probe_local_implementation_pass_test_only_conformance_pass_m1_1b0_attempt_1_blocked_r1_live_zero_of_15_common_runtime_transport_blocked_r2_live_14_of_15_listing_gate_blocked_r3_live_15_of_15_all_gates_pass_m1_4a_adaptive_multi_asset_collector_local_contract_and_full_ci_pass_no_runtime_authority_m1_4b_tencent_bootstrap_and_checkpoint_bound_resume_pass_no_runtime_authority_15_live_profiles_14_route_eligible_scope_epoch_v1_evidence_preserved_m1_5_b1_pass_v1_only_m1_6_p0_blocked_p0r_clean_pre_sts_baseline_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_v1_only_m3_0_through_m3_3_local_contract_pass_v1_only_test_only_uncalibrated_no_ready_authority_m3_1a_through_m3_3d_four_lane_local_research_contract_scaffold_and_full_ci_pass_no_real_calibration_or_authority_m3_4_r0_scope_rebase_governance_and_full_ci_pass_implementation_blocked_fixed_dispatch_first_signed_acceptance_pass_external_historical_source_blocked_m1_not_complete",
-  "generatedAt": "2026-07-24T07:54:00+08:00",
+  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.48",
+  "status": "m0_4_expanded_scope_design_pass_m0_5_market_mechanics_microstructure_precursor_atlas_design_pass_m1_1a_registry_local_pass_m1_1b_multi_asset_identity_listing_and_exact_probe_local_implementation_pass_test_only_conformance_pass_m1_1b0_attempt_1_blocked_r1_live_zero_of_15_common_runtime_transport_blocked_r2_live_14_of_15_listing_gate_blocked_r3_live_15_of_15_all_gates_pass_m1_4a_adaptive_multi_asset_collector_local_contract_and_full_ci_pass_no_runtime_authority_m1_4b_tencent_bootstrap_and_checkpoint_bound_resume_pass_no_runtime_authority_15_live_profiles_14_route_eligible_m1_4c_microstructure_fact_feature_cache_local_contract_pass_22_of_22_no_runtime_authority_m1_5d_forward_execution_not_started_m2_1a_bidirectional_precursor_atlas_local_research_contract_pass_13_of_13_real_cohort_missing_no_candidate_emission_scope_epoch_v1_evidence_preserved_m1_5_b1_pass_v1_only_m1_6_p0_blocked_p0r_clean_pre_sts_baseline_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_v1_only_m3_0_through_m3_3_local_contract_pass_v1_only_test_only_uncalibrated_no_ready_authority_m3_1a_through_m3_3d_four_lane_local_research_contract_scaffold_and_full_ci_pass_no_real_calibration_or_authority_m3_4_r0_scope_rebase_governance_pass_r1_partial_test_only_draft_no_directed_exit_fixed_dispatch_first_signed_acceptance_pass_external_historical_source_blocked_m1_not_complete",
+  "generatedAt": "2026-07-26T12:34:39+08:00",
   "implementationAuthorized": true,
   "productionMutationAuthorized": false,
   "authority": {
@@ -10,7 +10,8 @@
     "index": "docs/blueprints/README.md",
     "currentFacts": "PROJECT_CONTEXT_FOR_CHATGPT.md",
     "recentChanges": "CHANGELOG_FOR_CHATGPT.md",
-    "deliveryReport": "docs/blueprints/V2_M1_4B_ENDPOINT_BATCHING_RUNTIME_ADAPTER_AND_LISTING_HISTORY_DELIVERY_REPORT.md",
+    "deliveryReport": "docs/blueprints/V2_M1_4C_MICROSTRUCTURE_AND_M2_1A_BIDIRECTIONAL_PRECURSOR_LOCAL_CONTRACT_DELIVERY_REPORT.md",
+    "latestDesignAmendment": "docs/architecture/v2/M0_5_MARKET_MECHANICS_MICROSTRUCTURE_AND_PRECURSOR_ATLAS_AMENDMENT_V1.md",
     "buildSequence": "market-radar-v2-build-sequence.md",
     "baseManifest": "docs/architecture/v2/V2_BASE_MANIFEST.v1.json",
     "baselineDecision": "docs/architecture/v2/ADR-0001-CLEAN-BASELINE-AND-V2-ISOLATION.md",
@@ -46,6 +47,9 @@
     "m1RuntimeAdapterDispatchCrossLayerPreflight": "scripts/v2/production/m1-runtime-adapter-live-dispatch-preflight.mjs",
     "m1RuntimeAdapterLiveEntrypoint": "scripts/v2/production/m1-runtime-adapter-live-entrypoint.sh",
     "m1RuntimeAdapterAndListingHistoryDeliveryReport": "docs/blueprints/V2_M1_4B_ENDPOINT_BATCHING_RUNTIME_ADAPTER_AND_LISTING_HISTORY_DELIVERY_REPORT.md",
+    "m1MicrostructureFactAndMarketMechanicsImplementation": "src/v2/modules/microstructure/m1-microstructure-contract.ts",
+    "m1MicrostructureCacheContractImplementation": "src/v2/modules/microstructure/m1-microstructure-cache-contract.ts",
+    "m2BidirectionalPrecursorAtlasImplementation": "src/v2/research/m2-precursor-atlas-contract.ts",
     "m1FoundationSliceContract": "docs/architecture/v2/M1_FOUNDATION_VERTICAL_SLICE_CONTRACT_V1.md",
     "m1ProviderSourceContracts": "docs/architecture/v2/M1_1_PROVIDER_SOURCE_CONTRACTS_V1.md",
     "m1FeatureContextContract": "docs/architecture/v2/M1_2_FEATURE_CONTEXT_CONTRACT_V1.md",
@@ -112,7 +116,7 @@
   "currentBoundary": {
     "readiness": "R1",
     "status": "runnable_but_incomplete_not_practical_ready",
-    "v2ImplementationStatus": "m0_4_expanded_scope_design_pass_m1_1a_registry_local_pass_m1_1b_local_adapter_identity_listing_and_test_only_conformance_pass_m1_1b0_attempt_1_blocked_r1_live_zero_of_15_common_runtime_transport_blocked_r2_live_14_of_15_listing_gate_blocked_r3_live_15_of_15_all_gates_pass_m1_4a_local_contract_and_full_ci_pass_no_runtime_authority_m1_4b_exact_dispatch_package_9_of_9_tencent_bootstrap_and_checkpoint_bound_resume_pass_no_runtime_authority_15_live_profiles_14_route_eligible_v1_evidence_preserved_m1_5_b1_complete_v1_only_m1_6_p0_blocked_p0r_clean_pre_sts_baseline_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_v1_only_m3_0_through_m3_3_local_contract_pass_v1_only_test_only_uncalibrated_no_ready_authority_m3_1a_through_m3_3d_four_lane_local_research_contract_scaffold_pass_no_real_calibration_or_authority_external_rights_blocked_detectors_draft_candidate_emission_false_m1_not_complete",
+    "v2ImplementationStatus": "m0_4_expanded_scope_design_pass_m0_5_market_mechanics_microstructure_precursor_atlas_design_pass_m1_1a_registry_local_pass_m1_1b_local_adapter_identity_listing_and_test_only_conformance_pass_m1_1b0_attempt_1_blocked_r1_live_zero_of_15_common_runtime_transport_blocked_r2_live_14_of_15_listing_gate_blocked_r3_live_15_of_15_all_gates_pass_m1_4a_local_contract_and_full_ci_pass_no_runtime_authority_m1_4b_exact_dispatch_package_9_of_9_tencent_bootstrap_and_checkpoint_bound_resume_pass_no_runtime_authority_15_live_profiles_14_route_eligible_m1_4c_local_contract_pass_22_of_22_no_runtime_authority_m1_5d_forward_execution_not_started_m2_1a_local_research_contract_pass_13_of_13_real_cohort_missing_no_candidate_emission_v1_evidence_preserved_m1_5_b1_complete_v1_only_m1_6_p0_blocked_p0r_clean_pre_sts_baseline_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_v1_only_m3_0_through_m3_3_local_contract_pass_v1_only_test_only_uncalibrated_no_ready_authority_m3_1a_through_m3_3d_four_lane_local_research_contract_scaffold_pass_no_real_calibration_or_authority_external_rights_blocked_detectors_draft_candidate_emission_false_m1_not_complete",
     "v2ImplementationBranch": "codex/market-radar-v2-implementation",
     "v2ImplementationBaseCommit": "e5eb90026d8bfcd52b060359446515de5a5c32d6",
     "latestProductionFinalStatus": "storage_preflight_blocked_capacity_and_recovery_application_health_not_evaluated",
@@ -757,6 +761,182 @@
     "coinglassPlan": "HOBBYIST",
     "newPaidDataPurchaseRequired": false
   },
+  "marketMechanicsCube": {
+    "status": "local_contract_pass_no_runtime_or_decision_authority",
+    "axes": [
+      "PRICE_AND_STRUCTURE",
+      "PARTICIPATION_AND_LEVERAGE",
+      "LIQUIDITY_AND_RESPONSE"
+    ],
+    "mandatoryStrata": [
+      "TIMEFRAME",
+      "VENUE",
+      "ASSET_DOMAIN",
+      "LISTING_LIFECYCLE",
+      "REGIME",
+      "LIQUIDITY_SEGMENT",
+      "SECTOR_SNAPSHOT"
+    ],
+    "singleCompositeScoreAllowed": false,
+    "candidateAuthorityAllowed": false,
+    "signalGradeAuthorityAllowed": false,
+    "readyAuthorityAllowed": false
+  },
+  "microstructureEvidenceLayer": {
+    "status": "local_contract_pass_22_of_22_full_ci_pass_no_runtime_or_decision_authority",
+    "rawFactFamilies": [
+      "TRADE_FACT",
+      "TOP_OF_BOOK_FACT",
+      "ORDER_BOOK_SNAPSHOT_FACT",
+      "ORDER_BOOK_DELTA_FACT",
+      "LIQUIDATION_FACT",
+      "MARK_INDEX_REFERENCE_FACT"
+    ],
+    "derivedArtifacts": [
+      "LIQUIDITY_WALL_EPISODE",
+      "MARKET_MECHANICS_FEATURE_SET",
+      "EVIDENCE_OVERLAY_SNAPSHOT"
+    ],
+    "requiredFeatures": [
+      "AGGRESSIVE_FLOW_IMBALANCE",
+      "PRICE_RESPONSE_EFFICIENCY",
+      "BUY_ABSORPTION_STRENGTH",
+      "SELL_ABSORPTION_STRENGTH",
+      "WALL_PERSISTENCE",
+      "WALL_CANCEL_VELOCITY",
+      "WALL_REFILL_RATIO",
+      "WALL_MIGRATION_BPS",
+      "EXECUTED_WALL_RATIO",
+      "NEAR_BOOK_DEPTH_CHANGE",
+      "LIQUIDITY_VACUUM_RISK",
+      "CROSS_VENUE_AGREEMENT",
+      "SPOOF_RISK"
+    ],
+    "staticOrderWallMayImplySupportOrResistance": false,
+    "fixedUsdLargeTradeThresholdMayBeDetectorAuthority": false,
+    "singleVenueObservationMayDirectlyDetermineDirection": false,
+    "historicalKlineMaySubstituteForMissingL2Lifecycle": false,
+    "implementationWorkPackage": "M1.4C",
+    "forwardEvidenceWorkPackage": "M1.5D",
+    "implementation": "src/v2/modules/microstructure/m1-microstructure-contract.ts",
+    "cacheImplementation": "src/v2/modules/microstructure/m1-microstructure-cache-contract.ts",
+    "directedTestsPassed": 22,
+    "fullCiPassed": true,
+    "runtimeAuthorityAllowed": false,
+    "factAuthorityAllowed": false,
+    "candidateAuthorityAllowed": false,
+    "decisionAuthorityAllowed": false,
+    "productionAuthorityAllowed": false
+  },
+  "bidirectionalPrecursorAtlas": {
+    "status": "local_research_contract_pass_13_of_13_full_ci_pass_real_cohort_missing",
+    "workPackage": "M2.1A",
+    "implementation": "src/v2/research/m2-precursor-atlas-contract.ts",
+    "hypothesisFamilies": [
+      "COMPRESSION_ENERGY",
+      "QUIET_ACCUMULATION_DISTRIBUTION",
+      "FLOW_PRICE_DIVERGENCE_ABSORPTION",
+      "POSITION_BUILD_UNWIND",
+      "LIQUIDITY_SHIFT",
+      "RELATIVE_SECTOR_PROPAGATION",
+      "FAILED_AUCTION_TRAP",
+      "EVENT_LISTING_TRANSITION"
+    ],
+    "outcomeClassesRequired": [
+      "UP_EXPANSION",
+      "DOWN_EXPANSION",
+      "NO_EXPANSION"
+    ],
+    "denominatorsRequired": [
+      "DISCOVERY_CANDIDATES",
+      "MARKET_EVENTS",
+      "SIMILAR_NON_EVENTS"
+    ],
+    "directionsModeledIndependently": true,
+    "volumeExpansionRequiredForEveryPrecursor": false,
+    "matchedControlRequired": true,
+    "featureAblationRequired": true,
+    "untouchedHoldoutRequired": true,
+    "forwardOnlyWhenHistoricalL2Missing": true,
+    "hypothesisCount": 24,
+    "directedTestsPassed": 13,
+    "fullCiPassed": true,
+    "realCohortAvailable": false,
+    "candidateEmissionAllowed": false,
+    "signalGradeAllowed": false,
+    "readyAuthorityAllowed": false,
+    "productionAuthorityAllowed": false
+  },
+  "sectorPropagationResearch": {
+    "status": "local_research_contract_pass_no_candidate_authority",
+    "pointInTimeRelationshipSnapshotRequired": true,
+    "taxonomyKnowledgeTimeRequired": true,
+    "btcEthBetaAdjustmentRequired": true,
+    "marketCommonFactorAdjustmentRequired": true,
+    "postOutcomeReclassificationAllowed": false,
+    "leaderFailureControlRequired": true,
+    "nonFollowerMatchedControlRequired": true,
+    "candidatePriorityOnlyUntilValidated": true
+  },
+  "supplementalSourcePolicy": {
+    "status": "design_only_sources_require_registry_and_live_gates",
+    "sources": [
+      {
+        "id": "COINGLASS",
+        "plan": "HOBBYIST",
+        "authority": "SUPPLEMENTAL_DERIVATIVES_EVIDENCE"
+      },
+      {
+        "id": "COINGECKO",
+        "plan": "FREE",
+        "authority": "METADATA_MARKET_CAP_CATEGORY_GLOBAL_CONTEXT_AND_LISTING_WATCH_ONLY"
+      },
+      {
+        "id": "DEFILLAMA_AND_PUBLIC_ONCHAIN_CANDIDATES",
+        "plan": "NO_NEW_PAID_SERVICE",
+        "authority": "RESEARCH_CONTEXT_ONLY_UNTIL_QUALIFIED"
+      },
+      {
+        "id": "NEWS_SOCIAL_AND_KOL",
+        "plan": "NO_NEW_PAID_SERVICE",
+        "authority": "LOW_AUTHORITY_EVENT_CONTEXT_ONLY"
+      }
+    ],
+    "apiKeyMayEnterGitDocsLogsOrCacheKeys": false,
+    "providerMayBecomeDecisionAuthority": false,
+    "incrementalValueGateRequired": true
+  },
+  "cacheAndReadPathPolicy": {
+    "status": "local_contract_pass_no_runtime_read_authority",
+    "layers": [
+      "L1_PROCESS_MEMORY_EPHEMERAL",
+      "L2_REDIS_REBUILDABLE_RUNTIME",
+      "L3_POSTGRESQL_OPERATIONAL_TRUTH",
+      "L4_COS_RAW_REPLAY_AND_RECOVERY"
+    ],
+    "frontendMayCallProvider": false,
+    "cacheKeyLineageRequired": true,
+    "factSpecificTtlRequired": true,
+    "staleMayBeServedAsFresh": false,
+    "missingMayBecomeZero": false,
+    "singleflightRequired": true,
+    "quotaAwareSchedulingRequired": true,
+    "unboundedWarmupAllowed": false
+  },
+  "workbenchEvidencePolicy": {
+    "status": "design_only_m4_not_started",
+    "authoritativeInputs": [
+      "DECISION_SNAPSHOT",
+      "EVIDENCE_OVERLAY_SNAPSHOT"
+    ],
+    "eventTimeAnchoringRequired": true,
+    "layerTogglesRequired": true,
+    "defaultSparsePresentationRequired": true,
+    "sensitivityModesMayChangeAuthority": false,
+    "aiMayCreateFactsLevelsDirectionScoreOrPlan": false,
+    "customIndicatorProductionAuthorityAllowed": false,
+    "unverifiedMainPlayerLabelsAllowed": false
+  },
   "constitutionalInvariants": {
     "candidateIsSignal": false,
     "candidatePriorityMayRepresentEvidenceGrade": false,
@@ -774,6 +954,9 @@
     "historicalScopePassMayBeExpandedByRename": false,
     "cryptoAndEquityMayShareCalibrationWithoutIndependentProof": false,
     "providerAvailabilityMayBeInferredFromSymbolText": false,
+    "staticOrderWallMayBecomeDirectionOrReady": false,
+    "fixedUsdLargeTradeThresholdMayBeCrossInstrumentAuthority": false,
+    "aiOrCustomIndicatorMayCreateProductionDecisionFacts": false,
     "minimumStructuralRewardRisk": 3,
     "unknownMayBecomeZero": false,
     "staleMayBecomeLive": false,
@@ -1291,6 +1474,11 @@
       "market_events",
       "similar_non_events"
     ],
+    "directionalOutcomeClasses": [
+      "up_move",
+      "down_move",
+      "no_significant_move"
+    ],
     "holdouts": [
       "time",
       "symbol",
@@ -1301,7 +1489,9 @@
     "multiObjectiveScorecardRequired": true,
     "outcomeEvaluationSeparatedFromResearchApproval": true,
     "championChallengerRequired": true,
-    "humanPromotionRequired": true
+    "humanPromotionRequired": true,
+    "microstructureAndSectorFeatureAblationRequired": true,
+    "historicalL2AbsenceMustRemainExplicit": true
   },
   "latencyBudgets": {
     "streamEventToAuthoritativeFactP95SecondsMaximum": 2,
@@ -1332,7 +1522,11 @@
     "v1EvidenceMisrepresentedAsV2Count": 0,
     "crossAssetCalibrationReuseWithoutProofCount": 0,
     "symbolTextAssetClassificationCount": 0,
-    "listingEventDirectReadyCount": 0
+    "listingEventDirectReadyCount": 0,
+    "staticOrderWallDirectionOrReadyCount": 0,
+    "fixedUsdThresholdCrossInstrumentAuthorityCount": 0,
+    "unverifiedMainPlayerLabelCount": 0,
+    "aiOrCustomIndicatorCreatedDecisionFactCount": 0
   },
   "initialOperationalTargets": {
     "observedInstrumentAccountingPercent": 100,
@@ -1340,6 +1534,8 @@
     "eligibleLightScanCoveragePercentMinimum": 95,
     "tierAMicrostructureCoveragePercentMinimum": 90,
     "tierAMicrostructureAgeP95SecondsMaximum": 5,
+    "microstructureFactAndFeatureLineagePercentRequired": 100,
+    "microstructureOnlineReplayParityRequired": true,
     "coreReadApiAvailability30dPercentMinimum": 99.5,
     "contractApiP95SecondsMaximum": 2,
     "criticalFirstViewportP95SecondsMaximum": 3,
@@ -1391,7 +1587,7 @@
       "id": "M0",
       "name": "constitution_active_memory_and_legacy_freeze",
       "productionMutationAllowed": false,
-      "status": "local_engineering_exit_pass_m0_4_expanded_scope_design_pass_m1_1a_registry_local_pass_production_unchanged",
+      "status": "local_engineering_exit_pass_m0_4_expanded_scope_design_pass_m0_5_market_mechanics_microstructure_precursor_atlas_design_pass_m1_4c_and_m2_1a_local_contract_exits_pass_m1_1a_registry_local_pass_production_unchanged",
       "workPackages": [
         {
           "id": "M0.0",
@@ -1417,6 +1613,11 @@
           "id": "M0.4",
           "name": "expanded_market_scope_and_scope_epoch_contract",
           "status": "design_scope_amendment_pass_m1_1a_registry_local_pass_scope_v2_runtime_unproven_production_unchanged"
+        },
+        {
+          "id": "M0.5",
+          "name": "market_mechanics_microstructure_bidirectional_precursor_atlas_and_workbench_design_amendment",
+          "status": "design_amendment_pass_m1_4c_and_m2_1a_local_contract_exits_pass_real_cohort_missing_no_authority_production_unchanged"
         }
       ]
     },
@@ -1427,7 +1628,7 @@
       "dependsOn": [
         "M0"
       ],
-      "status": "scope_epoch_v1_b1b3_early_shadow_business_gate_pass_m1_5_b1_complete_m1_6_p0_executed_blocked_p0r_object_lock_31d_age_vault_transport_pass_sts_and_production_recovery_pending_scope_epoch_v2_m1_1a_registry_m1_1b_adapter_identity_listing_local_pass_r3_live_conformance_pass_m1_4a_local_contract_full_ci_pass_m1_4b_tencent_bootstrap_and_checkpoint_bound_resume_pass_no_runtime_authority_m1_not_complete",
+      "status": "scope_epoch_v1_b1b3_early_shadow_business_gate_pass_m1_5_b1_complete_m1_6_p0_executed_blocked_p0r_object_lock_31d_age_vault_transport_pass_sts_and_production_recovery_pending_scope_epoch_v2_m1_1a_registry_m1_1b_adapter_identity_listing_local_pass_r3_live_conformance_pass_m1_4a_local_contract_full_ci_pass_m1_4b_tencent_bootstrap_and_checkpoint_bound_resume_pass_no_runtime_authority_m1_4c_local_contract_pass_m1_5d_forward_execution_not_started_no_authority_m1_not_complete",
       "workPackages": [
         {
           "id": "M1.1A",
@@ -1450,14 +1651,24 @@
           "status": "local_core_23_of_23_exact_dispatch_package_9_of_9_tencent_bootstrap_and_checkpoint_bound_resume_pass_15_live_profiles_14_route_eligible_no_authority"
         },
         {
+          "id": "M1.4C",
+          "name": "microstructure_fact_market_mechanics_feature_and_cache_contract",
+          "status": "local_contract_pass_22_of_22_full_ci_pass_no_runtime_fact_candidate_or_decision_authority_production_unchanged"
+        },
+        {
           "id": "M1.5C",
           "name": "four_venue_multi_asset_shadow",
           "status": "next_pending_exact_release_scope_v2_shadow_after_m1_4b_no_authority_runtime_pass"
         },
         {
+          "id": "M1.5D",
+          "name": "adaptive_microstructure_forward_capture_and_quality_shadow",
+          "status": "m1_4c_local_exit_pass_pending_exact_scope_v2_release_and_forward_execution_no_candidate_authority"
+        },
+        {
           "id": "M1.6-D1",
           "name": "expanded_scope_no_cost_capacity_proof",
-          "status": "pending_after_m1_5c_real_fact_rate"
+          "status": "pending_after_m1_5c_base_and_m1_5d_microstructure_incremental_fact_rates"
         },
         {
           "id": "M1.5-B1-A",
@@ -1513,7 +1724,7 @@
       "dependsOn": [
         "M1"
       ],
-      "status": "scope_epoch_v1_m2_2_b0_2_c1_operational_capture_start_pass_forward_only_ready_external_resolution_bulk_and_cohort_blocked_real_replay_gate_insufficient_scope_epoch_v2_m2_3_and_m2_4_not_started_runtime_blocked_until_m1_exit",
+      "status": "scope_epoch_v1_m2_2_b0_2_c1_operational_capture_start_pass_forward_only_ready_external_resolution_bulk_and_cohort_blocked_real_replay_gate_insufficient_scope_epoch_v2_m2_1a_local_research_contract_pass_real_cohort_missing_no_candidate_emission_m2_3_and_m2_4_not_started_runtime_blocked_until_m1_exit",
       "workPackages": [
         {
           "id": "M2.0",
@@ -1524,6 +1735,11 @@
           "id": "M2.1",
           "name": "pre_move_and_breakout_retest_replay_kernels",
           "status": "local_draft_kernel_pass_uncalibrated_no_candidate_emission_runtime_blocked"
+        },
+        {
+          "id": "M2.1A",
+          "name": "bidirectional_precursor_atlas_market_mechanics_and_sector_propagation_research",
+          "status": "local_research_contract_pass_13_of_13_full_ci_pass_real_cohort_missing_forward_only_when_l2_missing_no_candidate_emission_production_unchanged"
         },
         {
           "id": "M2.2-A",
@@ -1602,8 +1818,8 @@
         },
         {
           "id": "M2.4A",
-          "name": "four_venue_crypto_and_listing_lifecycle_cohort_and_holdout",
-          "status": "not_started_blocked_until_v2_fact_scope_and_historical_forward_evidence"
+          "name": "four_venue_crypto_listing_lifecycle_market_mechanics_and_precursor_cohort_and_holdout",
+          "status": "not_started_blocked_until_v2_fact_scope_microstructure_forward_evidence_and_historical_forward_evidence"
         },
         {
           "id": "M2.4B",
@@ -1616,7 +1832,7 @@
       "order": 3,
       "id": "M3",
       "name": "analysis_qualification_strategy_feasibility_risk",
-      "status": "scope_epoch_v1_m3_0_through_m3_3_local_contract_pass_test_only_uncalibrated_scope_epoch_v2_four_lane_research_contract_scaffold_pass_real_cohort_calibration_and_authority_pending_m3_4_r0_governance_pass_r1_not_started_main_stage_incomplete",
+      "status": "scope_epoch_v1_m3_0_through_m3_3_local_contract_pass_test_only_uncalibrated_scope_epoch_v2_four_lane_research_contract_scaffold_pass_real_cohort_calibration_and_authority_pending_m3_4_r0_governance_pass_r1_partial_test_only_draft_compile_compatible_no_directed_exit_main_stage_incomplete",
       "dependsOn": [
         "M2"
       ],
@@ -1720,7 +1936,7 @@
         {
           "id": "M3.4",
           "name": "execution_feasibility",
-          "status": "partial_uncommitted_v1_scope_draft_paused_requires_scope_rebase_review",
+          "status": "partial_test_only_draft_compile_compatible_no_directed_exit_scope_v2_prerequisites_pending",
           "productionAuthorityAllowed": false
         },
         {
@@ -1741,14 +1957,28 @@
       "order": 4,
       "id": "M4",
       "name": "domain_separated_read_model_alerts_workbench",
+      "status": "design_expanded_with_evidence_overlay_and_sensitivity_authority_boundaries_not_started",
       "dependsOn": [
         "M3"
+      ],
+      "workPackages": [
+        {
+          "id": "M4.1",
+          "name": "decision_snapshot_evidence_overlay_timeline_and_layered_workbench",
+          "status": "design_only_not_started_zero_provider_or_decision_logic_in_frontend"
+        },
+        {
+          "id": "M4.2",
+          "name": "alert_sensitivity_and_research_sandbox_authority_boundaries",
+          "status": "design_only_not_started_sensitivity_ai_and_custom_indicators_have_no_authority"
+        }
       ]
     },
     {
       "order": 5,
       "id": "M5",
       "name": "scope_and_domain_stratified_outcome_evaluation_and_research_governance",
+      "status": "not_started_requires_market_mechanics_microstructure_sector_feature_ablation_and_three_denominators",
       "dependsOn": [
         "M2",
         "M3"
@@ -1816,19 +2046,21 @@
     "legacyDeletionAllowed": false
   },
   "lastCompletedImplementationEntry": {
-    "id": "V2-M3.1A-D-FOUR-LANE-MULTI-ASSET-DECISION-RESEARCH-CONTRACT",
-    "name": "four_lane_analysis_independent_qualification_and_strategy_research_contract_scaffold",
-    "status": "local_research_contract_scaffold_pass_directed_28_of_28_full_ci_pass_production_unchanged",
+    "id": "V2-M2.1A-BIDIRECTIONAL-PRECURSOR-ATLAS-AND-MARKET-MECHANICS",
+    "name": "bidirectional_precursor_atlas_market_mechanics_and_sector_propagation_research_contract",
+    "status": "local_research_contract_pass_directed_13_of_13_full_ci_pass_real_cohort_missing_no_candidate_emission_production_unchanged",
     "scopeEpoch": "SCOPE_EPOCH_V2_MULTI_ASSET_4V",
+    "companionCompletedEntry": "V2-M1.4C-MICROSTRUCTURE-FACT-FEATURE-AND-CACHE-CONTRACT",
     "productionMutationPerformed": false,
     "migrationPerformed": false,
     "legacyDeletionPerformed": false
   },
   "lastCompletedDesignEntry": {
-    "id": "V2-M0.4-EXPANDED-MARKET-SCOPE-AMENDMENT",
-    "name": "bitget_listing_lifecycle_useful_data_maximization_and_equity_contract_scope_epoch",
-    "status": "design_scope_amendment_pass_m1_1a_source_registry_implemented_m1_4b_no_authority_runtime_pass_shadow_capacity_calibration_unproven",
+    "id": "V2-M0.5-MARKET-MECHANICS-MICROSTRUCTURE-AND-PRECURSOR-ATLAS",
+    "name": "market_mechanics_cube_microstructure_evidence_bidirectional_precursor_sector_propagation_source_cache_and_workbench_design_amendment",
+    "status": "design_amendment_pass_m1_4c_and_m2_1a_local_contract_exits_pass_real_cohort_missing_no_candidate_signal_ready_or_production_authority",
     "scopeEpoch": "SCOPE_EPOCH_V2_MULTI_ASSET_4V",
+    "designContract": "docs/architecture/v2/M0_5_MARKET_MECHANICS_MICROSTRUCTURE_AND_PRECURSOR_ATLAS_AMENDMENT_V1.md",
     "productionMutationPerformed": false
   },
   "lastCompletedGovernanceEntry": {
@@ -1858,9 +2090,17 @@
     "readyAuthorityAllowed": false
   },
   "currentLocalImplementationEntry": {
-    "id": "V2-M3.1A-D-FOUR-LANE-MULTI-ASSET-DECISION-RESEARCH-CONTRACT",
-    "name": "four_lane_analysis_independent_qualification_and_strategy_research_contract_scaffold",
-    "status": "local_research_contract_scaffold_pass_directed_28_of_28_full_ci_pass_no_real_calibration_or_authority",
+    "id": "V2-M1.5C-AND-M1.5D-EXACT-RELEASE-SHADOW-PACKAGE",
+    "name": "four_venue_multi_asset_and_adaptive_microstructure_forward_shadow_exact_release_package",
+    "status": "local_contract_prerequisites_pass_exact_release_package_and_forward_execution_not_started_independent_acceptance_required",
+    "scopeEpoch": "SCOPE_EPOCH_V2_MULTI_ASSET_4V",
+    "productionMutationAllowed": false
+  },
+  "nextParallelLocalDesignEntry": {
+    "id": "V2-M1.5D-ADAPTIVE-MICROSTRUCTURE-FORWARD-SHADOW",
+    "name": "adaptive_microstructure_forward_capture_and_quality_shadow",
+    "status": "m1_4c_local_exit_pass_pending_exact_scope_v2_release_and_forward_execution_no_authority",
+    "companionEvidenceEntry": "V2-M1.5C-FOUR-VENUE-MULTI-ASSET-SHADOW",
     "scopeEpoch": "SCOPE_EPOCH_V2_MULTI_ASSET_4V",
     "productionMutationAllowed": false
   },
@@ -1936,10 +2176,10 @@
   },
   "pausedLocalImplementationEntry": {
     "id": "V2-M3.4-EXECUTION-FEASIBILITY-CONTRACT",
-    "name": "partial_uncommitted_v1_scope_draft",
-    "status": "scope_rebase_review_complete_quarantined_not_commit_eligible_scope_v2_prerequisites_pending",
+    "name": "partial_test_only_v1_scope_draft",
+    "status": "scope_rebase_review_complete_compile_compatible_no_directed_exit_not_commit_eligible_scope_v2_prerequisites_pending",
     "scopeEpoch": "SCOPE_EPOCH_V1_CRYPTO_3V",
-    "typecheckPassed": false,
+    "typecheckPassed": true,
     "directedTestCount": 0,
     "replacementImplementationEntry": "V2-M3.4-R1-DOMAIN-SEPARATED-EXECUTION-FEASIBILITY",
     "productionMutationAllowed": false
