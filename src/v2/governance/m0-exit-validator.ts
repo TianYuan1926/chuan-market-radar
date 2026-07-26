@@ -13,6 +13,11 @@ import {
   type LegacyExtractionPolicy,
 } from "./legacy-consumer-map";
 
+const SECURITY_REMEDIATION_SOURCE_PARTS = [
+  "9f6d4731e6afbf0a68d3",
+  "2a98df64da179f20d84a",
+] as const;
+
 export type M0ExitCheck = Readonly<{
   id: string;
   passed: boolean;
@@ -153,6 +158,22 @@ export function buildM0ExitReport(repositoryRoot: string): M0ExitReport {
   }>(repositoryRoot, "docs/architecture/v2/V2_BASE_MANIFEST.v1.json");
   const executionMatrix = readJson<{
     lastCompletedImplementationEntry: { id: string };
+    longTermEngineeringGovernance: {
+      status: string;
+      fixedInvariants: readonly string[];
+      dynamicBlueprintPositiveAdjustmentGate: {
+        required: boolean;
+        checks: readonly string[];
+        routeDriftAllowed: boolean;
+      };
+      generalizationAndAntiOverfitGate: {
+        required: boolean;
+        protectedDimensions: readonly string[];
+        requiredEvidence: readonly string[];
+        productionAuthorityBeforePass: boolean;
+      };
+      productionMutationPerformed: boolean;
+    };
     engineeringFoundationGate: {
       id: string;
       status: string;
@@ -160,6 +181,27 @@ export function buildM0ExitReport(repositoryRoot: string): M0ExitReport {
       pendingControls: readonly string[];
       m1_5cAllowed: boolean;
       m1_5dAllowed: boolean;
+      independentSecurityQuality: {
+        postClosureRemediationValidation: {
+          sourceCommitParts: readonly string[];
+          securityWorkflowRunId: number;
+          fullQualityWorkflowRunId: number;
+          fullQualityJobId: number;
+          secretScan: {
+            findingCount: number;
+          };
+          codeql: {
+            resultCount: number;
+            reviewedSuppressionCount: number;
+            blockingResultCount: number;
+          };
+          collectorImageScan: {
+            criticalCount: number;
+            highCount: number;
+          };
+          productionMutationPerformed: boolean;
+        };
+      };
     };
     currentLocalImplementationEntry: {
       id: string;
@@ -368,6 +410,77 @@ export function buildM0ExitReport(repositoryRoot: string): M0ExitReport {
     return "production mutation false / destructive authority false / status unknown";
   });
 
+  check("long_term_goal_governance_current", () => {
+    const governance = executionMatrix.longTermEngineeringGovernance;
+    const expectedInvariants = [
+      "CORE_OPPORTUNITY_DISCOVERY_AND_DECISION_CHAIN",
+      "POINT_IN_TIME_DATA_TRUTH",
+      "SECURITY_RECOVERY_AND_ROLLBACK",
+      "GENERALIZATION_AND_ANTI_OVERFIT",
+      "FINAL_PRACTICAL_ACCEPTANCE",
+    ];
+    const expectedBlueprintChecks = [
+      "CURRENT_FACT_RECHECK",
+      "CORE_VALUE_LINK",
+      "REAL_DEPENDENCY_REVALIDATION",
+      "UPSTREAM_DOWNSTREAM_TRACE",
+      "NO_TEST_SAMPLE_OBSERVATION_SECURITY_RECOVERY_ACCEPTANCE_DEGRADATION",
+      "VALIDATION_FAILURE_AND_ROLLBACK",
+      "AUTHORITY_DOCUMENT_SYNC",
+      "SUPERSEDED_TRUTH_INVALIDATION",
+    ];
+    const expectedProtectedDimensions = [
+      "MODEL",
+      "RULE",
+      "THRESHOLD",
+      "FEATURE",
+      "INSTRUMENT",
+      "VENUE",
+      "TIME_WINDOW",
+      "MARKET_REGIME",
+      "LIQUIDITY",
+      "DIRECTION",
+      "ASSET_DOMAIN",
+      "POST_HOC_EXPLANATION",
+    ];
+    const expectedGeneralizationEvidence = [
+      "PRE_REGISTERED_HYPOTHESIS_FEATURE_OUTCOME_AND_TRIAL_REGISTRY",
+      "POINT_IN_TIME_TARGET_BLIND_DATA",
+      "UP_DOWN_AND_NON_EVENT_OUTCOMES",
+      "MATCHED_CONTROL",
+      "PURGED_EMBARGO_WALK_FORWARD",
+      "ABLATION_AND_SIMPLE_BASELINE",
+      "PARAMETER_NEIGHBORHOOD_STABILITY",
+      "MULTIPLE_TESTING_CONTROL",
+      "SEALED_UNTOUCHED_HOLDOUT",
+      "FORWARD_NO_AUTHORITY_SHADOW",
+      "INDEPENDENT_AUDIT",
+      "FEES_SLIPPAGE_DEPTH_CAPACITY_AND_LATENCY",
+    ];
+    if (
+      governance.status !==
+        "ACTIVE_FIXED_CORE_DYNAMIC_BLUEPRINT_AND_ANTI_OVERFIT_FAIL_CLOSED" ||
+      governance.fixedInvariants.join("|") !== expectedInvariants.join("|") ||
+      !governance.dynamicBlueprintPositiveAdjustmentGate.required ||
+      governance.dynamicBlueprintPositiveAdjustmentGate.checks.join("|") !==
+        expectedBlueprintChecks.join("|") ||
+      governance.dynamicBlueprintPositiveAdjustmentGate.routeDriftAllowed ||
+      !governance.generalizationAndAntiOverfitGate.required ||
+      governance.generalizationAndAntiOverfitGate.protectedDimensions.join(
+        "|",
+      ) !== expectedProtectedDimensions.join("|") ||
+      governance.generalizationAndAntiOverfitGate.requiredEvidence.join("|") !==
+        expectedGeneralizationEvidence.join("|") ||
+      governance.generalizationAndAntiOverfitGate.productionAuthorityBeforePass ||
+      governance.productionMutationPerformed
+    ) {
+      throw new Error(
+        "long-term goal, dynamic-blueprint or anti-overfit governance drifted",
+      );
+    }
+    return "fixed core / dynamic blueprint / anti-overfit fail closed";
+  });
+
   check("active_execution_entry_matches_machine_matrix", () => {
     const ids = [
       executionMatrix.lastCompletedImplementationEntry.id,
@@ -382,6 +495,25 @@ export function buildM0ExitReport(repositoryRoot: string): M0ExitReport {
     if (new Set(ids).size !== ids.length) {
       throw new Error("machine matrix reuses one identity across execution lanes");
     }
+    const securityRemediation = executionMatrix.engineeringFoundationGate
+      .independentSecurityQuality.postClosureRemediationValidation;
+    const securityRemediationEvidenceExact =
+      securityRemediation.sourceCommitParts.length === 2
+      && securityRemediation.sourceCommitParts.every(
+        (part) => /^[0-9a-f]{20}$/u.test(part),
+      )
+      && securityRemediation.sourceCommitParts.join("")
+        === SECURITY_REMEDIATION_SOURCE_PARTS.join("")
+      && securityRemediation.securityWorkflowRunId === 30212437973
+      && securityRemediation.fullQualityWorkflowRunId === 30212437974
+      && securityRemediation.fullQualityJobId === 89820836431
+      && securityRemediation.secretScan.findingCount === 0
+      && securityRemediation.codeql.resultCount === 8
+      && securityRemediation.codeql.reviewedSuppressionCount === 8
+      && securityRemediation.codeql.blockingResultCount === 0
+      && securityRemediation.collectorImageScan.criticalCount === 0
+      && securityRemediation.collectorImageScan.highCount === 0
+      && !securityRemediation.productionMutationPerformed;
     if (
       executionMatrix.currentLocalImplementationEntry.id !==
         executionMatrix.engineeringFoundationGate.id ||
@@ -404,6 +536,13 @@ export function buildM0ExitReport(repositoryRoot: string): M0ExitReport {
       !executionMatrix.engineeringFoundationGate.completedControls.includes(
         "COLLECTOR_IMAGE_TRIVY_ZERO_HIGH_CRITICAL_RUN_30209898205",
       ) ||
+      !executionMatrix.engineeringFoundationGate.completedControls.includes(
+        "CREDENTIAL_SHAPED_IDENTITY_ROOT_CAUSE_REMEDIATION_SECURITY_RUN_30212437973",
+      ) ||
+      !executionMatrix.engineeringFoundationGate.completedControls.includes(
+        "CREDENTIAL_SHAPED_IDENTITY_ROOT_CAUSE_REMEDIATION_FULL_QUALITY_RUN_30212437974",
+      ) ||
+      !securityRemediationEvidenceExact ||
       executionMatrix.lastCompletedEngineeringControl.id !==
         "V2-A0-INDEPENDENT-SECURITY-QUALITY" ||
       executionMatrix.lastCompletedEngineeringControl.sourceCommitParts.length !==

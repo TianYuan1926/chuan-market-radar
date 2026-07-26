@@ -1,9 +1,66 @@
 {
-  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.53",
+  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.54",
   "status": "m0_4_expanded_scope_design_pass_m0_5_market_mechanics_microstructure_precursor_atlas_local_contract_pass_a0_engineering_materials_supply_chain_and_independent_security_remote_pass_total_gate_incomplete_m1_1a_registry_local_pass_m1_1b_multi_asset_identity_listing_and_exact_probe_local_implementation_pass_test_only_conformance_pass_m1_1b0_attempt_1_blocked_r1_live_zero_of_15_common_runtime_transport_blocked_r2_live_14_of_15_listing_gate_blocked_r3_live_15_of_15_all_gates_pass_m1_4a_adaptive_multi_asset_collector_local_contract_and_full_ci_pass_no_runtime_authority_m1_4b_tencent_bootstrap_and_checkpoint_bound_resume_pass_no_runtime_authority_15_live_profiles_14_route_eligible_m1_4c_microstructure_fact_feature_cache_local_contract_pass_22_of_22_no_runtime_authority_m1_5c_m1_5d_blocked_by_a0_m2_1a_bidirectional_precursor_atlas_local_research_contract_pass_13_of_13_real_cohort_missing_no_candidate_emission_scope_epoch_v1_evidence_preserved_m1_5_b1_pass_v1_only_m1_6_p0_blocked_p0r_clean_pre_sts_baseline_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_v1_only_m3_0_through_m3_3_local_contract_pass_v1_only_test_only_uncalibrated_no_ready_authority_m3_1a_through_m3_3d_four_lane_local_research_contract_scaffold_and_full_ci_pass_no_real_calibration_or_authority_m3_4_r0_scope_rebase_governance_pass_r1_partial_test_only_draft_no_directed_exit_fixed_dispatch_first_signed_acceptance_pass_external_historical_source_blocked_m1_not_complete",
-  "generatedAt": "2026-07-27T00:22:37+08:00",
+  "generatedAt": "2026-07-27T01:32:10+08:00",
   "implementationAuthorized": true,
   "productionMutationAuthorized": false,
+  "longTermEngineeringGovernance": {
+    "status": "ACTIVE_FIXED_CORE_DYNAMIC_BLUEPRINT_AND_ANTI_OVERFIT_FAIL_CLOSED",
+    "fixedInvariants": [
+      "CORE_OPPORTUNITY_DISCOVERY_AND_DECISION_CHAIN",
+      "POINT_IN_TIME_DATA_TRUTH",
+      "SECURITY_RECOVERY_AND_ROLLBACK",
+      "GENERALIZATION_AND_ANTI_OVERFIT",
+      "FINAL_PRACTICAL_ACCEPTANCE"
+    ],
+    "dynamicBlueprintPositiveAdjustmentGate": {
+      "required": true,
+      "checks": [
+        "CURRENT_FACT_RECHECK",
+        "CORE_VALUE_LINK",
+        "REAL_DEPENDENCY_REVALIDATION",
+        "UPSTREAM_DOWNSTREAM_TRACE",
+        "NO_TEST_SAMPLE_OBSERVATION_SECURITY_RECOVERY_ACCEPTANCE_DEGRADATION",
+        "VALIDATION_FAILURE_AND_ROLLBACK",
+        "AUTHORITY_DOCUMENT_SYNC",
+        "SUPERSEDED_TRUTH_INVALIDATION"
+      ],
+      "routeDriftAllowed": false
+    },
+    "generalizationAndAntiOverfitGate": {
+      "required": true,
+      "protectedDimensions": [
+        "MODEL",
+        "RULE",
+        "THRESHOLD",
+        "FEATURE",
+        "INSTRUMENT",
+        "VENUE",
+        "TIME_WINDOW",
+        "MARKET_REGIME",
+        "LIQUIDITY",
+        "DIRECTION",
+        "ASSET_DOMAIN",
+        "POST_HOC_EXPLANATION"
+      ],
+      "requiredEvidence": [
+        "PRE_REGISTERED_HYPOTHESIS_FEATURE_OUTCOME_AND_TRIAL_REGISTRY",
+        "POINT_IN_TIME_TARGET_BLIND_DATA",
+        "UP_DOWN_AND_NON_EVENT_OUTCOMES",
+        "MATCHED_CONTROL",
+        "PURGED_EMBARGO_WALK_FORWARD",
+        "ABLATION_AND_SIMPLE_BASELINE",
+        "PARAMETER_NEIGHBORHOOD_STABILITY",
+        "MULTIPLE_TESTING_CONTROL",
+        "SEALED_UNTOUCHED_HOLDOUT",
+        "FORWARD_NO_AUTHORITY_SHADOW",
+        "INDEPENDENT_AUDIT",
+        "FEES_SLIPPAGE_DEPTH_CAPACITY_AND_LATENCY"
+      ],
+      "productionAuthorityBeforePass": false
+    },
+    "productionMutationPerformed": false
+  },
   "engineeringFoundationGate": {
     "id": "V2-A0-ENGINEERING-FOUNDATION-AND-MATERIAL-QUALIFICATION",
     "status": "ENGINEERING_MATERIALS_SUPPLY_CHAIN_AND_INDEPENDENT_SECURITY_PASS_TOTAL_GATE_INCOMPLETE",
@@ -27,7 +84,9 @@
       "INDEPENDENT_FULL_HISTORY_GITLEAKS_8_30_1_ZERO_FINDINGS_RUN_30209898205",
       "INDEPENDENT_CODEQL_ZERO_UNTRIAGED_RESULTS_RUN_30209898205",
       "COLLECTOR_IMAGE_TRIVY_ZERO_HIGH_CRITICAL_RUN_30209898205",
-      "SECURITY_BOUND_EXACT_RUNTIME_FULL_QUALITY_RUN_30209898207"
+      "SECURITY_BOUND_EXACT_RUNTIME_FULL_QUALITY_RUN_30209898207",
+      "CREDENTIAL_SHAPED_IDENTITY_ROOT_CAUSE_REMEDIATION_SECURITY_RUN_30212437973",
+      "CREDENTIAL_SHAPED_IDENTITY_ROOT_CAUSE_REMEDIATION_FULL_QUALITY_RUN_30212437974"
     ],
     "pendingControls": [
       "REPRODUCIBLE_ARTIFACT_PROVENANCE_AND_ROLLBACK_DRILL",
@@ -126,6 +185,44 @@
         "artifactId": 8634464899,
         "artifactDigest": "sha256:9f26ba47f78e155c7c3c21a334d355ea65f0b3502e98065ec29bb9e995df0e8a",
         "remediation": "EXACT_HISTORICAL_FINGERPRINTS_AND_TWO_VALIDATED_20_HEX_PARTS",
+        "productionMutationPerformed": false
+      },
+      "postClosureRemediationValidation": {
+        "sourceCommitParts": [
+          "9f6d4731e6afbf0a68d3",
+          "2a98df64da179f20d84a"
+        ],
+        "securityWorkflowRunId": 30212437973,
+        "fullQualityWorkflowRunId": 30212437974,
+        "fullQualityJobId": 89820836431,
+        "secretScan": {
+          "jobId": 89820836444,
+          "findingCount": 0,
+          "artifactId": 8634842724,
+          "artifactDigest": "sha256:17d276663be0eda77c8a8596a59861d733e7640a8eeb9ac79b10f3a046457336",
+          "reportDigest": "sha256:37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        "codeql": {
+          "jobId": 89820836452,
+          "resultCount": 8,
+          "reviewedSuppressionCount": 8,
+          "blockingResultCount": 0,
+          "artifactId": 8634864382,
+          "artifactDigest": "sha256:2b6884927bd07dd72e7442208796fafde58f4c8ad881d7c362c7c1c1d63c20eb",
+          "sarifSetDigest": "sha256:725ff4f05b33a62b7671da7f6e6f1ed43277953be79be9c04c077a4d36cb3ec6"
+        },
+        "collectorImageScan": {
+          "jobId": 89820836428,
+          "criticalCount": 0,
+          "highCount": 0,
+          "artifactId": 8634851363,
+          "artifactDigest": "sha256:d35ab494bde9f2654b9427c6ec14dcdb57db028f86624f54e1ac0bfb0cb58f3b",
+          "reportDigest": "sha256:9a150383eb0d926f31c361e3c6bf271bdee868bce37a2470104b91d6a837e19f"
+        },
+        "sbomArtifact": {
+          "artifactId": 8634884084,
+          "artifactDigest": "sha256:bfe7e3b05b8fd1f8f46115d0167364cc0a1451f039cbb463af0e60cf9fabb9fb"
+        },
         "productionMutationPerformed": false
       },
       "productionMutationPerformed": false

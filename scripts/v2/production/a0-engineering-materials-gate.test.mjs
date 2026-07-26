@@ -377,6 +377,24 @@ test("Gitleaks ignores only exact independently reviewed false positives", () =>
       (item) => item.code === "V2_GITLEAKS_FALSE_POSITIVE_REVIEW_INCOMPLETE",
     ),
   );
+
+  const driftedRemediationIssues = validateGitleaksFalsePositivePolicy({
+    ignorePath,
+    ignoreSource,
+    review: {
+      ...review,
+      remediationValidation: {
+        ...review.remediationValidation,
+        findingCount: 1,
+      },
+    },
+    reviewPath,
+  });
+  assert.ok(
+    driftedRemediationIssues.some(
+      (item) => item.code === "V2_GITLEAKS_FALSE_POSITIVE_REVIEW_INCOMPLETE",
+    ),
+  );
 });
 
 test("A0 security source identities remain exact and credential-safe", () => {
@@ -421,5 +439,19 @@ test("A0 security source identities remain exact and credential-safe", () => {
   });
   assert.ok(driftedIssues.some(
     (item) => item.code === "V2_A0_SECURITY_SOURCE_IDENTITY_NOT_SEGMENTED",
+  ));
+
+  const driftedRemediationMatrix = structuredClone(matrix);
+  driftedRemediationMatrix.engineeringFoundationGate.independentSecurityQuality
+    .postClosureRemediationValidation.secretScan.findingCount = 1;
+  const driftedRemediationMatrixIssues =
+    validateSegmentedSecuritySourceIdentity({
+      matrix: driftedRemediationMatrix,
+      matrixPath,
+      reportPath,
+      reportSource,
+    });
+  assert.ok(driftedRemediationMatrixIssues.some(
+    (item) => item.code === "V2_A0_SECURITY_REMEDIATION_EVIDENCE_DRIFT",
   ));
 });

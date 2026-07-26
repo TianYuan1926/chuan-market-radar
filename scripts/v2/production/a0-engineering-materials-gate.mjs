@@ -28,6 +28,10 @@ const A0_SECURITY_SOURCE_COMMIT_PARTS = Object.freeze([
   "4f501b0fb8b917ce87e0",
   "687eab8480b5c9595f27",
 ]);
+const A0_SECURITY_REMEDIATION_COMMIT_PARTS = Object.freeze([
+  "9f6d4731e6afbf0a68d3",
+  "2a98df64da179f20d84a",
+]);
 const APPROVED_FALSE_POSITIVE_CLASSIFICATIONS = new Set([
   "COMMIT_IDENTITY",
   "CONTENT_DIGEST",
@@ -633,6 +637,23 @@ export function validateGitleaksFalsePositivePolicy({
     ))
     && evidenceRunIds.size === evidenceRuns.length
     && evidenceArtifactIds.size === evidenceRuns.length;
+  const remediationValidation = review?.remediationValidation;
+  const remediationValidationIsExact =
+    Array.isArray(remediationValidation?.sourceCommitParts)
+    && remediationValidation.sourceCommitParts.length === 2
+    && remediationValidation.sourceCommitParts.every(
+      (part) => /^[0-9a-f]{20}$/u.test(part),
+    )
+    && remediationValidation.sourceCommitParts.join("")
+      === A0_SECURITY_REMEDIATION_COMMIT_PARTS.join("")
+    && remediationValidation.workflowRunId === "30212437973"
+    && remediationValidation.artifactId === "8634842724"
+    && remediationValidation.artifactDigest
+      === "sha256:17d276663be0eda77c8a8596a59861d733e7640a8eeb9ac79b10f3a046457336"
+    && remediationValidation.findingCount === 0
+    && remediationValidation.reportDigest
+      === "sha256:37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    && remediationValidation.productionMutation === false;
 
   if (
     review?.schemaVersion
@@ -647,6 +668,7 @@ export function validateGitleaksFalsePositivePolicy({
     || review?.reviewMethod?.literalValuesRedactedDuringHumanReview !== true
     || review?.reviewMethod?.rawFindingArtifactUploaded !== false
     || review?.reviewMethod?.rawCredentialValueRecorded !== false
+    || !remediationValidationIsExact
     || review?.productionMutation !== false
   ) {
     issues.push(issue(
@@ -758,6 +780,7 @@ export function validateSegmentedSecuritySourceIdentity({
 }) {
   const issues = [];
   const expectedParts = A0_SECURITY_SOURCE_COMMIT_PARTS;
+  const expectedRemediationParts = A0_SECURITY_REMEDIATION_COMMIT_PARTS;
   const candidateParts = [
     matrix?.engineeringFoundationGate?.independentSecurityQuality
       ?.sourceCommitParts,
@@ -777,6 +800,55 @@ export function validateSegmentedSecuritySourceIdentity({
     ));
   }
 
+  const remediation = matrix?.engineeringFoundationGate
+    ?.independentSecurityQuality?.postClosureRemediationValidation;
+  const remediationIdentityIsExact =
+    Array.isArray(remediation?.sourceCommitParts)
+    && remediation.sourceCommitParts.length === 2
+    && remediation.sourceCommitParts.every(
+      (part) => /^[0-9a-f]{20}$/u.test(part),
+    )
+    && remediation.sourceCommitParts.join("")
+      === expectedRemediationParts.join("")
+    && remediation.securityWorkflowRunId === 30212437973
+    && remediation.fullQualityWorkflowRunId === 30212437974
+    && remediation.fullQualityJobId === 89820836431
+    && remediation.secretScan?.jobId === 89820836444
+    && remediation.secretScan?.findingCount === 0
+    && remediation.secretScan?.artifactId === 8634842724
+    && remediation.secretScan?.artifactDigest
+      === "sha256:17d276663be0eda77c8a8596a59861d733e7640a8eeb9ac79b10f3a046457336"
+    && remediation.secretScan?.reportDigest
+      === "sha256:37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    && remediation.codeql?.jobId === 89820836452
+    && remediation.codeql?.resultCount === 8
+    && remediation.codeql?.reviewedSuppressionCount === 8
+    && remediation.codeql?.blockingResultCount === 0
+    && remediation.codeql?.artifactId === 8634864382
+    && remediation.codeql?.artifactDigest
+      === "sha256:2b6884927bd07dd72e7442208796fafde58f4c8ad881d7c362c7c1c1d63c20eb"
+    && remediation.codeql?.sarifSetDigest
+      === "sha256:725ff4f05b33a62b7671da7f6e6f1ed43277953be79be9c04c077a4d36cb3ec6"
+    && remediation.collectorImageScan?.jobId === 89820836428
+    && remediation.collectorImageScan?.criticalCount === 0
+    && remediation.collectorImageScan?.highCount === 0
+    && remediation.collectorImageScan?.artifactId === 8634851363
+    && remediation.collectorImageScan?.artifactDigest
+      === "sha256:d35ab494bde9f2654b9427c6ec14dcdb57db028f86624f54e1ac0bfb0cb58f3b"
+    && remediation.collectorImageScan?.reportDigest
+      === "sha256:9a150383eb0d926f31c361e3c6bf271bdee868bce37a2470104b91d6a837e19f"
+    && remediation.sbomArtifact?.artifactId === 8634884084
+    && remediation.sbomArtifact?.artifactDigest
+      === "sha256:bfe7e3b05b8fd1f8f46115d0167364cc0a1451f039cbb463af0e60cf9fabb9fb"
+    && remediation.productionMutationPerformed === false;
+  if (!remediationIdentityIsExact) {
+    issues.push(issue(
+      "V2_A0_SECURITY_REMEDIATION_EVIDENCE_DRIFT",
+      matrixPath,
+      "the exact post-closure security remediation receipts must remain bound",
+    ));
+  }
+
   const hasTruthMarker = reportSource.includes(
     `Source commit parts: ${expectedParts[0]} / ${expectedParts[1]}`,
   );
@@ -785,7 +857,15 @@ export function validateSegmentedSecuritySourceIdentity({
   );
   const hasCredentialShapedCommit = /(?:Source commit|sourceCommit)\s*[:=]\s*`?[0-9a-f]{40}(?![0-9a-f])/u
     .test(reportSource);
-  if (!hasTruthMarker || !hasEvidenceMarker || hasCredentialShapedCommit) {
+  const hasRemediationMarker = reportSource.includes(
+    `Remediation source parts: ${expectedRemediationParts[0]} / ${expectedRemediationParts[1]}`,
+  );
+  if (
+    !hasTruthMarker
+    || !hasEvidenceMarker
+    || !hasRemediationMarker
+    || hasCredentialShapedCommit
+  ) {
     issues.push(issue(
       "V2_A0_SECURITY_REPORT_SOURCE_IDENTITY_DRIFT",
       reportPath,

@@ -44,6 +44,16 @@ No scanner threshold was lowered, no result was discarded by broad exclusion, an
 
 Post-closure branch verification run `30211083028` later retained a real red light: Gitleaks reported exactly two `sourcegraph-access-token` matches introduced by this report at historical lines 9 and 54. Sanitized artifact `8634464899` (`sha256:9f26ba47f78e155c7c3c21a334d355ea65f0b3502e98065ec29bb9e995df0e8a`) proved both locations were the reviewed security-source commit identity, not credentials. The two immutable historical fingerprints are entries 14 and 15 in the v4 false-positive review; the current report and machine matrix now use two validated 20-hex parts, and both the materials gate and M0 reject a regression to a contiguous credential-shaped identity.
 
+The remediation was then independently revalidated:
+
+```text
+Remediation source parts: 9f6d4731e6afbf0a68d3 / 2a98df64da179f20d84a
+Security workflow run: 30212437973
+Full Quality workflow run: 30212437974
+Remediation validation status: PASS
+Production mutation: false
+```
+
 ## 4. Remote Acceptance Evidence
 
 | Control | Job | Sanitized artifact | Verified result |
@@ -54,6 +64,17 @@ Post-closure branch verification run `30211083028` later retained a real red lig
 | Exact-runtime full CI | `89814245105` | Workflow run `30209898207` | GitHub Ubuntu 24.04 job completed with conclusion `success` |
 
 The three sanitized security summaries independently bind the concatenated source commit parts `4f501b0fb8b917ce87e0` + `687eab8480b5c9595f27` and state `productionMutation=false`.
+
+### 4.1 Post-Closure Remediation Revalidation
+
+| Control | Job | Sanitized artifact | Verified result |
+| --- | --- | --- | --- |
+| Full-history secret scan | `89820836444` | `8634842724`, `sha256:17d276663be0eda77c8a8596a59861d733e7640a8eeb9ac79b10f3a046457336` | Gitleaks `8.30.1`; full reachable history; finding count `0`; report digest `sha256:37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570` |
+| CodeQL SAST | `89820836452` | `8634864382`, `sha256:2b6884927bd07dd72e7442208796fafde58f4c8ad881d7c362c7c1c1d63c20eb` | result count `8`; exact reviewed suppressions `8`; untriaged/blocking results `0`; SARIF set digest `sha256:725ff4f05b33a62b7671da7f6e6f1ed43277953be79be9c04c077a4d36cb3ec6` |
+| Collector image scan | `89820836428` | `8634851363`, `sha256:d35ab494bde9f2654b9427c6ec14dcdb57db028f86624f54e1ac0bfb0cb58f3b` | Trivy `0.72.0`; CRITICAL `0`; HIGH `0`; report digest `sha256:9a150383eb0d926f31c361e3c6bf271bdee868bce37a2470104b91d6a837e19f` |
+| Exact-runtime full CI | `89820836431` | SBOM `8634884084`, `sha256:bfe7e3b05b8fd1f8f46115d0167364cc0a1451f039cbb463af0e60cf9fabb9fb` | Workflow run `30212437974`; GitHub Ubuntu 24.04 job completed with conclusion `success` |
+
+These receipts prove the credential-shaped identity recurrence is closed on the exact remediation source without a broad allowlist or production mutation. They do not expand the original security control into an A0 total PASS.
 
 ## 5. Local Acceptance Evidence
 

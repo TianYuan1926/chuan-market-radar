@@ -104,7 +104,7 @@ v1.46 登记跨平台归档修复的首次远端复验及第二层 CI 根因。e
 
 v1.47 完成 A0 exact-runtime remote CI 控制项。Full Quality run `30200077285`、job `89788386319` 已在 exact HEAD `dc5e1823d08ac5a2d1630f3989257e735f829695` 的 Ubuntu 24.04 环境通过完整 Git checkout、Node `22.23.1` / npm `10.9.8`、锁文件安装、材料门禁、CycloneDX SBOM、零 high/critical 依赖审计、完整 `ci:production` 与 M0 祖先验证。SBOM artifact `8631398374` digest=`sha256:ba6de688e0b2163ccc7f17c06e39c9ef35406eb98235d744a137d849cb57e241`。结合 Signed Dispatch `30199692352`，`EXACT_NODE_22_23_1_NPM_10_9_8_REMOTE_CI_EVIDENCE` 正式完成；A0 仍缺独立 secret/SAST、容器镜像扫描、完整 provenance/回滚、性能资源基线和 P0R 真实恢复，故总门禁仍未完成、生产仍未改变。
 
-v1.48 完成 A0 独立安全质量控制项。exact source `4f501b0fb8b917ce87e0687eab8480b5c9595f27` 的 Security run `30209898205` 三个 Ubuntu 24.04 job 全部 PASS：Gitleaks `8.30.1` 扫描完整 reachable history，finding=`0`；CodeQL action `4.37.3`、linked bundle `2.26.1`、JavaScript query pack `2.4.1` 执行 `security-extended + AlertSuppression.ql`，8 个 exact-location reviewed suppression 全部对齐、untriaged/blocking=`0`；exact collector image 经 Trivy `0.72.0` 扫描 OS/library，HIGH=`0`、CRITICAL=`0`。同一 HEAD 的 Full Quality run `30209898207`、job `89814245105` PASS。历史 secret 误报只允许 exact fingerprint，未来 commit identity 改为两段 20-hex 表示；CodeQL suppression 必须绑定 rule/file/alert line/review/invariant 且源码紧邻，禁止宽泛排除。三个脱敏 artifact 分别为 `8634143821`、`8634167593`、`8634153873`，生产 mutation 均为 false。后续 Security `30211083028` 又因交付报告两处连续 commit identity 出现精确 Gitleaks false positive；该红灯保留，v4 审查只登记两个历史 fingerprint，报告/矩阵、材料门禁和 M0 均已切换为两段 20-hex 防复发。该控制项完成不等于 A0 总 PASS；剩余仍是完整制品 provenance/rollback、性能资源基线和 P0R 真实恢复。
+v1.48 完成 A0 独立安全质量控制项。exact source `4f501b0fb8b917ce87e0687eab8480b5c9595f27` 的 Security run `30209898205` 三个 Ubuntu 24.04 job 全部 PASS：Gitleaks `8.30.1` 扫描完整 reachable history，finding=`0`；CodeQL action `4.37.3`、linked bundle `2.26.1`、JavaScript query pack `2.4.1` 执行 `security-extended + AlertSuppression.ql`，8 个 exact-location reviewed suppression 全部对齐、untriaged/blocking=`0`；exact collector image 经 Trivy `0.72.0` 扫描 OS/library，HIGH=`0`、CRITICAL=`0`。同一 HEAD 的 Full Quality run `30209898207`、job `89814245105` PASS。历史 secret 误报只允许 exact fingerprint，未来 commit identity 改为两段 20-hex 表示；CodeQL suppression 必须绑定 rule/file/alert line/review/invariant 且源码紧邻，禁止宽泛排除。三个脱敏 artifact 分别为 `8634143821`、`8634167593`、`8634153873`，生产 mutation 均为 false。后续 Security `30211083028` 又因交付报告两处连续 commit identity 出现精确 Gitleaks false positive；该红灯保留，v4 审查只登记两个历史 fingerprint，报告/矩阵、材料门禁和 M0 均已切换为两段 20-hex 防复发。修复 source parts `9f6d4731e6afbf0a68d3 + 2a98df64da179f20d84a` 已由 Security `30212437973` 和 Full Quality `30212437974` 重新验收：Gitleaks finding=`0`、CodeQL `8/8` reviewed 且 blocking=`0`、Trivy HIGH/CRITICAL=`0`，生产 mutation=false。该控制项完成不等于 A0 总 PASS；剩余仍是完整制品 provenance/rollback、性能资源基线和 P0R 真实恢复。
 
 ---
 
@@ -1717,6 +1717,37 @@ M1.6-P0 fresh read-only preflight
 | M7 | 持续验收 | 30 天模拟决策；R4 后 180 天才可评 R5 |
 
 合理并行可以缩短工程等待，但不能压缩 holdout、Shadow、SLO、恢复和模拟决策证据。若真实缺陷使样本失效，必须重新积累，不能复用失败窗口。
+
+### 17.9 动态蓝图正向调整门禁
+
+长期目标、核心链路、数据真实性、安全底线、反过拟合和最终验收标准固定不变；架构职责边界相对稳定；施工顺序、并行方式和实现技术必须依据当前事实受控演进。蓝图不是死命令，也不是允许随意改道的借口。
+
+每个工作包开始前和结束后都必须执行 `DYNAMIC_BLUEPRINT_POSITIVE_ADJUSTMENT_GATE`：
+
+1. 重新核对当前仓库、测试、运行、数据、生产、资源和外部约束，不能从旧文档或记忆直接继承结论。
+2. 证明该包直接加强核心决策链，并核对全部真实上游依赖。
+3. 检查最高价值瓶颈是否变化，比较继续、合并、并行、延后、替换和删除的收益与风险。
+4. 对任何路线调整给出事实依据、上下游影响、验证方法、失败条件和回滚方案；不得降低测试、样本、观察、安全、恢复或验收标准。
+5. 沿 `需求 -> 数据 -> Module -> Interface -> Gate -> Test -> Runtime Evidence -> Acceptance -> Rollback` 做双向追踪，防止局部通过而整体断链。
+6. 同步更新蓝图、机器矩阵、Build Sequence、Context、Changelog 和交付报告；旧结论明确失效，不能继续污染施工。
+
+没有上述证据的临时改道、为了进度跳过依赖、局部优化破坏整体合同、数据层变化而下游沿用旧假设，均为 `REJECTED_NON_POSITIVE_ROUTE_DRIFT`。调整完成后若核心价值、稳定性、安全性、维护性或恢复能力没有可验证提升，应回滚或恢复原路线。
+
+### 17.10 全域反过拟合门禁
+
+反过拟合不限于模型，还覆盖规则、阈值、特征、币种、Venue、时间窗口、市场 regime、流动性层、机会方向、资产域和事后解释。SHIB 或任何少量成功案例只能提出假设，不能证明生产规律。
+
+任何 Detector、评分、概率、Signal Grade 或 Strategy 晋级前必须满足 `GENERALIZATION_AND_ANTI_OVERFIT_GATE`：
+
+1. 事前冻结 hypothesis、feature、Outcome、事件窗口、样本范围、主要指标、试验 registry 和停止规则。
+2. 同时保留上涨、下跌、未爆发与 matched control 分母，并覆盖跨币种、跨 Venue、跨时间、跨 regime、跨 liquidity 和独立 asset domain。
+3. 采用 point-in-time、target-blind、purge/embargo、walk-forward、消融、简单/随机/现有基线比较、阈值邻域扰动和多重检验控制。
+4. train、validation、Shadow 和 untouched holdout 物理与权限隔离；holdout 一旦用于调参、选特征或改阈值，立即失去 untouched 身份。
+5. 报告样本量、置信区间、类别不平衡、误报、漏报、提前率、延迟、费用、滑点、深度、容量和净经济价值，失败与负结果不得删除。
+6. 结果依赖单一币种、单一天、单一 Venue、单一阈值或少量极端收益时，必须判定不稳健；复杂方案不能稳定优于简单基线时保留简单方案。
+7. 未通过样本外验证、sealed untouched holdout、前向 no-authority Shadow 和独立审计时，只能保持 `RESEARCH_HYPOTHESIS / DRAFT / UNCALIBRATED`，不得输出正式概率、等级、Candidate 或 READY。
+
+生产发布后继续监测 feature/distribution/calibration drift、覆盖率和退化；任何再训练或规则改变都必须生成新版本并重新经过完整 Gate，禁止生产系统自我批准。
 
 ---
 

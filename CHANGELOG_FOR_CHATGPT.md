@@ -24,6 +24,8 @@
 - 独立安全工作流已固定 full-history Gitleaks `8.30.1`、CodeQL action `4.37.3` + linked bundle `2.26.1` + JS query pack `2.4.1` + `AlertSuppression.ql`、exact collector image 与 Trivy `0.72.0`。Gitleaks 只接受 exact historical fingerprint；CodeQL suppression 只接受 exact rule/file/alert-line/review/invariant 且源码紧邻。
 - exact source `4f501b0fb8b917ce87e0687eab8480b5c9595f27` 的 Security `30209898205` 三 job 全部 PASS：完整历史 secret finding=0；CodeQL result=8、reviewed=8、blocking=0；镜像 HIGH=0、CRITICAL=0。脱敏 artifact `8634143821`、`8634167593`、`8634153873` 已核验。同源 Full Quality `30209898207`、job `89814245105` PASS。
 - 收口提交后的 Security `30211083028` 如实保留 Gitleaks 红灯：新交付报告两次连续写入审查提交 SHA，被误判为 Sourcegraph token。artifact `8634464899` 已证明精确位置；v4 审查只增加两个历史 fingerprint，当前报告/矩阵改为两段 20-hex，材料门禁和 M0 同时阻止连续 40-hex 回归。
+- 修复 source parts `9f6d4731e6afbf0a68d3 + 2a98df64da179f20d84a` 已由 Security `30212437973` 和 Full Quality `30212437974` 复验：Gitleaks finding=0、CodeQL 8/8 reviewed 且 blocking=0、Trivy HIGH/CRITICAL=0；四个脱敏 artifact 与 SBOM 均已核验，生产 mutation=false。机器门禁现在同时绑定失败事故、精确历史 fingerprint、分段身份和修复后收据。
+- 长期治理补充 `DYNAMIC_BLUEPRINT_POSITIVE_ADJUSTMENT_GATE` 与 `GENERALIZATION_AND_ANTI_OVERFIT_GATE`：施工顺序可按当前事实正向调整，但核心、上下游追踪、测试、安全、恢复与验收不能降级；模型、规则、阈值、币种、Venue、时间和 regime 过拟合均被统一阻断。
 - 路线机器门禁把当前本地 A0、独立生产 P0R、A0 后 Scope V2 Shadow 和外部历史权利 Gate 分开表达；任一入口身份、阻断关系或生产权限漂移都会让 M0 失败。
 
 ### 核心链路影响

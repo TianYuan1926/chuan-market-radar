@@ -15,12 +15,28 @@ test("M0 engineering exit remains closed unless every required proof passes", ()
       "utf8",
     ),
   ) as {
+    longTermEngineeringGovernance: {
+      status: string;
+      dynamicBlueprintPositiveAdjustmentGate: {
+        required: boolean;
+        routeDriftAllowed: boolean;
+      };
+      generalizationAndAntiOverfitGate: {
+        required: boolean;
+        productionAuthorityBeforePass: boolean;
+      };
+    };
     engineeringFoundationGate: {
       status: string;
       completedControls: string[];
       pendingControls: string[];
       m1_5cAllowed: boolean;
       m1_5dAllowed: boolean;
+      independentSecurityQuality: {
+        postClosureRemediationValidation: {
+          sourceCommitParts: string[];
+        };
+      };
     };
     lastCompletedImplementationEntry: { id: string };
     currentLocalImplementationEntry: { id: string; status: string };
@@ -74,6 +90,30 @@ test("M0 engineering exit remains closed unless every required proof passes", ()
     "ENGINEERING_MATERIALS_SUPPLY_CHAIN_AND_INDEPENDENT_SECURITY_PASS_TOTAL_GATE_INCOMPLETE",
   );
   assert.equal(
+    matrix.longTermEngineeringGovernance.status,
+    "ACTIVE_FIXED_CORE_DYNAMIC_BLUEPRINT_AND_ANTI_OVERFIT_FAIL_CLOSED",
+  );
+  assert.equal(
+    matrix.longTermEngineeringGovernance
+      .dynamicBlueprintPositiveAdjustmentGate.required,
+    true,
+  );
+  assert.equal(
+    matrix.longTermEngineeringGovernance
+      .dynamicBlueprintPositiveAdjustmentGate.routeDriftAllowed,
+    false,
+  );
+  assert.equal(
+    matrix.longTermEngineeringGovernance.generalizationAndAntiOverfitGate
+      .required,
+    true,
+  );
+  assert.equal(
+    matrix.longTermEngineeringGovernance.generalizationAndAntiOverfitGate
+      .productionAuthorityBeforePass,
+    false,
+  );
+  assert.equal(
     matrix.currentLocalImplementationEntry.status,
     "engineering_materials_supply_chain_exact_runtime_and_independent_security_remote_pass_total_gate_incomplete",
   );
@@ -96,6 +136,24 @@ test("M0 engineering exit remains closed unless every required proof passes", ()
     matrix.engineeringFoundationGate.completedControls.includes(
       "COLLECTOR_IMAGE_TRIVY_ZERO_HIGH_CRITICAL_RUN_30209898205",
     ),
+  );
+  assert.ok(
+    matrix.engineeringFoundationGate.completedControls.includes(
+      "CREDENTIAL_SHAPED_IDENTITY_ROOT_CAUSE_REMEDIATION_SECURITY_RUN_30212437973",
+    ),
+  );
+  assert.ok(
+    matrix.engineeringFoundationGate.completedControls.includes(
+      "CREDENTIAL_SHAPED_IDENTITY_ROOT_CAUSE_REMEDIATION_FULL_QUALITY_RUN_30212437974",
+    ),
+  );
+  assert.deepEqual(
+    matrix.engineeringFoundationGate.independentSecurityQuality
+      .postClosureRemediationValidation.sourceCommitParts,
+    [
+      "9f6d4731e6afbf0a68d3",
+      "2a98df64da179f20d84a",
+    ],
   );
   assert.deepEqual(matrix.lastCompletedEngineeringControl, {
     id: "V2-A0-INDEPENDENT-SECURITY-QUALITY",
