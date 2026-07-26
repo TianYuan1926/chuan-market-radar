@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   validateFullCiWorkflowPolicy,
   validatePackagePolicy,
+  validateSecurityWorkflowPolicy,
   validateWorkflowPolicy,
 } from "./a0-engineering-materials-gate.mjs";
 
@@ -81,8 +83,8 @@ test("workflow gate requires full action SHA and exact runner versions", () => {
         "  test:",
         "    runs-on: ubuntu-24.04",
         "    steps:",
-        "      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
-        "      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+        "      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
         "        with:",
         "          node-version: 22.23.1",
       ].join("\n"),
@@ -106,6 +108,20 @@ test("workflow gate requires full action SHA and exact runner versions", () => {
   assert.ok(codes.includes("GITHUB_ACTION_NOT_PINNED_TO_FULL_SHA"));
   assert.ok(codes.includes("GITHUB_NODE_RUNTIME_NOT_EXACT"));
   assert.ok(codes.includes("GITHUB_RUNNER_FLOATING_LATEST"));
+
+  const staleV2Codes = validateWorkflowPolicy(
+    ".github/workflows/v2-stale.yml",
+    [
+      "jobs:",
+      "  test:",
+      "    runs-on: ubuntu-24.04",
+      "    steps:",
+      "      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+    ].join("\n"),
+  ).map((item) => item.code);
+  assert.ok(
+    staleV2Codes.includes("V2_GITHUB_ACTION_REVISION_NOT_APPROVED"),
+  );
 });
 
 test("full quality workflow retains the Git ancestry required by M0", () => {
@@ -117,7 +133,7 @@ test("full quality workflow retains the Git ancestry required by M0", () => {
     "  test:",
     "    steps:",
     "      - name: Checkout exact source",
-    "        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+    "        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
     "        with:",
     "          fetch-depth: 0",
     "          persist-credentials: false",
@@ -138,5 +154,31 @@ test("full quality workflow retains the Git ancestry required by M0", () => {
   );
   assert.ok(
     issues.some((item) => item.code === "V2_FULL_CI_GIT_HISTORY_SHALLOW"),
+  );
+});
+
+test("security workflow keeps independent fail-closed no-authority controls", () => {
+  const path = ".github/workflows/v2-security-quality.yml";
+  const source = readFileSync(path, "utf8");
+  assert.deepEqual(validateSecurityWorkflowPolicy(path, source), []);
+
+  const incomplete = validateSecurityWorkflowPolicy(
+    path,
+    source.replace("GITLEAKS_VERSION: \"8.30.1\"", "GITLEAKS_VERSION: latest"),
+  );
+  assert.ok(
+    incomplete.some(
+      (item) => item.code === "V2_SECURITY_TOOL_CONTRACT_INCOMPLETE",
+    ),
+  );
+
+  const privileged = validateSecurityWorkflowPolicy(
+    path,
+    `${source}\nenvironment: production\n`,
+  );
+  assert.ok(
+    privileged.some(
+      (item) => item.code === "V2_SECURITY_WORKFLOW_HAS_PRODUCTION_AUTHORITY",
+    ),
   );
 });

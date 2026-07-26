@@ -1,0 +1,314 @@
+name: V2 Independent Security Quality
+
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v2-security-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secret-history-scan:
+    name: Full-history secret scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact source and full history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact clean source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/v2-a0-security"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain --untracked-files=no)"
+          test "$(git rev-parse --is-shallow-repository)" = "false"
+
+      - name: Setup exact evidence runtime
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.23.1
+          package-manager-cache: false
+
+      - name: Scan complete Git history with exact Gitleaks
+        id: gitleaks
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITLEAKS_ENABLE_COMMENTS: "false"
+          GITLEAKS_ENABLE_SUMMARY: "false"
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
+          GITLEAKS_VERSION: "8.30.1"
+
+      - name: Scan every reachable commit and build redacted evidence
+        id: gitleaks-full-history
+        if: always()
+        shell: bash
+        env:
+          GITLEAKS_INCREMENTAL_OUTCOME: ${{ steps.gitleaks.outcome }}
+        run: |
+          set +e
+          version="$(gitleaks version 2>/dev/null)"
+          version_status="$?"
+          report="$RUNNER_TEMP/v2-a0-security/gitleaks-full-history.json"
+          if [ "$version_status" -eq 0 ] && [ "$version" = "8.30.1" ]; then
+            gitleaks git \
+              --redact \
+              --no-banner \
+              --exit-code=2 \
+              --report-format=json \
+              --report-path="$report" \
+              --log-level=error \
+              --log-opts="--all" \
+              .
+            scan_status="$?"
+          else
+            scan_status=127
+          fi
+          set -e
+          export GITLEAKS_FULL_HISTORY_EXIT_CODE="$scan_status"
+          export GITLEAKS_RESOLVED_VERSION="$version"
+          node - "$report" \
+            "$RUNNER_TEMP/v2-a0-security/gitleaks-full-history-summary.json" <<'NODE'
+          const fs = require("node:fs");
+          const crypto = require("node:crypto");
+          const [reportPath, outputPath] = process.argv.slice(2);
+          const reportPresent = fs.existsSync(reportPath);
+          const reportBytes = reportPresent ? fs.readFileSync(reportPath) : null;
+          const findings = reportBytes === null
+            ? []
+            : JSON.parse(reportBytes);
+          if (!Array.isArray(findings)) {
+            throw new Error("Gitleaks JSON report must be an array");
+          }
+          const summary = {
+            schemaVersion: "v2-a0-secret-scan-evidence.v1",
+            sourceCommit: process.env.GITHUB_SHA,
+            repository: process.env.GITHUB_REPOSITORY,
+            runId: process.env.GITHUB_RUN_ID,
+            runAttempt: process.env.GITHUB_RUN_ATTEMPT,
+            scanner: {
+              name: "gitleaks",
+              requiredVersion: "8.30.1",
+              resolvedVersion: process.env.GITLEAKS_RESOLVED_VERSION,
+              actionCommit: "e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e",
+              incrementalOutcome: process.env.GITLEAKS_INCREMENTAL_OUTCOME,
+              fullHistoryExitCode: Number(
+                process.env.GITLEAKS_FULL_HISTORY_EXIT_CODE,
+              ),
+            },
+            policy: {
+              fullReachableHistory: true,
+              redacted: true,
+              rawFindingArtifactUploaded: false,
+            },
+            findingCount: findings.length,
+            reportDigest: reportBytes === null
+              ? null
+              : `sha256:${crypto
+                .createHash("sha256")
+                .update(reportBytes)
+                .digest("hex")}`,
+            productionMutation: false,
+          };
+          fs.writeFileSync(outputPath, `${JSON.stringify(summary, null, 2)}\n`, {
+            mode: 0o600,
+          });
+          process.stdout.write(
+            `Gitleaks full-history findings=${findings.length}\n`,
+          );
+          NODE
+          test "$version_status" -eq 0
+          test "$version" = "8.30.1"
+          test "$scan_status" -eq 0
+
+      - name: Upload sanitized secret-scan evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: v2-a0-secret-scan-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/v2-a0-security/gitleaks-full-history-summary.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Destroy raw redacted secret report
+        if: always()
+        run: rm -f "$RUNNER_TEMP/v2-a0-security/gitleaks-full-history.json"
+
+      - name: Prove secret scanner has no production authority
+        if: always()
+        run: |
+          echo "production_execution=false"
+          echo "production_mutation=false"
+          echo "production_credentials=false"
+
+  codeql-sast:
+    name: CodeQL security-extended SAST
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Initialize exact linked CodeQL
+        uses: github/codeql-action/init@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
+        with:
+          tools: linked
+          languages: javascript-typescript
+          build-mode: none
+          queries: security-extended
+
+      - name: Analyze and upload CodeQL results
+        uses: github/codeql-action/analyze@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
+        with:
+          category: /language:javascript-typescript
+
+      - name: Prove SAST runner has no production authority
+        if: always()
+        run: |
+          echo "production_execution=false"
+          echo "production_mutation=false"
+          echo "production_credentials=false"
+
+  collector-image-scan:
+    name: Collector image high-critical scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      COLLECTOR_IMAGE: market-radar-v2-m1-collector:a0-${{ github.sha }}
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup exact evidence runtime
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.23.1
+          package-manager-cache: false
+
+      - name: Build and verify exact collector image
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/v2-a0-security"
+          docker build \
+            --pull \
+            --build-arg "V2_M1_COLLECTOR_SOURCE_COMMIT=$GITHUB_SHA" \
+            --file deploy/v2/m1-collector/Dockerfile \
+            --tag "$COLLECTOR_IMAGE" \
+            .
+          docker image inspect "$COLLECTOR_IMAGE" \
+            > "$RUNNER_TEMP/v2-a0-security/collector-image-inspect.json"
+          test "$(docker image inspect \
+            --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' \
+            "$COLLECTOR_IMAGE")" = "$GITHUB_SHA"
+          test "$(docker image inspect --format '{{ .Config.User }}' \
+            "$COLLECTOR_IMAGE")" = "node"
+
+      - name: Scan exact image with exact Trivy
+        id: trivy
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: v0.72.0
+          scan-type: image
+          image-ref: ${{ env.COLLECTOR_IMAGE }}
+          scanners: vuln
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          ignore-unfixed: "false"
+          exit-code: "1"
+          format: json
+          output: ${{ runner.temp }}/v2-a0-security/trivy-image.json
+          hide-progress: "true"
+          timeout: 10m
+
+      - name: Build sanitized image-scan evidence
+        if: always()
+        shell: bash
+        env:
+          TRIVY_OUTCOME: ${{ steps.trivy.outcome }}
+        run: |
+          set -euo pipefail
+          report="$RUNNER_TEMP/v2-a0-security/trivy-image.json"
+          test -s "$report"
+          node - "$report" "$RUNNER_TEMP/v2-a0-security/image-scan-summary.json" <<'NODE'
+          const fs = require("node:fs");
+          const crypto = require("node:crypto");
+          const [reportPath, outputPath] = process.argv.slice(2);
+          const reportBytes = fs.readFileSync(reportPath);
+          const report = JSON.parse(reportBytes);
+          const vulnerabilities = (report.Results ?? [])
+            .flatMap((result) => result.Vulnerabilities ?? []);
+          const counts = { CRITICAL: 0, HIGH: 0 };
+          for (const vulnerability of vulnerabilities) {
+            if (vulnerability.Severity in counts) {
+              counts[vulnerability.Severity] += 1;
+            }
+          }
+          const summary = {
+            schemaVersion: "v2-a0-image-scan-evidence.v1",
+            sourceCommit: process.env.GITHUB_SHA,
+            repository: process.env.GITHUB_REPOSITORY,
+            runId: process.env.GITHUB_RUN_ID,
+            runAttempt: process.env.GITHUB_RUN_ATTEMPT,
+            scanner: {
+              name: "trivy",
+              version: "0.72.0",
+              actionCommit: "ed142fd0673e97e23eac54620cfb913e5ce36c25",
+              outcome: process.env.TRIVY_OUTCOME,
+            },
+            policy: {
+              severities: ["CRITICAL", "HIGH"],
+              ignoreUnfixed: false,
+              packageTypes: ["os", "library"],
+            },
+            counts,
+            reportDigest: `sha256:${crypto
+              .createHash("sha256")
+              .update(reportBytes)
+              .digest("hex")}`,
+            productionMutation: false,
+          };
+          fs.writeFileSync(outputPath, `${JSON.stringify(summary, null, 2)}\n`, {
+            mode: 0o600,
+          });
+          process.stdout.write(
+            `Trivy HIGH=${counts.HIGH} CRITICAL=${counts.CRITICAL}\n`,
+          );
+          NODE
+
+      - name: Upload non-secret image-scan evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: v2-a0-image-scan-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/v2-a0-security/collector-image-inspect.json
+            ${{ runner.temp }}/v2-a0-security/trivy-image.json
+            ${{ runner.temp }}/v2-a0-security/image-scan-summary.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Prove image scanner has no production authority
+        if: always()
+        run: |
+          echo "production_execution=false"
+          echo "production_mutation=false"
+          echo "production_credentials=false"

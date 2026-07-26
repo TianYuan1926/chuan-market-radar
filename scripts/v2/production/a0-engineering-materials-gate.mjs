@@ -13,6 +13,14 @@ const FULL_SHA_PATTERN = /^[0-9a-f]{40}$/u;
 const EXACT_SEMVER_PATTERN =
   /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/u;
 const FORBIDDEN_LICENSE_PATTERN = /\b(?:AGPL|GPL|SSPL|BUSL)-/u;
+const APPROVED_V2_ACTION_REVISIONS = new Map([
+  ["actions/checkout", "3d3c42e5aac5ba805825da76410c181273ba90b1"],
+  ["actions/setup-node", "820762786026740c76f36085b0efc47a31fe5020"],
+  ["actions/upload-artifact", "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"],
+  ["aquasecurity/trivy-action", "ed142fd0673e97e23eac54620cfb913e5ce36c25"],
+  ["github/codeql-action", "e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81"],
+  ["gitleaks/gitleaks-action", "e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e"],
+]);
 
 function issue(code, location, detail) {
   return { code, location, detail };
@@ -159,6 +167,29 @@ export function validateWorkflowPolicy(path, source) {
         reference,
       ));
     }
+    if (path.startsWith(".github/workflows/v2-")) {
+      const actionName = separator === -1
+        ? reference
+        : reference.slice(0, separator);
+      for (
+        const [approvedAction, approvedRevision] of
+          APPROVED_V2_ACTION_REVISIONS
+      ) {
+        if (
+          actionName === approvedAction ||
+          actionName.startsWith(`${approvedAction}/`)
+        ) {
+          if (revision !== approvedRevision) {
+            issues.push(issue(
+              "V2_GITHUB_ACTION_REVISION_NOT_APPROVED",
+              path,
+              `${actionName}@${revision} != ${approvedRevision}`,
+            ));
+          }
+          break;
+        }
+      }
+    }
   }
   for (const match of source.matchAll(/^\s*node-version:\s*([^\s#]+).*$/gmu)) {
     if (match[1] !== REQUIRED_NODE_VERSION) {
@@ -214,6 +245,79 @@ export function validateFullCiWorkflowPolicy(path, source) {
       "V2_FULL_CI_GIT_HISTORY_SHALLOW",
       path,
       "M0 ancestry proof requires checkout fetch-depth 0",
+    ));
+  }
+  return issues;
+}
+
+export function validateSecurityWorkflowPolicy(path, source) {
+  const issues = [];
+  const requiredJobs = [
+    "secret-history-scan",
+    "codeql-sast",
+    "collector-image-scan",
+  ];
+  if (
+    !/^\s*pull_request:\s*$/mu.test(source) ||
+    !/^\s*push:\s*$/mu.test(source) ||
+    requiredJobs.some((name) =>
+      !new RegExp(`^  ${name}:\\s*$`, "mu").test(source)
+    )
+  ) {
+    issues.push(issue(
+      "V2_SECURITY_WORKFLOW_INCOMPLETE",
+      path,
+      "pull_request, push and three independent security jobs are required",
+    ));
+  }
+
+  const requiredContracts = [
+    "fetch-depth: 0",
+    "GITLEAKS_ENABLE_COMMENTS: \"false\"",
+    "GITLEAKS_ENABLE_SUMMARY: \"false\"",
+    "GITLEAKS_ENABLE_UPLOAD_ARTIFACT: \"false\"",
+    "GITLEAKS_VERSION: \"8.30.1\"",
+    "gitleaks git",
+    "--redact",
+    "--log-opts=\"--all\"",
+    "fullReachableHistory: true",
+    "rawFindingArtifactUploaded: false",
+    "tools: linked",
+    "languages: javascript-typescript",
+    "build-mode: none",
+    "queries: security-extended",
+    "security-events: write",
+    "--build-arg \"V2_M1_COLLECTOR_SOURCE_COMMIT=$GITHUB_SHA\"",
+    "--file deploy/v2/m1-collector/Dockerfile",
+    "version: v0.72.0",
+    "scanners: vuln",
+    "vuln-type: os,library",
+    "severity: HIGH,CRITICAL",
+    "ignore-unfixed: \"false\"",
+    "exit-code: \"1\"",
+    "production_execution=false",
+    "production_mutation=false",
+    "production_credentials=false",
+  ];
+  const missingContracts = requiredContracts.filter(
+    (contract) => !source.includes(contract),
+  );
+  if (missingContracts.length > 0) {
+    issues.push(issue(
+      "V2_SECURITY_TOOL_CONTRACT_INCOMPLETE",
+      path,
+      missingContracts.join(", "),
+    ));
+  }
+
+  if (
+    /runs-on:\s*\[?self-hosted|environment:\s*production|secrets\.|contents:\s*write|id-token:\s*write|packages:\s*write|\bdocker push\b|\bssh\b|\bscp\b|cloud\.tencent\.com/iu
+      .test(source)
+  ) {
+    issues.push(issue(
+      "V2_SECURITY_WORKFLOW_HAS_PRODUCTION_AUTHORITY",
+      path,
+      "security quality jobs must remain GitHub-hosted and production-free",
     ));
   }
   return issues;
@@ -293,17 +397,40 @@ export function validateRepository(repositoryRoot) {
     ));
   }
 
+  const securityWorkflowPath = resolve(
+    workflowRoot,
+    "v2-security-quality.yml",
+  );
+  let securityWorkflowSource = "";
+  try {
+    securityWorkflowSource = readFileSync(securityWorkflowPath, "utf8");
+  } catch {
+    issues.push(issue(
+      "V2_SECURITY_WORKFLOW_MISSING",
+      ".github/workflows/v2-security-quality.yml",
+      "independent secret, SAST and image scans are required",
+    ));
+  }
+  if (securityWorkflowSource !== "") {
+    issues.push(...validateSecurityWorkflowPolicy(
+      ".github/workflows/v2-security-quality.yml",
+      securityWorkflowSource,
+    ));
+  }
+
   return {
     schemaVersion: "v2-a0-engineering-materials-gate.v1",
     status: issues.length === 0 ? "PASS" : "BLOCKED",
     checkedPolicy: {
       directDependenciesExact: true,
       githubActionsFullSha: true,
+      independentSecurityWorkflow: true,
       githubRuntimeExact: true,
       licenseMetadataAndDenylist: true,
       nextMinimumSecurityPatch: MINIMUM_SAFE_NEXT_VERSION,
       nodeVersion: REQUIRED_NODE_VERSION,
       npmVersion: REQUIRED_NPM_VERSION,
+      v2ActionsApprovedNode24Revisions: true,
       v2BaseImagesDigestPinned: true,
     },
     issues,
