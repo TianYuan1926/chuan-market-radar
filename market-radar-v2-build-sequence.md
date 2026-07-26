@@ -50,6 +50,7 @@ M3.4-R1 Domain-Separated Execution Feasibility
 - [x] **M0.1-M0.3 宪法、合同与隔离骨架**：冻结产品术语、18 个 Module、五维状态、四类不确定性、爆发行情标签、Legacy Capability Atlas、`src/v2` import fence、30 个权威产物 runtime schema 和第一条 M1 fixture。验证：V2 38/38、M0 十项机器出口与完整 `ci:production` PASS；Legacy 与 V2 零运行时互引，Legacy 539 个源文件已建立消费者地图，旧代码零删除，生产零变更。
 - [x] **M0.4 扩展市场范围与 Scope Epoch**：Bitget、上新/预上新生命周期、无支持合约的新币 watch、受控数据最大化、单一股票永续和股票指数/ETF 永续已进入权威设计；冻结 `SCOPE_EPOCH_V1_CRYPTO_3V` 与 `SCOPE_EPOCH_V2_MULTI_ASSET_4V`，禁止旧证据跨范围冒充。M1.1A 来源登记与 M1.1B Scope V2 Adapter/身份/生命周期本地合同已经落地并通过完整 CI；live、Shadow、容量和校准仍未证明。状态：`DESIGN_SCOPE_AMENDMENT_PASS / M1.1A_LOCAL_CONTRACT_PASS / M1.1B_LOCAL_IMPLEMENTATION_AND_FULL_CI_PASS_TEST_ONLY / PRODUCTION_UNCHANGED`。
 - [x] **M0.5 Market Mechanics、Microstructure 与双向前兆图谱设计修订**：近期关于上涨/下跌爆发前异常、安静吸筹/派发、主动成交与价格响应、订单墙生命周期、流动性真空、板块传播、外部数据、缓存和专业图表的成果已进入唯一蓝图和机器矩阵。状态：`DESIGN_AMENDMENT_PASS / M1.4C_AND_M2.1A_LOCAL_CONTRACT_EXITS_PASS / REAL_COHORT_NOT_AVAILABLE / NO_CANDIDATE_SIGNAL_OR_READY_AUTHORITY / PRODUCTION_UNCHANGED`；设计和本地合同完成不减少 M1.5D、真实研究或 M4 实现步骤。
+- [ ] **A0 Engineering Foundation 总门禁**：第一批材料资格已完成精确 Node/npm/直接依赖声明、Next/PostCSS/Sharp 安全补丁、零高危依赖审计、许可证、CycloneDX SBOM、固定 GitHub Action/runner/Node/V2 base-image、ESLint + Biome、Next build、Sharp/PostCSS 原生烟测和 exact Node 22.23.1/npm 10.9.8 本地完整 CI；该 CI 发现并根治 timeout `unref` 导致 Promise 可悬空的问题。状态：`ENGINEERING_MATERIALS_AND_SUPPLY_CHAIN_LOCAL_PASS / TOTAL_GATE_INCOMPLETE / PRODUCTION_UNCHANGED`。剩余必须补齐 GitHub 远端 exact-runtime、独立 secret/SAST/容器镜像扫描、可复现制品 provenance、性能/资源基线、回滚演练和 P0R 真实恢复；总门禁通过前禁止启动 M1.5C/M1.5D。
 - [ ] **M1 数据真值纵向切片**：按 `Universe -> Fact + Quality -> Point-in-Time Feature -> Market Context -> Runtime Truth` 建设。V1 三 Venue加密纵切保留；V2 必须完成四 Venue、逐资产域、逐上市状态的新纵切。验证：100% instrument accounting、无假 0、实时/回放同源、lineage 可追溯、故障诚实降级。
 - [x] **M1.1 三 Venue Identity + Fact 本地纵切（V1）**：实现固定 HTTPS/GET Transport、Binance/OKX/Bybit catalog/price Adapter、完整 instrument accounting、不可变 Fact/Quality、分页/冲突/缺失/429/transport/duplicate/out-of-order/gap/stale/recovery 门禁。原 `LAST_PRICE` 已在 B1-B2 被 `MARK_PRICE / MARK_PRICE_SNAPSHOT` 替代。状态：`LOCAL_PASS_FROZEN_PROVIDER_CONTRACT / SCOPE_EPOCH_V1_ONLY / PRODUCTION_UNCHANGED`。
 - [x] **M1.1A Four-Venue Capability Registry**：Binance、OKX、Bybit、Bitget 与 CoinGlass Hobbyist 已按 33 类能力形成 165 行穷举登记；每行显式记录 endpoint/channel、事实语义、鉴权/套餐、限速、分页、历史、时钟、权利、实现/运行状态、失败语义和 no-stale fallback。官方资料已纠正 Binance 股票永续旧结论；四 Venue 均有官方股票产品证明。M1.1B0 已为 exact probe plan 取得腾讯 live conformance，M1.4B 已完成 14 条 route-eligible Profile 的 bootstrap 与 checkpoint-bound resume；但 Scope V2 四 Venue Shadow、容量、股票分域事实和校准仍未证明。状态：`LOCAL_CONTRACT_PASS / OFFICIAL_DOCUMENTS_REVIEWED / R3_LIVE_CONFORMANCE_PASS_WITHOUT_RUNTIME_AUTHORITY / M1.4B_NO_AUTHORITY_RUNTIME_PASS / PRODUCTION_APPLICATION_UNCHANGED`。
@@ -70,7 +71,7 @@ M3.4-R1 Domain-Separated Execution Feasibility
 - [x] **M1.5-B1-B2 Mark Price Snapshot 语义整改**：三 Venue 从混合 `LAST_PRICE` 切换为统一 `MARK_PRICE / MARK_PRICE_SNAPSHOT`；新增 `usablePriceCount` 和 price-usability SLO，保留 duplicate/stale/out-of-order fail-closed，升级全部运行/证据 schema，并让 Runner/validator 共用唯一 environment 合同。状态：`LOCAL_ENGINEERING_EXIT_PASS / PRODUCTION_UNCHANGED`。
 - [x] **M1.5-B1-B3 固定门槛复验**：exact source/image/config 从第 1 周期运行 31 周期；minimum collected/usable/fresh 均为 1,444/1,444，观察 1,805,547 ms，p95 cycle 5,997 ms，max schedule lag 45 ms。Domain/Runner/31 行 observation/32 行 process output 均内容寻址，永久副本复算一致；生产服务、数据和 authority 零变更。
 - [ ] **M1.5C Four-Venue Multi-Asset Shadow**：原 B1-B3 只属于 V1。V2 必须用同一 exact release/config/scopeEpoch 对四 Venue、加密/股票/指数和 listing state 重新做分层 Shadow；中断不可拼接，失败窗口不计数。
-- [ ] **M1.5D Adaptive Microstructure Forward Capture + Quality Shadow**：M1.4C 本地出口已通过；下一步可与 M1.5C 绑定同一 exact release 运行，但独立记录 trades/book coverage、event latency、gap、matched-control parity、Redis/PostgreSQL/COS 成本和宿主恢复。M2 runtime 未开放前只允许冻结 research trigger、确定性轮转样本和 matched control，不能冒充 Candidate。状态：`LOCAL_CONTRACT_PREREQUISITE_PASS / EXACT_RELEASE_FORWARD_EXECUTION_NOT_STARTED / NO_CANDIDATE_AUTHORITY`。
+- [ ] **M1.5D Adaptive Microstructure Forward Capture + Quality Shadow**：M1.4C 本地出口已通过；A0 总门禁关闭后才可与 M1.5C 绑定同一 exact release 运行，并独立记录 trades/book coverage、event latency、gap、matched-control parity、Redis/PostgreSQL/COS 成本和宿主恢复。M2 runtime 未开放前只允许冻结 research trigger、确定性轮转样本和 matched control，不能冒充 Candidate。状态：`LOCAL_CONTRACT_PREREQUISITE_PASS / A0_AND_EXACT_RELEASE_PENDING / NO_CANDIDATE_AUTHORITY`。
 - [ ] **M1.6-D1 Expanded-Scope No-Cost Capacity Proof**：在 M1.5C 取得真实四 Venue 多资产事实率、M1.5D 取得 Microstructure 增量事实率后，重新执行无付费容量、WAL、分区、保留、压缩和恢复证明；稳态 60%/峰值 70% 不降低。旧 D0 的 1,805 Facts/分钟模型不得证明 V2 扩展范围；容量不足时先降低 T2/T3 深度和 raw 保留，不缩小 T0/T1 accounting 分母。
 - [x] **M1.6 Partitioned Fact Storage + Retention Governance 本地出口**：v1 历史迁移保持 checksum 不变，新增 additive v2 六小时 UTC 分区、无 DEFAULT fail-closed 路由、小时级 cutoff、有界活动身份、restore-verified DROP 与不可变事件。定向 7/7、ops 103/103、隔离 PG16 1/1；真实 `pg_dump -> pg_restore` 后 replay parity PASS/deterministic true，8 个连续分区覆盖 48 小时，旧日分区非空时拒绝升级，保留中/活跃 replay 阻断清理，到期后原子删除 1 分区/2 Fact 且拒绝重灌。状态：`SIX_HOUR_LOCAL_ENGINEERING_AND_POSTGRES16_PASS / PRODUCTION_MIGRATION_NOT_RUN`。
 - [ ] **M1.6-P Production Storage 分阶段启用**：B1-B 已通过，当前开始分阶段启用；每步独立 checksum、备份/恢复、回滚和生产验证，不与业务逻辑整改混发。
@@ -129,6 +130,7 @@ M0.4 scope epoch
 -> M1.1B0 Tencent isolated live source conformance
 -> M1.4B live-passed endpoint batching and runtime adapters [PASS_NO_AUTHORITY]
 -> M1.4C microstructure fact/feature/cache local contract [LOCAL PASS]
+-> A0 Engineering Foundation total Gate [PARTIAL]
 -> M1.5C four-venue multi-asset shadow
 + M1.5D adaptive microstructure forward shadow [same exact release, independent acceptance]
 -> M1.6-D1 expanded capacity proof
@@ -156,6 +158,7 @@ M1.5-B1 PASS
 -> M1.6-P4 bounded isolated-write shadow
 -> M1.7 same-release 24h SLO/capacity/recovery
 -> V1 M1 engineering exit
+-> A0 Engineering Foundation total Gate
 -> M1.5C four-venue multi-asset shadow
  + M1.5D adaptive microstructure forward shadow
 -> M1.6-D1 expanded-scope capacity/recovery
@@ -174,7 +177,7 @@ M1.1B0 Tencent live conformance package and M1.4A capability-independent schedul
 + M2 historical acquisition tooling without bulk execution
 + M3 scope rebase and strict contracts on frozen fixtures
 + M4 DecisionSnapshot/EvidenceOverlay/workbench contracts without production data
-+ Runtime/Security/Release Control tests
++ A0 Runtime/Security/Supply-Chain/Release-Control closure
 ```
 
 并行线只能生成合同、测试、fixture 和无 authority 工具，不得读取 M1 production authority、发 Candidate、生成 READY/交易计划或提前接页面。长观察期间可继续本地工程，但观察 release/config/scopeEpoch 必须冻结。
@@ -187,10 +190,10 @@ Last completed scope design package: V2-M0.4-EXPANDED-MARKET-SCOPE-AMENDMENT
 Last completed blueprint amendment: V2-M0.5-MARKET-MECHANICS-MICROSTRUCTURE-AND-PRECURSOR-ATLAS = DESIGN_AMENDMENT_PASS_M1.4C_AND_M2.1A_LOCAL_EXITS_PASS
 Last completed Scope V2 evidence package: V2-M1.4B-TENCENT-ISOLATED-NO-AUTHORITY-RUNTIME-AND-LISTING-CHECKPOINT = BOOTSTRAP_AND_CHECKPOINT_BOUND_RESUME_PASS
 Last Scope V2 production attempt: m1-4b-runtime-live-20260723t233213z = PASS_TENCENT_RUNTIME_ADAPTER_BOUNDED_SEGMENT / PRODUCTION_APPLICATION_UNCHANGED
-Next Scope V2 evidence package: V2-M1.5C-FOUR-VENUE-MULTI-ASSET-SHADOW
-Current conditional local package: V2-M1.5C-FOUR-VENUE-MULTI-ASSET-SHADOW = PENDING_EXACT_RELEASE_SCOPE_EPOCH_V2_SHADOW_PACKAGE
+Next Scope V2 evidence package after A0: V2-M1.5C-FOUR-VENUE-MULTI-ASSET-SHADOW + V2-M1.5D-ADAPTIVE-MICROSTRUCTURE-FORWARD-SHADOW
+Current engineering package: V2-A0-ENGINEERING-FOUNDATION-AND-MATERIAL-QUALIFICATION = LOCAL_MATERIALS_PASS_TOTAL_GATE_INCOMPLETE
 Last completed parallel local package: V2-M1.4C-MICROSTRUCTURE-FACT-FEATURE-AND-CACHE-CONTRACT = LOCAL_CONTRACT_PASS_22_OF_22_FULL_CI_PASS_NO_AUTHORITY
-Next forward evidence companion: V2-M1.5D-ADAPTIVE-MICROSTRUCTURE-FORWARD-SHADOW = M1.4C_LOCAL_EXIT_PASS_PENDING_EXACT_SCOPE_V2_RELEASE
+Next forward evidence companion after A0: V2-M1.5D-ADAPTIVE-MICROSTRUCTURE-FORWARD-SHADOW = M1.4C_LOCAL_EXIT_PASS_PENDING_A0_AND_EXACT_SCOPE_V2_RELEASE
 Last completed research-only package: V2-M2.1A-BIDIRECTIONAL-PRECURSOR-ATLAS-AND-MARKET-MECHANICS = LOCAL_RESEARCH_CONTRACT_PASS_13_OF_13_FULL_CI_PASS_NO_CANDIDATE_EMISSION
 Next conditional local package: V2-M1.6-D1-EXPANDED-SCOPE-NO-COST-CAPACITY, only after M1.5C base fact rate and M1.5D microstructure incremental fact rate
 Last completed governance package: V2-M3.4-R0-EXECUTION-FEASIBILITY-SCOPE-REBASE-GATE = LOCAL_GOVERNANCE_CONTRACT_AND_FULL_CI_PASS_NO_RUNTIME_AUTHORITY

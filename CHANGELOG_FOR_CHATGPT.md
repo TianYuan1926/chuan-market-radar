@@ -2,11 +2,11 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
-## 2026-07-26 / V2 M1.4C Microstructure Contract + M2.1A Bidirectional Precursor Atlas
+## 2026-07-26 / V2 M1.4C + M2.1A Local Contracts and A0 Engineering Materials
 
 ### 本轮目标
 
-在 M0.5 设计修订之后，把 Microstructure Fact/Feature/Cache 与双向前兆研究图谱真正落成可执行、可回放、可拒绝错误输入的本地合同，同时继续关闭 Candidate、Signal、READY 和生产权限。
+在 M0.5 设计修订之后，把 Microstructure Fact/Feature/Cache 与双向前兆研究图谱落成本地合同，同时先建立 M1.5C/M1.5D 前的 A0 工程材料硬门禁，继续关闭 Candidate、Signal、READY 和生产权限。
 
 ### 修改范围
 
@@ -15,18 +15,21 @@
 - M2.1A 实现八族各自 LONG/SHORT/UNKNOWN 共 24 个 DRAFT/UNCALIBRATED 假设，禁止用同一 Feature 的正负翻转冒充双向机制。
 - 研究 Gate 强制三 Outcome、point-in-time 板块关系、逐 family-direction 四 Venue/三 regime/三 liquidity segment、matched control、消融、sealed holdout、forward Shadow、rights 和独立审计。
 - 修复既存 M3.4-R1 草稿与当前 strict schema 的 import、枚举和 fixture 兼容阻断；只恢复全仓编译与回归，不把定向测试为 0 的草稿标成 M3.4 出口。
-- 蓝图升级到 v1.43、机器矩阵升级到 v1.48，并把 M1.5C + M1.5D 同 exact release、独立验收设为下一 Scope V2 真实证据包。
+- Provider Adapter 改入正式 adapter 边界并锁定 exact host/role/REST schema；Live Transport 补齐并发启动、停止结算、有界丢弃、超时、重连和 future-time 拒绝测试。exact Node 22 完整 CI 进一步发现负责 Promise 结算的 timeout 被错误 `unref`，已根治并以修复提交 `2ae438b394d289a05f02dbfa0c2846cd2194ea37` 复验。
+- A0 第一批锁定 Node `22.23.1`、npm `10.9.8` 和全部直接依赖，升级 Next/PostCSS/Sharp 安全补丁，删除未使用的 `shadcn` CLI/MCP 依赖和死 CSS 导入。
+- 新增许可证门禁、CycloneDX SBOM、零高危审计、GitHub Action/runner/base-image pin、ESLint + Biome 和 Sharp/PostCSS 原生烟测；蓝图升级到 v1.44、机器矩阵升级到 v1.49。
+- 路线机器门禁把当前本地 A0、独立生产 P0R、A0 后 Scope V2 Shadow 和外部历史权利 Gate 分开表达；任一入口身份、阻断关系或生产权限漂移都会让 M0 失败。
 
 ### 核心链路影响
 
-`Point-in-time Fact -> Market Mechanics Feature -> Bidirectional Research Hypothesis` 已有本地可执行合同和 fail-closed Gate。真实 Trade/Book/Liquidation forward data、Detector Candidate、cohort/holdout、校准和最终决策链仍未形成，因此系统等级仍是 R1，不能支撑实战。
+`Point-in-time Fact -> Market Mechanics Feature -> Bidirectional Research Hypothesis` 已有本地可执行合同和 fail-closed Gate，工程材料第一批也已收口。A0 总门禁仍缺 exact Node 22 远端 CI、独立 secret/SAST/镜像扫描、性能/资源、制品 provenance/回滚和 P0R 真实恢复；真实 Trade/Book/Liquidation forward data、Detector Candidate、cohort/holdout、校准和最终决策链仍未形成，因此系统等级仍是 R1，不能支撑实战。
 
 ### 验证结果
 
 - M1.4C Microstructure + Cache 定向 22/22 PASS。
 - M2.1A Precursor Atlas 定向 13/13 PASS。
-- ESLint、`git diff --check`、secret pattern 与 forbidden-file 检查 PASS。
-- 完整 `ci:production` PASS：V2 Foundation 529 total / 523 pass / 6 explicit skip、V2 Ops 131/131、M0、Next production build、Golden 16/16 与 security 全部通过。
+- exact Node `22.23.1` / npm `10.9.8` 完整 `ci:production` PASS：Market 969 total / 965 pass / 4 explicit skip、Workers 23/23、Historical 4/4、V2 Foundation 588 total / 582 pass / 6 explicit skip、V2 Ops 136/136、M0、Next production build、Golden 16/16 与 security 全部通过。
+- Expanded Shadow 定向 59/59、ESLint、Biome、`git diff --check`、secret pattern、forbidden-file、零漏洞审计、SBOM 与原生材料烟测 PASS；A0 总门禁仍为 `INCOMPLETE`，GitHub 远端 exact-runtime 证据尚待推送后取得。
 
 ### 是否部署
 
@@ -34,11 +37,11 @@
 
 ### 风险与遗留问题
 
-M1.5D 尚未执行；没有历史 L2 时只能从启用时前向积累。当前真实 Microstructure 样本、三 Outcome cohort、matched control 结果、跨 regime 校准和 untouched holdout 均为 0，不得宣称前兆图谱有效。M3.4-R1 仍缺独立定向测试和 Scope V2 上游证据。
+M1.5D 尚未执行；没有历史 L2 时只能从启用时前向积累。当前真实 Microstructure 样本、三 Outcome cohort、matched control 结果、跨 regime 校准和 untouched holdout 均为 0，不得宣称前兆图谱有效。A0 不能因材料子门禁 PASS 而减数；M3.4-R1 仍缺独立定向测试和 Scope V2 上游证据。
 
 ### 下一轮建议
 
-P0R 继续作为生产第一关键路径。Scope V2 下一真实证据包合并准备 M1.5C 与 M1.5D，同一 exact release 派发、两套状态和证据独立验收；通过后进入 M1.6-D1，再用真实 forward evidence 建设 M2.4A cohort/holdout。
+P0R 继续作为生产第一关键路径。先关闭 A0 剩余工程门禁，再准备 M1.5C 与 M1.5D 同一 exact release 的 Scope V2 证据包，并保持两套状态和证据独立验收；通过后进入 M1.6-D1，再用真实 forward evidence 建设 M2.4A cohort/holdout。
 
 ## 2026-07-24 / V2 M3.1A-D Four-Lane Multi-Asset Decision Research Contract
 

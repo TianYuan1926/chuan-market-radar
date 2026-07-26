@@ -16,7 +16,9 @@ test("M0 engineering exit remains closed unless every required proof passes", ()
     ),
   ) as {
     lastCompletedImplementationEntry: { id: string };
+    currentLocalImplementationEntry: { id: string };
     currentImplementationEntry: { id: string };
+    nextScopeV2ImplementationEntry: { id: string };
     pendingHistoricalDataGate: { id: string };
   };
 
@@ -40,7 +42,7 @@ test("M0 engineering exit remains closed unless every required proof passes", ()
   );
   assert.equal(
     report.nextEntry,
-    `COMPLETED=${matrix.lastCompletedImplementationEntry.id} LOCAL_NEXT=${matrix.currentImplementationEntry.id} EXTERNAL_GATE=${matrix.pendingHistoricalDataGate.id} DETECTORS_DRAFT`,
+    `COMPLETED=${matrix.lastCompletedImplementationEntry.id} LOCAL_GATE=${matrix.currentLocalImplementationEntry.id} PRODUCTION_NEXT=${matrix.currentImplementationEntry.id} SCOPE_V2_NEXT=${matrix.nextScopeV2ImplementationEntry.id} EXTERNAL_GATE=${matrix.pendingHistoricalDataGate.id} DETECTORS_DRAFT`,
   );
   assert.ok(
     report.checks.some(

@@ -2,7 +2,7 @@
   "schemaVersion": "market-radar-legacy-consumer-map.v1",
   "atlasSchemaVersion": "market-radar-legacy-capability-atlas.v1",
   "extractionPolicySchemaVersion": "market-radar-legacy-extraction-policy.v1",
-  "reviewedAgainstCommit": "d9a3c12add2814ae8f307c815097868be82559ae",
+  "reviewedAgainstCommit": "2ae438b394d289a05f02dbfa0c2846cd2194ea37",
   "sourceGraphDigest": "sha256:367e1e2f60f38d0d26bd0925a58207d2259d7adcbf36ade7b392193604c9d797",
   "legacyRuntimeImportAllowed": false,
   "copyPasteWithoutBehavioralFixtureAllowed": false,
@@ -1378,7 +1378,7 @@
         "src/components/ui-schema/ui-layer-guard.test.ts",
         "src/data/mock-signals.ts"
       ],
-      "sourceDigest": "sha256:963590aa1ff7b4d9f1614dcab29ff8de5b6dc948c8a1adff971ac5a4d04d1573",
+      "sourceDigest": "sha256:8f4adf04d9cd34816ce6d9668cca975bce852d8fe65716bbd8bf1f74c0f7f6d7",
       "directRuntimeConsumers": [
         "src/lib/market/providers/mock-market-provider.ts"
       ],

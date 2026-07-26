@@ -152,6 +152,22 @@ export function buildM0ExitReport(repositoryRoot: string): M0ExitReport {
   }>(repositoryRoot, "docs/architecture/v2/V2_BASE_MANIFEST.v1.json");
   const executionMatrix = readJson<{
     lastCompletedImplementationEntry: { id: string };
+    engineeringFoundationGate: {
+      id: string;
+      status: string;
+      pendingControls: readonly string[];
+      m1_5cAllowed: boolean;
+      m1_5dAllowed: boolean;
+    };
+    currentLocalImplementationEntry: {
+      id: string;
+      productionMutationAllowed: boolean;
+    };
+    nextScopeV2ImplementationEntry: {
+      id: string;
+      blockedBy: string;
+      productionMutationAllowed: boolean;
+    };
     currentImplementationEntry: {
       id: string;
       productionMutationAllowed: boolean;
@@ -346,14 +362,40 @@ export function buildM0ExitReport(repositoryRoot: string): M0ExitReport {
   check("active_execution_entry_matches_machine_matrix", () => {
     const ids = [
       executionMatrix.lastCompletedImplementationEntry.id,
+      executionMatrix.currentLocalImplementationEntry.id,
       executionMatrix.currentImplementationEntry.id,
+      executionMatrix.nextScopeV2ImplementationEntry.id,
       executionMatrix.pendingHistoricalDataGate.id,
     ];
-    if (ids.some((id) => !/^V2-M[0-9]/u.test(id))) {
+    if (ids.some((id) => !/^V2-(?:A0|M[0-9])/u.test(id))) {
       throw new Error("machine matrix contains an invalid implementation entry id");
     }
-    if (executionMatrix.currentImplementationEntry.productionMutationAllowed) {
-      throw new Error("current implementation entry unexpectedly grants production mutation");
+    if (new Set(ids).size !== ids.length) {
+      throw new Error("machine matrix reuses one identity across execution lanes");
+    }
+    if (
+      executionMatrix.currentLocalImplementationEntry.id !==
+        executionMatrix.engineeringFoundationGate.id ||
+      executionMatrix.engineeringFoundationGate.status !==
+        "ENGINEERING_MATERIALS_AND_SUPPLY_CHAIN_LOCAL_PASS_TOTAL_GATE_INCOMPLETE" ||
+      executionMatrix.engineeringFoundationGate.pendingControls.length === 0 ||
+      executionMatrix.engineeringFoundationGate.m1_5cAllowed ||
+      executionMatrix.engineeringFoundationGate.m1_5dAllowed
+    ) {
+      throw new Error("A0 current local gate or blocked Shadow authority drifted");
+    }
+    if (
+      executionMatrix.nextScopeV2ImplementationEntry.blockedBy !==
+        executionMatrix.engineeringFoundationGate.id
+    ) {
+      throw new Error("next Scope V2 package is not explicitly blocked by A0");
+    }
+    if (
+      executionMatrix.currentLocalImplementationEntry.productionMutationAllowed ||
+      executionMatrix.currentImplementationEntry.productionMutationAllowed ||
+      executionMatrix.nextScopeV2ImplementationEntry.productionMutationAllowed
+    ) {
+      throw new Error("active execution lane unexpectedly grants production mutation");
     }
     return ids.join(" -> ");
   });
@@ -372,7 +414,7 @@ export function buildM0ExitReport(repositoryRoot: string): M0ExitReport {
     legacySourceFiles: currentMap.totals.sourceFiles,
     productionMutationPerformed: false,
     productionStatus: "UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION",
-    nextEntry: `COMPLETED=${executionMatrix.lastCompletedImplementationEntry.id} LOCAL_NEXT=${executionMatrix.currentImplementationEntry.id} EXTERNAL_GATE=${executionMatrix.pendingHistoricalDataGate.id} DETECTORS_DRAFT`,
+    nextEntry: `COMPLETED=${executionMatrix.lastCompletedImplementationEntry.id} LOCAL_GATE=${executionMatrix.currentLocalImplementationEntry.id} PRODUCTION_NEXT=${executionMatrix.currentImplementationEntry.id} SCOPE_V2_NEXT=${executionMatrix.nextScopeV2ImplementationEntry.id} EXTERNAL_GATE=${executionMatrix.pendingHistoricalDataGate.id} DETECTORS_DRAFT`,
   };
 }
 

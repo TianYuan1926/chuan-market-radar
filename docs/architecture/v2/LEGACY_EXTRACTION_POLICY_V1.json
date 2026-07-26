@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-legacy-extraction-policy.v1",
-  "reviewedAgainstCommit": "d9a3c12add2814ae8f307c815097868be82559ae",
+  "reviewedAgainstCommit": "2ae438b394d289a05f02dbfa0c2846cd2194ea37",
   "legacyRuntimeImportAllowed": false,
   "copyPasteWithoutBehavioralFixtureAllowed": false,
   "entries": [
