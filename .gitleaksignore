@@ -11,3 +11,5 @@ d0ef56bae4640ea75210940728c84825ffac2b0c:scripts/v2/production/p0r-cos-archive/m
 d2ee45fce1e30b7ddcfa7e59155fb17ce896f85d:src/lib/auth/private-session.test.ts:generic-api-key:13
 d2ee45fce1e30b7ddcfa7e59155fb17ce896f85d:src/lib/auth/private-session.test.ts:generic-api-key:86
 f78822eeabc033e97b6cdf7815950fecb567e8c4:scripts/v2/production/m1-production-storage-p0r-cos-provisioning.test.mjs:generic-api-key:38
+3422b6260760e3f6a7df6aa335a7bb7fa9a58c07:docs/blueprints/V2_A0_INDEPENDENT_SECURITY_QUALITY_DELIVERY_REPORT.md:sourcegraph-access-token:9
+3422b6260760e3f6a7df6aa335a7bb7fa9a58c07:docs/blueprints/V2_A0_INDEPENDENT_SECURITY_QUALITY_DELIVERY_REPORT.md:sourcegraph-access-token:54

@@ -6,7 +6,7 @@ Date: 2026-07-27
 
 ```text
 Control: V2-A0-INDEPENDENT-SECURITY-QUALITY
-Source commit: 4f501b0fb8b917ce87e0687eab8480b5c9595f27
+Source commit parts: 4f501b0fb8b917ce87e0 / 687eab8480b5c9595f27
 Security workflow run: 30209898205
 Full Quality workflow run: 30209898207
 Control status: PASS
@@ -42,6 +42,8 @@ CodeQL suppressions are bound to exact rule, file, alert line, review ID, ration
 
 No scanner threshold was lowered, no result was discarded by broad exclusion, and no production data or service was changed to obtain PASS.
 
+Post-closure branch verification run `30211083028` later retained a real red light: Gitleaks reported exactly two `sourcegraph-access-token` matches introduced by this report at historical lines 9 and 54. Sanitized artifact `8634464899` (`sha256:9f26ba47f78e155c7c3c21a334d355ea65f0b3502e98065ec29bb9e995df0e8a`) proved both locations were the reviewed security-source commit identity, not credentials. The two immutable historical fingerprints are entries 14 and 15 in the v4 false-positive review; the current report and machine matrix now use two validated 20-hex parts, and both the materials gate and M0 reject a regression to a contiguous credential-shaped identity.
+
 ## 4. Remote Acceptance Evidence
 
 | Control | Job | Sanitized artifact | Verified result |
@@ -51,11 +53,11 @@ No scanner threshold was lowered, no result was discarded by broad exclusion, an
 | Collector image scan | `89814245165` | `8634153873`, `sha256:7b9386b717bdc522feb45ca7ed17e735e77bfb7b47b0c6550e1d67bfdf629322` | Trivy `0.72.0`; CRITICAL `0`; HIGH `0`; report digest `sha256:84e6e12f7e8a5b6c9d3ca7c38c8b7716f5fd8ee2f30d3748fe822506a62ac83a` |
 | Exact-runtime full CI | `89814245105` | Workflow run `30209898207` | GitHub Ubuntu 24.04 job completed with conclusion `success` |
 
-The three sanitized security summaries independently state `sourceCommit=4f501b0fb8b917ce87e0687eab8480b5c9595f27` and `productionMutation=false`.
+The three sanitized security summaries independently bind the concatenated source commit parts `4f501b0fb8b917ce87e0` + `687eab8480b5c9595f27` and state `productionMutation=false`.
 
 ## 5. Local Acceptance Evidence
 
-- A0 materials tests: `9/9` PASS.
+- A0 materials tests: `10/10` PASS.
 - A0 materials gate: PASS.
 - Repository hygiene and CodeQL evidence regression: `56/56` PASS.
 - TypeScript typecheck: PASS.

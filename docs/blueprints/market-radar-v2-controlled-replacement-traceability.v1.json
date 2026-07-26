@@ -78,7 +78,10 @@
       }
     },
     "independentSecurityQuality": {
-      "sourceCommit": "4f501b0fb8b917ce87e0687eab8480b5c9595f27",
+      "sourceCommitParts": [
+        "4f501b0fb8b917ce87e0",
+        "687eab8480b5c9595f27"
+      ],
       "status": "PASS_ZERO_UNTRIAGED_SECRET_SAST_AND_HIGH_CRITICAL_IMAGE_RESULTS",
       "workflowRunId": 30209898205,
       "fullQualityRunId": 30209898207,
@@ -114,6 +117,17 @@
         "artifactDigest": "sha256:7b9386b717bdc522feb45ca7ed17e735e77bfb7b47b0c6550e1d67bfdf629322",
         "reportDigest": "sha256:84e6e12f7e8a5b6c9d3ca7c38c8b7716f5fd8ee2f30d3748fe822506a62ac83a"
       },
+      "postClosureValidationIncident": {
+        "workflowRunId": 30211083028,
+        "sourceCommitPrefix": "3422b6260760",
+        "failedControl": "FULL_HISTORY_GITLEAKS",
+        "findingCount": 2,
+        "classification": "REVIEWED_COMMIT_IDENTITY_FALSE_POSITIVES",
+        "artifactId": 8634464899,
+        "artifactDigest": "sha256:9f26ba47f78e155c7c3c21a334d355ea65f0b3502e98065ec29bb9e995df0e8a",
+        "remediation": "EXACT_HISTORICAL_FINGERPRINTS_AND_TWO_VALIDATED_20_HEX_PARTS",
+        "productionMutationPerformed": false
+      },
       "productionMutationPerformed": false
     }
   },
@@ -128,7 +142,7 @@
     "a0IndependentSecurityWorkflow": ".github/workflows/v2-security-quality.yml",
     "a0IndependentSecurityDeliveryReport": "docs/blueprints/V2_A0_INDEPENDENT_SECURITY_QUALITY_DELIVERY_REPORT.md",
     "a0CodeqlReviewedSuppressions": "docs/governance/v2-a0-codeql-reviewed-suppressions.v3.json",
-    "a0SecretHistoryFalsePositiveReview": "docs/governance/v2-a0-secret-history-false-positive-review.v3.json",
+    "a0SecretHistoryFalsePositiveReview": "docs/governance/v2-a0-secret-history-false-positive-review.v4.json",
     "a0PortableBundleRemediationReport": "docs/blueprints/V2_A0_PORTABLE_DETERMINISTIC_BUNDLE_REMEDIATION_REPORT.md",
     "deliveryReport": "docs/blueprints/V2_M1_4C_MICROSTRUCTURE_AND_M2_1A_BIDIRECTIONAL_PRECURSOR_LOCAL_CONTRACT_DELIVERY_REPORT.md",
     "latestDesignAmendment": "docs/architecture/v2/M0_5_MARKET_MECHANICS_MICROSTRUCTURE_AND_PRECURSOR_ATLAS_AMENDMENT_V1.md",
@@ -2217,7 +2231,10 @@
   },
   "lastCompletedEngineeringControl": {
     "id": "V2-A0-INDEPENDENT-SECURITY-QUALITY",
-    "sourceCommit": "4f501b0fb8b917ce87e0687eab8480b5c9595f27",
+    "sourceCommitParts": [
+      "4f501b0fb8b917ce87e0",
+      "687eab8480b5c9595f27"
+    ],
     "status": "remote_secret_sast_and_collector_image_security_pass_production_unchanged",
     "securityWorkflowRunId": 30209898205,
     "fullQualityWorkflowRunId": 30209898207,

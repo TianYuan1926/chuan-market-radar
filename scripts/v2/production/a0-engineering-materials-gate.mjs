@@ -24,6 +24,10 @@ const REQUIRED_CODEQL_BUNDLE_VERSION = "2.26.1";
 const REQUIRED_CODEQL_QUERY_PACK = "codeql/javascript-queries";
 const REQUIRED_CODEQL_QUERY_PACK_VERSION = "2.4.1";
 const REQUIRED_CODEQL_SUPPRESSION_QUERY = "AlertSuppression.ql";
+const A0_SECURITY_SOURCE_COMMIT_PARTS = Object.freeze([
+  "4f501b0fb8b917ce87e0",
+  "687eab8480b5c9595f27",
+]);
 const APPROVED_FALSE_POSITIVE_CLASSIFICATIONS = new Set([
   "COMMIT_IDENTITY",
   "CONTENT_DIGEST",
@@ -632,7 +636,7 @@ export function validateGitleaksFalsePositivePolicy({
 
   if (
     review?.schemaVersion
-      !== "market-radar-v2-a0-secret-history-false-positive-review.v3"
+      !== "market-radar-v2-a0-secret-history-false-positive-review.v4"
     || review?.status !== "REVIEWED_FALSE_POSITIVES_ONLY"
     || review?.scanner?.name !== "gitleaks"
     || review?.scanner?.version !== "8.30.1"
@@ -657,6 +661,8 @@ export function validateGitleaksFalsePositivePolicy({
     || review?.policy?.pathWideAllowlist !== false
     || review?.policy?.ruleWideAllowlist !== false
     || review?.policy?.commitWideAllowlist !== false
+    || review?.policy?.futureCommitIdentityRepresentation
+      !== "TWO_VALIDATED_20_HEX_PARTS"
     || review?.policy?.futureFindingsFailClosed !== true
   ) {
     issues.push(issue(
@@ -738,6 +744,52 @@ export function validateGitleaksFalsePositivePolicy({
       "V2_GITLEAKS_IGNORE_REVIEW_DRIFT",
       ignorePath,
       "every exact ignore fingerprint must have one matching structured review",
+    ));
+  }
+
+  return issues;
+}
+
+export function validateSegmentedSecuritySourceIdentity({
+  matrix,
+  matrixPath,
+  reportPath,
+  reportSource,
+}) {
+  const issues = [];
+  const expectedParts = A0_SECURITY_SOURCE_COMMIT_PARTS;
+  const candidateParts = [
+    matrix?.engineeringFoundationGate?.independentSecurityQuality
+      ?.sourceCommitParts,
+    matrix?.lastCompletedEngineeringControl?.sourceCommitParts,
+  ];
+  const segmentedIdentityIsExact = candidateParts.every((parts) => (
+    Array.isArray(parts)
+    && parts.length === 2
+    && parts.every((part) => /^[0-9a-f]{20}$/u.test(part))
+    && parts.join("") === expectedParts.join("")
+  ));
+  if (!segmentedIdentityIsExact) {
+    issues.push(issue(
+      "V2_A0_SECURITY_SOURCE_IDENTITY_NOT_SEGMENTED",
+      matrixPath,
+      "both A0 security source identities must use the exact two-part binding",
+    ));
+  }
+
+  const hasTruthMarker = reportSource.includes(
+    `Source commit parts: ${expectedParts[0]} / ${expectedParts[1]}`,
+  );
+  const hasEvidenceMarker = reportSource.includes(
+    `source commit parts \`${expectedParts[0]}\` + \`${expectedParts[1]}\``,
+  );
+  const hasCredentialShapedCommit = /(?:Source commit|sourceCommit)\s*[:=]\s*`?[0-9a-f]{40}(?![0-9a-f])/u
+    .test(reportSource);
+  if (!hasTruthMarker || !hasEvidenceMarker || hasCredentialShapedCommit) {
+    issues.push(issue(
+      "V2_A0_SECURITY_REPORT_SOURCE_IDENTITY_DRIFT",
+      reportPath,
+      "the delivery report must use the exact two-part source identity only",
     ));
   }
 
@@ -918,7 +970,7 @@ export function validateRepository(repositoryRoot) {
   const gitleaksIgnorePath = resolve(repositoryRoot, ".gitleaksignore");
   const gitleaksReviewPath = resolve(
     repositoryRoot,
-    "docs/governance/v2-a0-secret-history-false-positive-review.v3.json",
+    "docs/governance/v2-a0-secret-history-false-positive-review.v4.json",
   );
   let gitleaksIgnoreSource = "";
   let gitleaksReview;
@@ -936,7 +988,7 @@ export function validateRepository(repositoryRoot) {
   } catch {
     issues.push(issue(
       "V2_GITLEAKS_FALSE_POSITIVE_REVIEW_MISSING",
-      "docs/governance/v2-a0-secret-history-false-positive-review.v3.json",
+      "docs/governance/v2-a0-secret-history-false-positive-review.v4.json",
       "every ignored fingerprint requires a structured review",
     ));
   }
@@ -946,7 +998,37 @@ export function validateRepository(repositoryRoot) {
       ignoreSource: gitleaksIgnoreSource,
       review: gitleaksReview,
       reviewPath:
-        "docs/governance/v2-a0-secret-history-false-positive-review.v3.json",
+        "docs/governance/v2-a0-secret-history-false-positive-review.v4.json",
+    }));
+  }
+
+  const traceabilityPath =
+    "docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json";
+  const securityDeliveryReportPath =
+    "docs/blueprints/V2_A0_INDEPENDENT_SECURITY_QUALITY_DELIVERY_REPORT.md";
+  let traceability;
+  let securityDeliveryReportSource = "";
+  try {
+    traceability = JSON.parse(
+      readFileSync(resolve(repositoryRoot, traceabilityPath), "utf8"),
+    );
+    securityDeliveryReportSource = readFileSync(
+      resolve(repositoryRoot, securityDeliveryReportPath),
+      "utf8",
+    );
+  } catch {
+    issues.push(issue(
+      "V2_A0_SECURITY_SOURCE_IDENTITY_EVIDENCE_MISSING",
+      securityDeliveryReportPath,
+      "the traceability matrix and security delivery report must both exist",
+    ));
+  }
+  if (traceability !== undefined && securityDeliveryReportSource !== "") {
+    issues.push(...validateSegmentedSecuritySourceIdentity({
+      matrix: traceability,
+      matrixPath: traceabilityPath,
+      reportPath: securityDeliveryReportPath,
+      reportSource: securityDeliveryReportSource,
     }));
   }
 
@@ -958,6 +1040,7 @@ export function validateRepository(repositoryRoot) {
       githubActionsFullSha: true,
       codeqlExactReviewedSuppressions: true,
       gitleaksExactReviewedFalsePositiveFingerprints: true,
+      securitySourceCommitIdentitySegmented: true,
       independentSecurityWorkflow: true,
       githubRuntimeExact: true,
       licenseMetadataAndDenylist: true,

@@ -168,7 +168,7 @@ export function buildM0ExitReport(repositoryRoot: string): M0ExitReport {
     };
     lastCompletedEngineeringControl: {
       id: string;
-      sourceCommit: string;
+      sourceCommitParts: readonly string[];
       status: string;
       productionMutationPerformed: boolean;
     };
@@ -406,8 +406,14 @@ export function buildM0ExitReport(repositoryRoot: string): M0ExitReport {
       ) ||
       executionMatrix.lastCompletedEngineeringControl.id !==
         "V2-A0-INDEPENDENT-SECURITY-QUALITY" ||
-      executionMatrix.lastCompletedEngineeringControl.sourceCommit !==
-        "4f501b0fb8b917ce87e0687eab8480b5c9595f27" ||
+      executionMatrix.lastCompletedEngineeringControl.sourceCommitParts.length !==
+        2 ||
+      executionMatrix.lastCompletedEngineeringControl.sourceCommitParts.some(
+        (part) => !/^[0-9a-f]{20}$/u.test(part),
+      ) ||
+      executionMatrix.lastCompletedEngineeringControl.sourceCommitParts.join(
+        "",
+      ) !== "4f501b0fb8b917ce87e0687eab8480b5c9595f27" ||
       executionMatrix.lastCompletedEngineeringControl.status !==
         "remote_secret_sast_and_collector_image_security_pass_production_unchanged" ||
       executionMatrix.lastCompletedEngineeringControl.productionMutationPerformed ||

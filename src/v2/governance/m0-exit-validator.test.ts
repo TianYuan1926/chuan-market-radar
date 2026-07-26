@@ -26,7 +26,7 @@ test("M0 engineering exit remains closed unless every required proof passes", ()
     currentLocalImplementationEntry: { id: string; status: string };
     lastCompletedEngineeringControl: {
       id: string;
-      sourceCommit: string;
+      sourceCommitParts: string[];
       status: string;
       securityWorkflowRunId: number;
       fullQualityWorkflowRunId: number;
@@ -99,7 +99,10 @@ test("M0 engineering exit remains closed unless every required proof passes", ()
   );
   assert.deepEqual(matrix.lastCompletedEngineeringControl, {
     id: "V2-A0-INDEPENDENT-SECURITY-QUALITY",
-    sourceCommit: "4f501b0fb8b917ce87e0687eab8480b5c9595f27",
+    sourceCommitParts: [
+      "4f501b0fb8b917ce87e0",
+      "687eab8480b5c9595f27",
+    ],
     status:
       "remote_secret_sast_and_collector_image_security_pass_production_unchanged",
     securityWorkflowRunId: 30209898205,

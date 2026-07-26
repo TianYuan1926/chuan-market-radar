@@ -7,6 +7,7 @@ import {
   validateFullCiWorkflowPolicy,
   validateGitleaksFalsePositivePolicy,
   validatePackagePolicy,
+  validateSegmentedSecuritySourceIdentity,
   validateSecurityEvidencePolicy,
   validateSecurityWorkflowPolicy,
   validateWorkflowPolicy,
@@ -297,7 +298,7 @@ test("CodeQL source suppressions require exact structured reviews", () => {
 test("Gitleaks ignores only exact independently reviewed false positives", () => {
   const ignorePath = ".gitleaksignore";
   const reviewPath =
-    "docs/governance/v2-a0-secret-history-false-positive-review.v3.json";
+    "docs/governance/v2-a0-secret-history-false-positive-review.v4.json";
   const ignoreSource = readFileSync(ignorePath, "utf8");
   const reviewSource = readFileSync(reviewPath, "utf8");
   const review = JSON.parse(reviewSource);
@@ -376,4 +377,49 @@ test("Gitleaks ignores only exact independently reviewed false positives", () =>
       (item) => item.code === "V2_GITLEAKS_FALSE_POSITIVE_REVIEW_INCOMPLETE",
     ),
   );
+});
+
+test("A0 security source identities remain exact and credential-safe", () => {
+  const matrixPath =
+    "docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json";
+  const reportPath =
+    "docs/blueprints/V2_A0_INDEPENDENT_SECURITY_QUALITY_DELIVERY_REPORT.md";
+  const matrix = JSON.parse(readFileSync(matrixPath, "utf8"));
+  const reportSource = readFileSync(reportPath, "utf8");
+
+  assert.deepEqual(validateSegmentedSecuritySourceIdentity({
+    matrix,
+    matrixPath,
+    reportPath,
+    reportSource,
+  }), []);
+
+  const parts =
+    matrix.lastCompletedEngineeringControl.sourceCommitParts;
+  const contiguousReport = reportSource.replace(
+    `Source commit parts: ${parts[0]} / ${parts[1]}`,
+    `Source commit: ${parts.join("")}`,
+  );
+  const contiguousIssues = validateSegmentedSecuritySourceIdentity({
+    matrix,
+    matrixPath,
+    reportPath,
+    reportSource: contiguousReport,
+  });
+  assert.ok(contiguousIssues.some(
+    (item) => item.code === "V2_A0_SECURITY_REPORT_SOURCE_IDENTITY_DRIFT",
+  ));
+
+  const driftedMatrix = structuredClone(matrix);
+  driftedMatrix.lastCompletedEngineeringControl.sourceCommitParts[1] =
+    "00000000000000000000";
+  const driftedIssues = validateSegmentedSecuritySourceIdentity({
+    matrix: driftedMatrix,
+    matrixPath,
+    reportPath,
+    reportSource,
+  });
+  assert.ok(driftedIssues.some(
+    (item) => item.code === "V2_A0_SECURITY_SOURCE_IDENTITY_NOT_SEGMENTED",
+  ));
 });

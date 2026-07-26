@@ -23,6 +23,7 @@
 - Full Quality `30200077285`、job `89788386319` 已在 exact HEAD `dc5e1823d08ac5a2d1630f3989257e735f829695` 的 Ubuntu 24.04 完整 PASS；SBOM artifact `8631398374` digest=`sha256:ba6de688e0b2163ccc7f17c06e39c9ef35406eb98235d744a137d849cb57e241`。exact-runtime remote CI 控制项正式完成。
 - 独立安全工作流已固定 full-history Gitleaks `8.30.1`、CodeQL action `4.37.3` + linked bundle `2.26.1` + JS query pack `2.4.1` + `AlertSuppression.ql`、exact collector image 与 Trivy `0.72.0`。Gitleaks 只接受 exact historical fingerprint；CodeQL suppression 只接受 exact rule/file/alert-line/review/invariant 且源码紧邻。
 - exact source `4f501b0fb8b917ce87e0687eab8480b5c9595f27` 的 Security `30209898205` 三 job 全部 PASS：完整历史 secret finding=0；CodeQL result=8、reviewed=8、blocking=0；镜像 HIGH=0、CRITICAL=0。脱敏 artifact `8634143821`、`8634167593`、`8634153873` 已核验。同源 Full Quality `30209898207`、job `89814245105` PASS。
+- 收口提交后的 Security `30211083028` 如实保留 Gitleaks 红灯：新交付报告两次连续写入审查提交 SHA，被误判为 Sourcegraph token。artifact `8634464899` 已证明精确位置；v4 审查只增加两个历史 fingerprint，当前报告/矩阵改为两段 20-hex，材料门禁和 M0 同时阻止连续 40-hex 回归。
 - 路线机器门禁把当前本地 A0、独立生产 P0R、A0 后 Scope V2 Shadow 和外部历史权利 Gate 分开表达；任一入口身份、阻断关系或生产权限漂移都会让 M0 失败。
 
 ### 核心链路影响
@@ -33,8 +34,8 @@
 
 - M1.4C Microstructure + Cache 定向 22/22 PASS。
 - M2.1A Precursor Atlas 定向 13/13 PASS。
-- exact Node `22.23.1` / npm `10.9.8` 最终树完整 `ci:production` PASS：Market 969 total / 965 pass / 4 explicit skip、Workers 23/23、Historical 4/4、V2 Foundation 589 total / 583 pass / 6 explicit skip、V2 Ops 152/152、M0、Next production build、Golden 16/16 与 security 全部通过。
-- A0 materials `9/9`、repository hygiene + CodeQL evidence `56/56`、ESLint、Biome、M0、remote-equivalent Gitleaks 与 GitHub Security/Full Quality 全部 PASS。A0 总门禁仍为 `INCOMPLETE`，下一缺口为性能资源、完整 provenance/rollback 和 P0R。
+- exact Node `22.23.1` / npm `10.9.8` 最终树完整 `ci:production` PASS：Market 969 total / 965 pass / 4 explicit skip、Workers 23/23、Historical 4/4、V2 Foundation 589 total / 583 pass / 6 explicit skip、V2 Ops 153/153、M0、Next production build、Golden 16/16 与 security 全部通过。
+- A0 materials `10/10`、repository hygiene + CodeQL evidence `56/56`、ESLint、Biome、M0 与 remote-equivalent Gitleaks PASS；accepted source 的 GitHub Security/Full Quality PASS，后续失败 run 仍按上一条单独保留、不冒充 PASS。A0 总门禁仍为 `INCOMPLETE`，下一缺口为性能资源、完整 provenance/rollback 和 P0R。
 
 ### 是否部署
 
