@@ -2,7 +2,7 @@
 
 Date: `2026-07-26`
 
-Status: `LOCAL_ROOT_CAUSE_REMEDIATION_PASS / SIGNED_DISPATCH_REMOTE_LINUX_PASS / FULL_QUALITY_SHALLOW_HISTORY_REMEDIATED_LOCALLY / FULL_QUALITY_REMOTE_REVERIFY_PENDING / A0_TOTAL_GATE_INCOMPLETE / PRODUCTION_UNCHANGED`
+Status: `LOCAL_ROOT_CAUSE_REMEDIATION_PASS / SIGNED_DISPATCH_REMOTE_LINUX_PASS / FULL_QUALITY_REMOTE_LINUX_PASS / EXACT_RUNTIME_REMOTE_CI_CONTROL_COMPLETE / A0_TOTAL_GATE_INCOMPLETE / PRODUCTION_UNCHANGED`
 
 ## Trigger And Root Cause
 
@@ -42,6 +42,18 @@ The first remediation reverify at exact HEAD `cc9e902740d70cc560602fe5efdff6c1ac
 
 Commit `1d5638d0fb538bacec09086ec7b719d9e7a85ce9` is the permanent local remediation for that second fault. Full Quality now checks out complete Git history, the A0 materials gate rejects future shallow-history regression, and an M0 test failure prints the exact failed checks instead of only the aggregate status.
 
+## Final Remote Reverification
+
+Full Quality run `30200077285`, job `89788386319`, passed every step at exact HEAD `dc5e1823d08ac5a2d1630f3989257e735f829695` on Ubuntu 24.04:
+
+- exact Node `22.23.1` and npm `10.9.8`;
+- exact lockfile installation and A0 materials policy;
+- CycloneDX SBOM generation and high/critical dependency audit;
+- complete `ci:production`, including M0 ancestry verification;
+- non-secret SBOM artifact upload.
+
+SBOM artifact `8631398374` is named `v2-a0-sbom-dc5e1823d08ac5a2d1630f3989257e735f829695-1`, has digest `sha256:ba6de688e0b2163ccc7f17c06e39c9ef35406eb98235d744a137d849cb57e241`, and is retained by GitHub through `2026-08-25T11:29:41Z`.
+
 ## Local Evidence
 
 Exact Node `22.23.1` / npm `10.9.8`:
@@ -56,4 +68,4 @@ Exact Node `22.23.1` / npm `10.9.8`:
 
 ## Remaining Gate
 
-The signed-dispatch Linux path has passed, but the aggregate `EXACT_NODE_22_23_1_NPM_10_9_8_REMOTE_CI_EVIDENCE` remains pending until Full Quality passes on the exact Git-history remediation head. No production service, database, Redis, Worker, environment, feature flag, production repository or authority changed.
+`EXACT_NODE_22_23_1_NPM_10_9_8_REMOTE_CI_EVIDENCE` is complete. A0 remains incomplete because independent secret/SAST scanning, container-image vulnerability scanning, full artifact provenance and rollback drill, performance/resource baselines, and P0R real recovery are still pending. No production service, database, Redis, Worker, environment, feature flag, production repository or authority changed.
