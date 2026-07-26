@@ -33,13 +33,16 @@ test("CodeQL evidence passes only with zero untriaged results", () => {
   assert.deepEqual(summarizeCodeqlSarifDocuments([sarif()]), {
     blockingResultCount: 0,
     resultCount: 0,
+    resultLocationCount: 0,
+    resultLocations: [],
+    resultLocationsTruncated: false,
     ruleCounts: [],
     runCount: 1,
     status: "PASS_ZERO_UNTRIAGED_RESULTS",
   });
 });
 
-test("CodeQL evidence blocks and exposes only sanitized rule aggregates", () => {
+test("CodeQL evidence blocks and exposes sanitized repository locations", () => {
   const evidence = buildCodeqlEvidence({
     repository: "owner/repository",
     runAttempt: "1",
@@ -53,7 +56,8 @@ test("CodeQL evidence blocks and exposes only sanitized rule aggregates", () => 
             message: { text: "sensitive source explanation" },
             locations: [{
               physicalLocation: {
-                artifactLocation: { uri: "secret/path.ts" },
+                artifactLocation: { uri: "src/example.ts" },
+                region: { startLine: 42 },
               },
             }],
           },
@@ -72,9 +76,70 @@ test("CodeQL evidence blocks and exposes only sanitized rule aggregates", () => 
     maxSecuritySeverity: 8.1,
     ruleId: "js/example",
   }]);
-  assert.doesNotMatch(JSON.stringify(evidence), /sensitive|secret\/path/u);
+  assert.deepEqual(evidence.resultLocations, [{
+    file: "src/example.ts",
+    level: "error",
+    ruleId: "js/example",
+    securitySeverity: 8.1,
+    startLine: 42,
+  }]);
+  assert.equal(evidence.resultLocationCount, 1);
+  assert.equal(evidence.resultLocationsTruncated, false);
+  assert.equal(
+    evidence.schemaVersion,
+    "v2-a0-codeql-sast-evidence.v2",
+  );
+  assert.doesNotMatch(
+    JSON.stringify(evidence),
+    /sensitive source explanation/u,
+  );
   assert.equal(evidence.policy.rawSarifArtifactUploaded, false);
   assert.equal(evidence.productionMutation, false);
+});
+
+test("CodeQL evidence does not expose absolute or traversing paths", () => {
+  for (const uri of [
+    "/home/runner/work/repository/src/example.ts",
+    "C:\\repository\\src\\example.ts",
+    "src/%2e%2e/secret.ts",
+    "file:///repository/src/example.ts",
+  ]) {
+    const summary = summarizeCodeqlSarifDocuments([sarif([{
+      locations: [{
+        physicalLocation: {
+          artifactLocation: { uri },
+          region: { startLine: -1 },
+        },
+      }],
+      ruleId: "js/example",
+    }])]);
+
+    assert.equal(
+      summary.resultLocations[0].file,
+      "<invalid-repository-path>",
+    );
+    assert.equal(summary.resultLocations[0].startLine, null);
+  }
+});
+
+test("CodeQL evidence bounds locations without hiding blocking results", () => {
+  const results = Array.from({ length: 1_001 }, (_, index) => ({
+    locations: [{
+      physicalLocation: {
+        artifactLocation: {
+          uri: `src/example-${String(index).padStart(4, "0")}.ts`,
+        },
+        region: { startLine: index + 1 },
+      },
+    }],
+    ruleId: "js/example",
+  }));
+  const summary = summarizeCodeqlSarifDocuments([sarif(results)]);
+
+  assert.equal(summary.blockingResultCount, 1_001);
+  assert.equal(summary.resultLocationCount, 1_000);
+  assert.equal(summary.resultLocations.length, 1_000);
+  assert.equal(summary.resultLocationsTruncated, true);
 });
 
 test("CodeQL evidence rejects malformed SARIF and rule identities", () => {

@@ -5,6 +5,9 @@ import { fileURLToPath } from "node:url";
 
 const SARIF_VERSION = "2.1.0";
 const RULE_ID_PATTERN = /^[A-Za-z0-9._:/-]{1,160}$/u;
+const WINDOWS_ABSOLUTE_PATH_PATTERN = /^[A-Za-z]:\//u;
+const MAX_REPOSITORY_PATH_LENGTH = 512;
+const MAX_RESULT_LOCATIONS = 1_000;
 const LEVEL_RANK = new Map([
   ["none", 0],
   ["note", 1],
@@ -46,12 +49,65 @@ function highestLevel(left, right) {
   return LEVEL_RANK.get(left) >= LEVEL_RANK.get(right) ? left : right;
 }
 
+function hasControlCharacter(value) {
+  for (const character of value) {
+    const codePoint = character.codePointAt(0);
+    if (codePoint <= 31 || codePoint === 127) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function sanitizedRepositoryPath(value) {
+  if (typeof value !== "string" || value.length === 0) {
+    return "<missing-repository-path>";
+  }
+
+  let decoded;
+  try {
+    decoded = decodeURIComponent(value).replaceAll("\\", "/");
+  } catch {
+    return "<invalid-repository-path>";
+  }
+
+  const segments = decoded.split("/");
+  if (
+    decoded.length === 0
+    || decoded.length > MAX_REPOSITORY_PATH_LENGTH
+    || hasControlCharacter(decoded)
+    || decoded.startsWith("/")
+    || WINDOWS_ABSOLUTE_PATH_PATTERN.test(decoded)
+    || decoded.includes("://")
+    || segments.some((segment) =>
+      segment === "" || segment === "." || segment === ".."
+    )
+  ) {
+    return "<invalid-repository-path>";
+  }
+
+  return decoded;
+}
+
+function sanitizedStartLine(value) {
+  return Number.isSafeInteger(value) && value > 0 ? value : null;
+}
+
+function compareResultLocations(left, right) {
+  return left.file.localeCompare(right.file)
+    || (left.startLine ?? Number.MAX_SAFE_INTEGER)
+      - (right.startLine ?? Number.MAX_SAFE_INTEGER)
+    || left.ruleId.localeCompare(right.ruleId)
+    || left.level.localeCompare(right.level);
+}
+
 export function summarizeCodeqlSarifDocuments(documents) {
   if (!Array.isArray(documents) || documents.length === 0) {
     throw new TypeError("at least one CodeQL SARIF document is required");
   }
 
   const byRule = new Map();
+  const resultLocations = [];
   let runCount = 0;
   let resultCount = 0;
   for (const document of documents) {
@@ -97,6 +153,22 @@ export function summarizeCodeqlSarifDocuments(documents) {
           ? current.maxSecuritySeverity
           : Math.max(current.maxSecuritySeverity ?? 0, severity);
         byRule.set(ruleId, current);
+
+        if (resultLocations.length < MAX_RESULT_LOCATIONS) {
+          const physicalLocation =
+            result?.locations?.[0]?.physicalLocation;
+          resultLocations.push({
+            file: sanitizedRepositoryPath(
+              physicalLocation?.artifactLocation?.uri,
+            ),
+            level,
+            ruleId,
+            securitySeverity: severity,
+            startLine: sanitizedStartLine(
+              physicalLocation?.region?.startLine,
+            ),
+          });
+        }
       }
     }
   }
@@ -104,6 +176,9 @@ export function summarizeCodeqlSarifDocuments(documents) {
   return {
     blockingResultCount: resultCount,
     resultCount,
+    resultLocationCount: resultLocations.length,
+    resultLocations: resultLocations.sort(compareResultLocations),
+    resultLocationsTruncated: resultCount > resultLocations.length,
     ruleCounts: [...byRule.values()].sort(
       (left, right) => left.ruleId.localeCompare(right.ruleId),
     ),
@@ -155,7 +230,7 @@ export function buildCodeqlEvidence({
   const digestBytes = Buffer.from(JSON.stringify(sarifDigests));
 
   return {
-    schemaVersion: "v2-a0-codeql-sast-evidence.v1",
+    schemaVersion: "v2-a0-codeql-sast-evidence.v2",
     sourceCommit,
     repository,
     runId,
@@ -168,6 +243,14 @@ export function buildCodeqlEvidence({
     policy: {
       blockOnAnyUntriagedResult: true,
       rawSarifArtifactUploaded: false,
+      locationFields: [
+        "ruleId",
+        "file",
+        "startLine",
+        "level",
+        "securitySeverity",
+      ],
+      maxResultLocations: MAX_RESULT_LOCATIONS,
       resultFields: [
         "ruleId",
         "count",

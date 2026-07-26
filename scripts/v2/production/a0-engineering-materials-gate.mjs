@@ -362,9 +362,15 @@ export function validateSecurityEvidencePolicy(path, source) {
 
 export function validateCodeqlEvidencePolicy(path, source) {
   const requiredContracts = [
-    'schemaVersion: "v2-a0-codeql-sast-evidence.v1"',
+    'schemaVersion: "v2-a0-codeql-sast-evidence.v2"',
     "blockOnAnyUntriagedResult: true",
     "rawSarifArtifactUploaded: false",
+    '"file"',
+    '"startLine"',
+    '"securitySeverity"',
+    "MAX_RESULT_LOCATIONS",
+    "resultLocationCount",
+    "resultLocationsTruncated",
     '"ruleId"',
     '"count"',
     '"maxLevel"',
