@@ -454,7 +454,6 @@ export class M1ExpandedShadowLiveTransport {
         }
         reject(new Error("shadow_transport_websocket_open_timeout"));
       }, this.#connectionTimeoutMs);
-      timeout.unref?.();
       socket.addEventListener("open", () => {
         if (settled || this.#stopping) return;
         try {
@@ -668,7 +667,6 @@ export class M1ExpandedShadowLiveTransport {
         () => controller.abort(),
         this.#restTimeoutMs,
       );
-      timeout.unref?.();
       try {
         const response = await this.#fetch(request.url, {
           method: "GET",
