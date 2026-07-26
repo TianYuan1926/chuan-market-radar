@@ -2,8 +2,8 @@
   "schemaVersion": "market-radar-legacy-consumer-map.v1",
   "atlasSchemaVersion": "market-radar-legacy-capability-atlas.v1",
   "extractionPolicySchemaVersion": "market-radar-legacy-extraction-policy.v1",
-  "reviewedAgainstCommit": "2ae438b394d289a05f02dbfa0c2846cd2194ea37",
-  "sourceGraphDigest": "sha256:367e1e2f60f38d0d26bd0925a58207d2259d7adcbf36ade7b392193604c9d797",
+  "reviewedAgainstCommit": "6c79a3c4a39917ee43c0f35722fc32986c89fa69",
+  "sourceGraphDigest": "sha256:53201ab235580b5762430667e8414863d1dd2a93ba362cd518aeff69b5cd0a56",
   "legacyRuntimeImportAllowed": false,
   "copyPasteWithoutBehavioralFixtureAllowed": false,
   "legacyDeletionAllowed": false,
@@ -48,7 +48,7 @@
         "src/lib/market/providers/public-light-scan.ts",
         "src/lib/market/providers/static-futures-universe-seed.ts"
       ],
-      "sourceDigest": "sha256:df079921d3bf2084f5b4226379deeb817791a6c003a50936b1f584123ce3d6fa",
+      "sourceDigest": "sha256:b9ad2e993ccd1d9350e27bbd763d5585a10a0cf3bc61678130c40a512d8960c5",
       "directRuntimeConsumers": [
         "src/app/api/admin/coinglass/capability/route.ts",
         "src/app/api/frontend/kline-contract/route.ts",
@@ -1192,7 +1192,7 @@
         "src/lib/frontend-contract-server.test.ts",
         "src/lib/radar-contract.ts"
       ],
-      "sourceDigest": "sha256:39620fdfa0ea35c426889d90384e2dbd957e460daea8f5d714862fbf09c2e21f",
+      "sourceDigest": "sha256:73ecfc0afa2fc6986736ea49ec873b959ed9d9be72b53d67de9cab9ce12f4033",
       "directRuntimeConsumers": [
         "src/app/api/admin/deployment/readiness/route.ts",
         "src/app/api/admin/runtime/heartbeat/route.ts",
@@ -1378,7 +1378,7 @@
         "src/components/ui-schema/ui-layer-guard.test.ts",
         "src/data/mock-signals.ts"
       ],
-      "sourceDigest": "sha256:8f4adf04d9cd34816ce6d9668cca975bce852d8fe65716bbd8bf1f74c0f7f6d7",
+      "sourceDigest": "sha256:730d336b30346efc60e60c7f5dce7064f0078b3bfcf8064f2fbe5f93c4cd7c29",
       "directRuntimeConsumers": [
         "src/lib/market/providers/mock-market-provider.ts"
       ],
@@ -1630,7 +1630,7 @@
         "tools/radar-historical-backtest.test.mjs",
         "tools/run-professional-backtest.mjs"
       ],
-      "sourceDigest": "sha256:eff3d1588014bb6114e23db750f1f0f8dba4e7335c8d2357ebab47ea5aff5ba9",
+      "sourceDigest": "sha256:1a124a3de64ec978ae5939737c166dc9664a059576aac3ae988ceef42b9442f0",
       "directRuntimeConsumers": [
         "src/lib/api/historical-backtest-readonly.ts",
         "src/scripts/golden-case-audit.ts",
@@ -1917,7 +1917,7 @@
         "scripts/verify/production-check.sh",
         "scripts/verify/security-check.sh"
       ],
-      "sourceDigest": "sha256:84d5ecfa8fc34f5637efdf60b3b65aacdb1e59bba0cb8c5279dc9211ea766178",
+      "sourceDigest": "sha256:15954b1f03e869a660273412df0e306358d40eff262994f5b9f56aa220447739",
       "directRuntimeConsumers": [],
       "directTestConsumers": [],
       "runtimeEntrypoints": [
@@ -2229,7 +2229,7 @@
         "src/scripts/shadow/shadow-tracking.ts",
         "src/scripts/vercel-env-plan.ts"
       ],
-      "sourceDigest": "sha256:0a6e8cfb1f5e9b1e601221355f783cdb96167ca4ae8a97ae865c23c29b4081eb",
+      "sourceDigest": "sha256:e0be90337518297621e2a551836b7fbef8e8d4d3e1a95bf50a9c431ccddae775",
       "directRuntimeConsumers": [
         "src/lib/frontend-contract-server.ts",
         "src/lib/market/providers/mock-market-provider.ts",
