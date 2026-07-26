@@ -256,6 +256,16 @@ test("A0 release qualification keeps two independent builds and no production au
     ),
   );
 
+  const implicitBuildx = validateA0ReleaseQualificationWorkflowPolicy(
+    path,
+    source.replace("            --entrypoint /buildx \\\n", ""),
+  );
+  assert.ok(
+    implicitBuildx.some(
+      (item) => item.code === "V2_A0_BUILDX_ENTRYPOINT_COUNT_DRIFT",
+    ),
+  );
+
   const privileged = validateA0ReleaseQualificationWorkflowPolicy(
     path,
     `${source}\nenvironment: production\n`,

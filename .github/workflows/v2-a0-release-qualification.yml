@@ -71,6 +71,7 @@ jobs:
           set -euo pipefail
           docker pull "$BUILDX_IMAGE"
           version="$(docker run --rm \
+            --entrypoint /buildx \
             --volume /var/run/docker.sock:/var/run/docker.sock \
             "$BUILDX_IMAGE" version)"
           case "$version" in
@@ -83,6 +84,7 @@ jobs:
         run: |
           set -euo pipefail
           docker run --rm \
+            --entrypoint /buildx \
             --volume /var/run/docker.sock:/var/run/docker.sock \
             --volume "$GITHUB_WORKSPACE:/workspace:ro" \
             --volume "$EVIDENCE_ROOT:/evidence" \
@@ -102,6 +104,7 @@ jobs:
         run: |
           set -euo pipefail
           docker run --rm \
+            --entrypoint /buildx \
             --volume /var/run/docker.sock:/var/run/docker.sock \
             --volume "$GITHUB_WORKSPACE:/workspace:ro" \
             --volume "$EVIDENCE_ROOT:/evidence" \
@@ -121,6 +124,7 @@ jobs:
         run: |
           set -euo pipefail
           docker run --rm \
+            --entrypoint /buildx \
             --volume /var/run/docker.sock:/var/run/docker.sock \
             --volume "$GITHUB_WORKSPACE:/workspace:ro" \
             --workdir /workspace \

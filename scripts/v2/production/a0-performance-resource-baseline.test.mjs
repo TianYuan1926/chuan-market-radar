@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -112,4 +113,21 @@ test("A0 performance evaluator rejects missing samples and workload assets canno
   assert.equal(assets[0], "A0001");
   assert.equal(assets.at(-1), "A0480");
   assert.throws(() => frozenA0WorkloadAssets(479), /frozen/u);
+});
+
+test("A0 benchmark never injects per-cycle garbage-collection pauses", async () => {
+  const source = await readFile(
+    resolve(
+      repositoryRoot,
+      "scripts/v2/production/a0-performance-resource-baseline.mjs",
+    ),
+    "utf8",
+  );
+  assert.equal(
+    (source.match(/globalThis\.gc\?\.\(\)/gu) ?? []).length,
+    1,
+  );
+  assert.ok(source.includes(
+    "SINGLE_PRE_MEASUREMENT_FORCED_GC_IF_AVAILABLE",
+  ));
 });

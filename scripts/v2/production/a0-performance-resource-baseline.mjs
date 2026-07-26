@@ -291,9 +291,12 @@ export async function runA0PerformanceResourceBaseline({
     measuredColdCycles: policy.performanceBaseline.measuredColdCycles,
     measuredIncrementalCycles:
       policy.performanceBaseline.measuredIncrementalCycles,
+    garbageCollectionMode:
+      "SINGLE_PRE_MEASUREMENT_FORCED_GC_IF_AVAILABLE",
   };
   const workloadDigest = stableDigest(workloadCore);
   const runtimeModule = loadCollectorRuntime(root);
+  globalThis.gc?.();
   const delay = monitorEventLoopDelay({ resolution: 10 });
   delay.enable();
   await new Promise((resolvePromise) => setTimeout(resolvePromise, 20));
@@ -305,7 +308,6 @@ export async function runA0PerformanceResourceBaseline({
     index < policy.performanceBaseline.measuredColdCycles;
     index += 1
   ) {
-    globalThis.gc?.();
     const setup = setupRuntime(runtimeModule, assets, sourceCommit);
     const sample = await measureCycle(
       setup.runtime,
@@ -400,6 +402,8 @@ export async function runA0PerformanceResourceBaseline({
       expectedEligibleInstrumentCount:
         policy.performanceBaseline.expectedEligibleInstrumentCount,
       cycleIntervalMs: policy.performanceBaseline.cycleIntervalMs,
+      garbageCollectionMode:
+        "SINGLE_PRE_MEASUREMENT_FORCED_GC_IF_AVAILABLE",
       providerMode: "FROZEN_IN_MEMORY_PUBLIC_JSON_TRANSPORT",
       storeMode: "FROZEN_IN_MEMORY_ATOMIC_ARTIFACT_STORE",
       liveMarketDataUsed: false,

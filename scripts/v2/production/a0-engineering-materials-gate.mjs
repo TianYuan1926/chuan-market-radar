@@ -493,6 +493,13 @@ export function validateA0ReleaseQualificationWorkflowPolicy(path, source) {
       "exactly two independent no-cache rootfs builds are required",
     ));
   }
+  if ((source.match(/--entrypoint \/buildx/gmu) ?? []).length !== 4) {
+    issues.push(issue(
+      "V2_A0_BUILDX_ENTRYPOINT_COUNT_DRIFT",
+      path,
+      "every pinned buildx-bin invocation must execute its exact /buildx binary",
+    ));
+  }
   if (/EVIDENCE_ROOT:\s*\$\{\{\s*runner\.temp\s*\}\}/u.test(source)) {
     issues.push(issue(
       "V2_A0_RELEASE_RUNNER_CONTEXT_USED_BEFORE_RUNNER_ALLOCATION",
