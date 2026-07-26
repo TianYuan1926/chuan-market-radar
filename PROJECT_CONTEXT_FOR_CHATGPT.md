@@ -55,8 +55,8 @@ Runtime / Security / Release Control 贯穿全链。
 
 当前唯一设计权威：
 
-- `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`，内容版本 v1.45。
-- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.50。
+- `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`，内容版本 v1.46。
+- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.51。
 - `docs/blueprints/README.md`，权威解析入口。
 - `market-radar-v2-build-sequence.md`，当前正确施工依赖与减数规则。
 
@@ -65,7 +65,7 @@ Runtime / Security / Release Control 贯穿全链。
 ```text
 ACTIVE_DESIGN_AUTHORITY
 M0_ENGINEERING_EXIT_LOCAL_PASS / M0.4_EXPANDED_SCOPE_DESIGN_PASS / M0.5_MARKET_MECHANICS_MICROSTRUCTURE_PRECURSOR_ATLAS_LOCAL_CONTRACT_PASS / M1.1A_REGISTRY_LOCAL_PASS / M1.1B_MULTI_ASSET_IDENTITY_LISTING_AND_EXACT_PROBE_LOCAL_IMPLEMENTATION_PASS_TEST_ONLY_CONFORMANCE_PASS / M1.1B0_R1_LIVE_0_OF_15_COMMON_RUNTIME_TRANSPORT_BLOCKED_R2_LIVE_14_OF_15_LISTING_GATE_BLOCKED_R3_LIVE_15_OF_15_ALL_GATES_PASS / M1.4A_ADAPTIVE_MULTI_ASSET_COLLECTOR_LOCAL_CONTRACT_AND_FULL_CI_PASS_NO_RUNTIME_AUTHORITY / M1.4B_TENCENT_BOOTSTRAP_AND_CHECKPOINT_BOUND_RESUME_PASS_NO_RUNTIME_AUTHORITY_15_LIVE_PROFILES_14_ROUTE_ELIGIBLE / M1.4C_LOCAL_CONTRACT_PASS_22_OF_22_NO_RUNTIME_AUTHORITY / M1.5D_FORWARD_EXECUTION_NOT_STARTED / M2.1A_LOCAL_RESEARCH_CONTRACT_PASS_13_OF_13_REAL_COHORT_MISSING_NO_CANDIDATE_EMISSION / M3.4-R0_SCOPE_REBASE_GOVERNANCE_PASS_R1_PARTIAL_TEST_ONLY_DRAFT_NO_DIRECTED_EXIT / SCOPE_EPOCH_V1_EVIDENCE_PRESERVED
-A0_ENGINEERING_MATERIALS_AND_SUPPLY_CHAIN_LOCAL_PASS / PORTABLE_USTAR_LOCAL_REMEDIATION_PASS / REMOTE_LINUX_REVERIFY_PENDING / A0_TOTAL_GATE_INCOMPLETE / M1.5C_M1.5D_BLOCKED_BY_A0
+A0_ENGINEERING_MATERIALS_AND_SUPPLY_CHAIN_LOCAL_PASS / PORTABLE_USTAR_SIGNED_DISPATCH_REMOTE_PASS / FULL_QUALITY_GIT_HISTORY_LOCAL_REMEDIATION_PASS / FULL_QUALITY_REMOTE_REVERIFY_PENDING / A0_TOTAL_GATE_INCOMPLETE / M1.5C_M1.5D_BLOCKED_BY_A0
 M1.1_IDENTITY_FACT_LOCAL_PASS
 M1.2_FEATURE_CONTEXT_LOCAL_PASS
 M1.3_STORE_REPLAY_RUNTIME_TRUTH_LOCAL_PASS
@@ -293,7 +293,7 @@ npm run security:check
 工程描述：可运行但不完整
 实战描述：不能支撑实战
 V2：M0.5 已把 Market Mechanics、Microstructure、双向前兆、板块传播、补充来源、缓存和 Evidence Overlay 融入权威设计；M1.4C 本地合同 22/22、M2.1A research-only 合同 13/13 和完整 CI 均 PASS，但 M1.5D、真实微观结构数据、cohort/holdout、校准与 authority 未完成。M1.1A/M1.1B 与 R3 15/15 endpoint conformance 已通过；M1.4B 腾讯 bootstrap/resume 两轮均为 14/14 route PASS、0 failed、1 registry blocked，Binance spot 保持零请求。Bitget、Listing、Equity 与 Data Maximization 分别核算，股票 tradable Fact=0；Scope V2 持续 Shadow 和容量未完成。M3.1A-D-R0 四轨 research contract 通过但不计真实 M3.1A-M3.3D；M3.4-R0 治理 gate PASS，R1 草稿只恢复 compile compatibility、定向测试 0。P0R 无新 STS，COS 恢复/fresh topology/P0 未执行，M1 未完成；Detector=DRAFT、Candidate 禁发，无 Signal Grade/Strategy/Feasibility/持续 runtime/READY authority
-A0：精确版本、零高危依赖、许可证、SBOM、固定 CI/Action/runner/base-image、双重 lint、Next build、原生材料烟测与 exact Node 22.23.1/npm 10.9.8 本地完整 CI 已 PASS。首次 GitHub Ubuntu Full Quality `30198990064` 与 Signed Dispatch `30198990079` 都如实暴露 host tar `--uid=0` 不可移植；`29ab47dec0b9fbbbe66e1cfe7ce90aa2e1e4c25d` 已用纯 Node USTAR 根治四个活跃 V2 Bundle，本地完整 CI 再次 PASS、V2 Ops 138/138，Legacy 历史制品未改。远端 Linux 复验、独立 secret/SAST/镜像扫描、性能/资源基线、完整制品 provenance/回滚和 P0R 真实恢复未齐，因此总门禁未完成，M1.5C/M1.5D 尚不允许启动
+A0：精确版本、零高危依赖、许可证、SBOM、固定 CI/Action/runner/base-image、双重 lint、Next build、原生材料烟测与 exact Node 22.23.1/npm 10.9.8 本地完整 CI 已 PASS。首次 GitHub Ubuntu Full Quality `30198990064` 与 Signed Dispatch `30198990079` 都如实暴露 host tar `--uid=0` 不可移植；`29ab47dec0b9fbbbe66e1cfe7ce90aa2e1e4c25d` 已用纯 Node USTAR 根治四个活跃 V2 Bundle，Signed Dispatch `30199692352` 已 PASS。Full Quality `30199692349` 随后因 depth-1 无法读取 M0 审查祖先失败；`1d5638d0fb538bacec09086ec7b719d9e7a85ce9` 已改为完整 Git 历史并加入防复发门禁，本地完整 CI PASS、V2 Ops 139/139，Legacy 历史制品未改。Full Quality 远端复验、独立 secret/SAST/镜像扫描、性能/资源基线、完整制品 provenance/回滚和 P0R 真实恢复未齐，因此总门禁未完成，M1.5C/M1.5D 尚不允许启动
 本轮业务服务、数据库、Redis、Worker 与业务 authority 变更：0；Runtime Control 新增 fixed dispatch timer/service；外部安全状态：COS Object Lock COMPLIANCE 31 天已启用
 当前生产存储门禁：P0_BLOCKED_CAPACITY_AND_RECOVERY；P0R_OBJECT_LOCK_31D_AGE_VAULT_TRANSPORT_AND_CLEAN_PRE_STS_BASELINE_PASS_STS_RECOVERY_AND_FRESH_TOPOLOGY_PENDING；应用业务健康未在本包评估
 固定生产执行通道：PRODUCTION_OPERATIONAL_FIRST_SIGNED_DISPATCH_ACCEPTED；机器复发门禁 2 项 CLOSED、0 项 open，旧 approved_orcaterm_bundle_upload 包禁止伪装成 signed_git_bundle

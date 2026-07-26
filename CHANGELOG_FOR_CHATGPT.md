@@ -17,8 +17,9 @@
 - 修复既存 M3.4-R1 草稿与当前 strict schema 的 import、枚举和 fixture 兼容阻断；只恢复全仓编译与回归，不把定向测试为 0 的草稿标成 M3.4 出口。
 - Provider Adapter 改入正式 adapter 边界并锁定 exact host/role/REST schema；Live Transport 补齐并发启动、停止结算、有界丢弃、超时、重连和 future-time 拒绝测试。exact Node 22 完整 CI 进一步发现负责 Promise 结算的 timeout 被错误 `unref`，已根治并以修复提交 `2ae438b394d289a05f02dbfa0c2846cd2194ea37` 复验。
 - A0 第一批锁定 Node `22.23.1`、npm `10.9.8` 和全部直接依赖，升级 Next/PostCSS/Sharp 安全补丁，删除未使用的 `shadcn` CLI/MCP 依赖和死 CSS 导入。
-- 新增许可证门禁、CycloneDX SBOM、零高危审计、GitHub Action/runner/base-image pin、ESLint + Biome 和 Sharp/PostCSS 原生烟测；蓝图升级到 v1.45、机器矩阵升级到 v1.50。
+- 新增许可证门禁、CycloneDX SBOM、零高危审计、GitHub Action/runner/base-image pin、ESLint + Biome 和 Sharp/PostCSS 原生烟测；蓝图升级到 v1.46、机器矩阵升级到 v1.51。
 - 首次 GitHub Ubuntu Full Quality `30198990064` 与 Signed Dispatch `30198990079` 均在同一 host tar `--uid=0` 兼容点失败；没有掩盖红灯。提交 `29ab47dec0b9fbbbe66e1cfe7ce90aa2e1e4c25d` 已用纯 Node USTAR 根治四个活跃 V2 Bundle 的宿主方言依赖，Legacy 历史制品保持冻结。
+- Signed Dispatch `30199692352` 已在 Ubuntu PASS；Full Quality `30199692349` 随后暴露 checkout depth-1 无法读取 M0 审查祖先。提交 `1d5638d0fb538bacec09086ec7b719d9e7a85ce9` 已改为完整 Git 历史，A0 门禁会阻止该配置回退，M0 失败会输出具体失败检查。
 - 路线机器门禁把当前本地 A0、独立生产 P0R、A0 后 Scope V2 Shadow 和外部历史权利 Gate 分开表达；任一入口身份、阻断关系或生产权限漂移都会让 M0 失败。
 
 ### 核心链路影响
@@ -29,7 +30,7 @@
 
 - M1.4C Microstructure + Cache 定向 22/22 PASS。
 - M2.1A Precursor Atlas 定向 13/13 PASS。
-- exact Node `22.23.1` / npm `10.9.8` 修复后完整 `ci:production` PASS：Market 969 total / 965 pass / 4 explicit skip、Workers 23/23、Historical 4/4、V2 Foundation 588 total / 582 pass / 6 explicit skip、V2 Ops 138/138、M0、Next production build、Golden 16/16 与 security 全部通过。
+- exact Node `22.23.1` / npm `10.9.8` 修复后完整 `ci:production` PASS：Market 969 total / 965 pass / 4 explicit skip、Workers 23/23、Historical 4/4、V2 Foundation 588 total / 582 pass / 6 explicit skip、V2 Ops 139/139、M0、Next production build、Golden 16/16 与 security 全部通过。
 - USTAR 定向 `2/2`、Production Dispatch `21/21`、Expanded Shadow `59/59`、ESLint、Biome、`git diff --check`、secret pattern、forbidden-file、零漏洞审计、SBOM 与原生材料烟测 PASS；A0 总门禁仍为 `INCOMPLETE`，修复提交上的 GitHub 远端 exact-runtime PASS 尚待取得。
 
 ### 是否部署

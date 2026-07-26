@@ -2,7 +2,7 @@
 
 Date: `2026-07-26`
 
-Status: `LOCAL_ROOT_CAUSE_REMEDIATION_PASS / REMOTE_LINUX_REVERIFY_PENDING / A0_TOTAL_GATE_INCOMPLETE / PRODUCTION_UNCHANGED`
+Status: `LOCAL_ROOT_CAUSE_REMEDIATION_PASS / SIGNED_DISPATCH_REMOTE_LINUX_PASS / FULL_QUALITY_SHALLOW_HISTORY_REMEDIATED_LOCALLY / FULL_QUALITY_REMOTE_REVERIFY_PENDING / A0_TOTAL_GATE_INCOMPLETE / PRODUCTION_UNCHANGED`
 
 ## Trigger And Root Cause
 
@@ -33,12 +33,21 @@ The writer:
 
 Legacy historical bundle builders were intentionally not rewritten or re-signed. Their historical checksums and production identities remain frozen. If any is reactivated, it requires a separately reviewed exact release instead of silently inheriting this change.
 
+## First Remote Reverification
+
+The first remediation reverify at exact HEAD `cc9e902740d70cc560602fe5efdff6c1acfc375f` produced two distinct facts:
+
+- Signed Production Dispatch run `30199692352` passed on Ubuntu 24.04. This closes the host-tar portability fault for the signed-dispatch path.
+- Full Quality run `30199692349`, job `89787377997`, reached V2 Foundation but failed the M0 ancestry check. The workflow used the checkout action default `fetch-depth: 1`, while M0 intentionally proves that reviewed Legacy baseline `2ae438b394d289a05f02dbfa0c2846cd2194ea37` exists and is an ancestor of HEAD. The baseline was three commits behind HEAD and therefore absent from the shallow clone.
+
+Commit `1d5638d0fb538bacec09086ec7b719d9e7a85ce9` is the permanent local remediation for that second fault. Full Quality now checks out complete Git history, the A0 materials gate rejects future shallow-history regression, and an M0 test failure prints the exact failed checks instead of only the aggregate status.
+
 ## Local Evidence
 
 Exact Node `22.23.1` / npm `10.9.8`:
 
 - deterministic USTAR portability and rejection tests: `2/2` PASS;
-- V2 Ops: `138/138` PASS plus P0R Go tests PASS;
+- V2 Ops: `139/139` PASS plus P0R Go tests PASS;
 - production-dispatch contract: `21/21` PASS;
 - Market tests: `969` total, `965` PASS, `4` explicit skips;
 - V2 Foundation: `588` total, `582` PASS, `6` explicit skips;
@@ -47,4 +56,4 @@ Exact Node `22.23.1` / npm `10.9.8`:
 
 ## Remaining Gate
 
-This report closes the local root cause only. `EXACT_NODE_22_23_1_NPM_10_9_8_REMOTE_CI_EVIDENCE` remains pending until both GitHub workflows pass on the exact remediation commit. No production service, database, Redis, Worker, environment, feature flag, production repository or authority changed.
+The signed-dispatch Linux path has passed, but the aggregate `EXACT_NODE_22_23_1_NPM_10_9_8_REMOTE_CI_EVIDENCE` remains pending until Full Quality passes on the exact Git-history remediation head. No production service, database, Redis, Worker, environment, feature flag, production repository or authority changed.

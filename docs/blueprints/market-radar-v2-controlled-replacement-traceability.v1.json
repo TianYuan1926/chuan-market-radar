@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.50",
+  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.51",
   "status": "m0_4_expanded_scope_design_pass_m0_5_market_mechanics_microstructure_precursor_atlas_local_contract_pass_a0_engineering_materials_supply_chain_local_pass_total_gate_incomplete_m1_1a_registry_local_pass_m1_1b_multi_asset_identity_listing_and_exact_probe_local_implementation_pass_test_only_conformance_pass_m1_1b0_attempt_1_blocked_r1_live_zero_of_15_common_runtime_transport_blocked_r2_live_14_of_15_listing_gate_blocked_r3_live_15_of_15_all_gates_pass_m1_4a_adaptive_multi_asset_collector_local_contract_and_full_ci_pass_no_runtime_authority_m1_4b_tencent_bootstrap_and_checkpoint_bound_resume_pass_no_runtime_authority_15_live_profiles_14_route_eligible_m1_4c_microstructure_fact_feature_cache_local_contract_pass_22_of_22_no_runtime_authority_m1_5c_m1_5d_blocked_by_a0_m2_1a_bidirectional_precursor_atlas_local_research_contract_pass_13_of_13_real_cohort_missing_no_candidate_emission_scope_epoch_v1_evidence_preserved_m1_5_b1_pass_v1_only_m1_6_p0_blocked_p0r_clean_pre_sts_baseline_pass_sts_and_recovery_pending_m2_2_c1_forward_only_ready_v1_only_m3_0_through_m3_3_local_contract_pass_v1_only_test_only_uncalibrated_no_ready_authority_m3_1a_through_m3_3d_four_lane_local_research_contract_scaffold_and_full_ci_pass_no_real_calibration_or_authority_m3_4_r0_scope_rebase_governance_pass_r1_partial_test_only_draft_no_directed_exit_fixed_dispatch_first_signed_acceptance_pass_external_historical_source_blocked_m1_not_complete",
-  "generatedAt": "2026-07-26T19:07:09+08:00",
+  "generatedAt": "2026-07-26T19:21:44+08:00",
   "implementationAuthorized": true,
   "productionMutationAuthorized": false,
   "engineeringFoundationGate": {
@@ -20,7 +20,9 @@
       "NEXT_PRODUCTION_BUILD",
       "SHARP_AND_POSTCSS_RUNTIME_SMOKE",
       "EXACT_NODE_22_23_1_NPM_10_9_8_LOCAL_FULL_CI",
-      "PORTABLE_DETERMINISTIC_USTAR_FOR_ACTIVE_V2_BUNDLES"
+      "PORTABLE_DETERMINISTIC_USTAR_FOR_ACTIVE_V2_BUNDLES",
+      "SIGNED_DISPATCH_REMOTE_LINUX_PASS_RUN_30199692352",
+      "FULL_CI_COMPLETE_GIT_ANCESTRY_POLICY_LOCAL_PASS"
     ],
     "pendingControls": [
       "EXACT_NODE_22_23_1_NPM_10_9_8_REMOTE_CI_EVIDENCE",
@@ -52,7 +54,19 @@
       ],
       "activeV2BundleBuildersMigrated": 4,
       "legacyHistoricalBundlesChanged": false,
-      "remotePassEvidence": null
+      "signedDispatchRemotePassEvidence": {
+        "head": "cc9e902740d70cc560602fe5efdff6c1acfc375f",
+        "runId": 30199692352,
+        "status": "PASS"
+      },
+      "fullQualityFirstReverify": {
+        "head": "cc9e902740d70cc560602fe5efdff6c1acfc375f",
+        "runId": 30199692349,
+        "jobId": 89787377997,
+        "status": "FAIL_M0_REVIEWED_BASELINE_ABSENT_FROM_DEPTH_1_CLONE"
+      },
+      "gitHistoryRemediationCommit": "1d5638d0fb538bacec09086ec7b719d9e7a85ce9",
+      "remoteFullQualityPassEvidence": null
     }
   },
   "authority": {
