@@ -2,8 +2,8 @@
   "schemaVersion": "market-radar-legacy-consumer-map.v1",
   "atlasSchemaVersion": "market-radar-legacy-capability-atlas.v1",
   "extractionPolicySchemaVersion": "market-radar-legacy-extraction-policy.v1",
-  "reviewedAgainstCommit": "6c79a3c4a39917ee43c0f35722fc32986c89fa69",
-  "sourceGraphDigest": "sha256:53201ab235580b5762430667e8414863d1dd2a93ba362cd518aeff69b5cd0a56",
+  "reviewedAgainstCommit": "9bb2e14cf9f25b5769eed505fcccbb7cbd0fdf04",
+  "sourceGraphDigest": "sha256:1295518918f063ba87e1b3db5c14b577525e1410030723fc1c00f4611b9fe232",
   "legacyRuntimeImportAllowed": false,
   "copyPasteWithoutBehavioralFixtureAllowed": false,
   "legacyDeletionAllowed": false,
@@ -1192,7 +1192,7 @@
         "src/lib/frontend-contract-server.test.ts",
         "src/lib/radar-contract.ts"
       ],
-      "sourceDigest": "sha256:73ecfc0afa2fc6986736ea49ec873b959ed9d9be72b53d67de9cab9ce12f4033",
+      "sourceDigest": "sha256:cb17d1e52fedd49abbf4ccee80442602724a56aa85e6c28aafb04e1d01329539",
       "directRuntimeConsumers": [
         "src/app/api/admin/deployment/readiness/route.ts",
         "src/app/api/admin/runtime/heartbeat/route.ts",
@@ -1917,7 +1917,7 @@
         "scripts/verify/production-check.sh",
         "scripts/verify/security-check.sh"
       ],
-      "sourceDigest": "sha256:15954b1f03e869a660273412df0e306358d40eff262994f5b9f56aa220447739",
+      "sourceDigest": "sha256:327759b0bd2025bb6e39f303b09e6c79f3d1c19655bc8bed5258709964444f41",
       "directRuntimeConsumers": [],
       "directTestConsumers": [],
       "runtimeEntrypoints": [
