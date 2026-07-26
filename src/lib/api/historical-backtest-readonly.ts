@@ -1,4 +1,5 @@
-import { readdir, readFile, stat } from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
+import { open, readdir } from "node:fs/promises";
 import path from "node:path";
 import { resource, type Resource } from "../data-status";
 import { runGoldenCases } from "../backtest/golden-case-runner";
@@ -30,6 +31,9 @@ const DEFAULT_REPORT_ROOTS = [
   "tmp/chuan-historical-backtest-medium",
   "tmp/chuan-historical-backtest-smoke",
 ];
+const MAX_REPORT_BYTES = 64 * 1024 * 1024;
+const MAX_PROGRESS_BYTES = 4 * 1024 * 1024;
+const MAX_SUMMARY_BYTES = 4 * 1024 * 1024;
 
 type HistoricalBacktestReportCandidate = {
   dir: string;
@@ -955,13 +959,27 @@ function resolveReportRoots(options: HistoricalBacktestReadonlyOptions = {}) {
     .map((root) => path.isAbsolute(root) ? root : path.join(cwd, root));
 }
 
-async function fileExists(file: string) {
+async function readRegularText(file: string, maximumBytes: number) {
+  const handle = await open(
+    file,
+    fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+  );
   try {
-    const details = await stat(file);
-
-    return details.isFile();
-  } catch {
-    return false;
+    const details = await handle.stat();
+    if (
+      !details.isFile()
+      || details.size < 0
+      || details.size > maximumBytes
+    ) {
+      throw new Error("historical backtest report file size is invalid");
+    }
+    const raw = await handle.readFile("utf8");
+    if (Buffer.byteLength(raw) > maximumBytes) {
+      throw new Error("historical backtest report file size is invalid");
+    }
+    return { details, raw };
+  } finally {
+    await handle.close();
   }
 }
 
@@ -984,16 +1002,19 @@ async function listReportCandidates(root: string): Promise<HistoricalBacktestRep
     const dir = path.join(root, entry.name);
     const findingsPath = path.join(dir, "findings.json");
 
-    if (!(await fileExists(findingsPath))) {
+    try {
+      const { details } = await readRegularText(
+        findingsPath,
+        MAX_REPORT_BYTES,
+      );
+      candidates.push({
+        dir,
+        findingsPath,
+        mtimeMs: details.mtimeMs,
+      });
+    } catch {
       continue;
     }
-
-    const details = await stat(findingsPath);
-    candidates.push({
-      dir,
-      findingsPath,
-      mtimeMs: details.mtimeMs,
-    });
   }
 
   return candidates;
@@ -1016,7 +1037,11 @@ async function readLatestReportsByAuditMode(roots: string[]): Promise<Partial<Re
     }
 
     try {
-      const payload = asObject(JSON.parse(await readFile(candidate.findingsPath, "utf8")));
+      const { raw } = await readRegularText(
+        candidate.findingsPath,
+        MAX_REPORT_BYTES,
+      );
+      const payload = asObject(JSON.parse(raw));
 
       if (payload.schemaVersion !== "professional-backtest-audit-report.v2") {
         continue;
@@ -1142,7 +1167,7 @@ function describeSourceCounts(value: unknown) {
 
 async function readOptionalText(file: string) {
   try {
-    return await readFile(file, "utf8");
+    return (await readRegularText(file, MAX_SUMMARY_BYTES)).raw;
   } catch {
     return "";
   }
@@ -1153,8 +1178,10 @@ async function readLatestProgress(roots: string[]) {
     const file = path.join(root, "latest-progress.json");
 
     try {
-      const details = await stat(file);
-      const raw = await readFile(file, "utf8");
+      const { details, raw } = await readRegularText(
+        file,
+        MAX_PROGRESS_BYTES,
+      );
       const progress = normalizeAuditRoundProgress(JSON.parse(raw));
 
       if (!progress) {
@@ -1227,7 +1254,8 @@ export async function getLatestHistoricalBacktestResource(
 
   try {
     const [rawJson, summaryMarkdown] = await Promise.all([
-      readFile(candidate.findingsPath, "utf8"),
+      readRegularText(candidate.findingsPath, MAX_REPORT_BYTES)
+        .then(({ raw }) => raw),
       readOptionalText(path.join(candidate.dir, "summary.md")),
     ]);
     const payload = asObject(JSON.parse(rawJson));

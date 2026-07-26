@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
-import { link, lstat, readFile, rm, writeFile } from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
+import { link, open, rm, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { stableDigest } from "./m1-production-storage-read-only-preflight.mjs";
@@ -303,12 +304,20 @@ export async function collectP0RDatabaseFingerprint(client) {
 async function readSecureConnection(path) {
   const target = resolve(path);
   assert.equal(target, path, "database connection path must be absolute");
-  const facts = await lstat(target);
-  assert.equal(facts.isSymbolicLink(), false, "database connection must not be a symlink");
-  assert.equal(facts.isFile(), true, "database connection must be a regular file");
-  assert.equal(facts.mode & 0o077, 0, "database connection permissions are too open");
-  assert.ok(facts.size > 0 && facts.size <= 8 * 1024, "database connection size is invalid");
-  const value = (await readFile(target, "utf8")).trim();
+  const handle = await open(
+    target,
+    fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+  );
+  let value;
+  try {
+    const facts = await handle.stat();
+    assert.equal(facts.isFile(), true, "database connection must be a regular file");
+    assert.equal(facts.mode & 0o077, 0, "database connection permissions are too open");
+    assert.ok(facts.size > 0 && facts.size <= 8 * 1024, "database connection size is invalid");
+    value = (await handle.readFile("utf8")).trim();
+  } finally {
+    await handle.close();
+  }
   assert.equal(value.includes("\n"), false, "database connection must be one line");
   const parsed = new URL(value);
   assert.ok(["postgres:", "postgresql:"].includes(parsed.protocol));

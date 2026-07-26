@@ -15,6 +15,10 @@ const EXACT_SEMVER_PATTERN =
 const FORBIDDEN_LICENSE_PATTERN = /\b(?:AGPL|GPL|SSPL|BUSL)-/u;
 const GITLEAKS_FINGERPRINT_PATTERN =
   /^(?<commit>[0-9a-f]{40}):(?<path>[^:\r\n]+):(?<ruleId>[A-Za-z0-9._/-]+):(?<line>[1-9][0-9]*)$/u;
+const CODEQL_SUPPRESSION_PATTERN =
+  /^\s*\/\/\s*codeql\[(?<ruleId>[A-Za-z0-9._/-]+)\]\s*$/u;
+const CODEQL_REVIEW_MARKER_PATTERN =
+  /^\s*\/\/\s*(?<id>MR-CODEQL-[0-9]{3}):\s+\S.*$/u;
 const APPROVED_FALSE_POSITIVE_CLASSIFICATIONS = new Set([
   "COMMIT_IDENTITY",
   "CONTENT_DIGEST",
@@ -392,6 +396,125 @@ export function validateCodeqlEvidencePolicy(path, source) {
     )];
 }
 
+export function validateCodeqlSuppressionPolicy({
+  review,
+  reviewPath,
+  sources,
+}) {
+  const issues = [];
+  if (
+    review?.schemaVersion !== "v2-a0-codeql-reviewed-suppressions.v1"
+    || !Array.isArray(review?.entries)
+    || review?.policy?.directoryWideSuppression !== false
+    || review?.policy?.pathWideSuppression !== false
+    || review?.policy?.ruleWideSuppression !== false
+    || review?.policy?.unregisteredSuppressionAllowed !== false
+  ) {
+    issues.push(issue(
+      "V2_CODEQL_SUPPRESSION_POLICY_TOO_BROAD",
+      reviewPath,
+      "only exact registered source suppressions are allowed",
+    ));
+  }
+
+  const observed = [];
+  for (const [path, source] of Object.entries(sources ?? {})) {
+    const lines = source.split(/\r?\n/u);
+    for (let index = 0; index < lines.length; index += 1) {
+      const suppression = CODEQL_SUPPRESSION_PATTERN.exec(lines[index]);
+      if (!suppression?.groups?.ruleId) continue;
+      const marker = index > 0
+        ? CODEQL_REVIEW_MARKER_PATTERN.exec(lines[index - 1])
+        : null;
+      if (!marker?.groups?.id) {
+        issues.push(issue(
+          "V2_CODEQL_SUPPRESSION_MARKER_MISSING",
+          `${path}:${index + 1}`,
+          suppression.groups.ruleId,
+        ));
+        continue;
+      }
+      observed.push({
+        id: marker.groups.id,
+        line: index + 1,
+        path,
+        ruleId: suppression.groups.ruleId,
+      });
+    }
+  }
+
+  const entries = Array.isArray(review?.entries) ? review.entries : [];
+  const entryIds = new Set();
+  for (const entry of entries) {
+    const location = typeof entry?.path === "string"
+      ? entry.path
+      : reviewPath;
+    if (
+      typeof entry?.id !== "string"
+      || !/^MR-CODEQL-[0-9]{3}$/u.test(entry.id)
+      || entryIds.has(entry.id)
+      || typeof entry?.path !== "string"
+      || entry.path.startsWith("/")
+      || entry.path.split("/").some((segment) =>
+        segment === "" || segment === "." || segment === ".."
+      )
+      || typeof entry?.ruleId !== "string"
+      || !/^[A-Za-z0-9._/-]+$/u.test(entry.ruleId)
+      || entry.ruleId.includes("*")
+      || entry?.reviewStatus !== "APPROVED_EXACT"
+      || typeof entry?.classification !== "string"
+      || entry.classification.length < 8
+      || typeof entry?.rationale !== "string"
+      || entry.rationale.length < 40
+      || typeof entry?.invariant !== "string"
+      || entry.invariant.length < 40
+    ) {
+      issues.push(issue(
+        "V2_CODEQL_SUPPRESSION_REVIEW_INVALID",
+        location,
+        String(entry?.id ?? "missing id"),
+      ));
+    }
+    if (typeof entry?.id === "string") entryIds.add(entry.id);
+  }
+
+  const observedIds = new Set();
+  for (const suppression of observed) {
+    if (observedIds.has(suppression.id)) {
+      issues.push(issue(
+        "V2_CODEQL_SUPPRESSION_ID_REUSED",
+        `${suppression.path}:${suppression.line}`,
+        suppression.id,
+      ));
+    }
+    observedIds.add(suppression.id);
+    const entry = entries.find((item) => item?.id === suppression.id);
+    if (
+      entry?.path !== suppression.path
+      || entry?.ruleId !== suppression.ruleId
+    ) {
+      issues.push(issue(
+        "V2_CODEQL_SUPPRESSION_UNREGISTERED",
+        `${suppression.path}:${suppression.line}`,
+        `${suppression.id}:${suppression.ruleId}`,
+      ));
+    }
+  }
+
+  if (
+    entries.length !== observed.length
+    || entries.some((entry) => !observedIds.has(entry?.id))
+  ) {
+    issues.push(issue(
+      "V2_CODEQL_SUPPRESSION_REVIEW_DRIFT",
+      reviewPath,
+      "every reviewed suppression must have one exact source marker",
+    ));
+  }
+
+  return issues;
+}
+
 export function validateGitleaksFalsePositivePolicy({
   ignorePath,
   ignoreSource,
@@ -670,6 +793,40 @@ export function validateRepository(repositoryRoot) {
     ));
   }
 
+  const codeqlSuppressionReviewPath = resolve(
+    repositoryRoot,
+    "docs/governance/v2-a0-codeql-reviewed-suppressions.v1.json",
+  );
+  let codeqlSuppressionReview;
+  try {
+    codeqlSuppressionReview = JSON.parse(
+      readFileSync(codeqlSuppressionReviewPath, "utf8"),
+    );
+  } catch {
+    issues.push(issue(
+      "V2_CODEQL_SUPPRESSION_REVIEW_MISSING",
+      "docs/governance/v2-a0-codeql-reviewed-suppressions.v1.json",
+      "every source suppression requires an exact structured review",
+    ));
+  }
+  if (codeqlSuppressionReview !== undefined) {
+    const sourceRoots = ["src", "scripts", "tools", "deploy"];
+    const sourceFiles = sourceRoots.flatMap((root) => filesBelow(
+      resolve(repositoryRoot, root),
+      (path) => /\.(?:cjs|js|mjs|ts|tsx)$/u.test(path),
+    ));
+    const sources = Object.fromEntries(sourceFiles.map((path) => [
+      relative(repositoryRoot, path),
+      readFileSync(path, "utf8"),
+    ]));
+    issues.push(...validateCodeqlSuppressionPolicy({
+      review: codeqlSuppressionReview,
+      reviewPath:
+        "docs/governance/v2-a0-codeql-reviewed-suppressions.v1.json",
+      sources,
+    }));
+  }
+
   const gitleaksIgnorePath = resolve(repositoryRoot, ".gitleaksignore");
   const gitleaksReviewPath = resolve(
     repositoryRoot,
@@ -711,6 +868,7 @@ export function validateRepository(repositoryRoot) {
     checkedPolicy: {
       directDependenciesExact: true,
       githubActionsFullSha: true,
+      codeqlExactReviewedSuppressions: true,
       gitleaksExactReviewedFalsePositiveFingerprints: true,
       independentSecurityWorkflow: true,
       githubRuntimeExact: true,

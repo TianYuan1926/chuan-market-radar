@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdtemp, open, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -375,8 +375,14 @@ test("CLI writes a mode-600 P0 recovery artifact without sensitive material", as
     "--output", outputPath,
   ], { encoding: "utf8" });
   assert.equal(JSON.parse(stdout).status, "PASS_RECOVERY_EVIDENCE");
-  assert.equal((await stat(outputPath)).mode & 0o077, 0);
-  const output = await readFile(outputPath, "utf8");
+  const outputHandle = await open(outputPath, "r");
+  let output;
+  try {
+    assert.equal((await outputHandle.stat()).mode & 0o077, 0);
+    output = await outputHandle.readFile("utf8");
+  } finally {
+    await outputHandle.close();
+  }
   assert.equal(JSON.parse(output).schemaVersion, P0_RECOVERY_EVIDENCE_SCHEMA_VERSION);
   for (const forbidden of [
     "postgresql://",

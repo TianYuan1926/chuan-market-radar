@@ -2,8 +2,9 @@
 
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
+import { constants as fsConstants } from "node:fs";
 import {
-  chmod, cp, lstat, mkdir, mkdtemp, readFile, rm, utimes, writeFile,
+  chmod, cp, mkdir, mkdtemp, open, readFile, rm, utimes, writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -204,9 +205,22 @@ export async function verifyStagedTransport(root, manifest) {
   const checksums = {};
   for (const file of TRANSPORT_FILES) {
     const path = resolve(root, file);
-    const facts = await lstat(path);
-    ensure(facts.isFile() && !facts.isSymbolicLink(), `transport_file_not_regular:${file}`);
-    checksums[file] = sha256(await readFile(path));
+    let handle;
+    try {
+      handle = await open(
+        path,
+        fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+      );
+    } catch {
+      ensure(false, `transport_file_not_regular:${file}`);
+    }
+    try {
+      const facts = await handle.stat();
+      ensure(facts.isFile(), `transport_file_not_regular:${file}`);
+      checksums[file] = sha256(await handle.readFile());
+    } finally {
+      await handle.close();
+    }
     ensure(checksums[file] === manifest.fileSha256[file], `transport_file_checksum_mismatch:${file}`);
   }
   ensure(sha256(JSON.stringify(Object.fromEntries(Object.entries(checksums).sort())))

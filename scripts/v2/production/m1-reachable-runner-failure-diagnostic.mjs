@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { lstat, mkdir, readFile, writeFile } from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
+import { mkdir, open, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -350,10 +351,20 @@ export function buildFailureDiagnostic(input) {
 }
 
 async function readTap(path) {
-  const stats = await lstat(path);
-  assert.ok(stats.isFile() && !stats.isSymbolicLink());
-  assert.ok(stats.size > 0 && stats.size <= MAX_INPUT_BYTES);
-  return readFile(path, "utf8");
+  const handle = await open(
+    path,
+    fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+  );
+  try {
+    const stats = await handle.stat();
+    assert.ok(stats.isFile());
+    assert.ok(stats.size > 0 && stats.size <= MAX_INPUT_BYTES);
+    const raw = await handle.readFile("utf8");
+    assert.ok(Buffer.byteLength(raw) <= MAX_INPUT_BYTES);
+    return raw;
+  } finally {
+    await handle.close();
+  }
 }
 
 function parseFlags(arguments_) {

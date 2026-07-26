@@ -492,6 +492,8 @@ async function writeReports({ args, failures, result, sourceBySymbol, symbols })
   });
 
   await writeFile(path.join(reportDir, "summary.md"), markdown, "utf8");
+  // MR-CODEQL-008: Normalized public market data is intentionally persisted as a non-executable audit report.
+  // codeql[js/http-to-file-access]
   await writeFile(path.join(reportDir, "findings.json"), JSON.stringify({
     diagnostics: result.diagnostics,
     failures,
@@ -504,7 +506,7 @@ async function writeReports({ args, failures, result, sourceBySymbol, symbols })
     sourceBySymbol,
     sourceCounts,
     symbolsUsed: result.symbolsUsed,
-  }, null, 2), "utf8");
+  }, null, 2), { encoding: "utf8", mode: 0o600 });
   await writeFile(path.join(reportDir, "samples.csv"), `${rowsToCsv(selectionsToCsvRows(result.selections))}\n`, "utf8");
 
   return reportDir;

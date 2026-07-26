@@ -122,13 +122,27 @@ function ensureDir(path: string) {
 function writeJson(path: string, value: unknown) {
   ensureDir(dirname(path));
   const tempPath = `${path}.tmp-${process.pid}-${Date.now()}`;
-  writeFileSync(tempPath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+  // MR-CODEQL-004: Validated market observations are intentionally persisted as non-executable Shadow JSON.
+  // codeql[js/http-to-file-access]
+  writeFileSync(tempPath, `${JSON.stringify(value, null, 2)}\n`, {
+    encoding: "utf8",
+    flag: "wx",
+    mode: 0o600,
+  });
   renameSync(tempPath, path);
 }
 
 function writeText(path: string, value: string) {
   ensureDir(dirname(path));
-  writeFileSync(path, value, "utf8");
+  const tempPath = `${path}.tmp-${process.pid}-${Date.now()}`;
+  // MR-CODEQL-005: Shadow markdown is a non-executable rendering of validated observation records.
+  // codeql[js/http-to-file-access]
+  writeFileSync(tempPath, value, {
+    encoding: "utf8",
+    flag: "wx",
+    mode: 0o600,
+  });
+  renameSync(tempPath, path);
 }
 
 function readJson(path: string): unknown {
@@ -142,7 +156,13 @@ function readJsonIfExists(path: string): unknown | null {
 function appendJsonl(path: string, rows: unknown[]) {
   if (rows.length === 0) return;
   ensureDir(dirname(path));
-  appendFileSync(path, `${rows.map((row) => JSON.stringify(row)).join("\n")}\n`, "utf8");
+  // MR-CODEQL-006: Validated observations are intentionally appended to a data-only Shadow journal.
+  // codeql[js/http-to-file-access]
+  appendFileSync(
+    path,
+    `${rows.map((row) => JSON.stringify(row)).join("\n")}\n`,
+    { encoding: "utf8", mode: 0o600 },
+  );
 }
 
 function writeJsonl(path: string, rows: unknown[]) {
@@ -1276,7 +1296,13 @@ async function commandRunLoop(options: CliOptions) {
       }
     } catch (error) {
       const message = error instanceof Error ? error.stack || error.message : String(error);
-      appendFileSync(runnerLogPath(options), `${nowIso()} ${message}\n`, "utf8");
+      // MR-CODEQL-007: Sanitized capture failures are intentionally persisted in a non-executable runner log.
+      // codeql[js/http-to-file-access]
+      appendFileSync(
+        runnerLogPath(options),
+        `${nowIso()} ${message}\n`,
+        { encoding: "utf8", mode: 0o600 },
+      );
       markRuntime("running_with_error", error instanceof Error ? error.message : String(error));
     }
     await new Promise((resolvePromise) => setTimeout(resolvePromise, intervalMs));

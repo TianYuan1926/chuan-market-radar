@@ -1,4 +1,5 @@
-import { lstat, readFile, writeFile } from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
+import { open, writeFile } from "node:fs/promises";
 import { posix, resolve, sep } from "node:path";
 
 const BLOCK_BYTES = 512;
@@ -134,12 +135,27 @@ export async function writeDeterministicUstar({
       sourcePath.startsWith(`${sourceRoot}${sep}`),
       "deterministic_ustar_entry_boundary_rejected",
     );
-    const metadata = await lstat(sourcePath);
-    ensure(metadata.isFile() && !metadata.isSymbolicLink(),
-      "deterministic_ustar_entry_not_regular_file");
-    const bytes = await readFile(sourcePath);
-    ensure(bytes.length === metadata.size,
-      "deterministic_ustar_entry_size_changed");
+    let handle;
+    try {
+      handle = await open(
+        sourcePath,
+        fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+      );
+    } catch {
+      ensure(false, "deterministic_ustar_entry_not_regular_file");
+    }
+    let bytes;
+    let metadata;
+    try {
+      metadata = await handle.stat();
+      ensure(metadata.isFile(),
+        "deterministic_ustar_entry_not_regular_file");
+      bytes = await handle.readFile();
+      ensure(bytes.length === metadata.size,
+        "deterministic_ustar_entry_size_changed");
+    } finally {
+      await handle.close();
+    }
     const mode = metadata.mode & 0o777;
     const header = buildHeader({
       entry,

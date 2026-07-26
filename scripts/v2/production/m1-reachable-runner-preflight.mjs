@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { lstat, mkdir, readFile, writeFile } from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
+import { mkdir, open, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -1124,10 +1125,20 @@ export function buildReachableRunnerEvidence(input) {
 }
 
 async function readBounded(path, label) {
-  const stats = await lstat(path);
-  assert.ok(stats.isFile() && !stats.isSymbolicLink(), `${label} must be a regular file`);
-  assert.ok(stats.size > 0 && stats.size <= MAX_INPUT_BYTES, `${label} has invalid size`);
-  return readFile(path);
+  const handle = await open(
+    path,
+    fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+  );
+  try {
+    const stats = await handle.stat();
+    assert.ok(stats.isFile(), `${label} must be a regular file`);
+    assert.ok(stats.size > 0 && stats.size <= MAX_INPUT_BYTES, `${label} has invalid size`);
+    const bytes = await handle.readFile();
+    assert.ok(bytes.length <= MAX_INPUT_BYTES, `${label} has invalid size`);
+    return bytes;
+  } finally {
+    await handle.close();
+  }
 }
 
 async function readJson(path, label) {

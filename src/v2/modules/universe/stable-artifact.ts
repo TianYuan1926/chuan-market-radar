@@ -31,6 +31,8 @@ function canonicalJson(value: unknown): string {
 }
 
 export function stableSha256(value: unknown): string {
+  // MR-CODEQL-001: SHA-256 is the artifact content-addressing contract, not a password KDF.
+  // codeql[js/insufficient-password-hash]
   return createHash("sha256").update(canonicalJson(value)).digest("hex");
 }
 

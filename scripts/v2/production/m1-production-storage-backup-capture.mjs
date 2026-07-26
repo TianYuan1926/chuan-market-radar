@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
+import { constants as fsConstants } from "node:fs";
 import {
   lstat,
   link,
@@ -118,7 +119,10 @@ export function buildP0RBackupCaptureFacts(input) {
 }
 
 async function digestFile(path) {
-  const file = await open(path, "r");
+  const file = await open(
+    path,
+    fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+  );
   try {
     const hash = createHash("sha256");
     let bytes = 0;
@@ -144,9 +148,24 @@ async function requireRegular(path, label, { executable = false, secure = false 
 }
 
 async function readSecureConnection(path) {
-  const facts = await requireRegular(path, "database connection", { secure: true });
-  assert.ok(facts.size <= 8 * 1024, "database connection file is too large");
-  const value = (await readFile(path, "utf8")).trim();
+  assert.equal(resolve(path), path, "database connection path must be absolute");
+  const handle = await open(
+    path,
+    fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+  );
+  let value;
+  try {
+    const facts = await handle.stat();
+    assert.equal(facts.isFile(), true, "database connection must be a regular file");
+    assert.equal(facts.mode & 0o077, 0, "database connection permissions are too open");
+    assert.ok(
+      facts.size > 0 && facts.size <= 8 * 1024,
+      "database connection file is too large",
+    );
+    value = (await handle.readFile("utf8")).trim();
+  } finally {
+    await handle.close();
+  }
   assert.equal(value.includes("\n"), false, "database connection must be one line");
   const parsed = new URL(value);
   assert.ok(["postgres:", "postgresql:"].includes(parsed.protocol));
@@ -209,8 +228,6 @@ export async function runEncryptedSnapshotDump(input) {
   assert.match(input.databaseUser, DATABASE_IDENTIFIER_PATTERN, "database user is invalid");
   assert.match(input.snapshotId, /^[0-9A-F-]{8,80}$/iu, "exported snapshot ID is invalid");
   assert.equal(resolve(input.encryptedOutput), input.encryptedOutput, "encrypted output must be absolute");
-  await assert.rejects(lstat(input.encryptedOutput), (error) => error?.code === "ENOENT");
-
   const encryptedFile = await open(input.encryptedOutput, "wx", 0o600);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), DUMP_TIMEOUT_MS);

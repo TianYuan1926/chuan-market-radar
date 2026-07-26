@@ -158,11 +158,15 @@ test("keeps provider hosts and public transport behind V2 adapters", () => {
       !file.includes(`${sep}fixtures${sep}`) &&
       !file.includes(`${sep}testing${sep}`),
   );
-  const providerHosts = /(?:fapi\.binance\.com|www\.okx\.com|api\.bybit\.com)/u;
+  const providerHosts = [
+    "fapi.binance.com",
+    "www.okx.com",
+    "api.bybit.com",
+  ];
 
   for (const file of productionFiles) {
     const source = readFileSync(file, "utf8");
-    if (providerHosts.test(source)) {
+    if (providerHosts.some((host) => source.includes(host))) {
       assert.equal(
         file.includes(`${sep}adapters${sep}`),
         true,

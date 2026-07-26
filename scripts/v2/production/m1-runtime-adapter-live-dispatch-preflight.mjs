@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
-import { lstat, readFile } from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
+import { open } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
@@ -20,12 +21,19 @@ function ensure(condition, reason, details = undefined) {
 }
 
 async function readRegularFile(path, reason, maxBytes) {
-  const facts = await lstat(path);
-  ensure(
-    facts.isFile() && !facts.isSymbolicLink() && facts.size <= maxBytes,
-    reason,
+  const handle = await open(
+    path,
+    fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
   );
-  return readFile(path);
+  try {
+    const facts = await handle.stat();
+    ensure(facts.isFile() && facts.size <= maxBytes, reason);
+    const bytes = await handle.readFile();
+    ensure(bytes.length <= maxBytes, reason);
+    return bytes;
+  } finally {
+    await handle.close();
+  }
 }
 
 async function readCanonicalJson(path, reason) {

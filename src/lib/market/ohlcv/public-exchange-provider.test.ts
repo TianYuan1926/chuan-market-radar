@@ -156,10 +156,12 @@ test("createPublicExchangeOhlcvProvider fetches normalized candles from an injec
   assert.equal(result.symbol, "ENAUSDT");
   assert.equal(result.interval, "15m");
   assert.deepEqual(result.ok ? result.candles.map((candle) => candle.close) : [], [108.4]);
-  assert.match(requestedUrls[0] ?? "", /fapi\.binance\.com\/fapi\/v1\/klines/);
-  assert.match(requestedUrls[0] ?? "", /symbol=ENAUSDT/);
-  assert.match(requestedUrls[0] ?? "", /interval=15m/);
-  assert.match(requestedUrls[0] ?? "", /limit=120/);
+  const requestedUrl = new URL(requestedUrls[0] ?? "invalid:");
+  assert.equal(requestedUrl.hostname, "fapi.binance.com");
+  assert.equal(requestedUrl.pathname, "/fapi/v1/klines");
+  assert.equal(requestedUrl.searchParams.get("symbol"), "ENAUSDT");
+  assert.equal(requestedUrl.searchParams.get("interval"), "15m");
+  assert.equal(requestedUrl.searchParams.get("limit"), "120");
 });
 
 test("createPublicExchangeOhlcvProvider falls back to OKX when Binance OHLCV fails", async () => {
@@ -169,7 +171,7 @@ test("createPublicExchangeOhlcvProvider falls back to OKX when Binance OHLCV fai
       const url = input.toString();
       requestedUrls.push(url);
 
-      if (url.includes("fapi.binance.com")) {
+      if (new URL(url).hostname === "fapi.binance.com") {
         return new Response("blocked", { status: 451 });
       }
 
@@ -201,8 +203,10 @@ test("createPublicExchangeOhlcvProvider falls back to OKX when Binance OHLCV fai
   assert.equal(result.ok, true);
   assert.equal(result.source, "okx-public-swap");
   assert.deepEqual(result.ok ? result.candles.map((candle) => candle.close) : [], [108.4]);
-  assert.match(requestedUrls[1] ?? "", /www\.okx\.com\/api\/v5\/market\/candles/);
-  assert.match(requestedUrls[1] ?? "", /instId=ENA-USDT-SWAP/);
+  const requestedUrl = new URL(requestedUrls[1] ?? "invalid:");
+  assert.equal(requestedUrl.hostname, "www.okx.com");
+  assert.equal(requestedUrl.pathname, "/api/v5/market/candles");
+  assert.equal(requestedUrl.searchParams.get("instId"), "ENA-USDT-SWAP");
   assert.equal(requestedUrls.length, 2);
 });
 
@@ -213,7 +217,7 @@ test("createPublicExchangeOhlcvProvider falls back to Bybit when Binance and OKX
       const url = input.toString();
       requestedUrls.push(url);
 
-      if (!url.includes("api.bybit.com")) {
+      if (new URL(url).hostname !== "api.bybit.com") {
         return new Response("blocked", { status: 451 });
       }
 
@@ -245,9 +249,11 @@ test("createPublicExchangeOhlcvProvider falls back to Bybit when Binance and OKX
   assert.equal(result.ok, true);
   assert.equal(result.source, "bybit-public-linear");
   assert.deepEqual(result.ok ? result.candles.map((candle) => candle.close) : [], [108.4]);
-  assert.match(requestedUrls[2] ?? "", /api\.bybit\.com\/v5\/market\/kline/);
-  assert.match(requestedUrls[2] ?? "", /category=linear/);
-  assert.match(requestedUrls[2] ?? "", /symbol=ENAUSDT/);
+  const requestedUrl = new URL(requestedUrls[2] ?? "invalid:");
+  assert.equal(requestedUrl.hostname, "api.bybit.com");
+  assert.equal(requestedUrl.pathname, "/v5/market/kline");
+  assert.equal(requestedUrl.searchParams.get("category"), "linear");
+  assert.equal(requestedUrl.searchParams.get("symbol"), "ENAUSDT");
   assert.equal(requestedUrls.length, 3);
 });
 

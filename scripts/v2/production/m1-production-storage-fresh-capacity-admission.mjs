@@ -2,11 +2,12 @@
 
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { constants as fsConstants } from "node:fs";
 import {
   chmod,
   lstat,
   mkdir,
-  readFile,
+  open,
   writeFile,
 } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
@@ -352,16 +353,24 @@ export function verifyM1ProductionStorageFreshCapacityAdmission(report) {
 async function readProtectedJson(path, label) {
   const absolutePath = resolve(path);
   assert.equal(path, absolutePath, `${label} path must be absolute`);
-  const facts = await lstat(absolutePath);
-  assert.equal(facts.isSymbolicLink(), false, `${label} must not be a symlink`);
-  assert.equal(facts.isFile(), true, `${label} must be a regular file`);
-  assert.equal(facts.mode & 0o077, 0, `${label} permissions are too open`);
-  assert.ok(
-    facts.size > 0 && facts.size <= MAXIMUM_JSON_BYTES,
-    `${label} size is invalid`,
+  const handle = await open(
+    absolutePath,
+    fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
   );
-  const bytes = await readFile(absolutePath);
-  return { digest: fileDigest(bytes), value: JSON.parse(bytes.toString("utf8")) };
+  try {
+    const facts = await handle.stat();
+    assert.equal(facts.isFile(), true, `${label} must be a regular file`);
+    assert.equal(facts.mode & 0o077, 0, `${label} permissions are too open`);
+    assert.ok(
+      facts.size > 0 && facts.size <= MAXIMUM_JSON_BYTES,
+      `${label} size is invalid`,
+    );
+    const bytes = await handle.readFile();
+    assert.ok(bytes.length <= MAXIMUM_JSON_BYTES, `${label} size is invalid`);
+    return { digest: fileDigest(bytes), value: JSON.parse(bytes.toString("utf8")) };
+  } finally {
+    await handle.close();
+  }
 }
 
 async function writeProtectedJson(path, value) {

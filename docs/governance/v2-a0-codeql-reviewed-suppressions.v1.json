@@ -1,0 +1,84 @@
+{
+  "schemaVersion": "v2-a0-codeql-reviewed-suppressions.v1",
+  "reviewedAt": "2026-07-26",
+  "policy": {
+    "directoryWideSuppression": false,
+    "pathWideSuppression": false,
+    "ruleWideSuppression": false,
+    "unregisteredSuppressionAllowed": false
+  },
+  "entries": [
+    {
+      "id": "MR-CODEQL-001",
+      "path": "src/v2/modules/universe/stable-artifact.ts",
+      "ruleId": "js/insufficient-password-hash",
+      "classification": "CONTENT_INTEGRITY_NOT_PASSWORD_STORAGE",
+      "reviewStatus": "APPROVED_EXACT",
+      "rationale": "The function hashes canonical JSON to produce the declared sha256 content-addressing identity for immutable artifacts. It is not used to store or verify passwords.",
+      "invariant": "Credential and password verification must never call stableSha256 or stableContentHash; changing the artifact digest algorithm requires a versioned contract migration."
+    },
+    {
+      "id": "MR-CODEQL-002",
+      "path": "scripts/production/observability.mjs",
+      "ruleId": "js/http-to-file-access",
+      "classification": "INTENTIONAL_NON_EXECUTABLE_EVIDENCE_PERSISTENCE",
+      "reviewStatus": "APPROVED_EXACT",
+      "rationale": "The observability command intentionally records redacted remote production facts as JSON evidence for offline validation and recovery review.",
+      "invariant": "The output name must remain a validated basename, the payload must remain JSON data rather than executable content, and secret redaction plus evidence validation must remain active."
+    },
+    {
+      "id": "MR-CODEQL-003",
+      "path": "src/scripts/professional-backtest-audit.ts",
+      "ruleId": "js/http-to-file-access",
+      "classification": "INTENTIONAL_NON_EXECUTABLE_EVIDENCE_PERSISTENCE",
+      "reviewStatus": "APPROVED_EXACT",
+      "rationale": "The audit runner intentionally persists normalized provider symbol progress as private JSON so interrupted professional audits can be resumed and reviewed.",
+      "invariant": "The file must remain non-executable JSON under the configured audit output root, use private creation permissions, and never be imported or evaluated as code."
+    },
+    {
+      "id": "MR-CODEQL-004",
+      "path": "src/scripts/shadow/shadow-tracking.ts",
+      "ruleId": "js/http-to-file-access",
+      "classification": "INTENTIONAL_NON_EXECUTABLE_EVIDENCE_PERSISTENCE",
+      "reviewStatus": "APPROVED_EXACT",
+      "rationale": "Shadow capture intentionally stores validated market observations and lifecycle state as private JSON evidence for longitudinal review.",
+      "invariant": "The writer must remain JSON-only, use exclusive private temporary files plus atomic rename, and the resulting data must never be executed or imported as source."
+    },
+    {
+      "id": "MR-CODEQL-005",
+      "path": "src/scripts/shadow/shadow-tracking.ts",
+      "ruleId": "js/http-to-file-access",
+      "classification": "INTENTIONAL_NON_EXECUTABLE_EVIDENCE_PERSISTENCE",
+      "reviewStatus": "APPROVED_EXACT",
+      "rationale": "Shadow summaries intentionally render validated observation records into private Markdown for human review.",
+      "invariant": "The output must remain non-executable Markdown written through an exclusive private temporary file and must never be interpreted as HTML or application code."
+    },
+    {
+      "id": "MR-CODEQL-006",
+      "path": "src/scripts/shadow/shadow-tracking.ts",
+      "ruleId": "js/http-to-file-access",
+      "classification": "INTENTIONAL_NON_EXECUTABLE_EVIDENCE_PERSISTENCE",
+      "reviewStatus": "APPROVED_EXACT",
+      "rationale": "Shadow capture intentionally appends validated observation records to a private JSONL journal used for replay and outcome review.",
+      "invariant": "Each appended row must remain JSON serialization of validated data, the journal must remain non-executable, and private file creation permissions must remain enforced."
+    },
+    {
+      "id": "MR-CODEQL-007",
+      "path": "src/scripts/shadow/shadow-tracking.ts",
+      "ruleId": "js/http-to-file-access",
+      "classification": "INTENTIONAL_NON_EXECUTABLE_EVIDENCE_PERSISTENCE",
+      "reviewStatus": "APPROVED_EXACT",
+      "rationale": "The long-running Shadow worker intentionally persists capture failure diagnostics in a private plain-text operations log.",
+      "invariant": "The sink must remain a non-executable private log, must not be loaded as configuration or source, and secret-bearing response bodies must never be included."
+    },
+    {
+      "id": "MR-CODEQL-008",
+      "path": "tools/radar-historical-backtest.mjs",
+      "ruleId": "js/http-to-file-access",
+      "classification": "INTENTIONAL_NON_EXECUTABLE_EVIDENCE_PERSISTENCE",
+      "reviewStatus": "APPROVED_EXACT",
+      "rationale": "The historical audit tool intentionally persists normalized public market data and findings as a private JSON report for reproducible review.",
+      "invariant": "The report must remain JSON data in a newly created report directory, use private creation permissions, and never be imported or evaluated as executable code."
+    }
+  ]
+}

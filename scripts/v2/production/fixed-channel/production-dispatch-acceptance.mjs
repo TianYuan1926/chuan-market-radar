@@ -2,14 +2,15 @@
 
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
+import { constants as fsConstants } from "node:fs";
 import {
-  chmod,
+  link,
   lstat,
   mkdir,
   open,
   readFile,
   realpath,
-  rename,
+  unlink,
 } from "node:fs/promises";
 import { basename, dirname, join, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -233,14 +234,28 @@ export function validateAcceptanceRequest(request, {
   return request;
 }
 
-async function assertRegularFile(path, reason) {
-  const facts = await lstat(path).catch(() => null);
-  ensure(facts?.isFile() && !facts.isSymbolicLink(), reason);
-  return facts;
+async function readRegularFile(path, reason) {
+  let handle;
+  try {
+    handle = await open(
+      path,
+      fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+    );
+    const facts = await handle.stat();
+    ensure(facts.isFile(), reason);
+    return {
+      facts,
+      raw: await handle.readFile("utf8"),
+    };
+  } catch {
+    throw new AcceptanceError(reason);
+  } finally {
+    await handle?.close();
+  }
 }
 
 async function readCanonicalJson(path, reason) {
-  const raw = await readFile(path, "utf8");
+  const { facts, raw } = await readRegularFile(path, reason);
   let value;
   try {
     value = JSON.parse(raw);
@@ -248,7 +263,7 @@ async function readCanonicalJson(path, reason) {
     throw new AcceptanceError(reason);
   }
   ensure(raw === canonicalJson(value), `${reason}_not_canonical`);
-  return { raw, value };
+  return { facts, raw, value };
 }
 
 async function validateManifest(stagingDirectory, request) {
@@ -277,10 +292,10 @@ async function validateManifest(stagingDirectory, request) {
   return manifest;
 }
 
-async function validateDispatchBinding(stagingDirectory, request, requestRaw, bundleMarkerPath) {
+async function validateDispatchBinding(stagingDirectory, request, requestRaw, bundleMarkerRaw) {
   const { raw, value: envelope } = await readCanonicalJson(join(stagingDirectory, ".dispatch.json"),
     "acceptance_dispatch_envelope_invalid");
-  const marker = (await readFile(bundleMarkerPath, "utf8")).trim();
+  const marker = bundleMarkerRaw.trim();
   ensure(marker === request.transportBundleSha256, "acceptance_bundle_marker_mismatch");
   ensure(envelope.bundleSha256 === request.transportBundleSha256,
     "acceptance_dispatch_bundle_mismatch");
@@ -439,31 +454,44 @@ async function fetchEndpoint(run, path) {
 async function writeResult(path, result) {
   const parent = dirname(path);
   await mkdir(parent, { recursive: true, mode: 0o700 });
-  const parentFacts = await lstat(parent);
-  ensure(parentFacts.isDirectory() && !parentFacts.isSymbolicLink(),
-    "acceptance_result_parent_unsafe");
-  ensure(await realpath(parent) === parent && await realpath(dirname(parent)) === dirname(parent),
+  const directory = await open(
+    parent,
+    fsConstants.O_RDONLY
+      | fsConstants.O_DIRECTORY
+      | fsConstants.O_NOFOLLOW,
+  );
+  const temporary = `${path}.tmp-${process.pid}-${Date.now()}`;
+  try {
+    const parentFacts = await directory.stat();
+    ensure(parentFacts.isDirectory(), "acceptance_result_parent_unsafe");
+    ensure(await realpath(parent) === parent
+      && await realpath(dirname(parent)) === dirname(parent),
     "acceptance_result_parent_not_canonical");
-  const existing = await lstat(path).catch((error) => {
-    if (error?.code === "ENOENT") return null;
-    throw error;
-  });
-  ensure(existing === null, "acceptance_result_already_exists");
-  const temporary = `${path}.tmp-${Date.now()}`;
-  const handle = await open(temporary, "wx", 0o600);
-  try {
-    await handle.writeFile(canonicalJson(result));
-    await handle.sync();
-  } finally {
-    await handle.close();
-  }
-  await rename(temporary, path);
-  await chmod(path, 0o600);
-  const directory = await open(parent, "r");
-  try {
+    const handle = await open(temporary, "wx", 0o600);
+    try {
+      await handle.writeFile(canonicalJson(result));
+      await handle.sync();
+    } finally {
+      await handle.close();
+    }
+    try {
+      await link(temporary, path);
+    } catch (error) {
+      if (error?.code === "EEXIST") {
+        throw new AcceptanceError("acceptance_result_already_exists");
+      }
+      throw error;
+    }
+    await unlink(temporary);
     await directory.sync();
   } finally {
-    await directory.close();
+    try {
+      await unlink(temporary).catch((error) => {
+        if (error?.code !== "ENOENT") throw error;
+      });
+    } finally {
+      await directory.close();
+    }
   }
 }
 
@@ -474,11 +502,16 @@ export async function runAcceptance({
   policy = DEFAULT_ACCEPTANCE_POLICY,
   requestPath,
 }) {
-  const requestFacts = await assertRegularFile(requestPath, "acceptance_request_file_unsafe");
+  const {
+    facts: requestFacts,
+    raw: requestRaw,
+    value: request,
+  } = await readCanonicalJson(requestPath, "acceptance_request_json_invalid");
   ensure((requestFacts.mode & 0o077) === 0, "acceptance_request_mode_unsafe");
-  await assertRegularFile(bundleMarkerPath, "acceptance_bundle_marker_unsafe");
-  const { raw: requestRaw, value: request } = await readCanonicalJson(requestPath,
-    "acceptance_request_json_invalid");
+  const { raw: bundleMarkerRaw } = await readRegularFile(
+    bundleMarkerPath,
+    "acceptance_bundle_marker_unsafe",
+  );
   validateAcceptanceRequest(request, { now, policy });
   const stagingReal = await realpath(request.stagingDirectory);
   const requestReal = await realpath(requestPath);
@@ -491,7 +524,7 @@ export async function runAcceptance({
   "acceptance_staging_mode_unsafe");
   await validateManifest(stagingReal, request);
   const dispatchEnvelopeSha256 = await validateDispatchBinding(
-    stagingReal, request, requestRaw, bundleMarkerPath,
+    stagingReal, request, requestRaw, bundleMarkerRaw,
   );
 
   const calls = [];

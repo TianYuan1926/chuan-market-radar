@@ -3,11 +3,12 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { execFile as execFileCallback } from "node:child_process";
+import { constants as fsConstants } from "node:fs";
 import {
   chmod,
   lstat,
   mkdir,
-  readFile,
+  open,
   writeFile,
 } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
@@ -939,17 +940,24 @@ async function readProtectedJson(path, label, { outsideWorkspace = false } = {})
       `${label} must remain outside the Git workspace`,
     );
   }
-  const facts = await lstat(absolutePath);
-  assert.equal(facts.isSymbolicLink(), false, `${label} must not be a symlink`);
-  assert.equal(facts.isFile(), true, `${label} must be a regular file`);
-  if (outsideWorkspace) {
-    assert.equal(facts.mode & 0o077, 0, `${label} permissions are too open`);
+  const handle = await open(
+    absolutePath,
+    fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+  );
+  try {
+    const facts = await handle.stat();
+    assert.equal(facts.isFile(), true, `${label} must be a regular file`);
+    if (outsideWorkspace) {
+      assert.equal(facts.mode & 0o077, 0, `${label} permissions are too open`);
+    }
+    const bytes = await handle.readFile();
+    return {
+      digest: fileDigest(bytes),
+      value: JSON.parse(bytes.toString("utf8")),
+    };
+  } finally {
+    await handle.close();
   }
-  const bytes = await readFile(absolutePath);
-  return {
-    digest: fileDigest(bytes),
-    value: JSON.parse(bytes.toString("utf8")),
-  };
 }
 
 async function writeProtectedJson(path, value) {

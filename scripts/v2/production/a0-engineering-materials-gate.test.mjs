@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   validateCodeqlEvidencePolicy,
+  validateCodeqlSuppressionPolicy,
   validateFullCiWorkflowPolicy,
   validateGitleaksFalsePositivePolicy,
   validatePackagePolicy,
@@ -219,6 +220,50 @@ test("CodeQL evidence is sanitized and fails closed on every result", () => {
       (item) => item.code === "V2_CODEQL_EVIDENCE_CONTRACT_INCOMPLETE",
     ),
   );
+});
+
+test("CodeQL source suppressions require exact structured reviews", () => {
+  const reviewPath =
+    "docs/governance/v2-a0-codeql-reviewed-suppressions.v1.json";
+  const review = JSON.parse(readFileSync(reviewPath, "utf8"));
+  const sources = Object.fromEntries(review.entries.map((entry) => [
+    entry.path,
+    readFileSync(entry.path, "utf8"),
+  ]));
+
+  assert.deepEqual(validateCodeqlSuppressionPolicy({
+    review,
+    reviewPath,
+    sources,
+  }), []);
+
+  const unregistered = validateCodeqlSuppressionPolicy({
+    review,
+    reviewPath,
+    sources: {
+      ...sources,
+      "src/unregistered.ts":
+        "// MR-CODEQL-999: This exact suppression has no structured review.\n// codeql[js/http-to-file-access]\nwrite();\n",
+    },
+  });
+  assert.ok(unregistered.some(
+    (item) => item.code === "V2_CODEQL_SUPPRESSION_UNREGISTERED",
+  ));
+  assert.ok(unregistered.some(
+    (item) => item.code === "V2_CODEQL_SUPPRESSION_REVIEW_DRIFT",
+  ));
+
+  const broad = validateCodeqlSuppressionPolicy({
+    review: {
+      ...review,
+      policy: { ...review.policy, ruleWideSuppression: true },
+    },
+    reviewPath,
+    sources,
+  });
+  assert.ok(broad.some(
+    (item) => item.code === "V2_CODEQL_SUPPRESSION_POLICY_TOO_BROAD",
+  ));
 });
 
 test("Gitleaks ignores only exact independently reviewed false positives", () => {

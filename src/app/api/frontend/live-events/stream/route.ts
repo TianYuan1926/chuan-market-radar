@@ -10,17 +10,19 @@ export const dynamic = "force-dynamic";
 
 const encoder = new TextEncoder();
 const defaultIntervalMs = 5_000;
-const minIntervalMs = 2_000;
-const maxIntervalMs = 30_000;
+const maxEventsPerConnection = 120;
 
-function positiveInterval(value: string | null) {
-  const parsed = Number(value);
-
-  if (!Number.isFinite(parsed) || parsed < 1) {
-    return defaultIntervalMs;
+function allowedInterval(value: string | null) {
+  switch (value) {
+    case "2000":
+      return 2_000;
+    case "10000":
+      return 10_000;
+    case "30000":
+      return 30_000;
+    default:
+      return defaultIntervalMs;
   }
-
-  return Math.max(minIntervalMs, Math.min(maxIntervalMs, Math.floor(parsed)));
 }
 
 function sseEvent(event: string, data: unknown) {
@@ -39,34 +41,18 @@ async function buildPayload(limit: number) {
 
 export function GET(request: NextRequest) {
   const limit = boundedFrontendLiveEventLimit(request.nextUrl.searchParams.get("limit"));
-  const intervalMs = positiveInterval(request.nextUrl.searchParams.get("intervalMs"));
+  const intervalMs = allowedInterval(request.nextUrl.searchParams.get("intervalMs"));
 
   const stream = new ReadableStream({
     async start(controller) {
       let closed = false;
+      let eventCount = 0;
       let timer: ReturnType<typeof setTimeout> | undefined;
 
-      const push = async () => {
+      const closeStream = () => {
         if (closed) {
           return;
         }
-
-        try {
-          const payload = await buildPayload(limit);
-          controller.enqueue(sseEvent("frontend-live-events", payload));
-        } catch (error) {
-          controller.enqueue(sseEvent("frontend-live-events-error", {
-            error: error instanceof Error ? error.message : "unknown_error",
-            ok: false,
-          }));
-        }
-
-        if (!closed) {
-          timer = setTimeout(push, intervalMs);
-        }
-      };
-
-      request.signal.addEventListener("abort", () => {
         closed = true;
         if (timer) {
           clearTimeout(timer);
@@ -76,7 +62,39 @@ export function GET(request: NextRequest) {
         } catch {
           // The browser may already have closed the connection.
         }
-      });
+      };
+
+      const push = async () => {
+        if (closed) {
+          return;
+        }
+
+        try {
+          const payload = await buildPayload(limit);
+          if (!closed) {
+            controller.enqueue(sseEvent("frontend-live-events", payload));
+          }
+        } catch (error) {
+          if (!closed) {
+            controller.enqueue(sseEvent("frontend-live-events-error", {
+              error: error instanceof Error ? error.message : "unknown_error",
+              ok: false,
+            }));
+          }
+        }
+
+        eventCount += 1;
+        if (eventCount >= maxEventsPerConnection) {
+          closeStream();
+          return;
+        }
+
+        if (!closed) {
+          timer = setTimeout(push, intervalMs);
+        }
+      };
+
+      request.signal.addEventListener("abort", closeStream, { once: true });
 
       controller.enqueue(sseEvent("frontend-live-events-open", {
         intervalMs,

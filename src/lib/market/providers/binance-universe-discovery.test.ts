@@ -148,7 +148,7 @@ test("createBinanceUniverseDiscoveryProvider fetches normalized USDT perpetual i
     "ARBUSDT",
     "SOLUSDT",
   ]);
-  assert.match(requestedUrls[0] ?? "", new RegExp(BINANCE_FUTURES_EXCHANGE_INFO_URL));
+  assert.equal(requestedUrls[0], BINANCE_FUTURES_EXCHANGE_INFO_URL);
 });
 
 test("createBinanceUniverseDiscoveryProvider returns typed failures without throwing", async () => {

@@ -2,7 +2,8 @@
 
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { lstat, readFile } from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
+import { open, readFile } from "node:fs/promises";
 import { isAbsolute, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
@@ -448,11 +449,18 @@ export async function validateIdentityOverrideFile(filePath, expectedSha256) {
   ensure(/^[0-9a-f]{64}$/.test(expectedSha256 ?? ""), "identity_override_checksum_invalid");
   let metadata;
   let source;
+  let handle;
   try {
-    metadata = await lstat(filePath);
-    source = await readFile(filePath);
+    handle = await open(
+      filePath,
+      fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+    );
+    metadata = await handle.stat();
+    source = await handle.readFile();
   } catch {
     throw new DormantDeployPolicyError("identity_override_unavailable");
+  } finally {
+    await handle?.close();
   }
   ensure(metadata.isFile(), "identity_override_not_regular_file");
   ensure((metadata.mode & 0o777) === 0o600, "identity_override_permissions_not_0600");

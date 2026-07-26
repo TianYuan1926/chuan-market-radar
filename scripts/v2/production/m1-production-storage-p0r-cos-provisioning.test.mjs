@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtemp, readFile, stat } from "node:fs/promises";
+import { mkdtemp, open } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -171,8 +171,14 @@ test("create-plan CLI writes a mode-600, secret-free artifact", async () => {
     "--source-ip-cidr", "203.0.113.24/32",
   ], { encoding: "utf8" });
   assert.equal(JSON.parse(stdout).status, "PASS_P0R_COS_PROVISIONING_PLAN");
-  assert.equal((await stat(output)).mode & 0o077, 0);
-  const content = await readFile(output, "utf8");
+  const outputHandle = await open(output, "r");
+  let content;
+  try {
+    assert.equal((await outputHandle.stat()).mode & 0o077, 0);
+    content = await outputHandle.readFile("utf8");
+  } finally {
+    await outputHandle.close();
+  }
   for (const forbidden of ["TmpSecret", "sessionToken", "privateKey", "password"]) {
     assert.equal(content.includes(forbidden), false);
   }

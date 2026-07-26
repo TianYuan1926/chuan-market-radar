@@ -1,19 +1,23 @@
 import {
   execFile,
 } from "node:child_process";
+import { constants as fsConstants } from "node:fs";
 import {
+  open,
   readdir,
   readFile,
   mkdir,
-  stat,
   writeFile,
 } from "node:fs/promises";
 import {
   mkdirSync,
+  renameSync,
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
 import process from "node:process";
+
+const MAX_PREVIOUS_REPORT_BYTES = 64 * 1024 * 1024;
 import type {
   Candle,
 } from "../lib/market/ohlcv/types";
@@ -357,9 +361,17 @@ async function previousAuditRoundSymbols(options: CliOptions) {
 
 function writeAuditProgress(options: CliOptions, progress: ProfessionalAuditRoundProgress) {
   const file = progressPath(options);
+  const temporary = `${file}.tmp-${process.pid}-${Date.now()}`;
 
   mkdirSync(path.dirname(file), { recursive: true });
-  writeFileSync(file, JSON.stringify(progress, null, 2), "utf8");
+  // MR-CODEQL-003: Normalized provider symbols are intentionally persisted as non-executable progress JSON.
+  // codeql[js/http-to-file-access]
+  writeFileSync(temporary, JSON.stringify(progress, null, 2), {
+    encoding: "utf8",
+    flag: "wx",
+    mode: 0o600,
+  });
+  renameSync(temporary, file);
 }
 
 function writePhaseProgress({
@@ -864,6 +876,33 @@ function compareMetric({
   };
 }
 
+async function readPreviousProfessionalReport(path: string) {
+  const handle = await open(
+    path,
+    fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+  );
+  try {
+    const details = await handle.stat();
+    if (
+      !details.isFile()
+      || details.size < 1
+      || details.size > MAX_PREVIOUS_REPORT_BYTES
+    ) {
+      throw new Error("previous professional report size is invalid");
+    }
+    const raw = await handle.readFile("utf8");
+    if (Buffer.byteLength(raw) > MAX_PREVIOUS_REPORT_BYTES) {
+      throw new Error("previous professional report size is invalid");
+    }
+    return {
+      mtimeMs: details.mtimeMs,
+      payload: JSON.parse(raw) as Record<string, unknown>,
+    };
+  } finally {
+    await handle.close();
+  }
+}
+
 async function latestPreviousProfessionalReport(options: CliOptions) {
   const root = path.join(process.cwd(), options.out);
   let entries;
@@ -884,8 +923,9 @@ async function latestPreviousProfessionalReport(options: CliOptions) {
     const findingsPath = path.join(root, entry.name, "findings.json");
 
     try {
-      const details = await stat(findingsPath);
-      const payload = JSON.parse(await readFile(findingsPath, "utf8")) as Record<string, unknown>;
+      const { mtimeMs, payload } = await readPreviousProfessionalReport(
+        findingsPath,
+      );
 
       if (payload.schemaVersion !== "professional-backtest-audit-report.v2") {
         continue;
@@ -893,7 +933,7 @@ async function latestPreviousProfessionalReport(options: CliOptions) {
 
       candidates.push({
         id: entry.name,
-        mtimeMs: details.mtimeMs,
+        mtimeMs,
         payload,
       });
     } catch {

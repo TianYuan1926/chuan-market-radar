@@ -334,10 +334,21 @@ async function scanExtractedContent(root, entries) {
     const path = resolve(root, entry);
     const rel = relative(root, path);
     ensure(rel && !rel.startsWith(`..${sep}`) && rel !== "..", "dispatch_bundle_extract_escape");
-    const facts = await lstat(path);
-    if (!facts.isFile()) continue;
-    ensure(facts.size <= 16 * 1024 * 1024, "dispatch_bundle_file_too_large", entry);
-    const bytes = await readFile(path);
+    const handle = await open(
+      path,
+      fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+    );
+    let bytes;
+    try {
+      const facts = await handle.stat();
+      if (!facts.isFile()) continue;
+      ensure(facts.size <= 16 * 1024 * 1024, "dispatch_bundle_file_too_large", entry);
+      bytes = await handle.readFile();
+      ensure(bytes.length <= 16 * 1024 * 1024,
+        "dispatch_bundle_file_too_large", entry);
+    } finally {
+      await handle.close();
+    }
     const content = bytes.toString("latin1");
     for (const pattern of SENSITIVE_CONTENT) {
       ensure(!pattern.test(content), "dispatch_bundle_sensitive_content", entry);
@@ -803,9 +814,18 @@ async function productionLeaseState(config, now) {
     return "uncertain";
   }
   try {
-    const leaseFacts = await lstat(leasePath);
-    if (!leaseFacts.isFile() || leaseFacts.isSymbolicLink()) return "uncertain";
-    const lease = JSON.parse(await readFile(leasePath, "utf8"));
+    const handle = await open(
+      leasePath,
+      fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+    );
+    let lease;
+    try {
+      const leaseFacts = await handle.stat();
+      if (!leaseFacts.isFile()) return "uncertain";
+      lease = JSON.parse(await handle.readFile("utf8"));
+    } finally {
+      await handle.close();
+    }
     const expiresAt = new Date(lease.expiresAt);
     if (lease.schemaVersion !== "market-radar-production-lease.v1"
       || lease.status !== "active"

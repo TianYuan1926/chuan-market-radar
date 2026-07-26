@@ -2,7 +2,15 @@
 
 import { execFile, spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { access, lstat, mkdir, readFile, readlink, writeFile } from "node:fs/promises";
+import {
+  access,
+  lstat,
+  mkdir,
+  open,
+  readFile,
+  readlink,
+  writeFile,
+} from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import { promisify } from "node:util";
@@ -473,11 +481,24 @@ export async function worktreeFingerprint(files, { repoRoot = REPO_ROOT } = {}) 
     try {
       const absolutePath = resolve(repoRoot, filePath);
       const fileStat = await lstat(absolutePath);
-      hash.update(`mode:${fileStat.mode & 0o111};type:${fileStat.isSymbolicLink() ? "symlink" : "file"};`);
       if (fileStat.isSymbolicLink()) {
+        hash.update(`mode:${fileStat.mode & 0o111};type:symlink;`);
         hash.update(await readlink(absolutePath));
       } else {
-        hash.update(await readFile(absolutePath));
+        const handle = await open(
+          absolutePath,
+          fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+        );
+        try {
+          const openedStat = await handle.stat();
+          if (!openedStat.isFile()) {
+            throw new Error(`worktree fingerprint source is not a file: ${filePath}`);
+          }
+          hash.update(`mode:${openedStat.mode & 0o111};type:file;`);
+          hash.update(await handle.readFile());
+        } finally {
+          await handle.close();
+        }
       }
     } catch (error) {
       if (error?.code !== "ENOENT") throw error;
@@ -615,21 +636,28 @@ export async function loadExternalProductionApproval(state, { trustRootValue } =
     };
   }
   const approvalPath = resolve(trustRoot, "approvals", `${activePackage.id}.json`);
+  let handle;
   try {
-    const facts = await lstat(approvalPath);
-    if (!facts.isFile() || facts.isSymbolicLink()) {
+    handle = await open(
+      approvalPath,
+      fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+    );
+    const facts = await handle.stat();
+    if (!facts.isFile()) {
       violations.push("standing_authorization_external_approval_not_regular_file");
     }
     if ((facts.mode & 0o777) !== 0o600) {
       violations.push("standing_authorization_external_approval_mode_invalid");
     }
-    const approval = JSON.parse(await readFile(approvalPath, "utf8"));
+    const approval = JSON.parse(await handle.readFile("utf8"));
     return { approval, approvalPath, trustRoot, violations };
   } catch (error) {
     violations.push(error?.code === "ENOENT"
       ? "standing_authorization_external_approval_missing"
       : "standing_authorization_external_approval_invalid");
     return { approval: undefined, approvalPath, trustRoot, violations };
+  } finally {
+    await handle?.close();
   }
 }
 

@@ -1,13 +1,11 @@
 import { createHash, randomUUID } from "node:crypto";
+import { constants as fsConstants } from "node:fs";
 import {
   chmod,
   link,
-  lstat,
   mkdir,
   open,
-  readFile,
   realpath,
-  stat,
   unlink,
 } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve } from "node:path";
@@ -98,18 +96,36 @@ function sha256(bytes: Uint8Array): string {
 }
 
 async function fileBytes(path: string, maximumBytes: number): Promise<Uint8Array> {
-  const metadata = await lstat(path);
-  if (!metadata.isFile() || metadata.isSymbolicLink()) {
-    throw new Error("forward evidence object must be a regular file");
+  let handle;
+  try {
+    handle = await open(
+      path,
+      fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+    );
+  } catch (error) {
+    if (errorCode(error) === "ELOOP") {
+      throw new Error("forward evidence object must be a regular file", {
+        cause: error,
+      });
+    }
+    throw error;
   }
-  if (metadata.size > maximumBytes) {
-    throw new Error("forward evidence object exceeds its read limit");
+  try {
+    const metadata = await handle.stat();
+    if (!metadata.isFile()) {
+      throw new Error("forward evidence object must be a regular file");
+    }
+    if (metadata.size > maximumBytes) {
+      throw new Error("forward evidence object exceeds its read limit");
+    }
+    const bytes = await handle.readFile();
+    if (bytes.byteLength > maximumBytes) {
+      throw new Error("forward evidence object exceeds its read limit");
+    }
+    return bytes;
+  } finally {
+    await handle.close();
   }
-  const bytes = await readFile(path);
-  if (bytes.byteLength > maximumBytes) {
-    throw new Error("forward evidence object exceeds its read limit");
-  }
-  return bytes;
 }
 
 function errorCode(error: unknown): string | undefined {
@@ -252,43 +268,50 @@ export async function createM2ForwardInstrumentEvidenceStore(input: Readonly<{
   };
 
   const readLastJournalRecord = async (): Promise<unknown | null> => {
-    let size: number;
+    let handle;
     try {
-      size = (await stat(journalPath)).size;
+      handle = await open(
+        journalPath,
+        fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+      );
     } catch (error) {
       if (errorCode(error) === "ENOENT") {
         return null;
       }
       throw error;
     }
-    if (size === 0) {
-      return null;
-    }
-    const length = Math.min(size, MAX_JOURNAL_RECORD_BYTES);
-    const handle = await open(journalPath, "r");
-    const bytes = new Uint8Array(length);
     try {
+      const metadata = await handle.stat();
+      if (!metadata.isFile()) {
+        throw new Error("forward capture journal must be a regular file");
+      }
+      const size = metadata.size;
+      if (size === 0) {
+        return null;
+      }
+      const length = Math.min(size, MAX_JOURNAL_RECORD_BYTES);
+      const bytes = new Uint8Array(length);
       const result = await handle.read(bytes, 0, length, size - length);
       if (result.bytesRead !== length) {
         throw new Error("forward capture journal tail read was incomplete");
       }
+      const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+      if (!text.endsWith("\n")) {
+        throw new Error("forward capture journal has an incomplete final record");
+      }
+      const withoutFinalNewline = text.slice(0, -1);
+      const separator = withoutFinalNewline.lastIndexOf("\n");
+      if (separator < 0 && length < size) {
+        throw new Error("forward capture journal record exceeds its tail limit");
+      }
+      const line = withoutFinalNewline.slice(separator + 1);
+      if (line.trim() === "") {
+        throw new Error("forward capture journal final record is empty");
+      }
+      return JSON.parse(line) as unknown;
     } finally {
       await handle.close();
     }
-    const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-    if (!text.endsWith("\n")) {
-      throw new Error("forward capture journal has an incomplete final record");
-    }
-    const withoutFinalNewline = text.slice(0, -1);
-    const separator = withoutFinalNewline.lastIndexOf("\n");
-    if (separator < 0 && length < size) {
-      throw new Error("forward capture journal record exceeds its tail limit");
-    }
-    const line = withoutFinalNewline.slice(separator + 1);
-    if (line.trim() === "") {
-      throw new Error("forward capture journal final record is empty");
-    }
-    return JSON.parse(line) as unknown;
   };
 
   const verifyRaw = async (

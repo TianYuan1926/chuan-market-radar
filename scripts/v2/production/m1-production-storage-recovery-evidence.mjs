@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
-import { link, lstat, readFile, rm, writeFile } from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
+import { link, open, rm, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
@@ -709,11 +710,20 @@ export function buildM1ProductionStorageRecoveryEvidence(input) {
 
 async function readJson(path, label) {
   const target = resolve(path);
-  const facts = await lstat(target);
-  assert.equal(facts.isSymbolicLink(), false, `${label} must not be a symlink`);
-  assert.equal(facts.isFile(), true, `${label} must be a regular file`);
-  assert.ok(facts.size > 0 && facts.size <= 1024 * 1024, `${label} size is invalid`);
-  return JSON.parse(await readFile(target, "utf8"));
+  const handle = await open(
+    target,
+    fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+  );
+  try {
+    const facts = await handle.stat();
+    assert.equal(facts.isFile(), true, `${label} must be a regular file`);
+    assert.ok(facts.size > 0 && facts.size <= 1024 * 1024, `${label} size is invalid`);
+    const raw = await handle.readFile("utf8");
+    assert.ok(Buffer.byteLength(raw) <= 1024 * 1024, `${label} size is invalid`);
+    return JSON.parse(raw);
+  } finally {
+    await handle.close();
+  }
 }
 
 async function writeAtomic(path, value) {

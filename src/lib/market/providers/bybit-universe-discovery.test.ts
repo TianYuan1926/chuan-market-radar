@@ -167,9 +167,13 @@ test("createBybitUniverseDiscoveryProvider fetches paginated normalized USDT per
     "ARBUSDT",
     "SUIUSDT",
   ]);
-  assert.match(requestedUrls[0] ?? "", new RegExp(BYBIT_LINEAR_INSTRUMENTS_URL));
-  assert.match(requestedUrls[0] ?? "", /category=linear/);
-  assert.match(requestedUrls[1] ?? "", /cursor=next-page/);
+  const firstUrl = new URL(requestedUrls[0] ?? "invalid:");
+  const secondUrl = new URL(requestedUrls[1] ?? "invalid:");
+  const configuredUrl = new URL(BYBIT_LINEAR_INSTRUMENTS_URL);
+  assert.equal(firstUrl.origin, configuredUrl.origin);
+  assert.equal(firstUrl.pathname, configuredUrl.pathname);
+  assert.equal(firstUrl.searchParams.get("category"), "linear");
+  assert.equal(secondUrl.searchParams.get("cursor"), "next-page");
 });
 
 test("createBybitUniverseDiscoveryProvider returns typed failures without throwing", async () => {

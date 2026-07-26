@@ -2,9 +2,13 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
+  closeSync,
+  constants as fsConstants,
   existsSync,
+  fstatSync,
   mkdirSync,
   mkdtempSync,
+  openSync,
   readdirSync,
   readFileSync,
   rmSync,
@@ -32,6 +36,8 @@ const LEGACY_OUTPUT_DIR = join(rootDir, "phase4-production-observability");
 const DEFAULT_BASE_URL = process.env.MARKET_RADAR_BASE_URL || process.env.BASE_URL || "http://127.0.0.1:3000";
 const COMMANDS = new Set(["health", "smoke", "status", "evidence", "validate"]);
 const TEST_RESULT_HINT = join(rootDir, ".tmp", "phase4-1-test-results.json");
+const MAX_EVIDENCE_FILE_BYTES = 64 * 1024 * 1024;
+const EVIDENCE_FILE_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u;
 
 const SENSITIVE_KEY_RE = /secret|token|cookie|password|database_url|api[_-]?key|private[_-]?key|authorization/i;
 const SECRET_VALUE_RE = /(Bearer\s+[A-Za-z0-9._-]+|sk-[A-Za-z0-9_-]{20,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY|DATABASE_URL\s*=|CRON_SECRET\s*=|COINGLASS_API_KEY\s*=)/i;
@@ -212,14 +218,35 @@ function ensureDir(path) {
   mkdirSync(path, { recursive: true });
 }
 
+function evidenceOutputPath(outDir, name) {
+  if (
+    typeof name !== "string"
+    || !EVIDENCE_FILE_NAME_PATTERN.test(name)
+    || basename(name) !== name
+  ) {
+    throw new Error("invalid evidence output file name");
+  }
+  return join(outDir, name);
+}
+
 function writeJson(outDir, name, payload) {
   ensureDir(outDir);
-  writeFileSync(join(outDir, name), `${JSON.stringify(payload, null, 2)}\n`);
+  const output = evidenceOutputPath(outDir, name);
+  // MR-CODEQL-002: Redacted remote facts are intentionally persisted as non-executable JSON evidence.
+  // codeql[js/http-to-file-access]
+  writeFileSync(output, `${JSON.stringify(payload, null, 2)}\n`, {
+    encoding: "utf8",
+    mode: 0o600,
+  });
 }
 
 function writeText(outDir, name, text) {
   ensureDir(outDir);
-  writeFileSync(join(outDir, name), text.endsWith("\n") ? text : `${text}\n`);
+  writeFileSync(
+    evidenceOutputPath(outDir, name),
+    text.endsWith("\n") ? text : `${text}\n`,
+    { encoding: "utf8", mode: 0o600 },
+  );
 }
 
 function redact(value) {
@@ -1996,14 +2023,40 @@ function validateEvidenceZip(zipPath) {
 
     for (const file of requiredFiles) {
       const path = join(tmp, file);
-      if (!existsSync(path)) {
-        errors.push(`missing required file: ${file}`);
+      let descriptor;
+      try {
+        descriptor = openSync(
+          path,
+          fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+        );
+      } catch (error) {
+        errors.push(error?.code === "ENOENT"
+          ? `missing required file: ${file}`
+          : `unsafe required file: ${file}`);
         continue;
       }
-      if (statSync(path).size === 0) {
-        errors.push(`empty required file: ${file}`);
+      let text;
+      try {
+        const facts = fstatSync(descriptor);
+        if (!facts.isFile()) {
+          errors.push(`required path is not a file: ${file}`);
+          continue;
+        }
+        if (facts.size === 0) {
+          errors.push(`empty required file: ${file}`);
+        }
+        if (facts.size > MAX_EVIDENCE_FILE_BYTES) {
+          errors.push(`oversized required file: ${file}`);
+          continue;
+        }
+        text = readFileSync(descriptor, "utf8");
+        if (Buffer.byteLength(text) > MAX_EVIDENCE_FILE_BYTES) {
+          errors.push(`oversized required file: ${file}`);
+          continue;
+        }
+      } finally {
+        closeSync(descriptor);
       }
-      const text = readFileSync(path, "utf8");
       const placeholderScanText = file === "phase4-1-summary.json" || file === "phase4-3-1-summary.json"
         ? text.replace(/"production_evidence_no_placeholders"\s*:\s*"[^"]+"/g, "")
         : text;

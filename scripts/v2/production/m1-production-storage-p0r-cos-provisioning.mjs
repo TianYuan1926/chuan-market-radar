@@ -2,7 +2,8 @@
 
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
-import { chmod, lstat, readFile, rm, writeFile } from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
+import { chmod, open, rm, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -315,14 +316,23 @@ export function compileP0RCosCredentials({ now, plan, stsResponse }) {
 }
 
 async function readJson(path, label, { secure = false } = {}) {
-  const facts = await lstat(path);
-  assert.equal(facts.isSymbolicLink(), false, `${label} must not be a symlink`);
-  assert.equal(facts.isFile(), true, `${label} must be a regular file`);
-  assert.ok(facts.size > 0 && facts.size <= MAXIMUM_JSON_BYTES, `${label} size is invalid`);
-  if (secure) assert.equal(facts.mode & 0o077, 0, `${label} permissions are too open`);
-  const value = JSON.parse(await readFile(path, "utf8"));
-  assert.ok(isRecord(value), `${label} must contain one JSON object`);
-  return value;
+  const handle = await open(
+    path,
+    fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+  );
+  try {
+    const facts = await handle.stat();
+    assert.equal(facts.isFile(), true, `${label} must be a regular file`);
+    assert.ok(facts.size > 0 && facts.size <= MAXIMUM_JSON_BYTES, `${label} size is invalid`);
+    if (secure) assert.equal(facts.mode & 0o077, 0, `${label} permissions are too open`);
+    const raw = await handle.readFile("utf8");
+    assert.ok(Buffer.byteLength(raw) <= MAXIMUM_JSON_BYTES, `${label} size is invalid`);
+    const value = JSON.parse(raw);
+    assert.ok(isRecord(value), `${label} must contain one JSON object`);
+    return value;
+  } finally {
+    await handle.close();
+  }
 }
 
 async function writeJsonExclusive(path, value) {

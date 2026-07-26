@@ -2,8 +2,9 @@
 
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { constants as fsConstants } from "node:fs";
 import {
-  lstat,
+  open,
   readFile,
   rename,
   writeFile,
@@ -1110,12 +1111,20 @@ async function queryOne(client, query, values = []) {
 
 async function readSecureDatabaseConnection(path) {
   assert.equal(path, resolve(path), "database connection secret path must be absolute");
-  const facts = await lstat(path);
-  assert.equal(facts.isSymbolicLink(), false, "database connection secret must not be a symlink");
-  assert.equal(facts.isFile(), true, "database connection secret must be a regular file");
-  assert.equal(facts.mode & 0o077, 0, "database connection secret permissions are too open");
-  assert.ok(facts.size > 0 && facts.size <= 8 * 1024, "database connection secret size is invalid");
-  const value = (await readFile(path, "utf8")).trim();
+  const handle = await open(
+    path,
+    fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+  );
+  let value;
+  try {
+    const facts = await handle.stat();
+    assert.equal(facts.isFile(), true, "database connection secret must be a regular file");
+    assert.equal(facts.mode & 0o077, 0, "database connection secret permissions are too open");
+    assert.ok(facts.size > 0 && facts.size <= 8 * 1024, "database connection secret size is invalid");
+    value = (await handle.readFile("utf8")).trim();
+  } finally {
+    await handle.close();
+  }
   assert.equal(value.includes("\n"), false, "database connection secret must be one line");
   const parsed = new URL(value);
   assert.ok(["postgres:", "postgresql:"].includes(parsed.protocol));

@@ -173,8 +173,11 @@ test("createOkxUniverseDiscoveryProvider fetches normalized USDT swap instrument
     "ARBUSDT",
     "SUIUSDT",
   ]);
-  assert.match(requestedUrls[0] ?? "", new RegExp(OKX_PUBLIC_INSTRUMENTS_URL));
-  assert.match(requestedUrls[0] ?? "", /instType=SWAP/);
+  const requestedUrl = new URL(requestedUrls[0] ?? "invalid:");
+  const configuredUrl = new URL(OKX_PUBLIC_INSTRUMENTS_URL);
+  assert.equal(requestedUrl.origin, configuredUrl.origin);
+  assert.equal(requestedUrl.pathname, configuredUrl.pathname);
+  assert.equal(requestedUrl.searchParams.get("instType"), "SWAP");
 });
 
 test("createOkxUniverseDiscoveryProvider returns typed failures without throwing", async () => {

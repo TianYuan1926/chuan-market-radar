@@ -344,6 +344,8 @@ test("frontend contract routes are read-only and cannot trigger scans", () => {
   assert.match(liveEventsStreamSource, /buildFrontendLiveEvents/, `${liveEventsStreamRoute} must reuse the archive event contract`);
   assert.match(liveEventsStreamSource, /x-chuan-triggered-scan/);
   assert.match(liveEventsStreamSource, /request\.signal/);
+  assert.match(liveEventsStreamSource, /maxEventsPerConnection/);
+  assert.match(liveEventsStreamSource, /case "30000"/);
   assert.doesNotMatch(liveEventsStreamSource, /getReadableMarketRadarSnapshot|refreshMarketRadarSnapshot|COINGLASS_API_KEY/, `${liveEventsStreamRoute} must not start scans or read provider secrets`);
 
   const uiStateRoute = "src/app/api/frontend/ui-state/route.ts";
@@ -697,7 +699,10 @@ test("token avatars prefer real icon lookup without a fixed small whitelist", ()
   const tokenAvatarSource = readFileSync(resolve(process.cwd(), "src/components/token-avatar.tsx"), "utf8");
 
   assert.match(tokenAvatarSource, /logoLookupSymbol/);
-  assert.match(tokenAvatarSource, /assets\.coincap\.io\/assets\/icons/);
+  assert.equal(
+    tokenAvatarSource.includes("https://assets.coincap.io/assets/icons/"),
+    true,
+  );
   assert.match(tokenAvatarSource, /onError=\{\(\) => setFailed\(true\)\}/);
   assert.doesNotMatch(tokenAvatarSource, /const REAL_LOGOS = new Set/);
 });
@@ -1030,7 +1035,10 @@ test("production smoke keeps token chart and external intelligence truth checks"
 test("token avatar uses real logo lookup before generated fallback and no static placeholder logo", () => {
   const avatarSource = readFileSync(resolve(process.cwd(), "src/components/token-avatar.tsx"), "utf8");
 
-  assert.match(avatarSource, /assets\.coincap\.io\/assets\/icons/);
+  assert.equal(
+    avatarSource.includes("https://assets.coincap.io/assets/icons/"),
+    true,
+  );
   assert.match(avatarSource, /GeneratedAvatar/);
   assert.match(avatarSource, /onError=\{\(\) => setFailed\(true\)\}/);
   assert.doesNotMatch(avatarSource, /placeholder\.svg/);
