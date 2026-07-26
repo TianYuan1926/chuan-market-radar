@@ -13,7 +13,6 @@ import {
 import { RUNTIME_OBJECT_SCHEMA_VERSIONS } from "../../runtime-schema/schema-versions";
 import {
   deepFreezeArtifact,
-  stableContentHash,
   stableSha256,
 } from "../universe/stable-artifact";
 import type {
@@ -314,6 +313,28 @@ export function buildMarkPriceFacts(input: {
   if (batches.some((batch) => Date.parse(batch.receivedAt) > normalizedMs)) {
     throw new Error("mark-price normalization cannot precede receipt");
   }
+  const observationsByVenueInstrument = new Map<
+    TargetVenue,
+    Map<string, PriceSnapshotObservation[]>
+  >();
+  for (const batch of batches) {
+    const observationsByInstrument = new Map<
+      string,
+      PriceSnapshotObservation[]
+    >();
+    if (batch.ok) {
+      for (const observation of batch.observations) {
+        if (observation.venueInstrumentId === null) {
+          continue;
+        }
+        const matches =
+          observationsByInstrument.get(observation.venueInstrumentId) ?? [];
+        matches.push(observation);
+        observationsByInstrument.set(observation.venueInstrumentId, matches);
+      }
+    }
+    observationsByVenueInstrument.set(batch.venue, observationsByInstrument);
+  }
 
   const nextSequences: Record<string, string> = {
     ...(input.previousSequences ?? {}),
@@ -330,10 +351,9 @@ export function buildMarkPriceFacts(input: {
       }
       const batch = byVenue.get(record.venue)!;
       const matches = batch.ok
-        ? batch.observations.filter(
-          (observation) =>
-            observation.venueInstrumentId === record.venueInstrumentId,
-        )
+        ? observationsByVenueInstrument
+          .get(record.venue)
+          ?.get(record.venueInstrumentId) ?? []
         : [];
       const evaluated = factQuality({
         batch,
@@ -367,7 +387,7 @@ export function buildMarkPriceFacts(input: {
         producerModule: "market_fact_quality",
         generatedAt: input.generatedAt,
         sourceCutoff: input.sourceCutoff,
-        contentHash: stableContentHash(content),
+        contentHash: `sha256:${digest}`,
         factId: `fact:mark-price:${digest.slice(0, 24)}`,
         canonicalInstrumentId: record.canonicalInstrumentId,
         venueInstrumentId: record.venueInstrumentId,
@@ -404,7 +424,7 @@ export function buildMarkPriceFacts(input: {
     producerModule: "market_fact_quality",
     generatedAt: input.generatedAt,
     sourceCutoff: input.sourceCutoff,
-    contentHash: stableContentHash(qualityContent),
+    contentHash: `sha256:${qualityDigest}`,
     snapshotId: `fact-quality:${qualityDigest.slice(0, 24)}`,
     universeSnapshotId: input.universe.snapshotId,
     completenessRatio: ratio(

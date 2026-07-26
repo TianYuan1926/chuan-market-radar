@@ -13,7 +13,6 @@ import {
 } from "./catalog-types";
 import {
   deepFreezeArtifact,
-  stableContentHash,
   stableSha256,
 } from "./stable-artifact";
 
@@ -173,7 +172,7 @@ export function buildEligibleInstrumentSnapshot(input: {
     producerModule: "universe_registry",
     generatedAt: input.generatedAt,
     sourceCutoff: input.sourceCutoff,
-    contentHash: stableContentHash(content),
+    contentHash: `sha256:${digest}`,
     snapshotId: `universe:${digest.slice(0, 24)}`,
     policyVersion: input.policyVersion,
     observedCount: accounting.length,

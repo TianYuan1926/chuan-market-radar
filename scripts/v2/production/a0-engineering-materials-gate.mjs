@@ -500,6 +500,19 @@ export function validateA0ReleaseQualificationWorkflowPolicy(path, source) {
       "every pinned buildx-bin invocation must execute its exact /buildx binary",
     ));
   }
+  if (
+    (
+      source.match(
+        /--volume \/etc\/ssl\/certs:\/etc\/ssl\/certs:ro/gmu,
+      ) ?? []
+    ).length !== 4
+  ) {
+    issues.push(issue(
+      "V2_A0_BUILDX_CA_BUNDLE_COUNT_DRIFT",
+      path,
+      "every pinned buildx-bin invocation must receive the runner CA bundle read-only",
+    ));
+  }
   if (/EVIDENCE_ROOT:\s*\$\{\{\s*runner\.temp\s*\}\}/u.test(source)) {
     issues.push(issue(
       "V2_A0_RELEASE_RUNNER_CONTEXT_USED_BEFORE_RUNNER_ALLOCATION",

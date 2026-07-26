@@ -131,3 +131,15 @@ test("A0 benchmark never injects per-cycle garbage-collection pauses", async () 
     "SINGLE_PRE_MEASUREMENT_FORCED_GC_IF_AVAILABLE",
   ));
 });
+
+test("A0 collector indexes provider observations instead of rescanning per instrument", async () => {
+  const source = await readFile(
+    resolve(
+      repositoryRoot,
+      "src/v2/modules/market-fact/build-mark-price-facts.ts",
+    ),
+    "utf8",
+  );
+  assert.ok(source.includes("observationsByVenueInstrument"));
+  assert.equal(source.includes("batch.observations.filter("), false);
+});

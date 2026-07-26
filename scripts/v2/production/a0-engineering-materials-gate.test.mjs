@@ -266,6 +266,19 @@ test("A0 release qualification keeps two independent builds and no production au
     ),
   );
 
+  const missingCaBundle = validateA0ReleaseQualificationWorkflowPolicy(
+    path,
+    source.replace(
+      "            --volume /etc/ssl/certs:/etc/ssl/certs:ro \\\n",
+      "",
+    ),
+  );
+  assert.ok(
+    missingCaBundle.some(
+      (item) => item.code === "V2_A0_BUILDX_CA_BUNDLE_COUNT_DRIFT",
+    ),
+  );
+
   const privileged = validateA0ReleaseQualificationWorkflowPolicy(
     path,
     `${source}\nenvironment: production\n`,

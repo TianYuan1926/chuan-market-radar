@@ -73,6 +73,7 @@ jobs:
           version="$(docker run --rm \
             --entrypoint /buildx \
             --volume /var/run/docker.sock:/var/run/docker.sock \
+            --volume /etc/ssl/certs:/etc/ssl/certs:ro \
             "$BUILDX_IMAGE" version)"
           case "$version" in
             *"v0.31.1"*) ;;
@@ -86,6 +87,7 @@ jobs:
           docker run --rm \
             --entrypoint /buildx \
             --volume /var/run/docker.sock:/var/run/docker.sock \
+            --volume /etc/ssl/certs:/etc/ssl/certs:ro \
             --volume "$GITHUB_WORKSPACE:/workspace:ro" \
             --volume "$EVIDENCE_ROOT:/evidence" \
             --workdir /workspace \
@@ -106,6 +108,7 @@ jobs:
           docker run --rm \
             --entrypoint /buildx \
             --volume /var/run/docker.sock:/var/run/docker.sock \
+            --volume /etc/ssl/certs:/etc/ssl/certs:ro \
             --volume "$GITHUB_WORKSPACE:/workspace:ro" \
             --volume "$EVIDENCE_ROOT:/evidence" \
             --workdir /workspace \
@@ -126,6 +129,7 @@ jobs:
           docker run --rm \
             --entrypoint /buildx \
             --volume /var/run/docker.sock:/var/run/docker.sock \
+            --volume /etc/ssl/certs:/etc/ssl/certs:ro \
             --volume "$GITHUB_WORKSPACE:/workspace:ro" \
             --workdir /workspace \
             "$BUILDX_IMAGE" build \
