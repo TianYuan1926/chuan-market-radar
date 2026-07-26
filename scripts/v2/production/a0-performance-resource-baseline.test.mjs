@@ -143,3 +143,20 @@ test("A0 collector indexes provider observations instead of rescanning per instr
   assert.ok(source.includes("observationsByVenueInstrument"));
   assert.equal(source.includes("batch.observations.filter("), false);
 });
+
+test("A0 collector preserves four cooperative event-loop yield boundaries", async () => {
+  const source = await readFile(
+    resolve(
+      repositoryRoot,
+      "src/v2/modules/market-fact/collector/collector-runtime.ts",
+    ),
+    "utf8",
+  );
+  assert.ok(source.includes(
+    "new Promise((resolvePromise) => setImmediate(resolvePromise))",
+  ));
+  assert.equal(
+    (source.match(/await this\.#yieldControl\(\);/gu) ?? []).length,
+    4,
+  );
+});

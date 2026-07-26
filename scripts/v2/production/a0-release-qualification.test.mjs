@@ -18,6 +18,7 @@ import {
   assertCanonicalTreeRelativePath,
   canonicalTreeIdentity,
   loadA0ReleaseQualificationPolicy,
+  readStableRegularFile,
   validateA0ReleaseQualificationPolicy,
 } from "./a0-release-qualification-contract.mjs";
 import {
@@ -147,6 +148,32 @@ test("canonical rootfs paths accept POSIX package names and reject traversal or 
       (entry) =>
         entry.path === "node_modules/@scope/package+variant.json",
     ), true);
+  } finally {
+    await rm(temporary, { force: true, recursive: true });
+  }
+});
+
+test("stable evidence reads reject symlinks and bind bytes to one file handle", async () => {
+  const temporary = await mkdtemp(join(tmpdir(), "v2-a0-stable-read-"));
+  try {
+    const target = join(temporary, "target");
+    const alias = join(temporary, "alias");
+    await writeFile(target, "trusted\n", { mode: 0o440 });
+    await symlink("target", alias);
+
+    const stable = await readStableRegularFile(target, "stable test file");
+    assert.equal(stable.bytes.toString("utf8"), "trusted\n");
+    assert.equal(stable.mode, 0o440);
+    await assert.rejects(
+      () => readStableRegularFile(alias, "symlink test file"),
+      (error) =>
+        error instanceof Error &&
+        (
+          "code" in error
+            ? error.code === "ELOOP"
+            : /regular file/u.test(error.message)
+        ),
+    );
   } finally {
     await rm(temporary, { force: true, recursive: true });
   }

@@ -35,6 +35,10 @@ function uniqueSorted(values: readonly string[]): string[] {
   return [...new Set(values)].sort();
 }
 
+function defaultYieldControl(): Promise<void> {
+  return new Promise((resolvePromise) => setImmediate(resolvePromise));
+}
+
 function validPositiveInteger(value: number): boolean {
   return Number.isSafeInteger(value) && value > 0;
 }
@@ -139,6 +143,7 @@ export class M1CollectorRuntime {
   readonly #clock: CollectorClock;
   readonly #config: CollectorRuntimeConfig;
   readonly #store: CollectorArtifactStore;
+  readonly #yieldControl: () => Promise<void>;
   #cycleCounter = 0;
   #inFlight = false;
   #lastCatalogAtMs: number | null = null;
@@ -153,6 +158,7 @@ export class M1CollectorRuntime {
     config: CollectorRuntimeConfig;
     restoredState?: CollectorDurableState | null;
     store: CollectorArtifactStore;
+    yieldControl?: () => Promise<void>;
   }) {
     const byVenue = new Map(
       input.adapterRuntime?.adapters.map((adapter) => [adapter.venue, adapter]),
@@ -160,6 +166,10 @@ export class M1CollectorRuntime {
     if (
       typeof input.clock?.now !== "function" ||
       typeof input.store?.appendArtifacts !== "function" ||
+      (
+        input.yieldControl !== undefined &&
+        typeof input.yieldControl !== "function"
+      ) ||
       typeof input.adapterRuntime?.requestControl?.beginCycle !== "function" ||
       typeof input.adapterRuntime?.requestControl?.snapshot !== "function" ||
       input.adapterRuntime.adapters.length !== TARGET_VENUES.length ||
@@ -189,6 +199,7 @@ export class M1CollectorRuntime {
     this.#clock = input.clock;
     this.#config = input.config;
     this.#store = input.store;
+    this.#yieldControl = input.yieldControl ?? defaultYieldControl;
     if (input.restoredState !== undefined && input.restoredState !== null) {
       validateRestoredState(input.restoredState, input.config);
       this.#cycleCounter = input.restoredState.nextCycleOrdinal;
@@ -269,6 +280,7 @@ export class M1CollectorRuntime {
         candidateCatalogAtMs = Date.parse(catalogCutoff);
         this.#state = "COLLECTING";
       }
+      await this.#yieldControl();
 
       const eligibleVenues = new Set(universe.accounting
         .filter((record) => record.eligible)
@@ -283,6 +295,7 @@ export class M1CollectorRuntime {
               priceSnapshotStart,
             ))),
       );
+      await this.#yieldControl();
       const factCutoff = maxIso([
         universe.sourceCutoff,
         ...priceSnapshotBatches.map((batch) => batch.receivedAt),
@@ -313,6 +326,7 @@ export class M1CollectorRuntime {
         factQuality: builtFacts.qualitySnapshot,
         universe,
       });
+      await this.#yieldControl();
       this.#state = "PERSISTING";
 
       const requests: M1ArtifactAppendRequest<M1ArtifactName>[] = [
@@ -346,6 +360,7 @@ export class M1CollectorRuntime {
         persistence = "FAILED";
         persistenceFailureReason = storeFailureReason(error);
       }
+      await this.#yieldControl();
 
       const providerFailures = collectorProviderFailures({
         catalogs: currentCatalogs,

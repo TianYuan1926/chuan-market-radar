@@ -23,7 +23,10 @@ function config(): CollectorRuntimeConfig {
   };
 }
 
-function setup(overrides: Partial<CollectorRuntimeConfig> = {}) {
+function setup(
+  overrides: Partial<CollectorRuntimeConfig> = {},
+  yieldControl?: () => Promise<void>,
+) {
   const clock = new MutableCollectorClock("2026-01-15T00:00:00.500Z");
   const provider = new FullScopeProviderHarness(clock);
   const store = new RecordingCollectorStore();
@@ -36,6 +39,7 @@ function setup(overrides: Partial<CollectorRuntimeConfig> = {}) {
     clock,
     config: { ...config(), ...overrides },
     store,
+    ...(yieldControl === undefined ? {} : { yieldControl }),
   });
   return { clock, provider, runtime, store };
 }
@@ -80,6 +84,18 @@ test("collects the complete multi-instrument denominator and persists one atomic
   ));
   assert.equal(Object.isFrozen(result.telemetry), true);
   assert.equal(Object.isFrozen(result.telemetry.coverage.venues), true);
+});
+
+test("cooperatively yields at every bounded heavy-cycle boundary", async () => {
+  let yieldCount = 0;
+  const { runtime } = setup({}, async () => {
+    yieldCount += 1;
+  });
+
+  const result = await runtime.runNextCycle();
+
+  assert.equal(result.telemetry.state, "READY");
+  assert.equal(yieldCount, 4);
 });
 
 test("runs mark-price-only incrementally without pretending that catalog was observed again", async () => {

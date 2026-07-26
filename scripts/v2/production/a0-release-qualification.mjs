@@ -33,6 +33,7 @@ import {
   canonicalJson,
   canonicalTreeIdentity,
   loadA0ReleaseQualificationPolicy,
+  readStableRegularFile,
   stableDigest,
 } from "./a0-release-qualification-contract.mjs";
 
@@ -104,14 +105,15 @@ async function writePayloadFile(payloadRoot, path, bytes, mode) {
 
 async function payloadRecord(payloadRoot, path) {
   const target = resolve(payloadRoot, ...path.split("/"));
-  const metadata = await lstat(target);
-  assert.equal(metadata.isFile(), true, `payload file is absent: ${path}`);
-  const bytes = await readFile(target);
+  const stableFile = await readStableRegularFile(
+    target,
+    `payload file ${path}`,
+  );
   return Object.freeze({
-    bytes: bytes.length,
-    mode: (metadata.mode & 0o777).toString(8).padStart(4, "0"),
+    bytes: stableFile.bytes.length,
+    mode: stableFile.mode.toString(8).padStart(4, "0"),
     path,
-    sha256: byteDigest(bytes),
+    sha256: byteDigest(stableFile.bytes),
   });
 }
 

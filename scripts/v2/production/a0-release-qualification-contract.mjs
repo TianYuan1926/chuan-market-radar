@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { constants as fsConstants } from "node:fs";
 import {
   lstat,
+  open,
   readFile,
   readlink,
   readdir,
@@ -75,6 +77,44 @@ export function byteDigest(bytes) {
 
 export function stableDigest(value) {
   return byteDigest(Buffer.from(canonicalJson(value), "utf8"));
+}
+
+export async function readStableRegularFile(path, label) {
+  const handle = await open(
+    path,
+    fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+  );
+  try {
+    const before = await handle.stat({ bigint: true });
+    assert.equal(before.isFile(), true, `${label} must be a regular file`);
+    const bytes = await handle.readFile();
+    const after = await handle.stat({ bigint: true });
+    for (const field of [
+      "ctimeNs",
+      "dev",
+      "ino",
+      "mode",
+      "mtimeNs",
+      "size",
+    ]) {
+      assert.equal(
+        after[field],
+        before[field],
+        `${label} changed while it was read`,
+      );
+    }
+    assert.equal(
+      BigInt(bytes.length),
+      after.size,
+      `${label} byte count changed while it was read`,
+    );
+    return Object.freeze({
+      bytes,
+      mode: Number(after.mode & 0o777n),
+    });
+  } finally {
+    await handle.close();
+  }
 }
 
 function assertSafeRelativePath(value, label) {
@@ -295,12 +335,15 @@ export async function canonicalTreeIdentity(root, options = {}) {
         entries.push({ mode, path: relativePath, type: "DIRECTORY" });
         await walk(path);
       } else if (metadata.isFile()) {
-        const bytes = await readFile(path);
+        const stableFile = await readStableRegularFile(
+          path,
+          `canonical tree file ${relativePath}`,
+        );
         entries.push({
-          bytes: bytes.length,
-          mode,
+          bytes: stableFile.bytes.length,
+          mode: stableFile.mode,
           path: relativePath,
-          sha256: byteDigest(bytes),
+          sha256: byteDigest(stableFile.bytes),
           type: "FILE",
         });
       } else if (metadata.isSymbolicLink()) {
