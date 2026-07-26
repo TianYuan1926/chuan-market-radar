@@ -7,6 +7,7 @@ import { RUNTIME_SCHEMA_NAMES } from "../runtime-schema/registry";
 import { RUNTIME_OBJECT_SCHEMA_VERSIONS } from "../runtime-schema/schema-versions";
 import {
   buildLegacyConsumerMap,
+  resolveReviewedGitCommit,
   type LegacyCapabilityAtlas,
   type LegacyConsumerMap,
   type LegacyExtractionPolicy,
@@ -134,11 +135,11 @@ export function buildM0ExitReport(repositoryRoot: string): M0ExitReport {
   );
   const policy = readJson<LegacyExtractionPolicy>(
     repositoryRoot,
-    "docs/architecture/v2/LEGACY_EXTRACTION_POLICY_V1.json",
+    "docs/architecture/v2/LEGACY_EXTRACTION_POLICY_V2.json",
   );
   const committedMap = readJson<LegacyConsumerMap>(
     repositoryRoot,
-    "docs/architecture/v2/legacy-consumer-map.v1.json",
+    "docs/architecture/v2/legacy-consumer-map.v2.json",
   );
   const baseManifest = readJson<{
     implementation: { branch: string };
@@ -240,17 +241,17 @@ export function buildM0ExitReport(repositoryRoot: string): M0ExitReport {
   });
 
   check("legacy_sources_match_reviewed_commit", () => {
-    if (!/^[0-9a-f]{40}$/u.test(policy.reviewedAgainstCommit)) {
-      throw new Error("Legacy extraction policy must pin a full Git commit");
-    }
+    const reviewedCommit = resolveReviewedGitCommit(
+      policy.reviewedAgainstCommit,
+    );
     execFileSync(
       "git",
-      ["cat-file", "-e", `${policy.reviewedAgainstCommit}^{commit}`],
+      ["cat-file", "-e", `${reviewedCommit}^{commit}`],
       { cwd: repositoryRoot, stdio: "ignore" },
     );
     execFileSync(
       "git",
-      ["merge-base", "--is-ancestor", policy.reviewedAgainstCommit, "HEAD"],
+      ["merge-base", "--is-ancestor", reviewedCommit, "HEAD"],
       { cwd: repositoryRoot, stdio: "ignore" },
     );
 
@@ -264,7 +265,7 @@ export function buildM0ExitReport(repositoryRoot: string): M0ExitReport {
         "diff",
         "--name-only",
         "--diff-filter=ACDMRT",
-        policy.reviewedAgainstCommit,
+        reviewedCommit,
         "--",
       ]),
       ...gitOutputLines(repositoryRoot, [
@@ -283,7 +284,7 @@ export function buildM0ExitReport(repositoryRoot: string): M0ExitReport {
           .join(", ")}`,
       );
     }
-    return `${policy.reviewedAgainstCommit} / zero protected source drift`;
+    return `${reviewedCommit} / zero protected source drift`;
   });
 
   check("legacy_extraction_policy_closed", () => {

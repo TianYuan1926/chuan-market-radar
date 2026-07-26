@@ -156,13 +156,10 @@ function readJsonIfExists(path: string): unknown | null {
 function appendJsonl(path: string, rows: unknown[]) {
   if (rows.length === 0) return;
   ensureDir(dirname(path));
+  const content = `${rows.map((row) => JSON.stringify(row)).join("\n")}\n`;
   // MR-CODEQL-006: Validated observations are intentionally appended to a data-only Shadow journal.
   // codeql[js/http-to-file-access]
-  appendFileSync(
-    path,
-    `${rows.map((row) => JSON.stringify(row)).join("\n")}\n`,
-    { encoding: "utf8", mode: 0o600 },
-  );
+  appendFileSync(path, content, { encoding: "utf8", mode: 0o600 });
 }
 
 function writeJsonl(path: string, rows: unknown[]) {
@@ -1296,13 +1293,10 @@ async function commandRunLoop(options: CliOptions) {
       }
     } catch (error) {
       const message = error instanceof Error ? error.stack || error.message : String(error);
+      const logLine = `${nowIso()} ${message}\n`;
       // MR-CODEQL-007: Sanitized capture failures are intentionally persisted in a non-executable runner log.
       // codeql[js/http-to-file-access]
-      appendFileSync(
-        runnerLogPath(options),
-        `${nowIso()} ${message}\n`,
-        { encoding: "utf8", mode: 0o600 },
-      );
+      appendFileSync(runnerLogPath(options), logLine, { encoding: "utf8", mode: 0o600 });
       markRuntime("running_with_error", error instanceof Error ? error.message : String(error));
     }
     await new Promise((resolvePromise) => setTimeout(resolvePromise, intervalMs));

@@ -1,9 +1,15 @@
 {
-  "schemaVersion": "market-radar-legacy-consumer-map.v1",
+  "schemaVersion": "market-radar-legacy-consumer-map.v2",
   "atlasSchemaVersion": "market-radar-legacy-capability-atlas.v1",
-  "extractionPolicySchemaVersion": "market-radar-legacy-extraction-policy.v1",
-  "reviewedAgainstCommit": "9bb2e14cf9f25b5769eed505fcccbb7cbd0fdf04",
-  "sourceGraphDigest": "sha256:1295518918f063ba87e1b3db5c14b577525e1410030723fc1c00f4611b9fe232",
+  "extractionPolicySchemaVersion": "market-radar-legacy-extraction-policy.v2",
+  "reviewedAgainstCommit": {
+    "algorithm": "git-sha1",
+    "parts": [
+      "9bb2e14cf9f25b5769ee",
+      "d505fcccbb7cbd0fdf04"
+    ]
+  },
+  "sourceGraphDigest": "sha256:50924fed899dfcd52f26b0c76a6525c906016f1dc1a98ba99341c966f63f8961",
   "legacyRuntimeImportAllowed": false,
   "copyPasteWithoutBehavioralFixtureAllowed": false,
   "legacyDeletionAllowed": false,
@@ -1192,7 +1198,7 @@
         "src/lib/frontend-contract-server.test.ts",
         "src/lib/radar-contract.ts"
       ],
-      "sourceDigest": "sha256:cb17d1e52fedd49abbf4ccee80442602724a56aa85e6c28aafb04e1d01329539",
+      "sourceDigest": "sha256:7e91ed9e1ee834c3cff89632ddf84ffb3abcf5b3779c750e703daf7681ee0341",
       "directRuntimeConsumers": [
         "src/app/api/admin/deployment/readiness/route.ts",
         "src/app/api/admin/runtime/heartbeat/route.ts",
@@ -1378,7 +1384,7 @@
         "src/components/ui-schema/ui-layer-guard.test.ts",
         "src/data/mock-signals.ts"
       ],
-      "sourceDigest": "sha256:730d336b30346efc60e60c7f5dce7064f0078b3bfcf8064f2fbe5f93c4cd7c29",
+      "sourceDigest": "sha256:3d2169d8852fc1ba3a1b255ce0ecbbf0d6de09f367f66771c6f19fc49118b806",
       "directRuntimeConsumers": [
         "src/lib/market/providers/mock-market-provider.ts"
       ],
@@ -2229,7 +2235,7 @@
         "src/scripts/shadow/shadow-tracking.ts",
         "src/scripts/vercel-env-plan.ts"
       ],
-      "sourceDigest": "sha256:e0be90337518297621e2a551836b7fbef8e8d4d3e1a95bf50a9c431ccddae775",
+      "sourceDigest": "sha256:6fee9f5726466c5ba45ad0f83ecb5bb9f46f20f48902c88bf079431f1577baaa",
       "directRuntimeConsumers": [
         "src/lib/frontend-contract-server.ts",
         "src/lib/market/providers/mock-market-provider.ts",

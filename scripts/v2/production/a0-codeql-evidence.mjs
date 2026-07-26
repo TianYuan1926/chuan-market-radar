@@ -11,7 +11,7 @@ const WINDOWS_ABSOLUTE_PATH_PATTERN = /^[A-Za-z]:\//u;
 const MAX_REPOSITORY_PATH_LENGTH = 512;
 const MAX_RESULT_LOCATIONS = 1_000;
 const CODEQL_REVIEW_PATH =
-  "docs/governance/v2-a0-codeql-reviewed-suppressions.v2.json";
+  "docs/governance/v2-a0-codeql-reviewed-suppressions.v3.json";
 const LEVEL_RANK = new Map([
   ["none", 0],
   ["note", 1],
@@ -173,8 +173,7 @@ export function loadReviewedCodeqlSuppressions(repositoryRoot) {
     const alertLine = entry.alertLine;
     if (
       !Number.isSafeInteger(alertLine)
-      || alertLine < markerIndex + 3
-      || alertLine > markerIndex + 10
+      || alertLine !== markerIndex + 3
       || typeof lines[alertLine - 1] !== "string"
       || lines[alertLine - 1].trim() === ""
     ) {

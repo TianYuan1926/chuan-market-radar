@@ -2,25 +2,8 @@
 
 import Image from 'next/image'
 import { useState } from 'react'
+import { realLogoUrl } from '@/lib/token-logo'
 import { cn } from '@/lib/utils'
-
-/* ============ 真实 logo 源：CoinCap 图标 CDN。失败时明确回退生成式头像。 ============ */
-export function logoLookupSymbol(symbol: string): string {
-  const clean = symbol
-    .trim()
-    .toLowerCase()
-    .replace(/^binance:/, '')
-    .replace(/\.p$/, '')
-    .replace(/[^a-z0-9]/g, '')
-    .replace(/(usdt|usdc|busd|usd|perp|swap)$/u, '')
-
-  return clean.replace(/^(1000000|10000|1000)(?=[a-z])/u, '')
-}
-
-export function realLogoUrl(symbol: string): string | null {
-  const key = logoLookupSymbol(symbol)
-  return key ? `https://assets.coincap.io/assets/icons/${key}@2x.png` : null
-}
 
 /* ============ 生成式几何标志（虚构币种各有形状） ============ */
 type ShapeKind = 'hex' | 'diamond' | 'ring' | 'triangle' | 'square' | 'shield'

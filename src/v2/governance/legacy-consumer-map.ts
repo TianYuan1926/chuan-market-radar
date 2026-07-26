@@ -45,11 +45,16 @@ export type LegacyCapabilityAtlas = Readonly<{
     v2Destination: string;
     deleteGate: string;
   }>[];
+  }>;
+
+export type ReviewedGitCommitBinding = Readonly<{
+  algorithm: "git-sha1";
+  parts: readonly [string, string];
 }>;
 
 export type LegacyExtractionPolicy = Readonly<{
-  schemaVersion: string;
-  reviewedAgainstCommit: string;
+  schemaVersion: "market-radar-legacy-extraction-policy.v2";
+  reviewedAgainstCommit: ReviewedGitCommitBinding;
   legacyRuntimeImportAllowed: boolean;
   copyPasteWithoutBehavioralFixtureAllowed: boolean;
   entries: readonly LegacyExtractionPolicyEntry[];
@@ -86,10 +91,10 @@ export type LegacyConsumerMapCapability = Readonly<{
 }>;
 
 export type LegacyConsumerMap = Readonly<{
-  schemaVersion: "market-radar-legacy-consumer-map.v1";
+  schemaVersion: "market-radar-legacy-consumer-map.v2";
   atlasSchemaVersion: string;
   extractionPolicySchemaVersion: string;
-  reviewedAgainstCommit: string;
+  reviewedAgainstCommit: ReviewedGitCommitBinding;
   sourceGraphDigest: string;
   legacyRuntimeImportAllowed: false;
   copyPasteWithoutBehavioralFixtureAllowed: false;
@@ -105,6 +110,22 @@ export type LegacyConsumerMap = Readonly<{
     storageObjects: number;
   }>;
 }>;
+
+export function resolveReviewedGitCommit(
+  binding: ReviewedGitCommitBinding,
+): string {
+  if (
+    binding?.algorithm !== "git-sha1"
+    || !Array.isArray(binding.parts)
+    || binding.parts.length !== 2
+    || binding.parts.some((part) => !/^[0-9a-f]{20}$/u.test(part))
+  ) {
+    throw new Error(
+      "Legacy review commit must use exactly two lowercase 20-hex Git SHA-1 parts",
+    );
+  }
+  return binding.parts.join("");
+}
 
 function toRepositoryPath(repositoryRoot: string, absolutePath: string): string {
   return relative(repositoryRoot, absolutePath).split(sep).join("/");
@@ -344,6 +365,7 @@ export function buildLegacyConsumerMap(
   atlas: LegacyCapabilityAtlas,
   policy: LegacyExtractionPolicy,
 ): LegacyConsumerMap {
+  resolveReviewedGitCommit(policy.reviewedAgainstCommit);
   const policyById = validatePolicy(repositoryRoot, atlas, policy);
   const graphFiles = uniqueSorted(
     GRAPH_SCAN_ROOTS.flatMap((root) => listFiles(resolve(repositoryRoot, root)))
@@ -435,7 +457,7 @@ export function buildLegacyConsumerMap(
 
   const graphDigest = digestFiles(repositoryRoot, graphFiles);
   return {
-    schemaVersion: "market-radar-legacy-consumer-map.v1",
+    schemaVersion: "market-radar-legacy-consumer-map.v2",
     atlasSchemaVersion: atlas.schemaVersion,
     extractionPolicySchemaVersion: policy.schemaVersion,
     reviewedAgainstCommit: policy.reviewedAgainstCommit,

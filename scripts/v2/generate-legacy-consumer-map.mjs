@@ -17,11 +17,11 @@ const atlasPath = resolve(
 );
 const policyPath = resolve(
   repositoryRoot,
-  "docs/architecture/v2/LEGACY_EXTRACTION_POLICY_V1.json",
+  "docs/architecture/v2/LEGACY_EXTRACTION_POLICY_V2.json",
 );
 const outputPath = resolve(
   repositoryRoot,
-  "docs/architecture/v2/legacy-consumer-map.v1.json",
+  "docs/architecture/v2/legacy-consumer-map.v2.json",
 );
 
 const atlas = JSON.parse(await readFile(atlasPath, "utf8"));
@@ -32,7 +32,7 @@ await writeFile(outputPath, `${JSON.stringify(map, null, 2)}\n`, "utf8");
 console.log(
   JSON.stringify({
     status: "generated",
-    output: "docs/architecture/v2/legacy-consumer-map.v1.json",
+    output: "docs/architecture/v2/legacy-consumer-map.v2.json",
     totals: map.totals,
   }),
 );

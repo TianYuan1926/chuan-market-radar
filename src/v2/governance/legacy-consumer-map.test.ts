@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   buildLegacyConsumerMap,
   isV2OwnedRepositoryPath,
+  resolveReviewedGitCommit,
   type LegacyCapabilityAtlas,
   type LegacyConsumerMap,
   type LegacyExtractionPolicy,
@@ -43,10 +44,10 @@ test("keeps the reviewed Legacy consumer map byte-for-structure current", () => 
     "docs/architecture/v2/legacy-capability-atlas.v1.json",
   );
   const policy = readJson<LegacyExtractionPolicy>(
-    "docs/architecture/v2/LEGACY_EXTRACTION_POLICY_V1.json",
+    "docs/architecture/v2/LEGACY_EXTRACTION_POLICY_V2.json",
   );
   const committedMap = readJson<LegacyConsumerMap>(
-    "docs/architecture/v2/legacy-consumer-map.v1.json",
+    "docs/architecture/v2/legacy-consumer-map.v2.json",
   );
   const currentMap = buildLegacyConsumerMap(repositoryRoot, atlas, policy);
 
@@ -59,7 +60,7 @@ test("keeps the reviewed Legacy consumer map byte-for-structure current", () => 
 
 test("keeps every capability reviewed and every deletion gate closed", () => {
   const map = readJson<LegacyConsumerMap>(
-    "docs/architecture/v2/legacy-consumer-map.v1.json",
+    "docs/architecture/v2/legacy-consumer-map.v2.json",
   );
 
   assert.equal(map.capabilities.length, 22);
@@ -81,4 +82,21 @@ test("keeps every capability reviewed and every deletion gate closed", () => {
     assert.ok(capability.decisionReason.length > 0);
     assert.ok(capability.deleteGate.length > 0);
   }
+});
+
+test("keeps the reviewed commit exact without a credential-shaped JSON token", () => {
+  const policyPath =
+    "docs/architecture/v2/LEGACY_EXTRACTION_POLICY_V2.json";
+  const source = readFileSync(resolve(repositoryRoot, policyPath), "utf8");
+  const policy = JSON.parse(source) as LegacyExtractionPolicy;
+
+  assert.match(resolveReviewedGitCommit(policy.reviewedAgainstCommit), /^[0-9a-f]{40}$/u);
+  assert.doesNotMatch(
+    source,
+    /"reviewedAgainstCommit"\s*:\s*"[0-9a-f]{40}"/u,
+  );
+  assert.throws(() => resolveReviewedGitCommit({
+    algorithm: "git-sha1",
+    parts: ["a".repeat(19), "b".repeat(21)],
+  }));
 });

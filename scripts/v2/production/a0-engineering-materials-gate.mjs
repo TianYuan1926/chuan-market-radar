@@ -19,6 +19,11 @@ const CODEQL_SUPPRESSION_PATTERN =
   /^\s*\/\/\s*codeql\[(?<ruleId>[A-Za-z0-9._/-]+)\]\s*$/u;
 const CODEQL_REVIEW_MARKER_PATTERN =
   /^\s*\/\/\s*(?<id>MR-CODEQL-[0-9]{3}):\s+\S.*$/u;
+const REQUIRED_CODEQL_ACTION_VERSION = "4.37.3";
+const REQUIRED_CODEQL_BUNDLE_VERSION = "2.26.1";
+const REQUIRED_CODEQL_QUERY_PACK = "codeql/javascript-queries";
+const REQUIRED_CODEQL_QUERY_PACK_VERSION = "2.4.1";
+const REQUIRED_CODEQL_SUPPRESSION_QUERY = "AlertSuppression.ql";
 const APPROVED_FALSE_POSITIVE_CLASSIFICATIONS = new Set([
   "COMMIT_IDENTITY",
   "CONTENT_DIGEST",
@@ -298,6 +303,8 @@ export function validateSecurityWorkflowPolicy(path, source) {
     "languages: javascript-typescript",
     "build-mode: none",
     "queries: security-extended",
+    "packages: read",
+    `packs: ${REQUIRED_CODEQL_QUERY_PACK}@${REQUIRED_CODEQL_QUERY_PACK_VERSION}:${REQUIRED_CODEQL_SUPPRESSION_QUERY}`,
     "output: ${{ runner.temp }}/v2-a0-security/codeql-sarif",
     "upload: always",
     "node scripts/v2/production/a0-codeql-evidence.mjs",
@@ -324,6 +331,22 @@ export function validateSecurityWorkflowPolicy(path, source) {
       "V2_SECURITY_TOOL_CONTRACT_INCOMPLETE",
       path,
       missingContracts.join(", "),
+    ));
+  }
+
+  const packLines = source
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("packs:"));
+  if (
+    packLines.length !== 1
+    || packLines[0]
+      !== `packs: ${REQUIRED_CODEQL_QUERY_PACK}@${REQUIRED_CODEQL_QUERY_PACK_VERSION}:${REQUIRED_CODEQL_SUPPRESSION_QUERY}`
+  ) {
+    issues.push(issue(
+      "V2_CODEQL_SUPPRESSION_QUERY_NOT_EXACT",
+      path,
+      "the exact linked AlertSuppression query pack must run once",
     ));
   }
 
@@ -409,8 +432,20 @@ export function validateCodeqlSuppressionPolicy({
 }) {
   const issues = [];
   if (
-    review?.schemaVersion !== "v2-a0-codeql-reviewed-suppressions.v2"
+    review?.schemaVersion !== "v2-a0-codeql-reviewed-suppressions.v3"
+    || review?.scannerBinding?.workflowPath
+      !== ".github/workflows/v2-security-quality.yml"
+    || review?.scannerBinding?.codeqlActionVersion
+      !== REQUIRED_CODEQL_ACTION_VERSION
+    || review?.scannerBinding?.codeqlBundleVersion
+      !== REQUIRED_CODEQL_BUNDLE_VERSION
+    || review?.scannerBinding?.queryPack !== REQUIRED_CODEQL_QUERY_PACK
+    || review?.scannerBinding?.queryPackVersion
+      !== REQUIRED_CODEQL_QUERY_PACK_VERSION
+    || review?.scannerBinding?.suppressionQuery
+      !== REQUIRED_CODEQL_SUPPRESSION_QUERY
     || !Array.isArray(review?.entries)
+    || review?.policy?.alertSuppressionQueryRequired !== true
     || review?.policy?.directoryWideSuppression !== false
     || review?.policy?.pathWideSuppression !== false
     || review?.policy?.ruleWideSuppression !== false
@@ -514,8 +549,7 @@ export function validateCodeqlSuppressionPolicy({
     }
     if (
       !Number.isSafeInteger(entry?.alertLine)
-      || entry.alertLine < suppression.line + 1
-      || entry.alertLine > suppression.line + 8
+      || entry.alertLine !== suppression.line + 1
     ) {
       issues.push(issue(
         "V2_CODEQL_SUPPRESSION_ALERT_LINE_DRIFT",
@@ -598,7 +632,7 @@ export function validateGitleaksFalsePositivePolicy({
 
   if (
     review?.schemaVersion
-      !== "market-radar-v2-a0-secret-history-false-positive-review.v2"
+      !== "market-radar-v2-a0-secret-history-false-positive-review.v3"
     || review?.status !== "REVIEWED_FALSE_POSITIVES_ONLY"
     || review?.scanner?.name !== "gitleaks"
     || review?.scanner?.version !== "8.30.1"
@@ -849,7 +883,7 @@ export function validateRepository(repositoryRoot) {
 
   const codeqlSuppressionReviewPath = resolve(
     repositoryRoot,
-    "docs/governance/v2-a0-codeql-reviewed-suppressions.v2.json",
+    "docs/governance/v2-a0-codeql-reviewed-suppressions.v3.json",
   );
   let codeqlSuppressionReview;
   try {
@@ -859,7 +893,7 @@ export function validateRepository(repositoryRoot) {
   } catch {
     issues.push(issue(
       "V2_CODEQL_SUPPRESSION_REVIEW_MISSING",
-      "docs/governance/v2-a0-codeql-reviewed-suppressions.v2.json",
+      "docs/governance/v2-a0-codeql-reviewed-suppressions.v3.json",
       "every source suppression requires an exact structured review",
     ));
   }
@@ -876,7 +910,7 @@ export function validateRepository(repositoryRoot) {
     issues.push(...validateCodeqlSuppressionPolicy({
       review: codeqlSuppressionReview,
       reviewPath:
-        "docs/governance/v2-a0-codeql-reviewed-suppressions.v2.json",
+        "docs/governance/v2-a0-codeql-reviewed-suppressions.v3.json",
       sources,
     }));
   }
@@ -884,7 +918,7 @@ export function validateRepository(repositoryRoot) {
   const gitleaksIgnorePath = resolve(repositoryRoot, ".gitleaksignore");
   const gitleaksReviewPath = resolve(
     repositoryRoot,
-    "docs/governance/v2-a0-secret-history-false-positive-review.v2.json",
+    "docs/governance/v2-a0-secret-history-false-positive-review.v3.json",
   );
   let gitleaksIgnoreSource = "";
   let gitleaksReview;
@@ -902,7 +936,7 @@ export function validateRepository(repositoryRoot) {
   } catch {
     issues.push(issue(
       "V2_GITLEAKS_FALSE_POSITIVE_REVIEW_MISSING",
-      "docs/governance/v2-a0-secret-history-false-positive-review.v2.json",
+      "docs/governance/v2-a0-secret-history-false-positive-review.v3.json",
       "every ignored fingerprint requires a structured review",
     ));
   }
@@ -912,7 +946,7 @@ export function validateRepository(repositoryRoot) {
       ignoreSource: gitleaksIgnoreSource,
       review: gitleaksReview,
       reviewPath:
-        "docs/governance/v2-a0-secret-history-false-positive-review.v2.json",
+        "docs/governance/v2-a0-secret-history-false-positive-review.v3.json",
     }));
   }
 

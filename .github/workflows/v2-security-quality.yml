@@ -111,6 +111,7 @@ jobs:
     permissions:
       actions: read
       contents: read
+      packages: read
       security-events: write
     steps:
       - name: Checkout exact source
@@ -125,6 +126,7 @@ jobs:
           languages: javascript-typescript
           build-mode: none
           queries: security-extended
+          packs: codeql/javascript-queries@2.4.1:AlertSuppression.ql
 
       - name: Analyze and upload CodeQL results
         id: codeql

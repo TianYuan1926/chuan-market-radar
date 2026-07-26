@@ -41,8 +41,8 @@
 | `src/v2/runtime-schema/decoder.ts` | 建立四类边界共用的限长、无回显、恶意对象防护和深冻结 decoder |
 | `src/v2/runtime-schema/runtime-schema-registry.test.ts` | 验证 30/30 覆盖、精确版本、合法 fixture 和 strict unknown-field rejection |
 | `src/v2/runtime-schema/runtime-schema-decoder.test.ts` | 验证 READY、RR、几何、时间、金额、恶意对象、JSON 和信息泄漏反例 |
-| `docs/architecture/v2/LEGACY_EXTRACTION_POLICY_V1.json` | 对 22 个 Legacy capability 逐项决定提取、重建、隔离和存储归属 |
-| `docs/architecture/v2/legacy-consumer-map.v1.json` | 保存当前 Legacy 消费者和入口机器地图 |
+| `docs/architecture/v2/LEGACY_EXTRACTION_POLICY_V2.json` | 对 22 个 Legacy capability 逐项决定提取、重建、隔离和存储归属，并以分段但可精确重组的 Git 身份防止扫描器误报循环 |
+| `docs/architecture/v2/legacy-consumer-map.v2.json` | 保存当前 Legacy 消费者和入口机器地图 |
 | `src/v2/governance/legacy-consumer-map.ts` | 静态分析真实 import 图、导出符号、源 digest 和删除门禁 |
 | `src/v2/governance/legacy-consumer-map.test.ts` | 防止 committed map 与当前源码图漂移 |
 | `scripts/v2/generate-legacy-consumer-map.mjs` | 以固定 policy/atlas 可重复生成消费者地图 |

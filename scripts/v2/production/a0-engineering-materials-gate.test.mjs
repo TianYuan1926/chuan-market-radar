@@ -176,6 +176,20 @@ test("security workflow keeps independent fail-closed no-authority controls", ()
     ),
   );
 
+  const suppressionQueryMissing = validateSecurityWorkflowPolicy(
+    path,
+    source.replace(
+      "packs: codeql/javascript-queries@2.4.1:AlertSuppression.ql",
+      "packs: codeql/javascript-queries:AlertSuppression.ql",
+    ),
+  );
+  assert.ok(
+    suppressionQueryMissing.some(
+      (item) => item.code === "V2_SECURITY_TOOL_CONTRACT_INCOMPLETE"
+        || item.code === "V2_CODEQL_SUPPRESSION_QUERY_NOT_EXACT",
+    ),
+  );
+
   const privileged = validateSecurityWorkflowPolicy(
     path,
     `${source}\nenvironment: production\n`,
@@ -224,7 +238,7 @@ test("CodeQL evidence is sanitized and fails closed on every untriaged result", 
 
 test("CodeQL source suppressions require exact structured reviews", () => {
   const reviewPath =
-    "docs/governance/v2-a0-codeql-reviewed-suppressions.v2.json";
+    "docs/governance/v2-a0-codeql-reviewed-suppressions.v3.json";
   const review = JSON.parse(readFileSync(reviewPath, "utf8"));
   const sources = Object.fromEntries(review.entries.map((entry) => [
     entry.path,
@@ -283,7 +297,7 @@ test("CodeQL source suppressions require exact structured reviews", () => {
 test("Gitleaks ignores only exact independently reviewed false positives", () => {
   const ignorePath = ".gitleaksignore";
   const reviewPath =
-    "docs/governance/v2-a0-secret-history-false-positive-review.v2.json";
+    "docs/governance/v2-a0-secret-history-false-positive-review.v3.json";
   const ignoreSource = readFileSync(ignorePath, "utf8");
   const reviewSource = readFileSync(reviewPath, "utf8");
   const review = JSON.parse(reviewSource);

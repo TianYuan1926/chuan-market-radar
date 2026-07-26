@@ -3,6 +3,8 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
 
+import { logoLookupSymbol, realLogoUrl } from "../token-logo";
+
 function lines(path: string) {
   return new Set(
     readFileSync(resolve(process.cwd(), path), "utf8")
@@ -698,14 +700,12 @@ test("stage 8 token detail chart and flow panels do not present generated mock d
 test("token avatars prefer real icon lookup without a fixed small whitelist", () => {
   const tokenAvatarSource = readFileSync(resolve(process.cwd(), "src/components/token-avatar.tsx"), "utf8");
 
-  assert.match(tokenAvatarSource, /logoLookupSymbol/);
-  const iconUrlLine = tokenAvatarSource
-    .split(/\r?\n/u)
-    .find((line) => line.includes("assets.coincap.io"));
+  assert.equal(logoLookupSymbol("BINANCE:1000SHIBUSDT.P"), "shib");
   assert.equal(
-    iconUrlLine?.trim(),
-    "return key ? `https://assets.coincap.io/assets/icons/${key}@2x.png` : null",
+    realLogoUrl("BINANCE:1000SHIBUSDT.P"),
+    "https://assets.coincap.io/assets/icons/shib@2x.png",
   );
+  assert.equal(realLogoUrl("USDT"), null);
   assert.match(tokenAvatarSource, /onError=\{\(\) => setFailed\(true\)\}/);
   assert.doesNotMatch(tokenAvatarSource, /const REAL_LOGOS = new Set/);
 });
@@ -1038,13 +1038,11 @@ test("production smoke keeps token chart and external intelligence truth checks"
 test("token avatar uses real logo lookup before generated fallback and no static placeholder logo", () => {
   const avatarSource = readFileSync(resolve(process.cwd(), "src/components/token-avatar.tsx"), "utf8");
 
-  const iconUrlLine = avatarSource
-    .split(/\r?\n/u)
-    .find((line) => line.includes("assets.coincap.io"));
   assert.equal(
-    iconUrlLine?.trim(),
-    "return key ? `https://assets.coincap.io/assets/icons/${key}@2x.png` : null",
+    realLogoUrl("BTCUSDT"),
+    "https://assets.coincap.io/assets/icons/btc@2x.png",
   );
+  assert.equal(logoLookupSymbol("1000000PEPEUSDT"), "pepe");
   assert.match(avatarSource, /GeneratedAvatar/);
   assert.match(avatarSource, /onError=\{\(\) => setFailed\(true\)\}/);
   assert.doesNotMatch(avatarSource, /placeholder\.svg/);
