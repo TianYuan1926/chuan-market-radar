@@ -53,8 +53,8 @@ Runtime / Security / Release Control 贯穿全链。
 
 当前唯一设计权威：
 
-- `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`，内容版本 v1.50。
-- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.56。
+- `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`，内容版本 v1.51。
+- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.57。
 - `docs/blueprints/README.md`，权威解析入口。
 - `market-radar-v2-build-sequence.md`，当前正确施工依赖与减数规则。
 
@@ -79,7 +79,7 @@ M1.5B1B3_EARLY_SHADOW_BUSINESS_GATE_PASS
 M1.5B1_COMPLETE
 M1.6_PARTITIONED_FACT_STORAGE_LOCAL_POSTGRES16_PASS
 M1.6P0_PRODUCTION_STORAGE_READ_ONLY_PREFLIGHT_EXECUTED_BLOCKED
-M1.6P0R_LOCAL_AND_EXACT_SOURCE_REMOTE_QUALIFICATION_PASS_PRODUCTION_REBIND_PENDING_LEGACY_BED938_STAGING_REJECTED_STS_AND_RECOVERY_PENDING
+M1.6P0R_LOCAL_AND_EXACT_SOURCE_REMOTE_QUALIFICATION_PASS_SIGNED_DISPATCH_PUBLISHED_TARGET_RECEIPT_UNREAD_EXECUTION_UNCONFIRMED_LEGACY_BED938_STAGING_REJECTED_STS_AND_RECOVERY_PENDING
 M1.6_FRESH_P0_CAPACITY_ADMISSION_LOCAL_ENGINEERING_PASS_PRODUCTION_EVIDENCE_PENDING
 M2.0_DISCOVERY_CONTRACTS_LOCAL_PASS
 M2.1_DRAFT_REPLAY_KERNELS_LOCAL_PASS
@@ -89,6 +89,7 @@ M2.2B0.1_TARGET_BLIND_STRENGTH_AND_CONSTRUCTION_POLICY_LOCAL_PASS
 M2.2B0.2A_RIGHTS_AND_HISTORICAL_IDENTITY_MACHINE_GATE_LOCAL_PASS
 M2.2B0.2C_FORWARD_INSTRUMENT_CAPTURE_LOCAL_ENGINEERING_PASS
 M2.2B0.2C1_FORWARD_CAPTURE_START_PASS
+M2.2B0.2C1_FOUR_CYCLE_FULL_HISTORY_INTEGRITY_AND_SCOPE_V2_DOMAIN_REPLAY_PASS_NO_AUTHORITY
 forwardInstrumentContinuity=FORWARD_ONLY_READY
 M3.0_M3.1_M3.2_M3.3_LOCAL_CONTRACT_PASS_TEST_ONLY_UNCALIBRATED_NO_READY_AUTHORITY
 M2.2_REAL_COHORT_GATE_INSUFFICIENT
@@ -290,11 +291,11 @@ npm run security:check
 系统等级：R1
 工程描述：可运行但不完整
 实战描述：不能支撑实战
-V2：M0.5 已把 Market Mechanics、Microstructure、双向前兆、板块传播、补充来源、缓存和 Evidence Overlay 融入权威设计；M1.4C 本地合同 22/22、M2.1A research-only 合同 13/13 和完整 CI 均 PASS，但 M1.5D、真实微观结构数据、cohort/holdout、校准与 authority 未完成。M1.1A/M1.1B 与 R3 15/15 endpoint conformance 已通过；M1.4B 腾讯 bootstrap/resume 两轮均为 14/14 route PASS、0 failed、1 registry blocked，Binance spot 保持零请求。Bitget、Listing、Equity 与 Data Maximization 分别核算，股票 tradable Fact=0；Scope V2 持续 Shadow 和容量未完成。M3.1A-D-R0 四轨 research contract 通过但不计真实 M3.1A-M3.3D；M3.4-R0 治理 gate PASS，R1 草稿只恢复 compile compatibility、定向测试 0。P0R 无新 STS，COS 恢复/fresh topology/P0 未执行，M1 未完成；Detector=DRAFT、Candidate 禁发，无 Signal Grade/Strategy/Feasibility/持续 runtime/READY authority
+V2：M0.5 已把 Market Mechanics、Microstructure、双向前兆、板块传播、补充来源、缓存和 Evidence Overlay 融入权威设计；M1.4C 本地合同 22/22、M2.1A research-only 合同 13/13 和完整 CI 均 PASS，但 M1.5D、真实微观结构数据、cohort/holdout、校准与 authority 未完成。M1.1A/M1.1B 与 R3 15/15 endpoint conformance 已通过；M1.4B 腾讯 bootstrap/resume 两轮均为 14/14 route PASS、0 failed、1 registry blocked，Binance spot 保持零请求。Bitget、Listing、Equity 与 Data Maximization 分别核算，股票 tradable Fact=0；Scope V2 持续 Shadow 和容量未完成。C1 最新前向目录 evidence release 已取得四轮三 Venue COMPLETE、三家约 998.5-998.7 秒跨度和零 gap；正式只读 verifier 复核 4 条 journal、28 个 artifact 引用、12 个 raw 引用与 37 个精确文件，并用 Scope V2 normalizer 证明旧 `CANONICAL_TARGET` 不能代表资产域。该证据仍是 forward-only/no-authority，不含 Bitget、24h SLO、Fact 或 Detector。M3.1A-D-R0 四轨 research contract 通过但不计真实 M3.1A-M3.3D；M3.4-R0 治理 gate PASS，R1 草稿只恢复 compile compatibility、定向测试 0。P0R signed read-only dispatch 已发布但目标 receipt 未读，执行状态未知；无新 STS，COS 恢复/fresh topology/P0 未确认执行，M1 未完成；Detector=DRAFT、Candidate 禁发，无 Signal Grade/Strategy/Feasibility/持续 runtime/READY authority
 A0：精确版本、零高危依赖、许可证、SBOM、固定 CI/Action/runner/base-image、双重 lint、Next build、原生材料烟测与 exact Node 22.23.1/npm 10.9.8 本地/远程完整 CI 已 PASS。host tar 方言、浅 Git 历史、Gitleaks 重复误报和既有 CodeQL 治理均已根因收口。最新 source parts `9ef63b85d1a76f3ad7ac + 815e081506c5dbc074a5` 的 A0 `30217335595` 已取得双独立 RootFS、确定性应用胶囊、精确镜像配置、fail-closed runtime smoke、三个隔离回滚场景和冻结 1,440 instrument 性能资源基线 PASS；event-loop p99=`64.750 ms`，固定门槛=`200 ms`。同源 Full Quality `30217335543` 与 Security `30217335622` 全部 PASS：Gitleaks finding=0、CodeQL untriaged=0、Trivy HIGH/CRITICAL=0。RootFS ownership/路径、证据 TOCTOU 和 event-loop 阻塞均已根因治理，没有减少样本、分母、工作量或门槛。A0 现在只缺 P0R 真实加密备份、精确版本取回和独立 PostgreSQL 16 恢复，因此总门禁仍未完成，M1.5C/M1.5D 尚不允许启动
-本轮业务服务、数据库、Redis、Worker 与业务 authority 变更：0；Runtime Control 新增 fixed dispatch timer/service；外部安全状态：COS Object Lock COMPLIANCE 31 天已启用
-当前生产存储门禁：P0_BLOCKED_CAPACITY_AND_RECOVERY；P0R_OBJECT_LOCK_31D_AGE_VAULT_TRANSPORT_AND_CLEAN_PRE_STS_BASELINE_PASS_STS_RECOVERY_AND_FRESH_TOPOLOGY_PENDING；应用业务健康未在本包评估
-固定生产执行通道：PRODUCTION_OPERATIONAL_FIRST_SIGNED_DISPATCH_ACCEPTED；机器复发门禁 2 项 CLOSED、0 项 open，旧 approved_orcaterm_bundle_upload 包禁止伪装成 signed_git_bundle
+本轮 C1 evidence 包对业务服务、数据库、Redis、Worker 与业务 authority 的变更：0；独立 P0R dispatch 的目标 mutation 状态在 receipt 读取前保持 UNKNOWN；Runtime Control 已有 fixed dispatch timer/service；外部安全状态：COS Object Lock COMPLIANCE 31 天已启用
+当前生产存储门禁：P0_BLOCKED_CAPACITY_AND_RECOVERY；P0R_OBJECT_LOCK_31D_AGE_VAULT_TRANSPORT_AND_CLEAN_PRE_STS_BASELINE_PASS_SIGNED_READ_ONLY_REBIND_DISPATCH_PUBLISHED_TARGET_RECEIPT_UNREAD_EXECUTION_UNCONFIRMED_STS_RECOVERY_AND_FRESH_TOPOLOGY_PENDING；应用业务健康未在本包评估
+固定生产执行通道：PRODUCTION_OPERATIONAL_FIRST_SIGNED_DISPATCH_ACCEPTED；机器复发门禁 3 项 CLOSED、0 项 open，旧 approved_orcaterm_bundle_upload 包禁止伪装成 signed_git_bundle
 ```
 
 2026-07-21 P0 通过只读事务取得数据库/容量事实，Docker/Git before/after 一致，证据 `sha256:344ae4e05ec78e74ca97c92728fc06576f744e795bf4919d6eb3b76ee145769e`。它只判定存储准入，不包含 `/api/health`、Redis 或业务 ready，因此不得扩写为全站健康或全站失败。
@@ -315,20 +316,20 @@ Cycle final
 
 ## 14. 最近三次关键事件
 
-### 2026-07-24 / V2 M1.1B0 Tencent Live Source Conformance Dispatch Package
-- 首次腾讯派发在业务 artifact 前阻断；R1 形成 0/15 共同 transport failure，R2 形成 14/15。R3 派发 `m1b0-r3-live-source-20260723t175033z` 已形成 15/15：Identity、Listing、CoinGlass 全部 PASS；现场生产 HEAD、11 个容器、listener、health、timer 与 secret 边界前后匹配基线。
-- R1 将 Bybit `new_crypto` 收口为最新两页 `BOUNDED_COMPLETE`，完整历史移交 M1.4B checkpoint/gap/incremental；Bitget `coin_listings` 保持官方一个月完整 cursor，并新增前 artifact 脱敏失败结果。
-- R2 已根治 Web Fetch/WebAssembly 共同传输缺陷；R3 进一步用官方 `showPermissionSets=false` 把 Binance 现货目录从约 17.4 MB 限定到 6,629,806 bytes，而不提高 8 MiB 上限。R3 artifact `source-conformance:5a6d0c06c7085db00380f746` 已内容寻址，staging 已删除；只有本次 exact-release 实际 PASS 的 capability 才可进入 M1.4B。
+### 2026-07-27 / V2 M2.2-C1 Forward Evidence Refresh and Domain Isolation
+- evidence release parts `a02aecbbf8b289e409fd + e33b150fb55cb62ef3f0` 取得四轮三 Venue COMPLETE；正式 verifier 全链复核 4 条 journal、28 个 artifact 引用、12 个 raw 引用、37 个精确文件，三家约 998.5-998.7 秒跨度和 gap=0。
+- Scope V2 normalizer 对最新 raw 的重放观察到加密、单股、指数/ETF、广义 RWA 和 unresolved 分域；三家均诚实为 `PARTIAL`，Bybit 133 个 `stock` 大类没有被名称猜测为单股或 ETF。
+- verifier source 的 A0 `30223737098`、Full Quality `30223737124`、Independent Security `30223737105` 和 Signed Dispatch Quality `30223737131` 全部 PASS；该结果仍为 forward-only/no-authority，不证明持续 Shadow、Fact、Detector 或生产能力。
 
-### 2026-07-24 / V2 M3.1A-D Four-Lane Decision Research Contract
-- 成熟加密、listing warm-up、单股和指数/ETF 四轨已锁定 exact Venue/domain/lifecycle/family；Evidence 与 Setup 校准分开，跨 Venue/轨道/资产域/生命周期借证全部拒绝。
-- 股票 session、公司行动、FX、underlying/reference、闭市 basis、规格或成本缺失即弃权；成本不可得为 null 而不是 0。Reference、Policy、Cost、Draft 均内容寻址，未验证 Fib、未来数据、低 RR 和数学异常 fail closed。
-- 定向 28/28 PASS；本包只完成 local research contract scaffold，真实 M2.3/M2.4 cohort/holdout、M3.1A-M3.3D 校准、Strategy/READY/生产 authority 均未完成。
+### 2026-07-27 / V2 M1.6-P0R Signed Read-Only Rebind Dispatch
+- dispatch `p0r-rebind-preflight-20260726t213258z-e77631a3` 已按无 secret、只读边界发布，并于北京时间 2026-07-27 07:02:58 过期。
+- 腾讯目标 receipt 仍未读取，因此领取、启动与结果都是 `UNKNOWN`；不得写执行 PASS，也不得写“确定未执行”。没有 fresh STS、backup、retrieval、isolated restore 或生产 mutation 的确认回执。
+- 下一动作只能先读 receipt；根据真实结果决定验收或重新生成新时效派发，禁止盲目重发覆盖现场事实。
 
-### 2026-07-24 / V2 M1.4B Endpoint Batching and Listing History
-- exact live Profile、逐端点 batch、两本请求预算、Bybit/Bitget listing 状态机和无 secret fixed-dispatch package 已实现；core 23/23、现场包 9/9、V2 Foundation 488/494、V2 Ops 131/131 与完整 CI PASS。
-- 15/15 R3 conformance 与 route eligibility 分开：只执行 14/15，Binance spot 请求数为 0；腾讯 bootstrap 与绑定原 PASS result 的 resume 均为 14/14 PASS、零 gap、两个 checkpoint，生产应用身份不变。
-- Bitget Venue、Listing Lifecycle、Equity Asset Domain、Data Maximization 四轴不得借 PASS；M1.4B 已关闭，但 Fact authority、股票 tradable Fact、持续 Shadow、容量、Candidate、Strategy 和 READY 均未完成。
+### 2026-07-27 / V2 A0 Reproducible Release and Resource Baseline
+- A0 材料、供应链、独立安全、双 RootFS、provenance、三个隔离 rollback 和冻结 1,440 instrument 性能资源基线均已通过；完整质量与安全证据使用 exact source 和固定 Node/npm。
+- event-loop、RootFS 路径/ownership 和证据 TOCTOU 的失败已完成根因治理，没有减少样本、工作量或门槛。
+- A0 总门禁仍只缺 P0R 真实加密备份、精确对象版本取回与独立 PostgreSQL 16 restore parity；因此 M1.5C/M1.5D 仍 blocked。
 
 ## 15. 当前风险
 
@@ -349,7 +350,7 @@ Cycle final
 - M2.0 的 19 个 test-only fixture 只证明合同和反未来泄漏，不能作为 Detector precision/recall/lead-time 或生命周期晋级证据。
 - M2.2-A/B0.1/B0.2-A 已能拒绝 future leak、病例对照 precision 膨胀、任意排序/构造政策、伪 holdout、Agent 自批权利和当前快照倒推历史，但 accepted real historical cohort=0；真实来源权利、完整背景实际构造、真实 Top20/sensitivity、独立 holdout custody/result 和审计都未完成，Gate 必须保持 INSUFFICIENT，禁止发 Candidate 或宣称 Detector 有效。
 - M2.2-B0 证明官方归档技术链可用；B0.2-A 进一步证明公开下载、当前 snapshot 和 archive presence 都不能给出历史 eligibility。五个候选全部 `RESEARCH_ONLY`，Kline 也不支持 L2 Liquidity Shift，故 bulk/cohort 继续 blocked。
-- C1 前向捕获起点已通过，但当前只有两轮、约 6 分钟目录证据；它不能替代持续采集、历史 instrument source、历史权利、真实 cohort 或长期 SLO，旧未绑定 release 的诊断根不得并入正式链。
+- C1 历史两轮捕获起点与最新四轮 evidence refresh 都已通过完整性门禁；最新三家连续跨度仍只有约 16.6 分钟，且 Scope V2 资产域重放仍为 `PARTIAL`。它不能替代 Bitget、持续采集、24h SLO、历史 instrument source、历史权利、官方 mapping 完整性、真实 cohort 或 Detector，旧未绑定 release 的诊断根不得并入正式链。
 - M3.0-M3.3 只验证 V1 三 Venue加密 fixture；M3.1A-D-R0 只验证 Scope V2 四轨 research contract 能拒绝串轨、缺证、未来读和伪成本，不能证明真实 Detector、cohort/holdout、校准或 Strategy 有效。M0.5 也只冻结设计，订单墙、主动流、板块传播和 CoinGecko 等补充来源尚无真实前向证据或消融，任何“主力/控盘分”、固定美元阈值或个案规律都无权进入 Signal。M3.4-R0 也只证明前置门禁，不证明 Feasibility。持续 Adapter、listing checkpoint、Deep Validation、真实执行成本、风险和 runtime 仍缺失，任何 V2 Signal Grade、Strategy authority 或 READY 声明均为 P1 风险。
 
 ### P2
@@ -389,10 +390,9 @@ Cycle final
 V2-M1.6-P0R-R0-READ-ONLY-SOURCE-REBIND
 ```
 
-B1-B3 已关闭 V1 M1.5-B1；P0 已执行并因容量与 recovery evidence BLOCKED。Object Lock 31 天和 age Keychain 身份仍有效，但历史 `bed938...` staging 已因安全源码被替代而失去执行权。current-source 重绑定已通过本地与 exact-source GitHub 资格门禁；下一步直接执行 signed read-only live rebind。该现场重绑定 PASS 后才允许从 current source 重建 plan/bundle，再单独注入 fresh 7200 秒 STS 与 age identity，执行加密备份、精确取回、隔离恢复和 cleanup；随后刷新 topology、重跑校准与 fresh P0。签名通道不能运输 P0R secret。Scope V2 的 M1.4B 腾讯 bootstrap/resume、M1.4C 本地合同、M2.1A research-only 合同，以及 A0 材料、独立安全、制品 provenance/rollback 和冻结性能资源控制均已通过；A0 唯一剩余控制是 P0R 真实恢复。A0 总门禁关闭后才可把 M1.5C 四 Venue多资产 Shadow 与 M1.5D 微观结构 forward Shadow 绑定同一 exact release 并独立验收，再由 M1.6-D1 同时消费两者真实事实率。M3.1A-D-R0 四轨合同已本地通过，但必须等待 M2.3/M2.4 真实 cohort/holdout 后才能进入真实校准。M3.4-R1 只有 compile-compatible 草稿、没有定向出口；四轴证据不得混用。外部门 B0.2-B 未解决前 historical bulk、Detector lifecycle 和 runtime 一律关闭。
+B1-B3 已关闭 V1 M1.5-B1；P0 已执行并因容量与 recovery evidence BLOCKED。Object Lock 31 天和 age Keychain 身份仍有效，但历史 `bed938...` staging 已因安全源码被替代而失去执行权。current-source 重绑定已通过本地与 exact-source GitHub 资格门禁；signed read-only dispatch 已发布并过期，但目标 receipt 尚未读取，所以现场执行结果仍是 `UNKNOWN`。下一步必须先只读取得 receipt：若已有结果则验证身份与零漂移，若未领取才生成新的 exact signed dispatch。只有现场重绑定 PASS 后才允许从 current source 重建 plan/bundle，再单独注入 fresh 7200 秒 STS 与 age identity，执行加密备份、精确取回、隔离恢复和 cleanup；随后刷新 topology、重跑校准与 fresh P0。签名通道不能运输 P0R secret。Scope V2 的 M1.4B 腾讯 bootstrap/resume、M1.4C 本地合同、M2.1A research-only 合同，以及 C1 四轮前向证据完整性/资产域重放、A0 材料、独立安全、制品 provenance/rollback 和冻结性能资源控制均已通过；C1 仍无 authority，A0 唯一剩余控制仍是 P0R 真实恢复。A0 总门禁关闭后才可把 M1.5C 四 Venue多资产 Shadow 与 M1.5D 微观结构 forward Shadow 绑定同一 exact release 并独立验收，再由 M1.6-D1 同时消费两者真实事实率。M3.1A-D-R0 四轨合同已本地通过，但必须等待 M2.3/M2.4 真实 cohort/holdout 后才能进入真实校准。M3.4-R1 只有 compile-compatible 草稿、没有定向出口；四轴证据不得混用。外部门 B0.2-B 未解决前 historical bulk、Detector lifecycle 和 runtime 一律关闭。
 
 ## 19. 活跃记忆维护规则
-
 - 本文件最多 400 行，只保留当前事实。
 - 易变生产事实没有 fresh evidence 就写 UNKNOWN，不沿用旧状态。
 - 最近事件只保留 3 次；更早细节从 Git、交付报告和脱敏证据读取。

@@ -2,6 +2,36 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-27 / V2 M2.2-C1 Forward Evidence Refresh and Domain Isolation
+
+### 本轮目标
+
+把 C1 前向目录证据的完整历史复核固化为正式只读验证器，并用 Scope V2 多资产 normalizer 重放最新 raw，防止旧 `CANONICAL_TARGET` 合约形状标签被误写成加密资产域结论。
+
+### 修改范围
+
+- Evidence Store 新增 `READ_ONLY_EXISTING`，验证时不得创建、补写或修复 evidence root。
+- 新增完整 journal、artifact/raw 引用、跨轮 continuity、精确文件集、权限、symlink、orphan、partial 与 lock 审计。
+- 新增 clean-HEAD CLI，分别绑定 evidence release 与 verifier release，证据完整但连续性不够时仍返回非零 readiness。
+- 最新 retained raw 复用 Scope V2 Binance/OKX/Bybit 多资产 normalizer；Bybit 广义 `stock` 缺官方 mapping 时保持 `OTHER_RWA_DERIVATIVE`，不按名称猜单股或 ETF。
+- Candidate、Strategy、READY、历史回填、生产写入和交易权限全部保持关闭。
+
+### 验收结果
+
+- 四轮 Batch 全部 `COMPLETE`；4 条 journal、28 个 artifact 引用、12 个 raw 引用和 37 个精确保留文件全部通过。
+- Binance/OKX/Bybit 分别保留 845/426/757 行，三家均为 4/4 完整快照、约 998.5-998.7 秒跨度、gap=0 和 `FORWARD_ONLY_READY`。
+- Scope V2 重放中，Binance 为 crypto 698、单股 125、指数/ETF 3、其他 RWA 8、unresolved 11；OKX 为 287/131/0/8/0；Bybit 为 crypto 620、其他 RWA 137，其中 133 个只能证明 provider `stock` 大类。三家 normalizer 都是 `PARTIAL`。
+- 定向 42/42 与完整本地 CI PASS：Market 965 pass / 4 explicit skip、Workers 23/23、Historical 4/4、V2 Foundation 592 pass / 6 explicit skip、V2 Ops 180/180、M0、Next build、Golden 16/16 和 security 全部通过。
+- verifier source 的 A0 `30223737098`、Full Quality `30223737124`、Independent Security `30223737105` 与 Signed Dispatch Quality `30223737131` 全部 PASS。
+
+### 是否部署
+
+未派发或部署本包。腾讯应用、数据库、Redis、Worker、容器、env、Feature Flag、migration、COS 和业务 authority 未由本包改变。独立 P0R dispatch 的目标 receipt 仍未读取，不能从本包推断其现场结果。
+
+### 风险与下一步
+
+该证据只覆盖三 Venue 约 16.6 分钟目录连续性，不含 Bitget、24h SLO、官方 mapping 完整性、价格或微观结构 Fact、真实 cohort、Detector、Candidate、Strategy 或 READY。下一生产动作仍是先只读取得 P0R 目标 receipt；A0 总门禁关闭后再启动同源 M1.5C/M1.5D。
+
 ## 2026-07-27 / V2 M1.6-P0R Read-Only Source Rebind
 
 ### 本轮目标
@@ -26,11 +56,11 @@
 
 ### 是否部署
 
-未部署。腾讯生产未执行命令；应用、数据库、Redis、Worker、容器、env、Feature Flag、migration、COS 对象和业务 authority 均未改变。
+signed read-only dispatch `p0r-rebind-preflight-20260726t213258z-e77631a3` 已发布并过期；目标 receipt 未读取，故现场是否领取、启动或完成都是 `UNKNOWN`。没有 STS、backup、retrieval、restore 或生产 mutation 的确认回执；不能写执行 PASS，也不能写“确定未执行”。
 
 ### 下一步
 
-下一入口直接推进为 `V2-M1.6-P0R-R0-READ-ONLY-SOURCE-REBIND`。生产重绑定 PASS 后才允许从 current source 重建 plan/bundle；fresh STS 与 age identity 只能单独进入 `/dev/shm`，随后才能执行真实 backup、exact retrieval、isolated restore 与 cleanup。
+下一入口仍是 `V2-M1.6-P0R-R0-READ-ONLY-SOURCE-REBIND`，但必须先只读取得已发布 dispatch 的目标 receipt；若已有结果则先验收，若未领取才生成新时效派发。生产重绑定 PASS 后才允许从 current source 重建 plan/bundle；fresh STS 与 age identity 只能单独进入 `/dev/shm`，随后才能执行真实 backup、exact retrieval、isolated restore 与 cleanup。
 
 ## 2026-07-27 / V2 A0 Reproducible Release and Resource Baseline
 
@@ -153,40 +183,3 @@ P0R 继续作为独立生产第一关键路径。A0 下一工程包把同一 exa
 ### 下一轮建议
 
 完成精确提交和 GitHub 同步；随后恢复生产 P0R 第一关键路径，并在 no-authority 工程线上继续积累 Scope V2 runtime 与真实 cohort 前置证据。
-
-## 2026-07-24 / V2 M3.4-R0 Scope Rebase Governance Gate
-
-### 本轮目标
-
-在继续执行可行性实现前，把 Bitget、上新生命周期、股票合约和数据最大化四条新增能力轴强制接入 M3.4 的正式范围与证据链，防止旧草稿用三 Venue、单一 crypto 逻辑或测试阈值获得交易权限。
-
-### 修改范围
-
-- 新增纯治理门禁；它只判断某个范围能否进入后续 M3.4 实现，不能生成 Candidate、Signal、Strategy、READY 或交易计划。
-- 四条能力轴分别记账，任何一条缺失都不能被其他能力替代；Bitget 固定进入 Venue 分母，上新使用系统冻结的 `ANNOUNCED_WAITING_CATALOG`、`OBSERVED_UNCONFIRMED`、`PRE_LAUNCH_OR_PREOPEN`、`TRADING_WARMUP`、`ESTABLISHED`、维护/限制/暂停/下架/离线和 unresolved 生命周期。
-- 股票类合约必须额外证明交易时段、休市/隔夜 basis、公司行动、FX、underlying reference、成本和流动性边界；CFD、RWA watch、跨市场观察对象不能冒充可交易股票合约。
-- 所有 PASS 证明必须绑定 Scope V2、Venue、asset domain、lifecycle、release、evidenceId 与 SHA-256；禁止跨 Venue、跨资产域、跨生命周期或跨 release 借用证明。
-- 旧 M3.4 草稿保持隔离：当前 typecheck 有 3 个失败、无测试、仍是三 Venue 且缺 Scope epoch、asset domain、listing warm-up 和股票专项校准，因此不能提交或作为基线。
-- P0R exact plan、13 个 Bundle 成员和腾讯 staging hash 已重新核验一致；生产 HEAD、容器、listener、timer、health、`/dev/shm` 与恢复容器/卷均保持只读基线。
-
-### 核心链路影响
-
-形成 `Scope V2 -> M3.4-R0 Governance Gate -> Domain-Sealed Calibration -> M3.4 Feasibility` 的唯一入口。新增市场范围被正确纳入后续工程，但本包不声称任何新增范围已经具备实战能力。
-
-### 测试结果
-
-- M3.4-R0 定向合同 12/12 PASS。
-- 新实现 ESLint 0 error / 0 warning。
-- 正式实施分支身份下完整 `ci:production` PASS：V2 Foundation 466 total / 460 pass / 6 explicit skip、V2 Ops 131/131、M0 11/11、Next production build、Golden 16/16 与 security 全部通过。
-
-### 是否部署
-
-未部署。生产服务、数据库、Redis、Worker、env、Feature Flag、数据和业务 authority 零变更；P0R 仍因缺少新的 7200 秒 exact-plan STS 而未执行。
-
-### 风险与遗留问题
-
-M3.4-R0 只是范围与证据门禁，真正的多资产可执行性数学、分域阈值、股票市场微观结构、上新 warm-up 校准、Shadow 和生产验收仍未完成。P0R 必须在实际操作时新生成 STS，并只进入服务器 `/dev/shm`。
-
-### 下一轮建议
-
-完成精确提交与 GitHub 同步后，集中完成 P0R 的一次性 STS、加密备份、精确版本取回、隔离 PostgreSQL 16 恢复和清理。M3.4 后续只能基于本门禁重新实现，不能修补旧草稿后直接放行。

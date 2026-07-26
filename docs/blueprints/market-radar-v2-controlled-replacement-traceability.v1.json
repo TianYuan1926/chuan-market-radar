@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.56",
-  "status": "m0_4_expanded_scope_design_pass_m0_5_market_mechanics_microstructure_precursor_atlas_local_contract_pass_a0_engineering_materials_supply_chain_independent_security_reproducible_release_and_resource_baseline_remote_pass_total_gate_incomplete_p0r_pending_m1_1a_registry_local_pass_m1_1b_multi_asset_identity_listing_and_exact_probe_local_implementation_pass_test_only_conformance_pass_m1_1b0_attempt_1_blocked_r1_live_zero_of_15_common_runtime_transport_blocked_r2_live_14_of_15_listing_gate_blocked_r3_live_15_of_15_all_gates_pass_m1_4a_adaptive_multi_asset_collector_local_contract_and_full_ci_pass_no_runtime_authority_m1_4b_tencent_bootstrap_and_checkpoint_bound_resume_pass_no_runtime_authority_15_live_profiles_14_route_eligible_m1_4c_microstructure_fact_feature_cache_local_contract_pass_22_of_22_no_runtime_authority_m1_5c_m1_5d_blocked_by_a0_m2_1a_bidirectional_precursor_atlas_local_research_contract_pass_13_of_13_real_cohort_missing_no_candidate_emission_scope_epoch_v1_evidence_preserved_m1_5_b1_pass_v1_only_m1_6_p0_blocked_p0r_local_and_exact_source_remote_qualification_pass_production_rebind_pending_legacy_bed938_staging_rejected_sts_and_recovery_pending_m2_2_c1_forward_only_ready_v1_only_m3_0_through_m3_3_local_contract_pass_v1_only_test_only_uncalibrated_no_ready_authority_m3_1a_through_m3_3d_four_lane_local_research_contract_scaffold_and_full_ci_pass_no_real_calibration_or_authority_m3_4_r0_scope_rebase_governance_pass_r1_partial_test_only_draft_no_directed_exit_fixed_dispatch_first_signed_acceptance_pass_external_historical_source_blocked_m1_not_complete",
-  "generatedAt": "2026-07-27T05:19:02+08:00",
+  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.57",
+  "status": "m0_4_expanded_scope_design_pass_m0_5_market_mechanics_microstructure_precursor_atlas_local_contract_pass_a0_engineering_materials_supply_chain_independent_security_reproducible_release_and_resource_baseline_remote_pass_total_gate_incomplete_p0r_pending_m1_1a_registry_local_pass_m1_1b_multi_asset_identity_listing_and_exact_probe_local_implementation_pass_test_only_conformance_pass_m1_1b0_attempt_1_blocked_r1_live_zero_of_15_common_runtime_transport_blocked_r2_live_14_of_15_listing_gate_blocked_r3_live_15_of_15_all_gates_pass_m1_4a_adaptive_multi_asset_collector_local_contract_and_full_ci_pass_no_runtime_authority_m1_4b_tencent_bootstrap_and_checkpoint_bound_resume_pass_no_runtime_authority_15_live_profiles_14_route_eligible_m1_4c_microstructure_fact_feature_cache_local_contract_pass_22_of_22_no_runtime_authority_m1_5c_m1_5d_blocked_by_a0_m2_1a_bidirectional_precursor_atlas_local_research_contract_pass_13_of_13_real_cohort_missing_no_candidate_emission_scope_epoch_v1_evidence_preserved_m1_5_b1_pass_v1_only_m1_6_p0_blocked_p0r_local_and_exact_source_remote_qualification_pass_signed_dispatch_published_target_receipt_unread_execution_unconfirmed_legacy_bed938_staging_rejected_sts_and_recovery_pending_m2_2_c1_forward_only_ready_v1_only_latest_four_cycle_full_history_integrity_and_scope_v2_domain_replay_pass_no_authority_m3_0_through_m3_3_local_contract_pass_v1_only_test_only_uncalibrated_no_ready_authority_m3_1a_through_m3_3d_four_lane_local_research_contract_scaffold_and_full_ci_pass_no_real_calibration_or_authority_m3_4_r0_scope_rebase_governance_pass_r1_partial_test_only_draft_no_directed_exit_fixed_dispatch_first_signed_acceptance_pass_external_historical_source_blocked_m1_not_complete",
+  "generatedAt": "2026-07-27T06:55:52+08:00",
   "implementationAuthorized": true,
   "productionMutationAuthorized": false,
   "longTermEngineeringGovernance": {
@@ -385,6 +385,8 @@
     "m2RightsAndHistoricalInstrumentEvidenceGate": "docs/architecture/v2/M2_2_B0_2_RIGHTS_AND_HISTORICAL_INSTRUMENT_EVIDENCE_GATE_V1.md",
     "m2FirstPartyForwardInstrumentCaptureContract": "docs/architecture/v2/M2_2_B0_2_C_FIRST_PARTY_FORWARD_INSTRUMENT_CAPTURE_V1.md",
     "m2ReleaseBoundForwardCaptureStartContract": "docs/architecture/v2/M2_2_B0_2_C1_RELEASE_BOUND_FORWARD_CAPTURE_START_V1.md",
+    "m2ReleaseBoundForwardCaptureStartDeliveryReport": "docs/blueprints/V2_M2_2_B0_2_C1_RELEASE_BOUND_FORWARD_CAPTURE_START_DELIVERY_REPORT.md",
+    "m2ForwardEvidenceRefreshAndDomainIsolationDeliveryReport": "docs/blueprints/V2_M2_2_C1_FORWARD_EVIDENCE_REFRESH_AND_DOMAIN_ISOLATION_DELIVERY_REPORT.md",
     "m3FinalDecisionAuthorityContract": "docs/architecture/v2/M3_0_FINAL_DECISION_AUTHORITY_CONTRACT_V1.md",
     "m3FinalDecisionAuthorityDeliveryReport": "docs/blueprints/V2_M3_0_FINAL_DECISION_AUTHORITY_CONTRACT_DELIVERY_REPORT.md",
     "m3FamilyAnalysisAndEvidenceInterpretationContract": "docs/architecture/v2/M3_1_FAMILY_ANALYSIS_AND_EVIDENCE_INTERPRETATION_CONTRACT_V1.md",
@@ -2508,7 +2510,7 @@
   "currentImplementationEntry": {
     "id": "V2-M1.6-P0R-R0-READ-ONLY-SOURCE-REBIND",
     "name": "read_only_live_source_staging_network_identity_and_zero_drift_rebind",
-    "status": "local_and_exact_source_remote_qualification_pass_production_rebind_pending",
+    "status": "local_and_exact_source_remote_qualification_pass_signed_dispatch_published_target_receipt_unread_execution_unconfirmed",
     "scopeEpoch": "SCOPE_EPOCH_V1_CRYPTO_3V",
     "productionMutationAllowed": false,
     "migrationAllowed": false,
@@ -2520,7 +2522,7 @@
       "408803e0bdc21051124a",
       "79e307db8e9eb39c793c"
     ],
-    "status": "LOCAL_ENGINEERING_FULL_CI_AND_EXACT_SOURCE_REMOTE_QUALIFICATION_PASS_PRODUCTION_NOT_EXECUTED",
+    "status": "LOCAL_ENGINEERING_FULL_CI_AND_EXACT_SOURCE_REMOTE_QUALIFICATION_PASS_SIGNED_DISPATCH_PUBLISHED_TARGET_RECEIPT_UNREAD_EXECUTION_UNCONFIRMED",
     "packageTestPassed": 9,
     "p0rTestPassed": 70,
     "v2OpsTestPassed": 179,
@@ -2563,6 +2565,23 @@
       "productionExecution": false,
       "productionMutation": false,
       "productionCredentialsUsed": false
+    },
+    "signedReadOnlyDispatch": {
+      "dispatchId": "p0r-rebind-preflight-20260726t213258z-e77631a3",
+      "expiresAt": "2026-07-26T23:02:58.634Z",
+      "dispatchSourceCommitParts": [
+        "a02aecbbf8b289e409fd",
+        "e33b150fb55cb62ef3f0"
+      ],
+      "productionDispatchCommitParts": [
+        "34b1f137e92be1649d64",
+        "c6507c3e36204ce0b31e"
+      ],
+      "bundleDigest": "sha256:13fdc45a711f2d97d674ad8e0871f990b8a874230e0c78d771165216be503b9e",
+      "targetReceiptRead": false,
+      "executionConfirmed": false,
+      "executionStatus": "UNKNOWN_TARGET_RECEIPT_UNREAD",
+      "targetProductionMutationConfirmed": false
     },
     "deterministicUstarRequired": true,
     "signedDispatchRequired": true,
@@ -2706,6 +2725,119 @@
     "identityConflictCount": 0,
     "historicalBackfillAllowed": false,
     "candidateEmissionAllowed": false,
+    "productionMutationPerformed": false
+  },
+  "latestForwardCaptureEvidenceRefresh": {
+    "id": "V2-M2.2-B0.2-C1-FORWARD-EVIDENCE-REFRESH-AND-DOMAIN-ISOLATION",
+    "status": "PASS_FOUR_COMPLETE_CYCLES_FULL_HISTORY_INTEGRITY_SCOPE_V2_DOMAIN_REPLAY_AND_EXACT_SOURCE_REMOTE_QUALIFICATION_NO_AUTHORITY",
+    "evidenceReleaseParts": [
+      "a02aecbbf8b289e409fd",
+      "e33b150fb55cb62ef3f0"
+    ],
+    "verifierReleaseParts": [
+      "be5c0c9682cd8f503679",
+      "7d52d426783eb0f6615f"
+    ],
+    "sameReleaseVerifier": false,
+    "captureConfigDigest": "sha256:6cecaf486c155721b85a4f1161b7c492e69916f27c40b4bf0bd34400d90e4a9d",
+    "journalHeadDigest": "sha256:36b8513fee75f415c745efe5f7132e8d9e4c6667c27265997fe279e39c010e1b",
+    "journalEntryCount": 4,
+    "completeBatchCount": 4,
+    "partialBatchCount": 0,
+    "failedBatchCount": 0,
+    "artifactReferenceCount": 28,
+    "uniqueArtifactObjectCount": 28,
+    "rawReferenceCount": 12,
+    "uniqueRawObjectCount": 8,
+    "retainedFileCount": 37,
+    "exactFileSetVerified": true,
+    "allReferencedObjectsVerified": true,
+    "providerContinuity": {
+      "BINANCE": {
+        "latestProviderRowCount": 845,
+        "completeSnapshotCount": 4,
+        "observationSpanMs": 998704,
+        "activeCoverageGapCount": 0,
+        "status": "FORWARD_ONLY_READY"
+      },
+      "OKX": {
+        "latestProviderRowCount": 426,
+        "completeSnapshotCount": 4,
+        "observationSpanMs": 998708,
+        "activeCoverageGapCount": 0,
+        "status": "FORWARD_ONLY_READY"
+      },
+      "BYBIT": {
+        "latestProviderRowCount": 757,
+        "completeSnapshotCount": 4,
+        "observationSpanMs": 998531,
+        "activeCoverageGapCount": 0,
+        "status": "FORWARD_ONLY_READY"
+      }
+    },
+    "scopeV2DomainReplay": {
+      "status": "PASS_LATEST_RAW_DOMAIN_REPLAY",
+      "multiAssetSeparationObserved": true,
+      "unresolvedClassificationObserved": true,
+      "officialMappingCompletenessProven": false,
+      "bitgetIncluded": false,
+      "providers": {
+        "BINANCE": {
+          "normalizationStatus": "PARTIAL",
+          "crypto": 698,
+          "equitySingleName": 125,
+          "equityIndexEtf": 3,
+          "otherRwa": 8,
+          "unresolved": 11,
+          "identityExact": 653,
+          "identityPartial": 181,
+          "identityUnresolved": 11,
+          "targetMechanismExcluded": 192
+        },
+        "OKX": {
+          "normalizationStatus": "PARTIAL",
+          "crypto": 287,
+          "equitySingleName": 131,
+          "equityIndexEtf": 0,
+          "otherRwa": 8,
+          "unresolved": 0,
+          "identityExact": 411,
+          "identityPartial": 15,
+          "identityUnresolved": 0,
+          "targetMechanismExcluded": 15
+        },
+        "BYBIT": {
+          "normalizationStatus": "PARTIAL",
+          "crypto": 620,
+          "equitySingleName": 0,
+          "equityIndexEtf": 0,
+          "otherRwa": 137,
+          "providerStockBroadClassWithoutSingleNameEtfResolution": 133,
+          "unresolved": 0,
+          "identityExact": 721,
+          "identityPartial": 36,
+          "identityUnresolved": 0,
+          "targetMechanismExcluded": 36
+        }
+      }
+    },
+    "remoteQualification": {
+      "status": "PASS_A0_FULL_QUALITY_INDEPENDENT_SECURITY_AND_SIGNED_DISPATCH_QUALITY",
+      "a0ReleaseQualificationRunId": 30223737098,
+      "provenanceArtifactDigest": "sha256:3742a013e4955a69b4f42b63a1073148f521ef29e51204baa8939d3a430ba664",
+      "performanceArtifactDigest": "sha256:b5ed299109350d830da550adec34086ab64490dd93a31a2de80db4d26dd73116",
+      "fullQualityRunId": 30223737124,
+      "sbomArtifactDigest": "sha256:d1106adf290c92f6bf8f9379cb054d48a7ec654ba0e3405212037a2b53522f2f",
+      "independentSecurityRunId": 30223737105,
+      "gitleaksArtifactDigest": "sha256:d3a0e82ffa9674f1fcfefdb77b694e3291742700e7d9cc2e4e5e6ec1741b6743",
+      "codeqlArtifactDigest": "sha256:958f41e361959d9e1e3ddaa7d367ab7cf924c0792dcef799d2089c5748fd2d48",
+      "imageScanArtifactDigest": "sha256:486da733b3d7d21ae6e2f94ba6be03c873417748f631a4dcbb2b5973e43efcbc",
+      "signedDispatchQualityRunId": 30223737131
+    },
+    "historicalBackfillAllowed": false,
+    "candidateEmissionAllowed": false,
+    "strategyAuthorityAllowed": false,
+    "readyAuthorityAllowed": false,
     "productionMutationPerformed": false
   },
   "completedEarlyShadowBusinessGate": {
