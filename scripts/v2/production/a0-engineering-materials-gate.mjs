@@ -459,6 +459,7 @@ export function validateA0ReleaseQualificationWorkflowPolicy(path, source) {
     "a0-release-qualification.mjs",
     "--output \"type=local,dest=/evidence/rootfs-a\"",
     "--output \"type=local,dest=/evidence/rootfs-b\"",
+    "Transfer isolated rootfs evidence ownership without mutating modes",
     "--network none",
     "--read-only",
     "a0-runtime-smoke-evidence.mjs",
@@ -512,6 +513,40 @@ export function validateA0ReleaseQualificationWorkflowPolicy(path, source) {
       path,
       "every pinned buildx-bin invocation must receive the runner CA bundle read-only",
     ));
+  }
+  const ownershipTransfer =
+    'sudo -n chown -R "$(id -u):$(id -g)" \\\n'
+    + '            "$EVIDENCE_ROOT/rootfs-a" \\\n'
+    + '            "$EVIDENCE_ROOT/rootfs-b"';
+  const ownershipTransferIndex = source.indexOf(ownershipTransfer);
+  if (
+    ownershipTransferIndex < 0
+    || source.indexOf(ownershipTransfer, ownershipTransferIndex + 1) >= 0
+  ) {
+    issues.push(issue(
+      "V2_A0_ROOTFS_EVIDENCE_OWNERSHIP_TRANSFER_DRIFT",
+      path,
+      "exactly one ownership-only transfer for the two isolated rootfs exports is required",
+    ));
+  } else {
+    const secondRootfsBuildIndex = source.indexOf(
+      '--output "type=local,dest=/evidence/rootfs-b"',
+    );
+    const provenanceBindingIndex = source.indexOf(
+      "a0-rootfs-provenance-evidence.mjs",
+    );
+    if (
+      secondRootfsBuildIndex < 0
+      || provenanceBindingIndex < 0
+      || ownershipTransferIndex <= secondRootfsBuildIndex
+      || ownershipTransferIndex >= provenanceBindingIndex
+    ) {
+      issues.push(issue(
+        "V2_A0_ROOTFS_EVIDENCE_OWNERSHIP_TRANSFER_ORDER_DRIFT",
+        path,
+        "rootfs ownership must transfer after both exports and before provenance binding",
+      ));
+    }
   }
   if (/EVIDENCE_ROOT:\s*\$\{\{\s*runner\.temp\s*\}\}/u.test(source)) {
     issues.push(issue(

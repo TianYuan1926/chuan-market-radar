@@ -279,6 +279,44 @@ test("A0 release qualification keeps two independent builds and no production au
     ),
   );
 
+  const missingOwnershipTransfer =
+    validateA0ReleaseQualificationWorkflowPolicy(
+      path,
+      source.replace(
+        '          sudo -n chown -R "$(id -u):$(id -g)" \\\n'
+          + '            "$EVIDENCE_ROOT/rootfs-a" \\\n'
+          + '            "$EVIDENCE_ROOT/rootfs-b"\n',
+        "",
+      ),
+    );
+  assert.ok(
+    missingOwnershipTransfer.some(
+      (item) =>
+        item.code === "V2_A0_ROOTFS_EVIDENCE_OWNERSHIP_TRANSFER_DRIFT",
+    ),
+  );
+
+  const misplacedOwnershipTransfer =
+    validateA0ReleaseQualificationWorkflowPolicy(
+      path,
+      source.replace(
+        '          sudo -n chown -R "$(id -u):$(id -g)" \\\n'
+          + '            "$EVIDENCE_ROOT/rootfs-a" \\\n'
+          + '            "$EVIDENCE_ROOT/rootfs-b"\n',
+        "",
+      )
+        + '\n          sudo -n chown -R "$(id -u):$(id -g)" \\\n'
+        + '            "$EVIDENCE_ROOT/rootfs-a" \\\n'
+        + '            "$EVIDENCE_ROOT/rootfs-b"\n',
+    );
+  assert.ok(
+    misplacedOwnershipTransfer.some(
+      (item) =>
+        item.code ===
+          "V2_A0_ROOTFS_EVIDENCE_OWNERSHIP_TRANSFER_ORDER_DRIFT",
+    ),
+  );
+
   const privileged = validateA0ReleaseQualificationWorkflowPolicy(
     path,
     `${source}\nenvironment: production\n`,

@@ -122,6 +122,16 @@ jobs:
             --output "type=local,dest=/evidence/rootfs-b" \
             .
 
+      - name: Transfer isolated rootfs evidence ownership without mutating modes
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d "$EVIDENCE_ROOT/rootfs-a"
+          test -d "$EVIDENCE_ROOT/rootfs-b"
+          sudo -n chown -R "$(id -u):$(id -g)" \
+            "$EVIDENCE_ROOT/rootfs-a" \
+            "$EVIDENCE_ROOT/rootfs-b"
+
       - name: Load exact collector image for configuration and runtime smoke
         shell: bash
         run: |
