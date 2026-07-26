@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
+  validateCodeqlEvidencePolicy,
   validateFullCiWorkflowPolicy,
   validateGitleaksFalsePositivePolicy,
   validatePackagePolicy,
@@ -200,6 +201,22 @@ test("security evidence contract stays actionable and sanitized", () => {
   assert.ok(
     incomplete.some(
       (item) => item.code === "V2_SECURITY_EVIDENCE_CONTRACT_INCOMPLETE",
+    ),
+  );
+});
+
+test("CodeQL evidence is sanitized and fails closed on every result", () => {
+  const path = "scripts/v2/production/a0-codeql-evidence.mjs";
+  const source = readFileSync(path, "utf8");
+  assert.deepEqual(validateCodeqlEvidencePolicy(path, source), []);
+
+  const incomplete = validateCodeqlEvidencePolicy(
+    path,
+    source.replace("blockOnAnyUntriagedResult: true", "gateDisabled: true"),
+  );
+  assert.ok(
+    incomplete.some(
+      (item) => item.code === "V2_CODEQL_EVIDENCE_CONTRACT_INCOMPLETE",
     ),
   );
 });

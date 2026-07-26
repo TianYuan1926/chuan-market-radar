@@ -294,6 +294,11 @@ export function validateSecurityWorkflowPolicy(path, source) {
     "languages: javascript-typescript",
     "build-mode: none",
     "queries: security-extended",
+    "output: ${{ runner.temp }}/v2-a0-security/codeql-sarif",
+    "upload: always",
+    "node scripts/v2/production/a0-codeql-evidence.mjs",
+    "Upload sanitized CodeQL evidence",
+    "Destroy local CodeQL SARIF",
     "security-events: write",
     "--build-arg \"V2_M1_COLLECTOR_SOURCE_COMMIT=$GITHUB_SHA\"",
     "--file deploy/v2/m1-collector/Dockerfile",
@@ -350,6 +355,32 @@ export function validateSecurityEvidencePolicy(path, source) {
     ? []
     : [issue(
       "V2_SECURITY_EVIDENCE_CONTRACT_INCOMPLETE",
+      path,
+      missingContracts.join(", "),
+    )];
+}
+
+export function validateCodeqlEvidencePolicy(path, source) {
+  const requiredContracts = [
+    'schemaVersion: "v2-a0-codeql-sast-evidence.v1"',
+    "blockOnAnyUntriagedResult: true",
+    "rawSarifArtifactUploaded: false",
+    '"ruleId"',
+    '"count"',
+    '"maxLevel"',
+    '"maxSecuritySeverity"',
+    "blockingResultCount",
+    "sarifSetDigest",
+    "productionMutation: false",
+  ];
+  const missingContracts = requiredContracts.filter(
+    (contract) => !source.includes(contract),
+  );
+
+  return missingContracts.length === 0
+    ? []
+    : [issue(
+      "V2_CODEQL_EVIDENCE_CONTRACT_INCOMPLETE",
       path,
       missingContracts.join(", "),
     )];
@@ -609,6 +640,27 @@ export function validateRepository(repositoryRoot) {
     issues.push(...validateSecurityEvidencePolicy(
       "scripts/v2/production/a0-security-evidence.mjs",
       securityEvidenceSource,
+    ));
+  }
+
+  const codeqlEvidencePath = resolve(
+    repositoryRoot,
+    "scripts/v2/production/a0-codeql-evidence.mjs",
+  );
+  let codeqlEvidenceSource = "";
+  try {
+    codeqlEvidenceSource = readFileSync(codeqlEvidencePath, "utf8");
+  } catch {
+    issues.push(issue(
+      "V2_CODEQL_EVIDENCE_SCRIPT_MISSING",
+      "scripts/v2/production/a0-codeql-evidence.mjs",
+      "sanitized fail-closed CodeQL result accounting is required",
+    ));
+  }
+  if (codeqlEvidenceSource !== "") {
+    issues.push(...validateCodeqlEvidencePolicy(
+      "scripts/v2/production/a0-codeql-evidence.mjs",
+      codeqlEvidenceSource,
     ));
   }
 
