@@ -17,19 +17,20 @@
 - 修复既存 M3.4-R1 草稿与当前 strict schema 的 import、枚举和 fixture 兼容阻断；只恢复全仓编译与回归，不把定向测试为 0 的草稿标成 M3.4 出口。
 - Provider Adapter 改入正式 adapter 边界并锁定 exact host/role/REST schema；Live Transport 补齐并发启动、停止结算、有界丢弃、超时、重连和 future-time 拒绝测试。exact Node 22 完整 CI 进一步发现负责 Promise 结算的 timeout 被错误 `unref`，已根治并以修复提交 `2ae438b394d289a05f02dbfa0c2846cd2194ea37` 复验。
 - A0 第一批锁定 Node `22.23.1`、npm `10.9.8` 和全部直接依赖，升级 Next/PostCSS/Sharp 安全补丁，删除未使用的 `shadcn` CLI/MCP 依赖和死 CSS 导入。
-- 新增许可证门禁、CycloneDX SBOM、零高危审计、GitHub Action/runner/base-image pin、ESLint + Biome 和 Sharp/PostCSS 原生烟测；蓝图升级到 v1.44、机器矩阵升级到 v1.49。
+- 新增许可证门禁、CycloneDX SBOM、零高危审计、GitHub Action/runner/base-image pin、ESLint + Biome 和 Sharp/PostCSS 原生烟测；蓝图升级到 v1.45、机器矩阵升级到 v1.50。
+- 首次 GitHub Ubuntu Full Quality `30198990064` 与 Signed Dispatch `30198990079` 均在同一 host tar `--uid=0` 兼容点失败；没有掩盖红灯。提交 `29ab47dec0b9fbbbe66e1cfe7ce90aa2e1e4c25d` 已用纯 Node USTAR 根治四个活跃 V2 Bundle 的宿主方言依赖，Legacy 历史制品保持冻结。
 - 路线机器门禁把当前本地 A0、独立生产 P0R、A0 后 Scope V2 Shadow 和外部历史权利 Gate 分开表达；任一入口身份、阻断关系或生产权限漂移都会让 M0 失败。
 
 ### 核心链路影响
 
-`Point-in-time Fact -> Market Mechanics Feature -> Bidirectional Research Hypothesis` 已有本地可执行合同和 fail-closed Gate，工程材料第一批也已收口。A0 总门禁仍缺 exact Node 22 远端 CI、独立 secret/SAST/镜像扫描、性能/资源、制品 provenance/回滚和 P0R 真实恢复；真实 Trade/Book/Liquidation forward data、Detector Candidate、cohort/holdout、校准和最终决策链仍未形成，因此系统等级仍是 R1，不能支撑实战。
+`Point-in-time Fact -> Market Mechanics Feature -> Bidirectional Research Hypothesis` 已有本地可执行合同和 fail-closed Gate，工程材料第一批与跨平台归档本地根因治理已收口。A0 总门禁仍缺修复提交上的 exact Node 22 远端 PASS、独立 secret/SAST/镜像扫描、性能/资源、完整制品 provenance/回滚和 P0R 真实恢复；真实 Trade/Book/Liquidation forward data、Detector Candidate、cohort/holdout、校准和最终决策链仍未形成，因此系统等级仍是 R1，不能支撑实战。
 
 ### 验证结果
 
 - M1.4C Microstructure + Cache 定向 22/22 PASS。
 - M2.1A Precursor Atlas 定向 13/13 PASS。
-- exact Node `22.23.1` / npm `10.9.8` 完整 `ci:production` PASS：Market 969 total / 965 pass / 4 explicit skip、Workers 23/23、Historical 4/4、V2 Foundation 588 total / 582 pass / 6 explicit skip、V2 Ops 136/136、M0、Next production build、Golden 16/16 与 security 全部通过。
-- Expanded Shadow 定向 59/59、ESLint、Biome、`git diff --check`、secret pattern、forbidden-file、零漏洞审计、SBOM 与原生材料烟测 PASS；A0 总门禁仍为 `INCOMPLETE`，GitHub 远端 exact-runtime 证据尚待推送后取得。
+- exact Node `22.23.1` / npm `10.9.8` 修复后完整 `ci:production` PASS：Market 969 total / 965 pass / 4 explicit skip、Workers 23/23、Historical 4/4、V2 Foundation 588 total / 582 pass / 6 explicit skip、V2 Ops 138/138、M0、Next production build、Golden 16/16 与 security 全部通过。
+- USTAR 定向 `2/2`、Production Dispatch `21/21`、Expanded Shadow `59/59`、ESLint、Biome、`git diff --check`、secret pattern、forbidden-file、零漏洞审计、SBOM 与原生材料烟测 PASS；A0 总门禁仍为 `INCOMPLETE`，修复提交上的 GitHub 远端 exact-runtime PASS 尚待取得。
 
 ### 是否部署
 
