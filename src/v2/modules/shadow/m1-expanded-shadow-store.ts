@@ -1,4 +1,5 @@
 import { gzipSync } from "node:zlib";
+import { z } from "zod";
 import {
   type M1SqlPool,
 } from "../market-fact/store/contracts";
@@ -6,6 +7,11 @@ import {
   M1ShadowProviderObservationSchema,
   type M1ShadowProviderObservation,
 } from "./adapters/m1-expanded-shadow-provider-adapters";
+import {
+  deepFreezeArtifact,
+  omitArtifactFields,
+  stableContentHash,
+} from "../universe/stable-artifact";
 
 export const M1_EXPANDED_SHADOW_DATABASE_NAME =
   "market_radar_m1_expanded_shadow" as const;
@@ -13,6 +19,145 @@ export const M1_EXPANDED_SHADOW_DATABASE_SCHEMA =
   "market_radar_m1_expanded_shadow" as const;
 export const M1_EXPANDED_SHADOW_OBSERVATION_TABLE =
   "provider_observation" as const;
+export const M1_EXPANDED_SHADOW_STORE_AUDIT_VERSION =
+  "v2-m1-expanded-shadow-store-audit.v1" as const;
+
+const DigestSchema = z.string().regex(/^sha256:[0-9a-f]{64}$/u);
+
+const StoreAuditCoreSchema = z.strictObject({
+  schemaVersion: z.literal(M1_EXPANDED_SHADOW_STORE_AUDIT_VERSION),
+  databaseName: z.literal(M1_EXPANDED_SHADOW_DATABASE_NAME),
+  workerRunId: z.string().regex(/^[a-z0-9][a-z0-9._:-]{7,160}$/u),
+  auditedAt: z.string().datetime({ offset: true }),
+  rowCount: z.number().int().nonnegative(),
+  observedCycleCount: z.number().int().min(0).max(31),
+  firstCycleIndex: z.number().int().min(1).max(31).nullable(),
+  lastCycleIndex: z.number().int().min(1).max(31).nullable(),
+  compressedPayloadBytes: z.number().int().nonnegative(),
+  observationContentChainHash: DigestSchema,
+  status: z.literal("PASS_EXACT_ORDERED_DATABASE_AUDIT_NO_AUTHORITY"),
+  rawBodyRetained: z.literal(false),
+  secretMaterialPresent: z.literal(false),
+  factAuthorityGranted: z.literal(false),
+  candidateAuthorityGranted: z.literal(false),
+  strategyAuthorityGranted: z.literal(false),
+  readyAuthorityGranted: z.literal(false),
+  automaticTradingAllowed: z.literal(false),
+  productionChanged: z.literal(false),
+});
+
+export const M1ShadowStoreAuditReceiptSchema =
+  StoreAuditCoreSchema.extend({
+    receiptId: z.string().min(1),
+    contentHash: DigestSchema,
+  }).superRefine((receipt, context) => {
+    const core = StoreAuditCoreSchema.parse(
+      omitArtifactFields(receipt, ["receiptId", "contentHash"]),
+    );
+    const expectedHash = stableContentHash(core);
+    if (
+      receipt.contentHash !== expectedHash ||
+      receipt.receiptId !==
+        `m1-shadow-store-audit:${expectedHash.slice(7, 31)}`
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "shadow store audit receipt identity mismatch",
+        path: ["contentHash"],
+      });
+    }
+    const empty = receipt.rowCount === 0;
+    if (
+      empty !== (receipt.observedCycleCount === 0) ||
+      empty !== (receipt.firstCycleIndex === null) ||
+      empty !== (receipt.lastCycleIndex === null) ||
+      (
+        !empty &&
+        (
+          receipt.firstCycleIndex! > receipt.lastCycleIndex! ||
+          receipt.observedCycleCount >
+            receipt.lastCycleIndex! - receipt.firstCycleIndex! + 1
+        )
+      )
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "shadow store audit row and cycle denominators disagree",
+      });
+    }
+  });
+
+export type M1ShadowStoreAuditReceipt = z.infer<
+  typeof M1ShadowStoreAuditReceiptSchema
+>;
+
+export type M1ShadowStoreAuditRecord = Readonly<{
+  cycleIndex: number;
+  observationId: string;
+  contentHash: string;
+  compressedBytes: number;
+}>;
+
+export function buildM1ShadowStoreAuditReceipt(input: {
+  workerRunId: string;
+  auditedAt: string;
+  records: readonly M1ShadowStoreAuditRecord[];
+}): M1ShadowStoreAuditReceipt {
+  const records = input.records.map((record) => ({
+    cycleIndex: z.number().int().min(1).max(31).parse(record.cycleIndex),
+    observationId: z.string().min(1).parse(record.observationId),
+    contentHash: DigestSchema.parse(record.contentHash),
+    compressedBytes: z.number().int().nonnegative().parse(
+      record.compressedBytes,
+    ),
+  })).sort(
+    (left, right) =>
+      left.cycleIndex - right.cycleIndex ||
+      left.observationId.localeCompare(right.observationId),
+  );
+  if (
+    new Set(
+      records.map((record) =>
+        `${record.cycleIndex}|${record.observationId}`
+      ),
+    ).size !== records.length
+  ) {
+    throw new Error("shadow store audit contains duplicate observations");
+  }
+  const cycleIndexes = [...new Set(
+    records.map((record) => record.cycleIndex),
+  )];
+  const core = StoreAuditCoreSchema.parse({
+    schemaVersion: M1_EXPANDED_SHADOW_STORE_AUDIT_VERSION,
+    databaseName: M1_EXPANDED_SHADOW_DATABASE_NAME,
+    workerRunId: input.workerRunId,
+    auditedAt: input.auditedAt,
+    rowCount: records.length,
+    observedCycleCount: cycleIndexes.length,
+    firstCycleIndex: cycleIndexes[0] ?? null,
+    lastCycleIndex: cycleIndexes.at(-1) ?? null,
+    compressedPayloadBytes: records.reduce(
+      (total, record) => total + record.compressedBytes,
+      0,
+    ),
+    observationContentChainHash: stableContentHash(records),
+    status: "PASS_EXACT_ORDERED_DATABASE_AUDIT_NO_AUTHORITY",
+    rawBodyRetained: false,
+    secretMaterialPresent: false,
+    factAuthorityGranted: false,
+    candidateAuthorityGranted: false,
+    strategyAuthorityGranted: false,
+    readyAuthorityGranted: false,
+    automaticTradingAllowed: false,
+    productionChanged: false,
+  });
+  const contentHash = stableContentHash(core);
+  return deepFreezeArtifact(M1ShadowStoreAuditReceiptSchema.parse({
+    ...core,
+    receiptId: `m1-shadow-store-audit:${contentHash.slice(7, 31)}`,
+    contentHash,
+  }));
+}
 
 export const M1_EXPANDED_SHADOW_POSTGRES_SCHEMA_SQL = `
 CREATE SCHEMA IF NOT EXISTS ${M1_EXPANDED_SHADOW_DATABASE_SCHEMA};
@@ -64,6 +209,10 @@ export type M1ShadowObservationStore = {
     readonly observations: readonly M1ShadowProviderObservation[];
   }): Promise<M1ShadowPersistenceReceipt>;
   countRunRows(workerRunId: string): Promise<number>;
+  auditRun(
+    workerRunId: string,
+    auditedAt: string,
+  ): Promise<M1ShadowStoreAuditReceipt>;
 };
 
 type DatabaseIdentityRow = Record<string, unknown> & {
@@ -82,6 +231,13 @@ type WalBytesRow = Record<string, unknown> & {
 
 type CountRow = Record<string, unknown> & {
   row_count: string;
+};
+
+type AuditRow = Record<string, unknown> & {
+  cycle_index: string;
+  observation_id: string;
+  content_hash: string;
+  payload_gzip_bytes: string;
 };
 
 function canonicalObservationBytes(
@@ -295,5 +451,45 @@ implements M1ShadowObservationStore {
       throw new Error("shadow_store_count_invalid");
     }
     return count;
+  }
+
+  async auditRun(
+    workerRunId: string,
+    auditedAt: string,
+  ): Promise<M1ShadowStoreAuditReceipt> {
+    if (!this.#initialized) {
+      throw new Error("shadow_store_not_initialized");
+    }
+    const result = await this.#pool.query<AuditRow>(`
+      SELECT
+        cycle_index::text,
+        observation_id,
+        content_hash,
+        payload_gzip_bytes::text
+      FROM ${M1_EXPANDED_SHADOW_DATABASE_SCHEMA}.${M1_EXPANDED_SHADOW_OBSERVATION_TABLE}
+      WHERE worker_run_id = $1
+      ORDER BY cycle_index, observation_id
+    `, [workerRunId]);
+    const records = result.rows.map((row) => {
+      const cycleIndex = Number(row.cycle_index);
+      const compressedBytes = Number(row.payload_gzip_bytes);
+      if (
+        !Number.isSafeInteger(cycleIndex) ||
+        !Number.isSafeInteger(compressedBytes)
+      ) {
+        throw new Error("shadow_store_audit_numeric_identity_invalid");
+      }
+      return {
+        cycleIndex,
+        observationId: row.observation_id,
+        contentHash: row.content_hash,
+        compressedBytes,
+      };
+    });
+    return buildM1ShadowStoreAuditReceipt({
+      workerRunId,
+      auditedAt,
+      records,
+    });
   }
 }

@@ -197,6 +197,16 @@ test("live transport subscribes all roles and preserves unsafe integers", async 
 
   await transport.start();
   assert.equal(harness.sockets.length, plan.connections.length);
+  assert.deepEqual(
+    plan.connections
+      .filter((connection) => connection.venue === "BINANCE_FUTURES")
+      .map((connection) => connection.url)
+      .sort(),
+    [
+      "wss://fstream.binance.com/market/stream",
+      "wss://fstream.binance.com/public/stream",
+    ],
+  );
   for (const connection of plan.connections) {
     const socket = harness.sockets.find(
       (candidate) => candidate.url === connection.url,
@@ -211,7 +221,7 @@ test("live transport subscribes all roles and preserves unsafe integers", async 
   }
 
   const binance = harness.sockets.find((socket) =>
-    socket.url.endsWith("/public/ws")
+    socket.url.endsWith("/public/stream")
   )!;
   binance.message('{"u":9007199254740993,"s":"BTCUSDT"}');
   now = START_MS + 61_000;

@@ -2,6 +2,36 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-27 / V2 M1.4D + M1.5C/M1.5D Local Runtime and Exact Package
+
+### 本轮目标
+
+在 A0/P0R 仍关闭生产 live 执行的前提下，补齐 Scope V2 四 Venue 多资产 Base Fact、M1.5C/M1.5D 两类 31 周期 Shadow runtime、独立证据验证器和同一 exact release 的无密钥腾讯派发包。
+
+### 修改范围
+
+- M1.4D 建立四 Venue catalog/listing watch、identity v2/snapshot v3、T0 lifecycle、T1 wide-market 和 point-in-time Base Fact Snapshot。
+- Provider URL、HTTP/WebSocket transport 全部收进 Adapter；Core 仅持 URL hash、分页、超时和字节边界，架构门禁新增 Bitget host。
+- M1.5C 固定 31 周期、60 秒 cadence 和四责任轴逐周期分母；M1.5D 固定同 cadence 的 trades/book/mark-index 前向采集及确定性 research/control 选择。
+- 新增两套独立 verifier、隔离 PostgreSQL 16 store、combined runtime entrypoint、deterministic Bundle、strict request/envelope、Runner 和 entrypoint。
+- Runner 禁止目标 build、source sync、dependency install 及生产 DB/Redis/应用/env/Feature Flag/migration 写入；只有 topology 精确恢复时才允许声明 `productionChanged=false`。
+- Binance JSON subscribe endpoint 按 routed stream 语义修正为 `/public/stream` 与 `/market/stream`，并由回归锁定。
+
+### 验收结果
+
+- Base Fact 23/23、Expanded Shadow 70/70 PASS。
+- Exact live package 12/12 PASS。
+- V2 Ops 192/192、P0R Go package、全 V2 编译测试、typecheck、ESLint、Biome 715 files、forbidden-files 和 secret-pattern 全部 PASS。
+- 完整 `ci:production` PASS：V2 Foundation 637 total / 631 pass / 6 explicit skip、V2 Ops 192/192、M0、Next production build、Golden 16/16 与 security 全部通过。
+
+### 是否部署
+
+未部署。M1.5C live cycle=0，M1.5D live cycle=0；腾讯生产服务、数据库、Redis、Worker、Caddy、env、Feature Flag、migration、COS、生产仓库和业务 authority 均未改变。
+
+### 风险与下一步
+
+本地工程 PASS 不代表四 Venue coverage、微观结构 SLO 或容量 PASS。当前生产 Bundle 必须 fail closed，因为 A0/P0R 尚未关闭，且旧 M1.4B/source-conformance evidence 与当前源码不是 same-commit upstream。正确顺序是先完成 P0R 和 fresh P0，再在同一 clean commit 刷新 upstream，执行 M1.5C/M1.5D 两包并分别验收，最后进入 M1.6-D1。
+
 ## 2026-07-27 / V2 M2.2-C1 Forward Evidence Refresh and Domain Isolation
 
 ### 本轮目标
@@ -144,42 +174,3 @@ M1.5D 尚未执行；没有历史 L2 时只能从启用时前向积累。当前�
 ### 下一轮建议
 
 P0R 继续作为独立生产第一关键路径。A0 下一工程包把同一 exact release 的制品 provenance/rollback 与性能/资源基线合并建设，减少重复构建和远端操作但不合并验收；三项 A0 剩余控制全部关闭后，才准备 M1.5C 与 M1.5D 同源 Scope V2 证据包并保持两套状态独立验收。
-
-## 2026-07-24 / V2 M3.1A-D Four-Lane Multi-Asset Decision Research Contract
-
-### 本轮目标
-
-把 Bitget、上新暖机、单股永续和指数/ETF 永续正确接入 Scope V2 的 Analysis、Independent Qualification 与 Strategy 合同，避免四条新增范围在决策层重新混为一套。
-
-### 修改范围
-
-- 新增四条 exact decision lane，分别锁定 Venue、asset domain、lifecycle、family、instrument identity 与 listing/identity epoch。
-- 新增 Listing/Venue Event 和 Equity Event/Basis family/pattern；CFD、RWA、watch、prelaunch、maintenance、suspended 和 delisting 对象禁止进入。
-- Analysis 分开 evidence/setup/integrity blocker；非方向硬前提不能投 LONG/SHORT，支持与有效反证并存时阻断。
-- Evidence 与 Setup 使用两份独立 calibration；校准只可在 exact segment 内跨 instrument 复用，最低 60 样本、3 regime、冻结阈值、一次 untouched holdout 和无 future leak。
-- Cost、Reference Price、Policy 和 Draft 全部内容寻址；不可得成本为 null，禁止 0 补缺。股票缺 session、公司行动、FX、reference、闭市 basis、规格或成本即弃权。
-- Strategy 使用精确价格数学、结构 stop 外扩、gross/net RR；未验证 Fib、低 RR、未来 artifact、哈希篡改和极端输入均 fail closed。
-
-### 核心链路影响
-
-形成 `Scope V2 lane -> Analysis -> Independent Evidence/Setup Qualification -> Domain Strategy Research Draft` 的严格本地合同。它不读取 M1 生产 authority，不替代 M2.3/M2.4 真实 cohort/holdout，也不生成 Signal Grade、READY 或交易权限。
-
-### 测试结果
-
-- Analysis 10/10。
-- Qualification 7/7。
-- Strategy 11/11。
-- 定向合计 28/28；TypeScript 和新文件 ESLint 通过。
-- 正式实施分支完整 `ci:production` PASS：V2 Foundation 494 total / 488 pass / 6 explicit skip、V2 Ops 131/131、M0 11/11、Next production build、Golden 16/16 与 security 全部通过。
-
-### 是否部署
-
-未部署。生产服务、数据库、Redis、Worker、env、Feature Flag、数据和业务 authority 零变更。
-
-### 风险与遗留问题
-
-真实 M2.3A/B Detector、M2.4A/B cohort/untouched holdout、M3.1A-M3.3D 校准、M3.4-R1 Feasibility、M3.5 Risk、M3.6 Runtime 均未完成。本包只能标记 research contract scaffold PASS。
-
-### 下一轮建议
-
-完成精确提交和 GitHub 同步；随后恢复生产 P0R 第一关键路径，并在 no-authority 工程线上继续积累 Scope V2 runtime 与真实 cohort 前置证据。

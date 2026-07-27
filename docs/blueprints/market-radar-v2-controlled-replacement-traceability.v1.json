@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.57",
-  "status": "m0_4_expanded_scope_design_pass_m0_5_market_mechanics_microstructure_precursor_atlas_local_contract_pass_a0_engineering_materials_supply_chain_independent_security_reproducible_release_and_resource_baseline_remote_pass_total_gate_incomplete_p0r_pending_m1_1a_registry_local_pass_m1_1b_multi_asset_identity_listing_and_exact_probe_local_implementation_pass_test_only_conformance_pass_m1_1b0_attempt_1_blocked_r1_live_zero_of_15_common_runtime_transport_blocked_r2_live_14_of_15_listing_gate_blocked_r3_live_15_of_15_all_gates_pass_m1_4a_adaptive_multi_asset_collector_local_contract_and_full_ci_pass_no_runtime_authority_m1_4b_tencent_bootstrap_and_checkpoint_bound_resume_pass_no_runtime_authority_15_live_profiles_14_route_eligible_m1_4c_microstructure_fact_feature_cache_local_contract_pass_22_of_22_no_runtime_authority_m1_5c_m1_5d_blocked_by_a0_m2_1a_bidirectional_precursor_atlas_local_research_contract_pass_13_of_13_real_cohort_missing_no_candidate_emission_scope_epoch_v1_evidence_preserved_m1_5_b1_pass_v1_only_m1_6_p0_blocked_p0r_local_and_exact_source_remote_qualification_pass_signed_dispatch_published_target_receipt_unread_execution_unconfirmed_legacy_bed938_staging_rejected_sts_and_recovery_pending_m2_2_c1_forward_only_ready_v1_only_latest_four_cycle_full_history_integrity_and_scope_v2_domain_replay_pass_no_authority_m3_0_through_m3_3_local_contract_pass_v1_only_test_only_uncalibrated_no_ready_authority_m3_1a_through_m3_3d_four_lane_local_research_contract_scaffold_and_full_ci_pass_no_real_calibration_or_authority_m3_4_r0_scope_rebase_governance_pass_r1_partial_test_only_draft_no_directed_exit_fixed_dispatch_first_signed_acceptance_pass_external_historical_source_blocked_m1_not_complete",
-  "generatedAt": "2026-07-27T06:55:52+08:00",
+  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.58",
+  "status": "m0_4_expanded_scope_design_pass_m0_5_market_mechanics_microstructure_precursor_atlas_local_contract_pass_a0_engineering_materials_supply_chain_independent_security_reproducible_release_and_resource_baseline_remote_pass_total_gate_incomplete_p0r_pending_m1_1a_registry_local_pass_m1_1b_multi_asset_identity_listing_and_exact_probe_local_implementation_pass_test_only_conformance_pass_m1_1b0_attempt_1_blocked_r1_live_zero_of_15_common_runtime_transport_blocked_r2_live_14_of_15_listing_gate_blocked_r3_live_15_of_15_all_gates_pass_m1_4a_adaptive_multi_asset_collector_local_contract_and_full_ci_pass_no_runtime_authority_m1_4b_tencent_bootstrap_and_checkpoint_bound_resume_pass_no_runtime_authority_15_live_profiles_14_route_eligible_m1_4c_microstructure_fact_feature_cache_local_contract_pass_22_of_22_no_runtime_authority_m1_4d_multi_asset_identity_catalog_base_fact_local_runtime_pass_no_authority_m1_5c_m1_5d_local_runtime_evidence_and_exact_package_pass_live_zero_of_31_each_blocked_by_a0_p0r_and_fresh_same_commit_upstream_m2_1a_bidirectional_precursor_atlas_local_research_contract_pass_13_of_13_real_cohort_missing_no_candidate_emission_scope_epoch_v1_evidence_preserved_m1_5_b1_pass_v1_only_m1_6_p0_blocked_p0r_local_and_exact_source_remote_qualification_pass_signed_dispatch_published_target_receipt_unread_execution_unconfirmed_legacy_bed938_staging_rejected_sts_and_recovery_pending_m2_2_c1_forward_only_ready_v1_only_latest_four_cycle_full_history_integrity_and_scope_v2_domain_replay_pass_no_authority_m3_0_through_m3_3_local_contract_pass_v1_only_test_only_uncalibrated_no_ready_authority_m3_1a_through_m3_3d_four_lane_local_research_contract_scaffold_and_full_ci_pass_no_real_calibration_or_authority_m3_4_r0_scope_rebase_governance_pass_r1_partial_test_only_draft_no_directed_exit_fixed_dispatch_first_signed_acceptance_pass_external_historical_source_blocked_m1_not_complete",
+  "generatedAt": "2026-07-27T13:39:19+08:00",
   "implementationAuthorized": true,
   "productionMutationAuthorized": false,
   "longTermEngineeringGovernance": {
@@ -420,7 +420,7 @@
   "currentBoundary": {
     "readiness": "R1",
     "status": "runnable_but_incomplete_not_practical_ready",
-    "v2ImplementationStatus": "m0_4_expanded_scope_design_pass_m0_5_market_mechanics_microstructure_precursor_atlas_local_contract_pass_a0_engineering_materials_supply_chain_and_independent_security_remote_pass_total_gate_incomplete_m1_1a_registry_local_pass_m1_1b_local_adapter_identity_listing_and_test_only_conformance_pass_m1_1b0_attempt_1_blocked_r1_live_zero_of_15_common_runtime_transport_blocked_r2_live_14_of_15_listing_gate_blocked_r3_live_15_of_15_all_gates_pass_m1_4a_local_contract_and_full_ci_pass_no_runtime_authority_m1_4b_exact_dispatch_package_9_of_9_tencent_bootstrap_and_checkpoint_bound_resume_pass_no_runtime_authority_15_live_profiles_14_route_eligible_m1_4c_local_contract_pass_22_of_22_no_runtime_authority_m1_5c_m1_5d_blocked_by_a0_m2_1a_local_research_contract_pass_13_of_13_real_cohort_missing_no_candidate_emission_v1_evidence_preserved_m1_5_b1_complete_v1_only_m1_6_p0_blocked_p0r_local_and_exact_source_remote_qualification_pass_production_rebind_pending_legacy_bed938_staging_rejected_sts_and_recovery_pending_m2_2_c1_forward_only_ready_v1_only_m3_0_through_m3_3_local_contract_pass_v1_only_test_only_uncalibrated_no_ready_authority_m3_1a_through_m3_3d_four_lane_local_research_contract_scaffold_pass_no_real_calibration_or_authority_external_rights_blocked_detectors_draft_candidate_emission_false_m1_not_complete",
+    "v2ImplementationStatus": "m0_4_expanded_scope_design_pass_m0_5_market_mechanics_microstructure_precursor_atlas_local_contract_pass_a0_engineering_materials_supply_chain_and_independent_security_remote_pass_total_gate_incomplete_m1_1a_registry_local_pass_m1_1b_local_adapter_identity_listing_and_test_only_conformance_pass_m1_1b0_attempt_1_blocked_r1_live_zero_of_15_common_runtime_transport_blocked_r2_live_14_of_15_listing_gate_blocked_r3_live_15_of_15_all_gates_pass_m1_4a_local_contract_and_full_ci_pass_no_runtime_authority_m1_4b_exact_dispatch_package_9_of_9_tencent_bootstrap_and_checkpoint_bound_resume_pass_no_runtime_authority_15_live_profiles_14_route_eligible_m1_4c_local_contract_pass_22_of_22_no_runtime_authority_m1_4d_multi_asset_identity_catalog_base_fact_local_runtime_pass_no_authority_m1_5c_m1_5d_local_runtime_evidence_and_exact_package_pass_live_zero_of_31_each_blocked_by_a0_p0r_and_fresh_same_commit_upstream_m2_1a_local_research_contract_pass_13_of_13_real_cohort_missing_no_candidate_emission_v1_evidence_preserved_m1_5_b1_complete_v1_only_m1_6_p0_blocked_p0r_local_and_exact_source_remote_qualification_pass_production_rebind_pending_legacy_bed938_staging_rejected_sts_and_recovery_pending_m2_2_c1_forward_only_ready_v1_only_m3_0_through_m3_3_local_contract_pass_v1_only_test_only_uncalibrated_no_ready_authority_m3_1a_through_m3_3d_four_lane_local_research_contract_scaffold_pass_no_real_calibration_or_authority_external_rights_blocked_detectors_draft_candidate_emission_false_m1_not_complete",
     "v2ImplementationBranch": "codex/market-radar-v2-implementation",
     "v2ImplementationBaseCommit": "e5eb90026d8bfcd52b060359446515de5a5c32d6",
     "latestProductionFinalStatus": "storage_preflight_blocked_capacity_and_recovery_application_health_not_evaluated",
@@ -725,9 +725,12 @@
     "readyAuthorityGranted": false
   },
   "multiAssetIdentityAndListing": {
-    "identitySchemaVersion": "v2-m1-multi-asset-identity.v1",
-    "identitySnapshotSchemaVersion": "v2-m1-multi-asset-identity-snapshot.v1",
-    "status": "local_contract_pass_r3_live_source_conformance_pass_runtime_identity_and_listing_not_materialized",
+    "identitySchemaVersion": "v2-m1-multi-asset-identity.v2",
+    "identitySnapshotSchemaVersion": "v2-m1-multi-asset-identity-snapshot.v3",
+    "catalogCaptureProfileVersion": "v2-m1-multi-asset-catalog-capture-profile.v2",
+    "baseFactSchemaVersion": "v2-m1-multi-asset-base-fact.v3",
+    "baseFactSnapshotSchemaVersion": "v2-m1-multi-asset-base-fact-snapshot.v5",
+    "status": "local_identity_catalog_listing_and_point_in_time_base_fact_runtime_pass_live_shadow_not_materialized",
     "scopeEpoch": "SCOPE_EPOCH_V2_MULTI_ASSET_4V",
     "venueDenominator": 4,
     "bitgetAdapterImplemented": true,
@@ -922,6 +925,84 @@
     "candidateAuthorityGranted": false,
     "strategyAuthorityGranted": false,
     "readyAuthorityGranted": false,
+    "productionMutationPerformed": false
+  },
+  "expandedScopeShadowEngineering": {
+    "packageId": "V2-M1.5C-AND-M1.5D-TENCENT-EXPANDED-SHADOW",
+    "status": "local_runtime_exact_bundle_runner_and_independent_verifiers_pass_live_execution_not_started",
+    "scopeEpoch": "SCOPE_EPOCH_V2_MULTI_ASSET_4V",
+    "identitySchemaVersion": "v2-m1-multi-asset-identity.v2",
+    "identitySnapshotSchemaVersion": "v2-m1-multi-asset-identity-snapshot.v3",
+    "catalogCaptureProfileVersion": "v2-m1-multi-asset-catalog-capture-profile.v2",
+    "baseFactSchemaVersion": "v2-m1-multi-asset-base-fact.v3",
+    "baseFactSnapshotSchemaVersion": "v2-m1-multi-asset-base-fact-snapshot.v5",
+    "wideMarketProfileVersion": "v2-m1-wide-market-source-profile.v1",
+    "releaseManifestVersion": "v2-m1-expanded-shadow-release-manifest.v1",
+    "releaseResultVersion": "v2-m1-expanded-shadow-release-result.v1",
+    "components": [
+      {
+        "id": "M1_5C_FOUR_VENUE_MULTI_ASSET_SHADOW",
+        "cycleSchemaVersion": "v2-m1-multi-asset-shadow-cycle.v3",
+        "evidenceSchemaVersion": "v2-m1-multi-asset-shadow-evidence.v1",
+        "acceptance": "PENDING_LIVE_EXACT_RELEASE"
+      },
+      {
+        "id": "M1_5D_MICROSTRUCTURE_FORWARD_SHADOW",
+        "cycleSchemaVersion": "v2-m1-microstructure-forward-cycle.v1",
+        "evidenceSchemaVersion": "v2-m1-microstructure-forward-evidence.v1",
+        "selectionPlanVersion": "v2-m1-microstructure-forward-selection-plan.v1",
+        "acceptance": "PENDING_LIVE_EXACT_RELEASE"
+      }
+    ],
+    "cycleCountPerComponent": 31,
+    "cadenceMilliseconds": 60000,
+    "minimumObservationMilliseconds": 1800000,
+    "liveExecutionCycleCountM1_5C": 0,
+    "liveExecutionCycleCountM1_5D": 0,
+    "sameReleaseAndUpstreamRequired": true,
+    "freshSameCommitM1_4bAndConformanceArtifactsRequired": true,
+    "buildOnTargetAllowed": false,
+    "sourceSyncToTargetAllowed": false,
+    "targetDependencyInstallAllowed": false,
+    "transportContainsSecrets": false,
+    "isolatedPostgresImage": "postgres:16-bookworm@sha256:92620daddcd947f8d5ab5ba66e848702fe443d87fed30c4cea8e389fd78dfc55",
+    "temporaryPostgresLoopbackOnly": true,
+    "productionPostgresMutationAllowed": false,
+    "productionRedisMutationAllowed": false,
+    "productionApplicationMutationAllowed": false,
+    "failureRecoveryStates": [
+      "RESTORED_EXACT",
+      "FAILED",
+      "NOT_VERIFIED"
+    ],
+    "unchangedProductionClaimRequiresExactRecovery": true,
+    "binanceJsonSubscribeEndpoints": [
+      "wss://fstream.binance.com/public/stream",
+      "wss://fstream.binance.com/market/stream"
+    ],
+    "providerTransportRestrictedToAdapters": true,
+    "focusedBaseFactTestCount": 23,
+    "focusedExpandedShadowTestCount": 70,
+    "focusedLivePackageTestCount": 12,
+    "v2OpsTestCount": 192,
+    "v2FoundationTotalTestCount": 637,
+    "v2FoundationPassCount": 631,
+    "v2FoundationExplicitSkipCount": 6,
+    "typecheckStatus": "pass",
+    "lintStatus": "pass",
+    "forbiddenFileStatus": "pass",
+    "secretPatternStatus": "pass",
+    "m0MachineExitStatus": "pass",
+    "nextProductionBuildStatus": "pass",
+    "goldenCaseStatus": "16_of_16_pass",
+    "securityCheckStatus": "pass",
+    "fullProductionCiStatus": "pass",
+    "m1_6_d1CapacityAuthorityGranted": false,
+    "factAuthorityGranted": false,
+    "candidateAuthorityGranted": false,
+    "strategyAuthorityGranted": false,
+    "readyAuthorityGranted": false,
+    "automaticTradingAllowed": false,
     "productionMutationPerformed": false
   },
   "scopeEpochs": [
@@ -2414,7 +2495,7 @@
   "nextScopeV2ImplementationEntry": {
     "id": "V2-M1.5C-AND-M1.5D-EXACT-RELEASE-SHADOW-PACKAGE",
     "name": "four_venue_multi_asset_and_adaptive_microstructure_forward_shadow_exact_release_package",
-    "status": "blocked_by_a0_total_gate_exact_release_and_forward_execution_not_started_independent_acceptance_required",
+    "status": "local_runtime_evidence_and_exact_package_pass_live_execution_blocked_by_a0_p0r_and_fresh_same_commit_upstream_independent_acceptance_required",
     "blockedBy": "V2-A0-ENGINEERING-FOUNDATION-AND-MATERIAL-QUALIFICATION",
     "scopeEpoch": "SCOPE_EPOCH_V2_MULTI_ASSET_4V",
     "productionMutationAllowed": false
@@ -2422,7 +2503,7 @@
   "nextParallelLocalDesignEntry": {
     "id": "V2-M1.5D-ADAPTIVE-MICROSTRUCTURE-FORWARD-SHADOW",
     "name": "adaptive_microstructure_forward_capture_and_quality_shadow",
-    "status": "m1_4c_local_exit_pass_pending_a0_total_gate_exact_scope_v2_release_and_forward_execution_no_authority",
+    "status": "m1_4c_local_exit_and_local_runtime_evidence_package_pass_live_zero_of_31_pending_a0_total_gate_fresh_same_commit_upstream_no_authority",
     "companionEvidenceEntry": "V2-M1.5C-FOUR-VENUE-MULTI-ASSET-SHADOW",
     "scopeEpoch": "SCOPE_EPOCH_V2_MULTI_ASSET_4V",
     "productionMutationAllowed": false

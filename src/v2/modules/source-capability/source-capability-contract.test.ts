@@ -128,6 +128,20 @@ test("registers listing watch without inventing unsupported announcement APIs", 
   }
 });
 
+test("binds Bitget T1 wide-market coverage to the official all-tickers route", () => {
+  const ticker = row("BITGET_FUTURES", "TICKER");
+  assert.equal(
+    ticker.endpoint,
+    "/api/v2/mix/market/tickers?productType=USDT-FUTURES",
+  );
+  assert.deepEqual(ticker.evidenceIds, [
+    "bitget-all-tickers-2026-07-27",
+  ]);
+  assert.match(ticker.sourceSemantics, /Source-wide USDT futures/u);
+  assert.equal(ticker.rateLimit.status, "DOCUMENTED");
+  assert.match(ticker.rateLimit.rule ?? "", /20 requests per second/u);
+});
+
 test("expresses CoinGlass Hobbyist entitlement boundaries without embedding credentials", () => {
   const registry = M1_FOUR_VENUE_SOURCE_CAPABILITY_REGISTRY;
   const profile = registry.sources.find(

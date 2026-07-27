@@ -73,21 +73,17 @@ async function readBoundedBody(
   if (response.body === null) {
     const rawBody = new Uint8Array();
     return {
-      ...(captureBody
-        ? {
-          bodyBytes: 0,
-          bodyDigest:
-            `sha256:${createHash("sha256").update(rawBody).digest("hex")}`,
-          rawBody,
-        }
-        : {}),
+      bodyBytes: 0,
+      bodyDigest:
+        `sha256:${createHash("sha256").update(rawBody).digest("hex")}`,
+      ...(captureBody ? { rawBody } : {}),
       text: "",
     };
   }
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
-  const digest = captureBody ? createHash("sha256") : null;
+  const digest = createHash("sha256");
   const chunks: Uint8Array[] = [];
   let total = 0;
   let text = "";
@@ -102,7 +98,7 @@ async function readBoundedBody(
       await reader.cancel();
       return null;
     }
-    digest?.update(chunk.value);
+    digest.update(chunk.value);
     if (captureBody) {
       chunks.push(Uint8Array.from(chunk.value));
     }
@@ -118,13 +114,9 @@ async function readBoundedBody(
     }
   }
   return {
-    ...(rawBody === undefined || digest === null
-      ? {}
-      : {
-        bodyBytes: total,
-        bodyDigest: `sha256:${digest.digest("hex")}`,
-        rawBody,
-      }),
+    bodyBytes: total,
+    bodyDigest: `sha256:${digest.digest("hex")}`,
+    ...(rawBody === undefined ? {} : { rawBody }),
     text,
   };
 }

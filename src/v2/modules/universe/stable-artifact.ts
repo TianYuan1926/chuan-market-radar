@@ -40,6 +40,17 @@ export function stableContentHash(value: unknown): string {
   return `sha256:${stableSha256(value)}`;
 }
 
+export function omitArtifactFields(
+  value: Readonly<Record<string, unknown>>,
+  fields: readonly string[],
+): Record<string, unknown> {
+  const projected = { ...value };
+  for (const field of fields) {
+    delete projected[field];
+  }
+  return projected;
+}
+
 export function deepFreezeArtifact<T>(value: T): T {
   if (value === null || typeof value !== "object" || Object.isFrozen(value)) {
     return value;

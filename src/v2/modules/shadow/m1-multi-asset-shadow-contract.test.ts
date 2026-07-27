@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  M1_ASSET_DOMAINS,
   M1_SCOPE_EPOCH,
   M1_VENUE_SOURCE_IDS,
 } from "../source-capability/source-capability-contract";
@@ -13,6 +12,7 @@ import {
 } from "../universe/stable-artifact";
 import {
   M1_MULTI_ASSET_SHADOW_AXIS_IDS,
+  M1_MULTI_ASSET_SHADOW_ASSET_DOMAIN_BUCKETS,
   M1_MULTI_ASSET_SHADOW_UPSTREAM_VERSION,
   M1MultiAssetShadowEvidenceSchema,
   M1MultiAssetShadowUpstreamBindingSchema,
@@ -91,7 +91,11 @@ const ASSET_OBSERVED_COUNTS = Object.freeze({
   OTHER_RWA_DERIVATIVE: 2,
   ASSET_LISTING_WATCH: 4,
   CROSS_MARKET_CONTEXT: 4,
-} satisfies Record<(typeof M1_ASSET_DOMAINS)[number], number>);
+  UNRESOLVED: 0,
+} satisfies Record<
+  (typeof M1_MULTI_ASSET_SHADOW_ASSET_DOMAIN_BUCKETS)[number],
+  number
+>);
 
 const LIFECYCLE_OBSERVED_COUNTS = Object.freeze([
   4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 2,
@@ -138,6 +142,7 @@ function cycleInput(input: {
     venue,
     observedSubjectCount: 10,
     exactIdentityCount: 10,
+    partialIdentityCount: 0,
     unresolvedIdentityCount: 0,
     routeEligibleCount: routeEligiblePerVenue,
     routeBlockedCount: 10 - routeEligiblePerVenue,
@@ -153,7 +158,9 @@ function cycleInput(input: {
     providerFailureCount: 0,
     reasonCodes: equityFacts ? [] : ["equity_route_blocked"],
   }));
-  const assetDomains = [...M1_ASSET_DOMAINS].reverse().map((assetDomain) => {
+  const assetDomains = [...M1_MULTI_ASSET_SHADOW_ASSET_DOMAIN_BUCKETS]
+    .reverse()
+    .map((assetDomain) => {
     const observed = ASSET_OBSERVED_COUNTS[assetDomain];
     const equity =
       assetDomain === "EQUITY_SINGLE_NAME_PERPETUAL" ||
@@ -162,7 +169,7 @@ function cycleInput(input: {
       assetDomain,
       ...dimensionRow(observed, !equityFacts && equity ? 0 : observed),
     };
-  });
+    });
   const lifecycleStates = [...M1_LISTING_LIFECYCLE_STATES]
     .reverse()
     .map((lifecycleState) => {
@@ -181,6 +188,15 @@ function cycleInput(input: {
     releaseId: RELEASE,
     upstreamBindingId: binding.upstreamBindingId,
     upstreamBindingHash: binding.contentHash,
+    catalogCaptureBindingId: `catalog-capture:${input.index}`,
+    catalogCaptureBindingHash:
+      `sha256:${String((input.index % 9) + 1).repeat(64)}`,
+    identitySnapshotId: `identity-snapshot:${input.index}`,
+    identitySnapshotHash:
+      `sha256:${String(((input.index + 1) % 9) + 1).repeat(64)}`,
+    baseFactSnapshotId: `base-fact-snapshot:${input.index}`,
+    baseFactSnapshotHash:
+      `sha256:${String(((input.index + 2) % 9) + 1).repeat(64)}`,
     workerRunId: input.workerRunId ?? "m1-5c-fixture-run",
     runtimeConfigDigest: input.runtimeConfigDigest ?? CONFIG_DIGEST,
     cycleIndex: input.index,
@@ -193,10 +209,24 @@ function cycleInput(input: {
     missedScheduleStarts: 0,
     rssBytes: 256 * 1024 * 1024,
     checkpointStatus: "COMMITTED",
+    checkpointReceiptId: `checkpoint-receipt:${input.index}`,
+    checkpointReceiptHash:
+      `sha256:${String(((input.index + 3) % 9) + 1).repeat(64)}`,
     persistenceStatus: "COMMITTED",
+    persistenceReceiptId: `persistence-receipt:${input.index}`,
+    persistenceReceiptHash:
+      `sha256:${String(((input.index + 4) % 9) + 1).repeat(64)}`,
     venues,
     assetDomains,
     lifecycleStates,
+    listingCheckpoint: {
+      requiredCount: 2,
+      bindingCount: 2,
+      healthyCount: 2,
+      unhealthyOrMissingCount: 0,
+      status: "PASS",
+      reasonCodes: [],
+    },
     rawBodyRetained: false,
     secretMaterialPresent: false,
     runtimeAuthorityGranted: false,
@@ -237,7 +267,7 @@ test("canonicalizes the exact four-Venue, asset-domain and lifecycle denominator
   );
   assert.deepEqual(
     cycle.assetDomains.map((row) => row.assetDomain),
-    [...M1_ASSET_DOMAINS],
+    [...M1_MULTI_ASSET_SHADOW_ASSET_DOMAIN_BUCKETS],
   );
   assert.deepEqual(
     cycle.lifecycleStates.map((row) => row.lifecycleState),
@@ -248,6 +278,27 @@ test("canonicalizes the exact four-Venue, asset-domain and lifecycle denominator
   assert.equal(cycle.aggregate.collectionCoverageRatio, 1);
   assert.equal(cycle.status, "PASS_ALL_REQUIRED_AXES_NO_AUTHORITY");
   assert.equal(Object.isFrozen(cycle), true);
+});
+
+test("a committed cycle requires exact Fact, persistence and checkpoint identities", () => {
+  const input = cycleInput({ index: 1 });
+  assert.throws(
+    () =>
+      buildM1MultiAssetShadowCycle({
+        ...input,
+        persistenceReceiptId: null,
+        persistenceReceiptHash: null,
+      }),
+    /storage status requires exact receipt identity/u,
+  );
+  assert.throws(
+    () =>
+      buildM1MultiAssetShadowCycle({
+        ...input,
+        checkpointStatus: "BLOCKED",
+      }),
+    /storage status requires exact receipt identity/u,
+  );
 });
 
 test("rejects a missing Venue instead of shrinking the denominator", () => {

@@ -14,16 +14,107 @@ import {
   buildM1ListingLifecycleLedger,
 } from "./listing-lifecycle-contract";
 import {
+  M1_MULTI_ASSET_CATALOG_CAPTURE_PROFILE,
   M1MultiAssetIdentitySnapshotSchema,
-  buildM1MultiAssetIdentitySnapshot,
+  buildM1MultiAssetCatalogCaptureBinding,
+  buildM1MultiAssetCatalogVenueCapture,
+  buildM1MultiAssetIdentitySnapshot as buildM1MultiAssetIdentitySnapshotContract,
+  type M1MultiAssetInstrumentObservation,
   type M1OfficialUnderlyingMapping,
 } from "./multi-asset-identity-contract";
+import { stableContentHash } from "../universe/stable-artifact";
 
 const RECEIVED_AT = "2026-07-23T10:00:00.000Z";
 const LATER_AT = "2026-07-23T10:05:00.000Z";
 const RELEASE_ID = "2e4a632ed92b9478612fb42bded6e1a00e114bd1";
 const REGISTRY_DIGEST =
   "sha256:45832cf889c92153a29d511582c386a9089d1eeb904a3e8ecdee5772904dfd94";
+const VENUES = [
+  "BINANCE_FUTURES",
+  "OKX_SWAP",
+  "BYBIT_DERIVATIVES",
+  "BITGET_FUTURES",
+] as const;
+
+function catalogCaptureBinding(input: {
+  releaseId: string;
+  generatedAt: string;
+  sourceCutoff: string;
+  observations: readonly M1MultiAssetInstrumentObservation[];
+}) {
+  const upstreamBindingId = "m1-shadow-upstream:test-fixture";
+  const upstreamBindingHash =
+    "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  const captures = VENUES.map((sourceId) => {
+    const observations = input.observations.filter(
+      (observation) => observation.sourceId === sourceId,
+    );
+    const normalizationStatus = observations.length === 0
+      ? "FAIL" as const
+      : observations.some(
+          (observation) => observation.identityStatus !== "EXACT",
+        )
+        ? "PARTIAL" as const
+        : "PASS" as const;
+    return buildM1MultiAssetCatalogVenueCapture({
+      releaseId: input.releaseId,
+      registryDigest: REGISTRY_DIGEST,
+      upstreamBindingId,
+      upstreamBindingHash,
+      evidenceClass: "TEST_ONLY",
+      networkEnvironment: "TEST_HARNESS",
+      sourceId,
+      requestOutcomes: [{
+        outcome: "SUCCESS",
+        pageIndex: 1,
+        requestUrlHash:
+          M1_MULTI_ASSET_CATALOG_CAPTURE_PROFILE.sources[sourceId]
+            .initialRequestUrlHash,
+        receivedAt: input.sourceCutoff,
+        httpStatus: 200,
+        responseBytes: Math.max(1, observations.length * 100),
+        responseHash: stableContentHash(observations),
+        recordCount: observations.length,
+        nextPageAvailable: false,
+        rawBodyRetained: false,
+        secretMaterialPresent: false,
+      }],
+      rawRecordCount: observations.length,
+      observations,
+      normalizationStatus,
+      reasonCodes: normalizationStatus === "FAIL"
+        ? ["fixture_venue_has_no_catalog_rows"]
+        : observations.flatMap((observation) => observation.reasonCodes),
+    });
+  });
+  return buildM1MultiAssetCatalogCaptureBinding({
+    releaseId: input.releaseId,
+    generatedAt: input.generatedAt,
+    registryDigest: REGISTRY_DIGEST,
+    upstreamBindingId,
+    upstreamBindingHash,
+    evidenceClass: "TEST_ONLY",
+    networkEnvironment: "TEST_HARNESS",
+    venueCaptures: captures,
+  });
+}
+
+function buildM1MultiAssetIdentitySnapshot(
+  input: Omit<
+    Parameters<typeof buildM1MultiAssetIdentitySnapshotContract>[0],
+    "catalogCaptureBinding"
+  >,
+) {
+  return buildM1MultiAssetIdentitySnapshotContract({
+    ...input,
+    catalogCaptureBinding: catalogCaptureBinding({
+      releaseId: input.releaseId,
+      generatedAt: input.generatedAt,
+      sourceCutoff: input.sourceCutoff,
+      observations: input.observations,
+    }),
+  });
+}
 
 function binanceRow(overrides: Record<string, unknown> = {}) {
   return {
@@ -56,6 +147,7 @@ function okxRow(overrides: Record<string, unknown> = {}) {
     state: "live",
     instCategory: "1",
     uly: "BTC-USDT",
+    instFamily: "BTC-USDT",
     listTime: "1700000000000",
     expTime: "",
     tickSz: "0.1",
@@ -146,9 +238,56 @@ test("normalizes one exact crypto perpetual from every Scope V2 venue", () => {
     assert.equal(observation.assetDomain, "CRYPTO_LINEAR_PERPETUAL");
     assert.equal(observation.identityStatus, "EXACT");
     assert.ok(observation.canonicalInstrumentId);
+    assert.equal(
+      observation.providerTransportSymbol,
+      observation.venueInstrumentId,
+    );
+    if (observation.sourceId === "OKX_SWAP") {
+      assert.equal(observation.providerReferenceInstrumentId, "BTC-USDT");
+      assert.equal(observation.providerInstrumentFamily, "BTC-USDT");
+      assert.equal(
+        observation.providerRoutingAuthority,
+        "PROVIDER_CATALOG_EXPLICIT",
+      );
+    } else {
+      assert.equal(observation.providerReferenceInstrumentId, null);
+      assert.equal(observation.providerInstrumentFamily, null);
+      assert.equal(
+        observation.providerRoutingAuthority,
+        "VENUE_INSTRUMENT_ID_EXACT",
+      );
+    }
     assert.equal(observation.runtimeEligibility, "NOT_EVALUATED_NO_AUTHORITY");
     assert.equal(observation.candidateEmissionAllowed, false);
   }
+});
+
+test("keeps incomplete OKX routing explicit instead of deriving it from instId", () => {
+  const row = okxRow() as Omit<
+    ReturnType<typeof okxRow>,
+    "uly" | "instFamily"
+  > & {
+    uly?: string;
+    instFamily?: string;
+  };
+  delete row.uly;
+  delete row.instFamily;
+  const observation = normalizeOkxMultiAssetCatalog({
+    payload: {
+      code: "0",
+      data: [row],
+    },
+    receivedAt: RECEIVED_AT,
+  }).observations[0]!;
+
+  assert.equal(observation.identityStatus, "EXACT");
+  assert.equal(observation.providerTransportSymbol, "BTC-USDT-SWAP");
+  assert.equal(observation.providerReferenceInstrumentId, null);
+  assert.equal(observation.providerInstrumentFamily, null);
+  assert.equal(
+    observation.providerRoutingAuthority,
+    "PROVIDER_CATALOG_INCOMPLETE",
+  );
 });
 
 test("does not classify a stock from its symbol or Bitget isRwa alone", () => {

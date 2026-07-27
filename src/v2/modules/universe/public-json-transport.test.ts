@@ -28,8 +28,13 @@ test("uses only credential-free GET against the exact HTTPS allowlist", async ()
   assert.equal(request.init?.redirect, "error");
   assert.equal(new URL(String(request.input)).hostname, "example.com");
   assert.equal(result.ok && result.rawBody, undefined);
-  assert.equal(result.ok && result.bodyDigest, undefined);
-  assert.equal(result.ok && result.bodyBytes, undefined);
+  assert.equal(result.ok && result.bodyBytes, 11);
+  assert.equal(
+    result.ok && result.bodyDigest,
+    `sha256:${
+      createHash("sha256").update(JSON.stringify({ ok: true })).digest("hex")
+    }`,
+  );
 });
 
 test("optionally exposes the exact response bytes with their measured digest", async () => {

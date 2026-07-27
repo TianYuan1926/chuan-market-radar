@@ -4,6 +4,9 @@ import {
   M1_FOUR_VENUE_SOURCE_CAPABILITY_REGISTRY,
 } from "../source-capability/adapters/four-venue-capability-registry";
 import {
+  M1_SCOPE_EPOCH,
+} from "../source-capability/source-capability-contract";
+import {
   M1SourceConformanceProbeObservationSchema,
   buildM1SourceConformanceArtifact,
 } from "../source-conformance/source-conformance-contract";
@@ -15,6 +18,18 @@ import {
   buildM1RuntimeAdapterProfileSet,
   type M1RuntimeAdapterProfile,
 } from "../collector/runtime-adapter-profile";
+import type {
+  PublicJsonRequest,
+  PublicJsonTransport,
+} from "../universe/public-json-transport";
+import {
+  M1_MULTI_ASSET_SHADOW_AXIS_IDS,
+  M1_MULTI_ASSET_SHADOW_UPSTREAM_VERSION,
+  M1MultiAssetShadowUpstreamBindingSchema,
+} from "../shadow/m1-multi-asset-shadow-contract";
+import {
+  refreshM1ListingWatchEvidence,
+} from "./m1-listing-watch-live-runtime";
 import {
   M1ListingHistoryCheckpointSchema,
   M1ListingHistoryGapSchema,
@@ -86,17 +101,21 @@ function liveArtifact() {
 function listingProfile(
   sourceId: "BYBIT_DERIVATIVES" | "BITGET_FUTURES",
 ): M1RuntimeAdapterProfile {
-  const set = buildM1RuntimeAdapterProfileSet({
-    runtimeReleaseId: RUNTIME_RELEASE,
-    generatedAt: PROFILE_GENERATED_AT,
-    conformanceArtifact: liveArtifact(),
-  });
+  const set = liveProfileSet();
   const profile = set.profiles.find((candidate) =>
     candidate.sourceId === sourceId &&
     candidate.capabilityId === "LISTING_ANNOUNCEMENT"
   );
   assert.ok(profile);
   return profile;
+}
+
+function liveProfileSet() {
+  return buildM1RuntimeAdapterProfileSet({
+    runtimeReleaseId: RUNTIME_RELEASE,
+    generatedAt: PROFILE_GENERATED_AT,
+    conformanceArtifact: liveArtifact(),
+  });
 }
 
 type BybitRecord = Readonly<{
@@ -656,4 +675,217 @@ test("checkpoint schema rejects authority and content-hash tampering", () => {
     M1ListingHistoryCheckpointSchema.safeParse(tampered).success,
     false,
   );
+});
+
+function refreshUpstream(
+  profileSet: ReturnType<typeof liveProfileSet>,
+  evidenceClass: "LIVE_READ_ONLY" | "TEST_ONLY" = "TEST_ONLY",
+) {
+  const live = evidenceClass === "LIVE_READ_ONLY";
+  const core = {
+    schemaVersion: M1_MULTI_ASSET_SHADOW_UPSTREAM_VERSION,
+    scopeEpoch: M1_SCOPE_EPOCH,
+    releaseId: RUNTIME_RELEASE,
+    generatedAt: "2026-07-24T02:09:59.000Z",
+    sourceCutoff: "2026-07-24T02:09:59.000Z",
+    runtimeAdapterArtifactId: "runtime-adapter-live:listing-refresh-fixture",
+    runtimeAdapterArtifactHash:
+      `sha256:${"1".repeat(64)}`,
+    conformanceArtifactId: profileSet.conformanceArtifactId,
+    conformanceArtifactHash: profileSet.conformanceArtifactHash,
+    registryDigest: profileSet.registryDigest,
+    profileSetHash: profileSet.contentHash,
+    evidenceClass,
+    networkEnvironment: live
+      ? "TENCENT_ISOLATED_READ_ONLY" as const
+      : "TEST_HARNESS" as const,
+    runtimeAdapterStatus: live
+      ? "PASS_BOUNDED_ROUTE_SEGMENT_NO_AUTHORITY" as const
+      : "TEST_ONLY_NOT_LIVE_EVIDENCE" as const,
+    liveConformantProfileCount: 15 as const,
+    routeEligibleProfileCount: 14 as const,
+    registryBlockedProfileCount: 1 as const,
+    listingCheckpointCommittedCount: 2 as const,
+    listingGapCount: 0 as const,
+    acceptanceAxes: M1_MULTI_ASSET_SHADOW_AXIS_IDS.map(
+      (axisId, index) => ({
+        axisId,
+        routeGateStatus: "PASS" as const,
+        axisEvidenceId: `axis:${axisId}`,
+        contentHash:
+          `sha256:${String(index + 2).repeat(64)}`,
+      }),
+    ),
+    authorityGranted: false as const,
+    productionChanged: false as const,
+    secretMaterialPresent: false as const,
+  };
+  const contentHash = stableContentHash(core);
+  return M1MultiAssetShadowUpstreamBindingSchema.parse({
+    ...core,
+    upstreamBindingId: `m1-shadow-upstream:${contentHash.slice(7, 31)}`,
+    contentHash,
+  });
+}
+
+function initialRefreshCheckpoints(
+  profileSet: ReturnType<typeof liveProfileSet>,
+): readonly M1ListingHistoryCheckpoint[] {
+  return (
+    ["BITGET_FUTURES", "BYBIT_DERIVATIVES"] as const
+  ).map((sourceId) => {
+    const profile = profileSet.profiles.find(
+      (candidate) =>
+        candidate.sourceId === sourceId &&
+        candidate.capabilityId === "LISTING_ANNOUNCEMENT",
+    )!;
+    const payload = sourceId === "BYBIT_DERIVATIVES"
+      ? bybitPayload([{
+        key: "known-bybit",
+        publishedAt: 1_753_320_000_000,
+      }], 1)
+      : bitgetPayload([{
+        id: "known-bitget",
+        publishedAt: 1_753_320_000_000,
+      }]);
+    return committedCheckpoint(advanceM1ListingHistory({
+      profile,
+      mode: "BOOTSTRAP",
+      priorCheckpoint: null,
+      pages: [page({
+        profile,
+        mode: "BOOTSTRAP",
+        ordinal: 1,
+        token: sourceId === "BYBIT_DERIVATIVES" ? "page:1" : "ROOT",
+        receivedAt: "2026-07-24T02:09:00.000Z",
+        payload,
+      })],
+      segmentStop: "SOURCE_TERMINAL",
+      generatedAt: "2026-07-24T02:10:00.000Z",
+      sourceCutoff: "2026-07-24T02:10:00.000Z",
+    }));
+  });
+}
+
+function refreshTransport(input: {
+  requests: PublicJsonRequest[];
+  omitBybitOverlap?: boolean;
+}): PublicJsonTransport {
+  return async (request) => {
+    input.requests.push(request);
+    const bybit = request.allowedHost.includes("bybit");
+    const payload = bybit
+      ? bybitPayload([
+        {
+          key: "new-bybit",
+          publishedAt: 1_753_323_000_000,
+        },
+        ...(
+          input.omitBybitOverlap
+            ? []
+            : [{
+              key: "known-bybit",
+              publishedAt: 1_753_320_000_000,
+            }]
+        ),
+      ], input.omitBybitOverlap ? 1 : 2)
+      : bitgetPayload([
+        {
+          id: "new-bitget",
+          publishedAt: 1_753_323_000_000,
+        },
+        {
+          id: "known-bitget",
+          publishedAt: 1_753_320_000_000,
+        },
+      ]);
+    return {
+      ok: true,
+      status: 200,
+      receivedAt: "2026-07-24T02:20:00.000Z",
+      bodyBytes: Buffer.byteLength(JSON.stringify(payload)),
+      bodyDigest: stableContentHash(payload),
+      data: payload,
+    };
+  };
+}
+
+test("refreshes exact Bybit and Bitget checkpoints with overlap and emits self-hashed bindings", async () => {
+  const profileSet = liveProfileSet();
+  const upstream = refreshUpstream(profileSet);
+  const requests: PublicJsonRequest[] = [];
+  const result = await refreshM1ListingWatchEvidence({
+    upstreamBinding: upstream,
+    profileSet,
+    priorCheckpoints: initialRefreshCheckpoints(profileSet),
+    networkEnvironment: "TEST_HARNESS",
+    transportImplementation: refreshTransport({ requests }),
+    now: () => new Date("2026-07-24T02:20:01.000Z"),
+  });
+
+  assert.equal(requests.length, 2);
+  assert.equal(result.allCommitted, true);
+  assert.equal(result.bindings.length, 2);
+  assert.equal(result.checkpoints.length, 2);
+  assert.ok(
+    result.results.every(
+      (entry) =>
+        entry.status === "COMMITTED" &&
+        entry.checkpoint?.status === "INCREMENTAL_CURRENT" &&
+        entry.binding?.evidenceClass === "TEST_ONLY",
+    ),
+  );
+  assert.ok(
+    result.bindings.every(
+      (binding) =>
+        binding.bindingId.startsWith("m1-listing-watch-binding:") &&
+        /^sha256:[0-9a-f]{64}$/u.test(binding.contentHash),
+    ),
+  );
+  assert.equal(result.authorityGranted, false);
+  assert.equal(result.productionChanged, false);
+});
+
+test("keeps one source gap visible and refuses an exact two-binding denominator", async () => {
+  const profileSet = liveProfileSet();
+  const result = await refreshM1ListingWatchEvidence({
+    upstreamBinding: refreshUpstream(profileSet),
+    profileSet,
+    priorCheckpoints: initialRefreshCheckpoints(profileSet),
+    networkEnvironment: "TEST_HARNESS",
+    transportImplementation: refreshTransport({
+      requests: [],
+      omitBybitOverlap: true,
+    }),
+    now: () => new Date("2026-07-24T02:20:01.000Z"),
+  });
+
+  assert.equal(result.allCommitted, false);
+  assert.equal(result.bindings.length, 1);
+  const bybit = result.results.find(
+    (entry) => entry.sourceId === "BYBIT_DERIVATIVES",
+  )!;
+  assert.equal(bybit.status, "BLOCKED");
+  assert.equal(bybit.checkpoint, null);
+  assert.equal(bybit.binding, null);
+  assert.deepEqual(bybit.reasonCodes, [
+    "listing_checkpoint_gap_no_checkpoint_overlap",
+  ]);
+});
+
+test("injected listing transport cannot manufacture live checkpoint evidence", async () => {
+  const profileSet = liveProfileSet();
+  const requests: PublicJsonRequest[] = [];
+  await assert.rejects(
+    refreshM1ListingWatchEvidence({
+      upstreamBinding: refreshUpstream(profileSet, "LIVE_READ_ONLY"),
+      profileSet,
+      priorCheckpoints: initialRefreshCheckpoints(profileSet),
+      networkEnvironment: "TENCENT_ISOLATED_READ_ONLY",
+      transportImplementation: refreshTransport({ requests }),
+      now: () => new Date("2026-07-24T02:20:01.000Z"),
+    }),
+    /cannot mix test and live evidence/u,
+  );
+  assert.equal(requests.length, 0);
 });

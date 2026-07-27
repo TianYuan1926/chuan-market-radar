@@ -29,6 +29,7 @@ import {
   M1_EXPANDED_SHADOW_DATABASE_NAME,
   M1_EXPANDED_SHADOW_POSTGRES_SCHEMA_SQL,
   M1PostgresShadowObservationStore,
+  buildM1ShadowStoreAuditReceipt,
   type M1ShadowObservationStore,
   type M1ShadowPersistenceReceipt,
 } from "./m1-expanded-shadow-store";
@@ -227,6 +228,12 @@ class MemoryStore implements M1ShadowObservationStore {
   initialized = false;
   fail = false;
   readonly rows = new Set<string>();
+  readonly auditRecords: Array<{
+    cycleIndex: number;
+    observationId: string;
+    contentHash: string;
+    compressedBytes: number;
+  }> = [];
 
   async initialize(): Promise<void> {
     this.initialized = true;
@@ -243,6 +250,12 @@ class MemoryStore implements M1ShadowObservationStore {
         `${input.workerRunId}|${input.cycleIndex}|${observation.observationId}`;
       if (this.rows.has(key)) throw new Error("fixture_duplicate");
       this.rows.add(key);
+      this.auditRecords.push({
+        cycleIndex: input.cycleIndex,
+        observationId: observation.observationId,
+        contentHash: observation.contentHash,
+        compressedBytes: 10,
+      });
       return {
         observationId: observation.observationId,
         compressedBytes: 10,
@@ -260,6 +273,22 @@ class MemoryStore implements M1ShadowObservationStore {
   async countRunRows(workerRunId: string): Promise<number> {
     return [...this.rows].filter((key) => key.startsWith(`${workerRunId}|`))
       .length;
+  }
+
+  async auditRun(workerRunId: string, auditedAt: string) {
+    const prefix = `${workerRunId}|`;
+    const includedIds = new Set(
+      [...this.rows]
+        .filter((key) => key.startsWith(prefix))
+        .map((key) => key.split("|").at(-1)!),
+    );
+    return buildM1ShadowStoreAuditReceipt({
+      workerRunId,
+      auditedAt,
+      records: this.auditRecords.filter((record) =>
+        includedIds.has(record.observationId)
+      ),
+    });
   }
 }
 
@@ -591,6 +620,18 @@ class FakePool implements M1SqlPool {
         rowCount: 1,
       };
     }
+    if (text.includes("ORDER BY cycle_index, observation_id")) {
+      const observation = observationFixture();
+      return {
+        rows: [{
+          cycle_index: "1",
+          observation_id: observation.observationId,
+          content_hash: observation.contentHash,
+          payload_gzip_bytes: "128",
+        } as unknown as Row],
+        rowCount: 1,
+      };
+    }
     return { rows: [], rowCount: null };
   }
 
@@ -616,10 +657,11 @@ test("PostgreSQL store enforces isolated database identity and persists only com
       call.text === M1_EXPANDED_SHADOW_POSTGRES_SCHEMA_SQL
     ),
   );
+  const observation = observationFixture();
   const receipt = await store.persistBatch({
     workerRunId: "m1-shadow-postgres-test",
     cycleIndex: 1,
-    observations: [observationFixture()],
+    observations: [observation],
   });
   assert.equal(receipt.insertedRows, 1);
   assert.equal(receipt.postgresWalBytes, 128);
@@ -636,5 +678,17 @@ test("PostgreSQL store enforces isolated database identity and persists only com
     ),
   );
   assert.equal(await store.countRunRows("m1-shadow-postgres-test"), 1);
+  const audit = await store.auditRun(
+    "m1-shadow-postgres-test",
+    "2026-07-26T08:01:00.000Z",
+  );
+  assert.equal(audit.rowCount, 1);
+  assert.equal(audit.observedCycleCount, 1);
+  assert.equal(audit.firstCycleIndex, 1);
+  assert.equal(audit.lastCycleIndex, 1);
+  assert.equal(audit.compressedPayloadBytes, 128);
+  assert.equal(audit.factAuthorityGranted, false);
+  assert.equal(audit.candidateAuthorityGranted, false);
+  assert.equal(audit.automaticTradingAllowed, false);
   assert.equal(pool.transaction.released, true);
 });

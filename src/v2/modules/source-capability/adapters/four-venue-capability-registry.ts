@@ -656,6 +656,23 @@ export const M1_FOUR_VENUE_OFFICIAL_EVIDENCE = [
     ],
   },
   {
+    evidenceId: "bitget-all-tickers-2026-07-27",
+    sourceId: "BITGET_FUTURES",
+    evidenceType: "OFFICIAL_API_DOCUMENTATION",
+    url:
+      "https://www.bitget.com/api-doc/classic/contract/market/Get-All-Symbol-Ticker",
+    reviewedAt: "2026-07-27T00:00:00.000Z",
+    captureStatus: "REFERENCE_ONLY_UNHASHED",
+    contentDigest: null,
+    supportsCapabilityIds: [
+      "TICKER",
+      "MARK_PRICE",
+      "INDEX_PRICE",
+      "OPEN_INTEREST_CURRENT",
+      "FUNDING_CURRENT",
+    ],
+  },
+  {
     evidenceId: "bitget-depth-websocket-2026-07-23",
     sourceId: "BITGET_FUTURES",
     evidenceType: "OFFICIAL_API_DOCUMENTATION",
@@ -848,6 +865,7 @@ export const M1_FOUR_VENUE_SOURCE_PROFILES = [
       "bitget-depth-websocket-2026-07-23",
       "bitget-funding-history-2026-07-23",
       "bitget-market-api-2026-07-23",
+      "bitget-all-tickers-2026-07-27",
       "bitget-stock-perpetuals-2026-07-23",
     ],
     failureSemantics: ALL_SOURCE_FAILURES,
@@ -1028,6 +1046,7 @@ const BINANCE_WS = ["binance-usdm-websocket-market-streams-2026-07-23"];
 const OKX_API = ["okx-v5-api-2026-07-23"];
 const BYBIT_API = ["bybit-market-api-2026-07-23"];
 const BITGET_API = ["bitget-market-api-2026-07-23"];
+const BITGET_ALL_TICKERS_API = ["bitget-all-tickers-2026-07-27"];
 
 const BINANCE_SEEDS = {
   SERVER_TIME: documented("/fapi/v1/time", BINANCE_API),
@@ -1484,7 +1503,16 @@ const BITGET_SEEDS = {
   INSTRUMENT_STATUS_STREAM: unavailable(
     "official_machine_readable_instrument_status_stream_not_verified",
   ),
-  TICKER: documented("/api/v2/mix/market/ticker", BITGET_API),
+  TICKER: documented(
+    "/api/v2/mix/market/tickers?productType=USDT-FUTURES",
+    BITGET_ALL_TICKERS_API,
+    {
+      rateLimitRule: "20 requests per second per IP.",
+      rateLimitEvidenceId: "bitget-all-tickers-2026-07-27",
+      sourceSemantics:
+        "Source-wide USDT futures ticker snapshot including last, bid/ask, volume, mark, index, funding and holding amount.",
+    },
+  ),
   MARK_PRICE: documented("/api/v2/mix/market/symbol-price", BITGET_API),
   INDEX_PRICE: documented("/api/v2/mix/market/symbol-price", BITGET_API),
   TRADE_KLINE: documented(

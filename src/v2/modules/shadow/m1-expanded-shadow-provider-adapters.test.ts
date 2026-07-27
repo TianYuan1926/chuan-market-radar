@@ -248,8 +248,12 @@ test("provider plan rejects re-signed endpoint, role and REST boundary drift", (
 test("provider profiles preserve current routed endpoints, source epochs and sampled-feed truth", () => {
   const profiles = M1_EXPANDED_SHADOW_PROVIDER_PROFILES;
   assert.equal(
+    profiles.venues.BINANCE_FUTURES.websocketEndpoints.public.url,
+    "wss://fstream.binance.com/public/stream",
+  );
+  assert.equal(
     profiles.venues.BINANCE_FUTURES.websocketEndpoints.market.url,
-    "wss://fstream.binance.com/market/ws",
+    "wss://fstream.binance.com/market/stream",
   );
   assert.equal(
     profiles.venues.BITGET_FUTURES.channels.LIQUIDATION_EVENT.completeness,

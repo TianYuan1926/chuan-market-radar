@@ -26,7 +26,7 @@ import {
 export const M1_MULTI_ASSET_SHADOW_UPSTREAM_VERSION =
   "v2-m1-multi-asset-shadow-upstream.v1" as const;
 export const M1_MULTI_ASSET_SHADOW_CYCLE_VERSION =
-  "v2-m1-multi-asset-shadow-cycle.v1" as const;
+  "v2-m1-multi-asset-shadow-cycle.v3" as const;
 export const M1_MULTI_ASSET_SHADOW_EVIDENCE_VERSION =
   "v2-m1-multi-asset-shadow-evidence.v1" as const;
 
@@ -57,6 +57,11 @@ export const M1_MULTI_ASSET_SHADOW_AXIS_IDS = [
   "LISTING_LIFECYCLE",
   "EQUITY_ASSET_DOMAIN",
   "DATA_MAXIMIZATION",
+] as const;
+
+export const M1_MULTI_ASSET_SHADOW_ASSET_DOMAIN_BUCKETS = [
+  ...M1_ASSET_DOMAINS,
+  "UNRESOLVED",
 ] as const;
 
 const DigestSchema = z.string().regex(/^sha256:[0-9a-f]{64}$/u);
@@ -250,6 +255,7 @@ const VenueAccountingSchema = z.strictObject({
   venue: z.enum(M1_VENUE_SOURCE_IDS),
   observedSubjectCount: NonNegativeIntegerSchema,
   exactIdentityCount: NonNegativeIntegerSchema,
+  partialIdentityCount: NonNegativeIntegerSchema,
   unresolvedIdentityCount: NonNegativeIntegerSchema,
   routeEligibleCount: NonNegativeIntegerSchema,
   routeBlockedCount: NonNegativeIntegerSchema,
@@ -269,7 +275,9 @@ const VenueAccountingSchema = z.strictObject({
     row.observedSubjectCount !==
       row.routeEligibleCount + row.routeBlockedCount ||
     row.observedSubjectCount !==
-      row.exactIdentityCount + row.unresolvedIdentityCount ||
+      row.exactIdentityCount +
+        row.partialIdentityCount +
+        row.unresolvedIdentityCount ||
     row.routeBlockedCount < row.unresolvedIdentityCount ||
     row.scheduledCount + row.notScheduledCount !== row.routeEligibleCount ||
     row.attemptedCount + row.notAttemptedCount !== row.scheduledCount ||
@@ -349,7 +357,7 @@ const DimensionCountsSchema = z.strictObject({
 
 const AssetDomainAccountingSchema = DimensionCountsSchema.and(
   z.strictObject({
-    assetDomain: z.enum(M1_ASSET_DOMAINS),
+    assetDomain: z.enum(M1_MULTI_ASSET_SHADOW_ASSET_DOMAIN_BUCKETS),
   }),
 );
 
@@ -362,6 +370,7 @@ const LifecycleAccountingSchema = DimensionCountsSchema.and(
 const AggregateAccountingSchema = z.strictObject({
   observedSubjectCount: NonNegativeIntegerSchema,
   exactIdentityCount: NonNegativeIntegerSchema,
+  partialIdentityCount: NonNegativeIntegerSchema,
   unresolvedIdentityCount: NonNegativeIntegerSchema,
   routeEligibleCount: NonNegativeIntegerSchema,
   routeBlockedCount: NonNegativeIntegerSchema,
@@ -393,10 +402,42 @@ const AxisAssessmentSchema = z.strictObject({
   }
 });
 
+const ListingCheckpointAccountingSchema = z.strictObject({
+  requiredCount: z.literal(2),
+  bindingCount: NonNegativeIntegerSchema,
+  healthyCount: NonNegativeIntegerSchema,
+  unhealthyOrMissingCount: NonNegativeIntegerSchema,
+  status: z.enum(["PASS", "BLOCKED"]),
+  reasonCodes: UniqueReasonsSchema,
+}).superRefine((listing, context) => {
+  const pass =
+    listing.bindingCount === listing.requiredCount &&
+    listing.healthyCount === listing.requiredCount &&
+    listing.unhealthyOrMissingCount === 0;
+  if (
+    listing.healthyCount > listing.bindingCount ||
+    listing.unhealthyOrMissingCount !==
+      listing.requiredCount - listing.healthyCount ||
+    listing.status !== (pass ? "PASS" : "BLOCKED") ||
+    (!pass && listing.reasonCodes.length === 0)
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "listing checkpoint accounting or Gate disagrees",
+    });
+  }
+});
+
 const CycleInputSchema = z.strictObject({
   releaseId: ReleaseIdSchema,
   upstreamBindingId: NonEmptyStringSchema,
   upstreamBindingHash: DigestSchema,
+  catalogCaptureBindingId: NonEmptyStringSchema,
+  catalogCaptureBindingHash: DigestSchema,
+  identitySnapshotId: NonEmptyStringSchema,
+  identitySnapshotHash: DigestSchema,
+  baseFactSnapshotId: NonEmptyStringSchema,
+  baseFactSnapshotHash: DigestSchema,
   workerRunId: NonEmptyStringSchema,
   runtimeConfigDigest: DigestSchema,
   cycleIndex: z.number().int().min(1).max(31),
@@ -409,14 +450,19 @@ const CycleInputSchema = z.strictObject({
   missedScheduleStarts: NonNegativeIntegerSchema,
   rssBytes: NonNegativeIntegerSchema,
   checkpointStatus: z.enum(["COMMITTED", "BLOCKED", "FAILED"]),
+  checkpointReceiptId: NonEmptyStringSchema.nullable(),
+  checkpointReceiptHash: DigestSchema.nullable(),
   persistenceStatus: z.enum(["COMMITTED", "PARTIAL", "FAILED"]),
+  persistenceReceiptId: NonEmptyStringSchema.nullable(),
+  persistenceReceiptHash: DigestSchema.nullable(),
   venues: z.array(VenueAccountingSchema).length(4),
   assetDomains: z.array(AssetDomainAccountingSchema).length(
-    M1_ASSET_DOMAINS.length,
+    M1_MULTI_ASSET_SHADOW_ASSET_DOMAIN_BUCKETS.length,
   ),
   lifecycleStates: z.array(LifecycleAccountingSchema).length(
     M1_LISTING_LIFECYCLE_STATES.length,
   ),
+  listingCheckpoint: ListingCheckpointAccountingSchema,
   rawBodyRetained: z.literal(false),
   secretMaterialPresent: z.literal(false),
   runtimeAuthorityGranted: z.literal(false),
@@ -443,6 +489,26 @@ export const M1MultiAssetShadowCycleSchema = CycleCoreSchema.extend({
   cycleId: NonEmptyStringSchema,
   contentHash: DigestSchema,
 }).superRefine((cycle, context) => {
+  const hasCheckpointReceipt =
+    cycle.checkpointReceiptId !== null &&
+    cycle.checkpointReceiptHash !== null;
+  const hasPersistenceReceipt =
+    cycle.persistenceReceiptId !== null &&
+    cycle.persistenceReceiptHash !== null;
+  if (
+    (cycle.checkpointReceiptId === null) !==
+      (cycle.checkpointReceiptHash === null) ||
+    (cycle.persistenceReceiptId === null) !==
+      (cycle.persistenceReceiptHash === null) ||
+    (cycle.checkpointStatus === "COMMITTED") !== hasCheckpointReceipt ||
+    (cycle.persistenceStatus === "COMMITTED") !== hasPersistenceReceipt
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "shadow cycle storage status requires exact receipt identity",
+      path: ["persistenceStatus"],
+    });
+  }
   const expectedHash = stableContentHash(cycleCore(cycle));
   if (cycle.contentHash !== expectedHash) {
     context.addIssue({
@@ -496,6 +562,12 @@ function cycleCore(
     releaseId: cycle.releaseId,
     upstreamBindingId: cycle.upstreamBindingId,
     upstreamBindingHash: cycle.upstreamBindingHash,
+    catalogCaptureBindingId: cycle.catalogCaptureBindingId,
+    catalogCaptureBindingHash: cycle.catalogCaptureBindingHash,
+    identitySnapshotId: cycle.identitySnapshotId,
+    identitySnapshotHash: cycle.identitySnapshotHash,
+    baseFactSnapshotId: cycle.baseFactSnapshotId,
+    baseFactSnapshotHash: cycle.baseFactSnapshotHash,
     workerRunId: cycle.workerRunId,
     runtimeConfigDigest: cycle.runtimeConfigDigest,
     cycleIndex: cycle.cycleIndex,
@@ -508,10 +580,15 @@ function cycleCore(
     missedScheduleStarts: cycle.missedScheduleStarts,
     rssBytes: cycle.rssBytes,
     checkpointStatus: cycle.checkpointStatus,
+    checkpointReceiptId: cycle.checkpointReceiptId,
+    checkpointReceiptHash: cycle.checkpointReceiptHash,
     persistenceStatus: cycle.persistenceStatus,
+    persistenceReceiptId: cycle.persistenceReceiptId,
+    persistenceReceiptHash: cycle.persistenceReceiptHash,
     venues: cycle.venues,
     assetDomains: cycle.assetDomains,
     lifecycleStates: cycle.lifecycleStates,
+    listingCheckpoint: cycle.listingCheckpoint,
     aggregate: cycle.aggregate,
     axisAssessments: cycle.axisAssessments,
     status: cycle.status,
@@ -553,6 +630,7 @@ function assessAxis(input: {
   assetDomains: readonly z.infer<typeof AssetDomainAccountingSchema>[];
   lifecycleStates: readonly z.infer<typeof LifecycleAccountingSchema>[];
   venues: readonly M1MultiAssetShadowVenueAccounting[];
+  listingCheckpoint: z.infer<typeof ListingCheckpointAccountingSchema>;
 }): readonly z.infer<typeof AxisAssessmentSchema>[] {
   const bitget = input.venues.find((row) => row.venue === "BITGET_FUTURES")!;
   const bitgetPass =
@@ -561,13 +639,8 @@ function assessAxis(input: {
     bitget.collectedCount === bitget.attemptedCount &&
     bitget.freshCount === bitget.collectedCount &&
     bitget.providerFailureCount === 0;
-  const listing = input.assetDomains.find(
-    (row) => row.assetDomain === "ASSET_LISTING_WATCH",
-  )!;
   const listingPass =
-    listing.observedSubjectCount > 0 &&
-    listing.status === "FRESH" &&
-    input.lifecycleStates.every((row) => row.status !== "PARTIAL");
+    input.listingCheckpoint.status === "PASS";
   const equityRows = input.assetDomains.filter((row) =>
     row.assetDomain === "EQUITY_SINGLE_NAME_PERPETUAL" ||
     row.assetDomain === "EQUITY_INDEX_ETF_PERPETUAL"
@@ -601,7 +674,9 @@ function assessAxis(input: {
     {
       axisId: "LISTING_LIFECYCLE" as const,
       status: listingPass ? "PASS" as const : "BLOCKED" as const,
-      reasonCodes: listingPass ? [] : ["listing_lifecycle_accounting_incomplete"],
+      reasonCodes: listingPass
+        ? []
+        : input.listingCheckpoint.reasonCodes,
     },
     {
       axisId: "EQUITY_ASSET_DOMAIN" as const,
@@ -628,7 +703,7 @@ export function buildM1MultiAssetShadowCycle(
   );
   const assetDomains = orderedExactRows(
     input.assetDomains,
-    M1_ASSET_DOMAINS,
+    M1_MULTI_ASSET_SHADOW_ASSET_DOMAIN_BUCKETS,
     (row) => row.assetDomain,
     "asset-domain accounting",
   );
@@ -641,6 +716,7 @@ export function buildM1MultiAssetShadowCycle(
   const aggregate = AggregateAccountingSchema.parse({
     observedSubjectCount: sum(venues, "observedSubjectCount"),
     exactIdentityCount: sum(venues, "exactIdentityCount"),
+    partialIdentityCount: sum(venues, "partialIdentityCount"),
     unresolvedIdentityCount: sum(venues, "unresolvedIdentityCount"),
     routeEligibleCount: sum(venues, "routeEligibleCount"),
     routeBlockedCount: sum(venues, "routeBlockedCount"),
@@ -718,6 +794,7 @@ export function buildM1MultiAssetShadowCycle(
     assetDomains,
     lifecycleStates,
     venues,
+    listingCheckpoint: input.listingCheckpoint,
   });
   const equityBlocked = axisAssessments.find(
     (axis) => axis.axisId === "EQUITY_ASSET_DOMAIN",

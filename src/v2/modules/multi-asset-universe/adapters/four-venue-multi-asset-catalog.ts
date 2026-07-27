@@ -47,6 +47,8 @@ type ClassificationHint = Readonly<{
 type MaterializeInput = Readonly<{
   sourceId: VenueSourceId;
   venueInstrumentId: string;
+  providerReferenceInstrumentId?: string | null;
+  providerInstrumentFamily?: string | null;
   baseAsset: string | null;
   quoteAsset: string | null;
   settlementAsset: string | null;
@@ -214,6 +216,16 @@ function normalizeToken(value: string | null | undefined): string | null {
   }
   const normalized = value.trim().normalize("NFC").toUpperCase();
   return normalized.length > 0 && normalized.length <= 160 ? normalized : null;
+}
+
+function normalizeProviderTransportSymbol(
+  value: string | null | undefined,
+): string | null {
+  const normalized = normalizeToken(value);
+  return normalized !== null &&
+      /^[A-Z0-9][A-Z0-9._-]{1,80}$/u.test(normalized)
+    ? normalized
+    : null;
 }
 
 function normalizeDecimal(value: string | null | undefined): string | null {
@@ -388,6 +400,15 @@ function materialize(
   const venueInstrumentId =
     normalizeToken(input.venueInstrumentId) ??
     `UNRESOLVED:${stableContentHash(input.rawRecord).slice(7, 31)}`;
+  const providerTransportSymbol = normalizeProviderTransportSymbol(
+    input.venueInstrumentId,
+  );
+  const providerReferenceInstrumentId = normalizeProviderTransportSymbol(
+    input.providerReferenceInstrumentId,
+  );
+  const providerInstrumentFamily = normalizeProviderTransportSymbol(
+    input.providerInstrumentFamily,
+  );
   const baseAsset = normalizeToken(input.baseAsset);
   const quoteAsset = normalizeToken(input.quoteAsset);
   const settlementAsset = normalizeToken(input.settlementAsset);
@@ -448,6 +469,18 @@ function materialize(
     assetDomain: resolved.assetDomain,
     sourceId: input.sourceId,
     venueInstrumentId,
+    providerTransportSymbol,
+    providerReferenceInstrumentId,
+    providerInstrumentFamily,
+    providerRoutingAuthority: input.sourceId === "OKX_SWAP"
+      ? providerTransportSymbol !== null &&
+          providerReferenceInstrumentId !== null &&
+          providerInstrumentFamily !== null
+        ? "PROVIDER_CATALOG_EXPLICIT"
+        : "PROVIDER_CATALOG_INCOMPLETE"
+      : providerTransportSymbol === null
+        ? "PROVIDER_CATALOG_INCOMPLETE"
+        : "VENUE_INSTRUMENT_ID_EXACT",
     canonicalInstrumentId,
     underlyingGroupId: complete && resolved.assetDomain !== null
       ? deriveM1UnderlyingGroupId({
@@ -780,6 +813,8 @@ export function normalizeOkxMultiAssetCatalog(input: {
     return materialize({
       sourceId: "OKX_SWAP",
       venueInstrumentId: row.instId,
+      providerReferenceInstrumentId: row.uly ?? null,
+      providerInstrumentFamily: row.instFamily ?? null,
       baseAsset: row.ctValCcy,
       quoteAsset,
       settlementAsset: row.settleCcy,

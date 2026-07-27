@@ -63,12 +63,12 @@ export const M1_EXPANDED_SHADOW_PROVIDER_PROFILES = deepFreezeArtifact({
       websocketEndpoints: {
         public: {
           role: "BINANCE_PUBLIC_HIGH_FREQUENCY",
-          url: "wss://fstream.binance.com/public/ws",
+          url: "wss://fstream.binance.com/public/stream",
           host: "fstream.binance.com",
         },
         market: {
           role: "BINANCE_MARKET_REGULAR",
-          url: "wss://fstream.binance.com/market/ws",
+          url: "wss://fstream.binance.com/market/stream",
           host: "fstream.binance.com",
         },
       },
@@ -440,12 +440,12 @@ const EXPECTED_ALLOWED_HOSTS = [
 const EXPECTED_CONNECTION_BOUNDARIES = {
   BINANCE_PUBLIC_HIGH_FREQUENCY: {
     venue: "BINANCE_FUTURES",
-    url: "wss://fstream.binance.com/public/ws",
+    url: "wss://fstream.binance.com/public/stream",
     allowedHost: "fstream.binance.com",
   },
   BINANCE_MARKET_REGULAR: {
     venue: "BINANCE_FUTURES",
-    url: "wss://fstream.binance.com/market/ws",
+    url: "wss://fstream.binance.com/market/stream",
     allowedHost: "fstream.binance.com",
   },
   OKX_PUBLIC: {

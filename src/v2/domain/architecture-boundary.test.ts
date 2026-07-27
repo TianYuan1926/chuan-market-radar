@@ -162,6 +162,7 @@ test("keeps provider hosts and public transport behind V2 adapters", () => {
     "fapi.binance.com",
     "www.okx.com",
     "api.bybit.com",
+    "api.bitget.com",
   ];
 
   for (const file of productionFiles) {
