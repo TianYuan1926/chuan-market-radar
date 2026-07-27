@@ -25,6 +25,7 @@ import {
   createPrivateKey,
   createPublicKey,
   generateKeyPairSync,
+  randomBytes,
   sign,
   verify,
 } from "node:crypto";
@@ -42,6 +43,9 @@ export const MAX_APPROVAL_WINDOW_MS = 90 * 60 * 1000;
 export const MAX_BUNDLE_BYTES = 64 * 1024 * 1024;
 export const MAX_UNCOMPRESSED_BUNDLE_BYTES = 128 * 1024 * 1024;
 export const MAX_RUNTIME_SECONDS = 90 * 60;
+export const AGENT_GIT_COMMAND_TIMEOUT_MS = 90 * 1000;
+export const AGENT_LOCK_UNOWNED_STALE_MS = 4 * 60 * 1000;
+export const AGENT_LOCK_SCHEMA = "market-radar-production-dispatch-agent-lock.v2";
 export const DISPATCH_FILES = Object.freeze([
   "approval-request.json",
   "bundle.tar.gz",
@@ -89,6 +93,14 @@ const CONFIG_KEYS = Object.freeze([
   "stagingRoots",
   "stateRoot",
   "trustRoot",
+]);
+const AGENT_LOCK_OWNER_KEYS = Object.freeze([
+  "acquiredAt",
+  "bootId",
+  "pid",
+  "processStartToken",
+  "schemaVersion",
+  "token",
 ]);
 
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{2,180}$/u;
@@ -579,10 +591,16 @@ export async function prepareDispatch({
 }
 
 async function runGit(repo, args, options = {}) {
+  const requestedTimeout = Number(options.timeout);
+  const timeout = Number.isFinite(requestedTimeout) && requestedTimeout > 0
+    ? Math.min(requestedTimeout, AGENT_GIT_COMMAND_TIMEOUT_MS)
+    : AGENT_GIT_COMMAND_TIMEOUT_MS;
   const { stdout } = await execFileAsync("git", ["-C", repo, ...args], {
     encoding: "utf8",
+    killSignal: "SIGTERM",
     maxBuffer: 16 * 1024 * 1024,
     ...options,
+    timeout,
   });
   return stdout.trim();
 }
@@ -785,15 +803,246 @@ export async function initializeAgent(configInput) {
   }
 }
 
-async function acquireAgentLock(stateRoot) {
-  const lock = join(stateRoot, "agent.lock");
+async function readBoundedNoFollow(path, maximumBytes, reason, {
+  allowZeroStatSize = false,
+} = {}) {
+  let handle;
   try {
-    await mkdir(lock, { mode: 0o700 });
+    handle = await open(path, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
+    const before = await handle.stat();
+    ensure(
+      before.isFile()
+      && (allowZeroStatSize || before.size > 0)
+      && before.size <= maximumBytes,
+      reason,
+    );
+    const bytes = await handle.readFile();
+    const after = await handle.stat();
+    ensure(
+      bytes.length > 0
+      && bytes.length <= maximumBytes
+      && before.dev === after.dev
+      && before.ino === after.ino
+      && before.size === after.size
+      && before.mtimeMs === after.mtimeMs,
+      reason,
+    );
+    return bytes.toString("utf8");
   } catch (error) {
-    if (error?.code === "EEXIST") throw new DispatchPolicyError("dispatch_agent_already_running");
+    if (error instanceof DispatchPolicyError) throw error;
+    throw new DispatchPolicyError(reason, {
+      code: typeof error?.code === "string" ? error.code.slice(0, 40) : null,
+    });
+  } finally {
+    if (handle) await handle.close();
+  }
+}
+
+async function readLinuxBootId() {
+  if (process.platform !== "linux") return `platform:${process.platform}`;
+  const value = (await readBoundedNoFollow(
+    "/proc/sys/kernel/random/boot_id",
+    128,
+    "dispatch_agent_boot_id_unavailable",
+    { allowZeroStatSize: true },
+  )).trim();
+  ensure(/^[a-f0-9-]{36}$/u.test(value), "dispatch_agent_boot_id_invalid");
+  return value;
+}
+
+async function readLinuxProcessStartToken(pid) {
+  if (process.platform !== "linux") return null;
+  const value = await readBoundedNoFollow(
+    `/proc/${pid}/stat`,
+    16 * 1024,
+    "dispatch_agent_process_identity_unavailable",
+    { allowZeroStatSize: true },
+  );
+  const commandEnd = value.lastIndexOf(")");
+  ensure(commandEnd > 0, "dispatch_agent_process_identity_invalid");
+  const fields = value.slice(commandEnd + 1).trim().split(/\s+/u);
+  const startToken = fields[19];
+  ensure(/^[0-9]+$/u.test(startToken ?? ""), "dispatch_agent_process_identity_invalid");
+  return startToken;
+}
+
+async function createAgentLockOwner(now) {
+  return {
+    acquiredAt: now.toISOString(),
+    bootId: await readLinuxBootId(),
+    pid: process.pid,
+    processStartToken: await readLinuxProcessStartToken(process.pid),
+    schemaVersion: AGENT_LOCK_SCHEMA,
+    token: randomBytes(32).toString("hex"),
+  };
+}
+
+function validateAgentLockOwner(owner) {
+  exactKeys(owner, AGENT_LOCK_OWNER_KEYS, "dispatch_agent_lock_owner_invalid");
+  ensure(owner.schemaVersion === AGENT_LOCK_SCHEMA, "dispatch_agent_lock_owner_invalid");
+  parseTimestamp(owner.acquiredAt, "dispatch_agent_lock_owner_invalid");
+  ensure(
+    typeof owner.bootId === "string"
+    && owner.bootId.length > 0
+    && owner.bootId.length <= 128
+    && /^[A-Za-z0-9:._-]+$/u.test(owner.bootId),
+    "dispatch_agent_lock_owner_invalid",
+  );
+  ensure(Number.isSafeInteger(owner.pid) && owner.pid > 0, "dispatch_agent_lock_owner_invalid");
+  ensure(
+    owner.processStartToken === null
+    || (
+      typeof owner.processStartToken === "string"
+      && /^[0-9]+$/u.test(owner.processStartToken)
+    ),
+    "dispatch_agent_lock_owner_invalid",
+  );
+  ensure(SHA256.test(owner.token), "dispatch_agent_lock_owner_invalid");
+  return owner;
+}
+
+async function readAgentLockOwner(lockPath) {
+  const raw = await readBoundedNoFollow(
+    join(lockPath, "owner.json"),
+    4096,
+    "dispatch_agent_lock_owner_missing_or_invalid",
+  );
+  try {
+    return validateAgentLockOwner(JSON.parse(raw));
+  } catch (error) {
+    if (error instanceof DispatchPolicyError) throw error;
+    throw new DispatchPolicyError("dispatch_agent_lock_owner_missing_or_invalid");
+  }
+}
+
+async function defaultAgentLockOwnerIsActive(owner) {
+  const currentBootId = await readLinuxBootId();
+  if (owner.bootId !== currentBootId) return false;
+  try {
+    process.kill(owner.pid, 0);
+  } catch (error) {
+    if (error?.code === "ESRCH") return false;
+    if (error?.code !== "EPERM") {
+      throw new DispatchPolicyError("dispatch_agent_lock_owner_probe_failed");
+    }
+  }
+  if (process.platform !== "linux") return true;
+  try {
+    return await readLinuxProcessStartToken(owner.pid) === owner.processStartToken;
+  } catch (error) {
+    if (
+      error instanceof DispatchPolicyError
+      && error.reason === "dispatch_agent_process_identity_unavailable"
+      && error.details?.code === "ENOENT"
+    ) {
+      return false;
+    }
     throw error;
   }
-  return lock;
+}
+
+async function publishAgentLockOwner(lockPath, owner) {
+  const ownerPath = join(lockPath, "owner.json");
+  const handle = await open(ownerPath, "wx", 0o600);
+  try {
+    await handle.writeFile(canonicalJson(owner));
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+}
+
+export async function acquireAgentLock(stateRoot, {
+  now = new Date(),
+  ownerFactory = createAgentLockOwner,
+  ownerIsActive = defaultAgentLockOwnerIsActive,
+  unownedStaleMs = AGENT_LOCK_UNOWNED_STALE_MS,
+} = {}) {
+  const lockPath = join(stateRoot, "agent.lock");
+  let recovery = null;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    let created = false;
+    try {
+      await mkdir(lockPath, { mode: 0o700 });
+      created = true;
+      try {
+        const owner = validateAgentLockOwner(await ownerFactory(now));
+        await publishAgentLockOwner(lockPath, owner);
+        return { owner, path: lockPath, recovery };
+      } catch (error) {
+        await rm(lockPath, { recursive: true, force: true });
+        throw error;
+      }
+    } catch (error) {
+      if (created) throw error;
+      if (error?.code !== "EEXIST") throw error;
+    }
+
+    const lockFacts = await lstat(lockPath).catch((error) => {
+      if (error?.code === "ENOENT") return null;
+      throw error;
+    });
+    if (!lockFacts) continue;
+    ensure(
+      lockFacts.isDirectory() && !lockFacts.isSymbolicLink(),
+      "dispatch_agent_lock_path_unsafe",
+    );
+
+    let existingOwner = null;
+    try {
+      existingOwner = await readAgentLockOwner(lockPath);
+    } catch (error) {
+      if (
+        !(error instanceof DispatchPolicyError)
+        || ![
+          "dispatch_agent_lock_owner_invalid",
+          "dispatch_agent_lock_owner_missing_or_invalid",
+        ].includes(error.reason)
+      ) {
+        throw error;
+      }
+      ensure(
+        now.getTime() - lockFacts.mtimeMs >= unownedStaleMs,
+        "dispatch_agent_lock_owner_missing_or_invalid_recent",
+      );
+      recovery = "RECOVERED_UNOWNED_STALE_LOCK";
+    }
+
+    if (existingOwner) {
+      ensure(
+        !(await ownerIsActive(existingOwner)),
+        "dispatch_agent_already_running",
+      );
+      recovery = "RECOVERED_DEAD_OWNER_LOCK";
+    }
+
+    const quarantinePath = join(
+      stateRoot,
+      `.agent.lock.stale-${process.pid}-${Date.now()}-${randomBytes(8).toString("hex")}`,
+    );
+    try {
+      await rename(lockPath, quarantinePath);
+    } catch (error) {
+      if (error?.code === "ENOENT") continue;
+      throw error;
+    }
+    await rm(quarantinePath, { recursive: true, force: false });
+  }
+  throw new DispatchPolicyError("dispatch_agent_lock_recovery_race");
+}
+
+export async function releaseAgentLock(lock) {
+  const currentOwner = await readAgentLockOwner(lock.path);
+  ensure(
+    currentOwner.token === lock.owner.token,
+    "dispatch_agent_lock_ownership_lost",
+  );
+  await rm(lock.path, { recursive: true, force: false });
+}
+
+function attachAgentLockRecovery(result, lock) {
+  if (!lock.recovery) return result;
+  return { ...result, agentLockRecovery: lock.recovery };
 }
 
 async function writeCommitFile(config, commit, name, destination) {
@@ -1025,19 +1274,25 @@ async function processCommit(config, commit, { launch, now }) {
 export async function agentOnce(configInput, {
   launch = defaultLaunch,
   now = new Date(),
+  lockOptions = {},
 } = {}) {
   const config = validateAgentConfig(configInput);
-  const lock = await acquireAgentLock(config.stateRoot);
+  const lock = await acquireAgentLock(config.stateRoot, { now, ...lockOptions });
   try {
     await ensureBareMirror(config);
     const cursorPath = join(config.stateRoot, "cursor.json");
     const cursor = await readJson(cursorPath, "dispatch_agent_cursor_missing_or_invalid");
     ensure(cursor.schemaVersion === AGENT_STATE_SCHEMA, "dispatch_agent_cursor_schema_invalid");
     const exists = await fetchOptionalRef(config, config.dispatchRef, config.dispatchTrackingRef);
-    if (!exists) return { status: "IDLE_NO_DISPATCH_REF" };
+    if (!exists) return attachAgentLockRecovery({ status: "IDLE_NO_DISPATCH_REF" }, lock);
     const head = await runGit(config.mirrorPath, ["rev-parse", config.dispatchTrackingRef]);
     ensure(COMMIT.test(head), "dispatch_agent_head_invalid");
-    if (cursor.lastDispatchCommit === head) return { commit: head, status: "IDLE_NO_NEW_DISPATCH" };
+    if (cursor.lastDispatchCommit === head) {
+      return attachAgentLockRecovery(
+        { commit: head, status: "IDLE_NO_NEW_DISPATCH" },
+        lock,
+      );
+    }
     let commits;
     if (cursor.lastDispatchCommit === null) {
       const count = Number(await runGit(config.mirrorPath, ["rev-list", "--count", head]));
@@ -1055,9 +1310,12 @@ export async function agentOnce(configInput, {
       ])).split(/\r?\n/u).filter(Boolean);
       ensure(commits.length === 1, "dispatch_queue_depth_exceeds_one");
     }
-    return await processCommit(config, commits[0], { launch, now });
+    return attachAgentLockRecovery(
+      await processCommit(config, commits[0], { launch, now }),
+      lock,
+    );
   } finally {
-    await rm(lock, { recursive: true, force: true });
+    await releaseAgentLock(lock);
   }
 }
 

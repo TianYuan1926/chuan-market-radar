@@ -5,6 +5,7 @@ import {
   mkdtemp,
   readFile,
   rm,
+  utimes,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -14,16 +15,20 @@ import { promisify } from "node:util";
 
 import {
   AGENT_CONFIG_SCHEMA,
+  AGENT_LOCK_SCHEMA,
+  AGENT_LOCK_UNOWNED_STALE_MS,
   DISPATCH_FILES,
   DispatchPolicyError,
   MAX_BUNDLE_BYTES,
   MAX_UNCOMPRESSED_BUNDLE_BYTES,
+  acquireAgentLock,
   agentOnce,
   canonicalJson,
   generateSigningKeyPair,
   initializeAgent,
   prepareDispatch,
   publishDispatch,
+  releaseAgentLock,
   sha256,
   signEnvelope,
   validateBundleEntries,
@@ -540,8 +545,101 @@ test("agent reports a stable policy reason when its remote cannot be read", asyn
   }
 });
 
+test("agent lock refuses a live owner and recovers a dead owner without weakening exclusivity", async () => {
+  const root = await mkdtemp(join(tmpdir(), "dispatch-agent-owned-lock-"));
+  const now = new Date("2026-07-27T08:00:00.000Z");
+  const firstOwner = {
+    acquiredAt: now.toISOString(),
+    bootId: "test-boot-id",
+    pid: 1001,
+    processStartToken: "4001",
+    schemaVersion: AGENT_LOCK_SCHEMA,
+    token: "a".repeat(64),
+  };
+  const secondOwner = {
+    ...firstOwner,
+    pid: 1002,
+    processStartToken: "4002",
+    token: "b".repeat(64),
+  };
+  try {
+    await mkdir(root, { recursive: true, mode: 0o700 });
+    const first = await acquireAgentLock(root, {
+      now,
+      ownerFactory: async () => firstOwner,
+    });
+    await assert.rejects(
+      acquireAgentLock(root, {
+        now,
+        ownerFactory: async () => secondOwner,
+        ownerIsActive: async () => true,
+      }),
+      policyReason("dispatch_agent_already_running"),
+    );
+    const recovered = await acquireAgentLock(root, {
+      now: new Date(now.getTime() + 1_000),
+      ownerFactory: async () => secondOwner,
+      ownerIsActive: async () => false,
+    });
+    assert.equal(recovered.recovery, "RECOVERED_DEAD_OWNER_LOCK");
+    await releaseAgentLock(recovered);
+    await assert.rejects(
+      releaseAgentLock(first),
+      policyReason("dispatch_agent_lock_owner_missing_or_invalid"),
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("agent lock self-heals the exact empty directory left by a timed-out legacy process", async () => {
+  const root = await mkdtemp(join(tmpdir(), "dispatch-agent-empty-stale-lock-"));
+  const lockPath = join(root, "agent.lock");
+  const now = new Date("2026-07-27T08:00:00.000Z");
+  const staleAt = new Date(now.getTime() - AGENT_LOCK_UNOWNED_STALE_MS - 1);
+  const owner = {
+    acquiredAt: now.toISOString(),
+    bootId: "test-boot-id",
+    pid: 1003,
+    processStartToken: "4003",
+    schemaVersion: AGENT_LOCK_SCHEMA,
+    token: "c".repeat(64),
+  };
+  try {
+    await mkdir(lockPath, { mode: 0o700 });
+    await utimes(lockPath, staleAt, staleAt);
+    const recovered = await acquireAgentLock(root, {
+      now,
+      ownerFactory: async () => owner,
+    });
+    assert.equal(recovered.recovery, "RECOVERED_UNOWNED_STALE_LOCK");
+    await releaseAgentLock(recovered);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("agent lock fails closed for a recent empty directory", async () => {
+  const root = await mkdtemp(join(tmpdir(), "dispatch-agent-empty-recent-lock-"));
+  const lockPath = join(root, "agent.lock");
+  const now = new Date();
+  try {
+    await mkdir(lockPath, { mode: 0o700 });
+    await assert.rejects(
+      acquireAgentLock(root, { now }),
+      policyReason("dispatch_agent_lock_owner_missing_or_invalid_recent"),
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("agent service source contains no browser, SSH, arbitrary command or secret transport", async () => {
   const source = await readFile("scripts/v2/production/fixed-channel/production-dispatch.mjs", "utf8");
+  const sshWrapper = await readFile(
+    "scripts/v2/production/fixed-channel/git-ssh-dispatch.sh",
+    "utf8",
+  );
   assert.doesNotMatch(source, /execFile(?:Async)?\(\s*["'](?:ssh|scp)["']|OrcaTerm|playwright|computer-use/iu);
   assert.doesNotMatch(source, /child_process\.(?:exec|execSync)|\beval\s*\(/u);
   assert.match(source, /noArbitraryCommand/);
@@ -553,6 +651,14 @@ test("agent service source contains no browser, SSH, arbitrary command or secret
   assert.match(source, /dirname\(process\.execPath\)/);
   assert.match(source, /claimHandle\.sync\(\)/);
   assert.match(source, /merge-base/);
+  assert.match(source, /Math\.min\(requestedTimeout, AGENT_GIT_COMMAND_TIMEOUT_MS\)/);
+  assert.match(source, /\n\s+timeout,\n/u);
+  assert.match(source, /RECOVERED_UNOWNED_STALE_LOCK/);
+  assert.match(source, /RECOVERED_DEAD_OWNER_LOCK/);
+  assert.match(sshWrapper, /ConnectTimeout=20/);
+  assert.match(sshWrapper, /ConnectionAttempts=2/);
+  assert.match(sshWrapper, /ServerAliveInterval=15/);
+  assert.match(sshWrapper, /ServerAliveCountMax=2/);
   assert.equal(canonicalJson({ z: 1, a: { y: 2, b: 3 } }),
     "{\"a\":{\"b\":3,\"y\":2},\"z\":1}\n");
 });
