@@ -220,7 +220,7 @@ function payloadFor(url: string): unknown {
       }],
     };
   }
-  if (url.includes("api.bybit.com")) {
+  if (new URL(url).hostname === "api.bybit.com") {
     return {
       retCode: 0,
       time: EVENT_MS,
@@ -446,7 +446,7 @@ test("runtime rejects unsafe native integers before normalization", async () => 
   const requests: PublicJsonRequest[] = [];
   const batches = await captureM1WideMarketVenueBatches(
     transport(requests, (request) =>
-      request.url.includes("api.bitget.com")
+      new URL(request.url).hostname === "api.bitget.com"
         ? {
           code: "00000",
           requestTime: Number.MAX_SAFE_INTEGER + 2,

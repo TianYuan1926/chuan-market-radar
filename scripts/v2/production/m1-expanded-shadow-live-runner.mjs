@@ -2,9 +2,11 @@
 
 import { execFile } from "node:child_process";
 import { randomBytes } from "node:crypto";
+import { constants as fsConstants } from "node:fs";
 import {
   lstat,
   mkdir,
+  open,
   readFile,
   readdir,
   realpath,
@@ -394,16 +396,58 @@ export function validateM1ExpandedShadowLiveRequest(
   return value;
 }
 
+export async function readM1ExpandedShadowStableRegularFile(
+  path,
+  reason,
+  {
+    expectedBytes = null,
+    maximumBytes = MAX_JSON_BYTES,
+  } = {},
+) {
+  let handle;
+  try {
+    handle = await open(
+      path,
+      fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+    );
+    const before = await handle.stat({ bigint: true });
+    ensure(
+      before.isFile() &&
+        before.size > 0n &&
+        before.size <= BigInt(maximumBytes) &&
+        (
+          expectedBytes === null ||
+          before.size === BigInt(expectedBytes)
+        ),
+      reason,
+    );
+    const bytes = await handle.readFile();
+    const after = await handle.stat({ bigint: true });
+    ensure(
+      BigInt(bytes.length) === after.size &&
+        before.ctimeNs === after.ctimeNs &&
+        before.dev === after.dev &&
+        before.ino === after.ino &&
+        before.mode === after.mode &&
+        before.mtimeNs === after.mtimeNs &&
+        before.size === after.size,
+      reason,
+    );
+    return bytes;
+  } catch (error) {
+    if (error instanceof M1ExpandedShadowLiveError) throw error;
+    throw new M1ExpandedShadowLiveError(reason, {
+      code: typeof error?.code === "string" ? error.code.slice(0, 40) : null,
+    });
+  } finally {
+    await handle?.close();
+  }
+}
+
 async function readCanonicalJson(path, reason, maximumBytes = MAX_JSON_BYTES) {
-  const facts = await lstat(path);
-  ensure(
-    facts.isFile() &&
-      !facts.isSymbolicLink() &&
-      facts.size > 0 &&
-      facts.size <= maximumBytes,
-    reason,
-  );
-  const bytes = await readFile(path);
+  const bytes = await readM1ExpandedShadowStableRegularFile(path, reason, {
+    maximumBytes,
+  });
   let value;
   try {
     value = JSON.parse(bytes.toString("utf8"));
@@ -463,12 +507,16 @@ async function validatePayloadFiles(stagingDirectory, manifest) {
   );
   for (const file of manifest.files) {
     const path = join(stagingDirectory, file.path);
-    const facts = await lstat(path);
+    const bytes = await readM1ExpandedShadowStableRegularFile(
+      path,
+      "expanded_shadow_payload_file_hash_mismatch",
+      {
+        expectedBytes: file.bytes,
+        maximumBytes: MAX_JSON_BYTES,
+      },
+    );
     ensure(
-      facts.isFile() &&
-        !facts.isSymbolicLink() &&
-        facts.size === file.bytes &&
-        prefixedSha256(await readFile(path)) === file.sha256,
+      prefixedSha256(bytes) === file.sha256,
       "expanded_shadow_payload_file_hash_mismatch",
       file.path,
     );

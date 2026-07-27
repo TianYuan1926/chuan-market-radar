@@ -176,12 +176,13 @@ function fixtureTransport(input: {
   return async (request) => {
     input.requests.push(request);
     let payload: unknown;
-    if (request.url.includes("fapi.binance.com")) {
+    const parsedUrl = new URL(request.url);
+    if (parsedUrl.hostname === "fapi.binance.com") {
       payload = binancePayload();
-    } else if (request.url.includes("okx.com")) {
+    } else if (parsedUrl.hostname === "www.okx.com") {
       payload = okxPayload();
-    } else if (request.url.includes("bybit.com")) {
-      const cursor = new URL(request.url).searchParams.get("cursor");
+    } else if (parsedUrl.hostname === "api.bybit.com") {
+      const cursor = parsedUrl.searchParams.get("cursor");
       payload = cursor === null
         ? bybitPayload("BTCUSDT", "next-page")
         : bybitPayload(
@@ -198,7 +199,7 @@ function fixtureTransport(input: {
       receivedAt: RECEIVED_AT,
       ...(
         input.missingBitgetDigest &&
-          request.url.includes("bitget.com")
+          parsedUrl.hostname === "api.bitget.com"
           ? {}
           : {
             bodyBytes: Buffer.byteLength(body),
@@ -221,11 +222,15 @@ test("captures the exact four-Venue catalogs and terminates Bybit pagination", a
 
   assert.equal(requests.length, 5);
   assert.equal(
-    requests.filter((request) => request.url.includes("bybit.com")).length,
+    requests.filter(
+      (request) => new URL(request.url).hostname === "api.bybit.com",
+    ).length,
     2,
   );
   assert.deepEqual(
-    requests.filter((request) => !request.url.includes("cursor="))
+    requests.filter(
+      (request) => !new URL(request.url).searchParams.has("cursor"),
+    )
       .map((request) => request.url)
       .sort(),
     Object.values(M1_MULTI_ASSET_CATALOG_TRANSPORT_PROFILE.sources)

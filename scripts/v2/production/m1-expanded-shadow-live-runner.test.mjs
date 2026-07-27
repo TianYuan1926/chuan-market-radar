@@ -1,8 +1,19 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { createRequire } from "node:module";
-import { resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import test from "node:test";
+import {
+  compileM1ExpandedShadowRuntime,
+} from "./m1-expanded-shadow-live-bundle.mjs";
 import {
   DEFAULT_M1_EXPANDED_SHADOW_LIVE_POLICY,
   M1_EXPANDED_SHADOW_LIVE_ENTRYPOINT,
@@ -16,6 +27,7 @@ import {
   buildM1ExpandedShadowFailureArtifact,
   buildM1ExpandedShadowPostgresRunArgs,
   m1ExpandedShadowTemporaryResourceNames,
+  readM1ExpandedShadowStableRegularFile,
   validateM1ExpandedShadowDispatchEnvelope,
   validateM1ExpandedShadowLiveRequest,
 } from "./m1-expanded-shadow-live-runner.mjs";
@@ -349,24 +361,70 @@ test("failure artifact refuses to claim unchanged production when recovery is un
   );
 });
 
-test("compiled runtime exports both independent workers and exact verifiers", () => {
-  const require = createRequire(import.meta.url);
-  const runtime = require(resolve(
-    ".tmp/m1-expanded-shadow-live-package",
-    M1_EXPANDED_SHADOW_LIVE_RUNTIME_ENTRY.replace(/^runtime\//u, ""),
-  ));
-  for (const name of [
-    "runM1MultiAssetShadowWorker",
-    "verifyM1MultiAssetShadowEvidenceStore",
-    "buildM1MicrostructureForwardRuntimeSelection",
-    "captureM1MicrostructureForwardWorker",
-    "verifyM1MicrostructureForwardCaptureStore",
-    "finalizeM1MicrostructureForwardWorker",
-    "verifyM1MicrostructureForwardEvidenceStore",
-    "buildM1ExpandedShadowReleaseManifest",
-    "buildM1ExpandedShadowReleaseResult",
-  ]) {
-    assert.equal(typeof runtime[name], "function", `missing runtime: ${name}`);
+test("compiled runtime exports both independent workers and exact verifiers", async () => {
+  await mkdir(".tmp", { recursive: true });
+  const temporary = await mkdtemp(
+    resolve(".tmp/m1-expanded-shadow-runtime-test-"),
+  );
+  try {
+    const outputRoot = join(temporary, "compiled");
+    await compileM1ExpandedShadowRuntime(process.cwd(), outputRoot);
+    const require = createRequire(import.meta.url);
+    const runtime = require(resolve(
+      outputRoot,
+      M1_EXPANDED_SHADOW_LIVE_RUNTIME_ENTRY.replace(/^runtime\//u, ""),
+    ));
+    for (const name of [
+      "runM1MultiAssetShadowWorker",
+      "verifyM1MultiAssetShadowEvidenceStore",
+      "buildM1MicrostructureForwardRuntimeSelection",
+      "captureM1MicrostructureForwardWorker",
+      "verifyM1MicrostructureForwardCaptureStore",
+      "finalizeM1MicrostructureForwardWorker",
+      "verifyM1MicrostructureForwardEvidenceStore",
+      "buildM1ExpandedShadowReleaseManifest",
+      "buildM1ExpandedShadowReleaseResult",
+    ]) {
+      assert.equal(typeof runtime[name], "function", `missing runtime: ${name}`);
+    }
+  } finally {
+    await rm(temporary, { recursive: true, force: true });
+  }
+});
+
+test("stable payload reads reject symbolic links and bind bytes to one file handle", async () => {
+  const temporary = await mkdtemp(
+    join(tmpdir(), "m1-expanded-shadow-stable-read-test-"),
+  );
+  try {
+    const target = join(temporary, "target.json");
+    const alias = join(temporary, "alias.json");
+    const bytes = Buffer.from('{"ok":true}\n');
+    await writeFile(target, bytes);
+    await symlink(target, alias);
+    assert.deepEqual(
+      await readM1ExpandedShadowStableRegularFile(
+        target,
+        "stable_read_invalid",
+        {
+          expectedBytes: bytes.length,
+          maximumBytes: bytes.length,
+        },
+      ),
+      bytes,
+    );
+    await assert.rejects(
+      () =>
+        readM1ExpandedShadowStableRegularFile(
+          alias,
+          "stable_read_invalid",
+        ),
+      (error) =>
+        error instanceof M1ExpandedShadowLiveError &&
+        error.reason === "stable_read_invalid",
+    );
+  } finally {
+    await rm(temporary, { recursive: true, force: true });
   }
 });
 
