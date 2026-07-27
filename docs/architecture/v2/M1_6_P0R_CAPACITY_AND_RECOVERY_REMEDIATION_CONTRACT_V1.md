@@ -74,7 +74,7 @@ ceil((current used + projected consumption) / 0.70)
 - 腾讯 COS 专用桶已创建并由控制台核验为 `ap-hongkong / SINGLE_AZ / PRIVATE / VERSIONING / SSE-COS / OBJECT_LOCK_COMPLIANCE_31D`；精确名称只保存在 Git 外受限事实文件，Git 只登记名称摘要 `sha256:85c3b03bfc42eb22e41bd622bbabb3c8a04778c2397af932fd889aa14440fc63`；尚未上传 P0R 对象，生产恢复仍未开始。
 - bucket 必须位于 `ap-hongkong`、单可用区、私有 ACL、versioning=`ENABLED`、SSE-COS AES256，并开启不可撤销的 Object Lock，默认 `COMPLIANCE` 31 天。腾讯当前 Object Lock 为白名单能力且不支持多 AZ bucket；版本控制启用后不得暂停。
 - 每次演练生成 128-bit 随机熵的 run-id，并形成唯一 `market-radar-v2/p0r/<date>/<run-id>.dump.age`。run-id、source commit、bucket、region、生产源 IP `/32`、唯一对象键和 STS policy 必须进入同一 provisioning plan 与 checksum-bound bundle。
-- STS 使用 `GetFederationToken`、7200 秒、无 `principal` 的精确 CAM policy，只允许 10 个 bucket/object 读取验证与唯一对象 Put action；source IP、HTTPS、TLS>=1.2、private ACL、Content-Type 和 COMPLIANCE retention 均为条件。原始 STS response 与编译后的 credential 只能位于 `/dev/shm`，原始 response 编译后立即删除。
+- STS 使用 `GetFederationToken`、`Region=ap-hongkong`、7200 秒、无 `principal` 的精确 CAM policy，只允许 10 个 bucket/object 读取验证与唯一对象 Put action；Region 必须同时进入 request、plan digest 与 credential request digest，source IP、HTTPS、TLS>=1.2、private ACL、Content-Type 和 COMPLIANCE retention 均为条件。原始 STS response 与编译后的 credential 只能位于 `/dev/shm`，原始 response 编译后立即删除。
 - provisioning plan、policy、STS request 和 RequestId 分别形成摘要。该链证明本次工具使用的明确申请材料和腾讯返回身份，但不谎称可从 token 本身反向解出服务端策略；真实 API 授权结果仍由后续 bucket/object 操作共同证明。
 - 腾讯官方明确说明：versioning 启用后 `x-cos-forbid-overwrite` 不生效。因此它只能作为请求/策略约束，不能写成防覆盖能力。真实防碰撞合同是高熵唯一 key、上传前 HEAD 必须 404、已存在立即停止、上传后绑定 exact versionId；不得复用 key。
 

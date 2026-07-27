@@ -2,7 +2,7 @@
 
 Date: 2026-07-27
 
-Status: `LOCAL_ENGINEERING_FULL_CI_AND_EXACT_SOURCE_REMOTE_QUALIFICATION_PASS / PRODUCTION_REBIND_NOT_EXECUTED / PRODUCTION_UNCHANGED`
+Status: `PRODUCTION_READ_ONLY_REBIND_PASS_SOURCE_94118 / PRODUCTION_ZERO_DRIFT / STS_REQUEST_REJECTED_MISSING_REQUIRED_REGION_NO_CREDENTIAL / PLAN_V3_ROOT_REMEDIATION_LOCAL_PASS_REMOTE_REQUALIFICATION_PENDING`
 
 ## 1. Why This Package Exists
 
@@ -100,14 +100,43 @@ migrations, COS objects, GitHub main and all business authority are unchanged.
 The only production mutation was the separately bounded fixed-dispatch
 control-plane repair.
 
-The next allowed production action is only:
+At that historical point, the next allowed production action was:
 
 ```text
 V2-M1.6-P0R-R0-READ-ONLY-SOURCE-REBIND
 ```
 
-It must pass before creating a fresh current-source plan or transport bundle. STS and age identity remain outside the signed Git channel and may enter only `/dev/shm` under a fresh, exact, time-bounded recovery action.
+It had to pass before creating a fresh current-source plan or transport bundle. STS and age identity remain outside the signed Git channel and may enter only `/dev/shm` under a fresh, exact, time-bounded recovery action.
 
-The expired dispatch cannot be reused. The immediate next operation is to
-generate and publish a fresh exact signed read-only rebind with a new approval
-window.
+The expired dispatch cannot be reused.
+
+## 6. Fresh Production Rebind and STS Region Contract Correction
+
+The historical next action above was subsequently completed with exact source
+`94118d3b8270b6ac58c449380911ea77b8abeace`. That source passed complete local
+CI and GitHub Full Quality `30263341562`, A0 Release Qualification
+`30263341569`, Independent Security `30263341571` and Signed Production
+Dispatch Quality `30263341645`.
+
+Fresh dispatch `p0r-rebind-preflight-20260727t115642z-bd715b46` returned
+`PASS_P0R_READ_ONLY_REBIND_PREFLIGHT` on Tencent. Production HEAD
+`cec0b6572bb09ae91ff9e013f8bb160f73c045e2`, clean worktree, 11-container
+identity and application health remained unchanged.
+
+The next exact v2 plan and bundle were built, uploaded and verified member by
+member. After user identity verification, Tencent API Explorer rejected the STS
+request with `MissingParameter.Region`. No temporary credential was generated;
+the database was not read; no backup or COS object was created. The exact
+invalid remote staging was removed.
+
+The root cause was a local contract omission: `ap-hongkong` was already bound
+to the grant and policy, but not to `stsRequest.region`. The executable plan
+schema is now `v2-m1-production-storage-cos-provisioning-plan.v3`. Region is
+part of the request, plan digest and credential request digest, and the Go COS
+helper rejects a missing or mismatched value. P0R `72/72`, the Go helper and V2
+Ops `194/194` pass locally.
+
+This report does not claim recovery completion. Complete local CI is PASS. The
+remediated source still requires all four exact-source GitHub gates, a fresh
+production read-only rebind and a newly built v3 plan/bundle before requesting
+another 7200-second STS credential.

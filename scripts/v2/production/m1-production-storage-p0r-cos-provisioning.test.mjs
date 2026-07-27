@@ -61,7 +61,17 @@ test("builds a deterministic single-AZ immutable COS plan with exact object scop
     "market-radar-v2/p0r/2026-07-21/"
   }${RUN_ID}.dump.age`);
   assert.deepEqual(value.credentialGrant.actions, P0R_COS_GRANT_ACTIONS);
+  assert.deepEqual(Object.keys(value.stsRequest).sort(), [
+    "action",
+    "durationSeconds",
+    "endpoint",
+    "name",
+    "policy",
+    "region",
+    "version",
+  ]);
   assert.equal(value.stsRequest.durationSeconds, 7_200);
+  assert.equal(value.stsRequest.region, "ap-hongkong");
   assert.equal("principal" in value.stsRequest.policy, false);
   assert.equal(value.overwriteProtection.forbidOverwriteHeaderEffectiveWithVersioning, false);
   assert.equal(value.overwriteProtection.preUploadAbsenceRequired, true);
@@ -126,6 +136,27 @@ test("rejects plan drift, broad network scope and timestamp reuse", () => {
     sourceCommit: SOURCE_COMMIT,
     sourceIpCidr: "203.0.113.24/32",
   }), /timestamp/u);
+});
+
+test("fails closed when the required Tencent STS Region is missing or mismatched", () => {
+  for (const mutate of [
+    (value) => {
+      delete value.stsRequest.region;
+    },
+    (value) => {
+      value.stsRequest.region = "ap-singapore";
+    },
+  ]) {
+    const drifted = structuredClone(plan());
+    mutate(drifted);
+    const unsigned = structuredClone(drifted);
+    delete unsigned.planDigest;
+    drifted.planDigest = stableSha256(unsigned);
+    assert.throws(
+      () => validateP0RCosProvisioningPlan(drifted),
+      /contract drift/u,
+    );
+  }
 });
 
 test("compiles current Tencent STS response into a plan-bound credential envelope", () => {

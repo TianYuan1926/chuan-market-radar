@@ -2,6 +2,30 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-27 / P0R STS Required Region Contract Root Remediation
+
+### 本轮目标
+
+根据腾讯 API Explorer 的真实拒绝结果，根治 P0R provisioning plan 未把必填 Region 写入 STS request 的合同缺口，禁止手工补参数绕过 exact-plan digest。
+
+### 修改范围
+
+- plan schema 从 `v2-m1-production-storage-cos-provisioning-plan.v2` 升级为 `.v3`，`stsRequest.region=ap-hongkong` 进入 plan digest 与 credential request digest。
+- Go COS helper 同步要求 request Region 与 grant Region 精确一致，缺失或非香港一律 fail closed。
+- JavaScript 与 Go 回归覆盖 Region 缺失和错配；运行合同、生产手册、蓝图、追踪矩阵和上下文同步当前真值。
+- 历史 v2 staging/bundle 验证器仍只用于读取旧证据，不被机械改写为新可执行合同。
+
+### 验收结果
+
+- source `94118d3b8270b6ac58c449380911ea77b8abeace` 的前序 GitHub 四门和腾讯 fresh read-only rebind 均 PASS，生产身份零漂移。
+- 随后的 v2 STS 请求真实返回 `MissingParameter.Region`；没有 credential、数据库读取、backup 或 COS 对象，失效 remote staging 已精确清理。
+- 新合同定向 P0R `72/72 PASS`、Go helper PASS、V2 Ops `194/194 PASS`。
+- 完整本地 `ci:production` 已 PASS；新修复提交四条 exact-source GitHub 门禁和 fresh production read-only rebind 尚待执行。
+
+### 风险与下一步
+
+本轮仍不是 P0R 恢复完成。旧 v2 plan/bundle 已失去执行权；只有新 clean commit 通过完整 CI、远端四门和 fresh rebind 后，才能重建 v3 plan/bundle 并重新请求 7200 秒 STS，再执行 backup、exact retrieval、isolated PG16 restore、cleanup 与 fresh P0。
+
 ## 2026-07-27 / Fixed Dispatch Timeout Lock Root-Cause Recovery
 
 ### 本轮目标
@@ -116,37 +140,3 @@ signed read-only dispatch `p0r-rebind-preflight-20260726t213258z-e77631a3` 当�
 ### 下一步
 
 下一入口仍是 `V2-M1.6-P0R-R0-READ-ONLY-SOURCE-REBIND`，但必须生成新的时效派发，禁止复用已消费的旧 commit。生产重绑定 PASS 后才允许从 current source 重建 plan/bundle；fresh STS 与 age identity 只能单独进入 `/dev/shm`，随后才能执行真实 backup、exact retrieval、isolated restore 与 cleanup。
-
-## 2026-07-27 / V2 A0 Reproducible Release and Resource Baseline
-
-### 本轮目标
-
-在同一 exact source 上关闭 A0 的可重复制品/回滚与冻结性能资源基线，不放宽门槛、不减少样本，并让完整质量和独立安全重新验收最终源码。
-
-### 修改范围
-
-- 新增最小 Collector application capsule，只包含冻结运行闭包、一个必需诊断、精确 runtime package 和内容寻址 manifest；两次序列化必须字节一致。
-- 新增两个独立 no-cache Buildx RootFS、canonical tree、exact image configuration、non-root 身份、read-only/no-network fail-closed smoke 和三个隔离 release-pointer rollback 场景。
-- 新增冻结三 Venue、1,440 eligible instrument 工程负载：5 次 warm-up、12 次 cold、60 次 incremental；延迟、CPU、event-loop、RSS、heap 和吞吐预算全部预先冻结。
-- 保留并根治远程红灯：Buildx RootFS ownership、合法 POSIX 路径、两处 evidence TOCTOU 和 event-loop p99 超限。证据读取改为单 `O_NOFOLLOW` 句柄前后 `fstat`；Collector 在四个既有重阶段间 cooperative yield。
-- 没有减少 instrument 分母、样本、Collector 工作、CodeQL 查询或安全扫描，也没有提高 `200 ms` event-loop p99 门槛。
-
-### 验收结果
-
-- source parts `9ef63b85d1a76f3ad7ac + 815e081506c5dbc074a5` 的 A0 run `30217335595` 两个 job 全部 PASS。
-- release provenance job `89833713538`：双 RootFS canonical digest、双 application capsule、exact image config、runtime smoke 和三个 rollback scenario 全部 PASS；artifact `8636196061`。
-- performance job `89833713570`：cold/incremental latency p95=`183.731/44.944 ms`，event-loop p99=`64.750 ms`，throughput p05=`31,510.967 instruments/s`，heap/RSS=`140.406/232.801 MiB`；artifact `8636187635`。
-- 同源 Full Quality `30217335543`、job `89833713330` PASS；Market 965 pass + 4 explicit skip、Workers 23/23、Historical 4/4、V2 Foundation 584 pass + 6 explicit skip、V2 Ops 170/170、M0、Next build、Golden 16/16 和 security 全部通过。
-- 同源 Security `30217335622` 三 job 全部 PASS：Gitleaks finding=0、CodeQL untriaged=0、Trivy HIGH=0/CRITICAL=0。
-
-### 核心链路影响
-
-A0 的材料、供应链、独立安全、可重复制品/回滚和冻结性能资源控制均已关闭。性能证据仍是 `TEST_ONLY_ENGINEERING_RESOURCE_BASELINE_NOT_LIVE_MARKET_CAPACITY`，不能证明四 Venue Scope V2、腾讯宿主机、真实 Provider 或 PostgreSQL 容量。
-
-### 是否部署
-
-未部署。腾讯生产未读、未写；服务、数据库、Redis、Worker、Web、Caddy、COS、env、Feature Flag、migration、GitHub main 和业务 authority 均未改变。
-
-### 风险与下一步
-
-A0 总门禁仍为 `INCOMPLETE_P0R_PENDING`，唯一剩余控制是 P0R 真实加密离机备份、精确 COS version 取回、独立 PostgreSQL 16 restore parity 和 cleanup。P0R 关闭前 M1.5C/M1.5D 继续 blocked。

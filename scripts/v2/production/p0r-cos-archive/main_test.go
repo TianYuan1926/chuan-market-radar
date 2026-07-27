@@ -50,6 +50,7 @@ func validPlan(now time.Time) provisioningPlan {
 			Endpoint:        "sts.tencentcloudapi.com",
 			Name:            "MarketRadarRecovery",
 			Policy:          map[string]any{"version": "2.0"},
+			Region:          "ap-hongkong",
 			Version:         "2018-08-13",
 		},
 	}
@@ -102,6 +103,17 @@ func TestValidatePlanRejectsInvalidSourceCommit(t *testing.T) {
 	plan.SourceCommit = "dirty-or-abbreviated"
 	if err := validatePlan(plan, plan.CredentialGrant.RunID); err == nil {
 		t.Fatal("invalid source commit unexpectedly passed")
+	}
+}
+
+func TestValidatePlanRejectsMissingOrMismatchedSTSRegion(t *testing.T) {
+	now := time.Date(2026, 7, 21, 12, 0, 0, 0, time.UTC)
+	for _, region := range []string{"", "ap-singapore"} {
+		plan := validPlan(now)
+		plan.STSRequest.Region = region
+		if err := validatePlan(plan, plan.CredentialGrant.RunID); err == nil {
+			t.Fatalf("STS region %q unexpectedly passed", region)
+		}
 	}
 }
 

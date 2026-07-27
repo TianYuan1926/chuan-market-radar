@@ -8,7 +8,7 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 export const P0R_COS_PROVISIONING_PLAN_SCHEMA_VERSION =
-  "v2-m1-production-storage-cos-provisioning-plan.v2";
+  "v2-m1-production-storage-cos-provisioning-plan.v3";
 export const P0R_COS_CREDENTIAL_SCHEMA_VERSION =
   "v2-m1-production-storage-cos-temporary-credentials.v2";
 export const P0R_STS_DURATION_SECONDS = 7_200;
@@ -183,6 +183,7 @@ export function buildP0RCosProvisioningPlan(input) {
     endpoint: "sts.tencentcloudapi.com",
     name: "MarketRadarRecovery",
     policy,
+    region: input.region,
     version: "2018-08-13",
   };
   const unsigned = {

@@ -28,7 +28,7 @@ import (
 
 const (
 	credentialSchema = "v2-m1-production-storage-cos-temporary-credentials.v2"
-	planSchema       = "v2-m1-production-storage-cos-provisioning-plan.v2"
+	planSchema       = "v2-m1-production-storage-cos-provisioning-plan.v3"
 	archiveSchema    = "v2-m1-production-storage-cos-archive-facts.v2"
 	maximumObject    = int64(5 * 1024 * 1024 * 1024)
 	minimumRemaining = 75 * time.Minute
@@ -112,6 +112,7 @@ type stsRequest struct {
 	Endpoint        string `json:"endpoint"`
 	Name            string `json:"name"`
 	Policy          any    `json:"policy"`
+	Region          string `json:"region"`
 	Version         string `json:"version"`
 }
 
@@ -409,6 +410,7 @@ func validatePlan(value provisioningPlan, runID string) error {
 	request := value.STSRequest
 	if request.Action != "GetFederationToken" || request.DurationSeconds != int(credentialLife/time.Second) ||
 		request.Endpoint != "sts.tencentcloudapi.com" || request.Name != "MarketRadarRecovery" ||
+		request.Region != value.CredentialGrant.Region || request.Region != "ap-hongkong" ||
 		request.Version != "2018-08-13" || request.Policy == nil {
 		return errors.New("provisioning plan STS request is invalid")
 	}
