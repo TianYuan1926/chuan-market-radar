@@ -78,7 +78,27 @@ All three workflows explicitly reported `production_execution=false`, `productio
 
 ## 5. Production Truth
 
-No production command was executed by this package delivery. Web, Caddy, PostgreSQL, Redis, Workers, containers, volumes, environment, feature flags, migrations, COS objects, GitHub main and all business authority are unchanged.
+The first signed dispatch was later inspected on the Tencent target. It had not
+been claimed, extracted or launched. A fixed-channel Git fetch had exceeded the
+180-second systemd service limit before the dispatch was available, and the old
+directory-only lock then blocked 4,526 polls. The control-plane defect was
+repaired and accepted separately under
+`V2_FIXED_DISPATCH_TIMEOUT_LOCK_RECOVERY_DELIVERY_REPORT.md`.
+
+After repair, the expired dispatch commit was consumed as
+`FAIL_DISPATCH_NOT_REUSABLE / dispatch_not_current`, with `dispatchId=null`,
+`packageId=null`, no claim and no business staging. Therefore the former
+`UNKNOWN_TARGET_RECEIPT_UNREAD` state is superseded by:
+
+```text
+CONFIRMED_NOT_EXECUTED_EXPIRED_NOT_CLAIMED
+```
+
+No production command from this P0R package was executed. Web, Caddy,
+PostgreSQL, Redis, Workers, containers, volumes, environment, feature flags,
+migrations, COS objects, GitHub main and all business authority are unchanged.
+The only production mutation was the separately bounded fixed-dispatch
+control-plane repair.
 
 The next allowed production action is only:
 
@@ -87,3 +107,7 @@ V2-M1.6-P0R-R0-READ-ONLY-SOURCE-REBIND
 ```
 
 It must pass before creating a fresh current-source plan or transport bundle. STS and age identity remain outside the signed Git channel and may enter only `/dev/shm` under a fresh, exact, time-bounded recovery action.
+
+The expired dispatch cannot be reused. The immediate next operation is to
+generate and publish a fresh exact signed read-only rebind with a new approval
+window.

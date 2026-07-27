@@ -932,6 +932,20 @@ test("governance contract matches the executable transport and truth boundary", 
   assert.equal(contract.execution.invalidSingleDispatchQuarantineRequired, true);
   assert.equal(contract.execution.launchWorkingDirectory, "exact_staging_root");
   assert.equal(contract.execution.nodeChildJitlessRequired, true);
+  assert.equal(contract.execution.gitChildTimeoutSeconds, 90);
+  assert.equal(contract.execution.gitChildTimeoutCallerOverrideAllowed, false);
+  assert.equal(contract.execution.lockOwnerIdentityRequired, true);
+  assert.deepEqual(contract.execution.lockOwnerFields, [
+    "bootId",
+    "pid",
+    "processStartToken",
+    "acquiredAt",
+    "token",
+  ]);
+  assert.equal(contract.execution.liveOwnerRecoveryAllowed, false);
+  assert.equal(contract.execution.provenDeadOwnerRecoveryRequired, true);
+  assert.equal(contract.execution.legacyUnownedLockMinimumStaleSeconds, 240);
+  assert.equal(contract.execution.lockReleaseOwnershipTokenRequired, true);
   assert.equal(contract.installation.installerIncludedInSourceSet, true);
   assert.equal(contract.installation.checksumBoundShortLauncherRequired, true);
   assert.equal(contract.installation.manualLongEnvironmentCommandRequired, false);
@@ -981,6 +995,17 @@ test("governance contract matches the executable transport and truth boundary", 
   assert.equal(contract.firstSignedDispatchEvidence.containerIdentityUnchanged, true);
   assert.equal(contract.firstSignedDispatchEvidence.transportContainsSecrets, false);
   assert.equal(contract.firstSignedDispatchEvidence.stagingCleaned, true);
+  assert.equal(contract.timeoutLockRecoveryEvidence.status,
+    "PASS_FIXED_DISPATCH_LOCK_RECOVERY");
+  assert.equal(contract.timeoutLockRecoveryEvidence.sourceCommit,
+    "2b4fccc9f3affe613d4f0da0f97295d97b0c6452");
+  assert.equal(contract.timeoutLockRecoveryEvidence.alreadyRunningFailureCount, 4526);
+  assert.equal(contract.timeoutLockRecoveryEvidence.expiredDispatchClaimCreated, false);
+  assert.equal(contract.timeoutLockRecoveryEvidence.expiredBusinessRunnerLaunched, false);
+  assert.equal(contract.timeoutLockRecoveryEvidence.agentLockAbsentAfterAcceptance, true);
+  assert.equal(contract.timeoutLockRecoveryEvidence.containerIdentityUnchanged, true);
+  assert.equal(contract.timeoutLockRecoveryEvidence.businessRuntimeMutation, false);
+  assert.equal(contract.timeoutLockRecoveryEvidence.stagingCleaned, true);
   assert.equal(contract.recurrenceRootCauseGate.requiredForEveryActivePackage, true);
   assert.equal(contract.recurrenceRootCauseGate.currentOpenIncidentCount, 0);
   assert.equal(contract.recurrenceRootCauseGate.allowedBootstrapOperation,

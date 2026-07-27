@@ -2,6 +2,31 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-27 / Fixed Dispatch Timeout Lock Root-Cause Recovery
+
+### 本轮目标
+
+读取旧 P0R 派发的真实目标 receipt，根治固定派发代理在 systemd 超时后遗留空锁、持续拒绝后续包的问题，并恢复低延迟的生产派发通道。
+
+### 修改范围
+
+- 生产 journal 证明 2026-07-26 14:09:36 +08:00 的 Git fetch 在 180 秒后被 systemd `SIGTERM`；空 `agent.lock` 无任何 live owner，随后累计 4,526 次 `dispatch_agent_already_running`。
+- agent 的 Git child 改为不可由调用方取消的 90 秒硬上限；SSH 增加连接次数、连接超时和 keepalive 失败边界。
+- lock 新增 boot ID、PID、Linux process-start token、acquiredAt 和随机 token；live owner fail closed，dead owner 隔离恢复，空旧锁只在四分钟后恢复。
+- governance contract、24 项固定通道回归、复发注册表、运行手册、权威蓝图和生产验收报告同步更新。
+
+### 验收结果
+
+- `npm run test:production-dispatch` 24/24、recurrence gate 9/9 和完整本地 `ci:production` PASS。
+- 腾讯隔离 Linux smoke 返回 `PASS_LINUX_AGENT_LOCK_SELF_RECOVERY_AND_EXCLUSION`。
+- 生产只替换 agent、Git SSH wrapper 和 README 三文件；旧件和游标保留为可回滚证据。
+- 旧 dispatch 被记录为 `FAIL_DISPATCH_NOT_REUSABLE / dispatch_not_current`，无 claim、解包或业务 Runner；随后手动和 timer 轮询均为 `IDLE_NO_NEW_DISPATCH`。
+- 生产应用 HEAD/clean worktree、11 容器、Web/PostgreSQL/Redis、六 Worker 和 health 全部零漂移；远端 staging 已精确删除。
+
+### 风险与下一步
+
+本次完成的是生产派发控制面的根因关闭，不是 P0R 完成。旧派发已确认过期、未领取、未执行且禁止复用；下一动作是生成并执行 fresh exact signed read-only rebind，然后才能进入 current-source plan/bundle、fresh `/dev/shm` STS/age、加密 backup、exact retrieval、独立 PG16 restore、cleanup 与 fresh P0。
+
 ## 2026-07-27 / V2 M1.4D + M1.5C/M1.5D Local Runtime and Exact Package
 
 ### 本轮目标
@@ -56,11 +81,11 @@
 
 ### 是否部署
 
-未派发或部署本包。腾讯应用、数据库、Redis、Worker、容器、env、Feature Flag、migration、COS 和业务 authority 未由本包改变。独立 P0R dispatch 的目标 receipt 仍未读取，不能从本包推断其现场结果。
+未派发或部署本包。腾讯应用、数据库、Redis、Worker、容器、env、Feature Flag、migration、COS 和业务 authority 未由本包改变。当时独立 P0R receipt 尚未读取；该历史未知状态现已由本日志首条的目标核对结果覆盖。
 
 ### 风险与下一步
 
-该证据只覆盖三 Venue 约 16.6 分钟目录连续性，不含 Bitget、24h SLO、官方 mapping 完整性、价格或微观结构 Fact、真实 cohort、Detector、Candidate、Strategy 或 READY。下一生产动作仍是先只读取得 P0R 目标 receipt；A0 总门禁关闭后再启动同源 M1.5C/M1.5D。
+该证据只覆盖三 Venue 约 16.6 分钟目录连续性，不含 Bitget、24h SLO、官方 mapping 完整性、价格或微观结构 Fact、真实 cohort、Detector、Candidate、Strategy 或 READY。P0R 旧包已确认未执行，当前下一生产动作是 fresh signed read-only rebind；A0 总门禁关闭后再启动同源 M1.5C/M1.5D。
 
 ## 2026-07-27 / V2 M1.6-P0R Read-Only Source Rebind
 
@@ -86,11 +111,11 @@
 
 ### 是否部署
 
-signed read-only dispatch `p0r-rebind-preflight-20260726t213258z-e77631a3` 已发布并过期；目标 receipt 未读取，故现场是否领取、启动或完成都是 `UNKNOWN`。没有 STS、backup、retrieval、restore 或生产 mutation 的确认回执；不能写执行 PASS，也不能写“确定未执行”。
+signed read-only dispatch `p0r-rebind-preflight-20260726t213258z-e77631a3` 当时已发布并过期，现场状态最初保持 `UNKNOWN`。当前 receipt 已证明它未 claim、未解包、未执行，并因过期写入 `dispatch_not_current`；该旧未知结论已失效。仍没有 STS、backup、retrieval 或 restore。
 
 ### 下一步
 
-下一入口仍是 `V2-M1.6-P0R-R0-READ-ONLY-SOURCE-REBIND`，但必须先只读取得已发布 dispatch 的目标 receipt；若已有结果则先验收，若未领取才生成新时效派发。生产重绑定 PASS 后才允许从 current source 重建 plan/bundle；fresh STS 与 age identity 只能单独进入 `/dev/shm`，随后才能执行真实 backup、exact retrieval、isolated restore 与 cleanup。
+下一入口仍是 `V2-M1.6-P0R-R0-READ-ONLY-SOURCE-REBIND`，但必须生成新的时效派发，禁止复用已消费的旧 commit。生产重绑定 PASS 后才允许从 current source 重建 plan/bundle；fresh STS 与 age identity 只能单独进入 `/dev/shm`，随后才能执行真实 backup、exact retrieval、isolated restore 与 cleanup。
 
 ## 2026-07-27 / V2 A0 Reproducible Release and Resource Baseline
 
@@ -125,52 +150,3 @@ A0 的材料、供应链、独立安全、可重复制品/回滚和冻结性能�
 ### 风险与下一步
 
 A0 总门禁仍为 `INCOMPLETE_P0R_PENDING`，唯一剩余控制是 P0R 真实加密离机备份、精确 COS version 取回、独立 PostgreSQL 16 restore parity 和 cleanup。P0R 关闭前 M1.5C/M1.5D 继续 blocked。
-
-## 2026-07-27 / V2 M1.4C + M2.1A Local Contracts and A0 Materials/Security
-
-### 本轮目标
-
-在 M0.5 设计修订之后，把 Microstructure Fact/Feature/Cache 与双向前兆研究图谱落成本地合同，同时先建立 M1.5C/M1.5D 前的 A0 工程材料硬门禁，继续关闭 Candidate、Signal、READY 和生产权限。
-
-### 修改范围
-
-- M1.4C 实现六类 Microstructure Fact、LiquidityWallEpisode 生命周期、十三项 Market Mechanics Feature、exact source/identity/cutoff/freshness lineage，以及 ONLINE 与两个独立 REPLAY 的语义一致性。
-- 缓存合同冻结 L1 进程内、L2 Redis、L3 PostgreSQL、L4 COS 的 12 行 artifact policy；missing 不得变 0，stale 不得变 fresh，缓存不可取得 Decision authority。
-- M2.1A 实现八族各自 LONG/SHORT/UNKNOWN 共 24 个 DRAFT/UNCALIBRATED 假设，禁止用同一 Feature 的正负翻转冒充双向机制。
-- 研究 Gate 强制三 Outcome、point-in-time 板块关系、逐 family-direction 四 Venue/三 regime/三 liquidity segment、matched control、消融、sealed holdout、forward Shadow、rights 和独立审计。
-- 修复既存 M3.4-R1 草稿与当前 strict schema 的 import、枚举和 fixture 兼容阻断；只恢复全仓编译与回归，不把定向测试为 0 的草稿标成 M3.4 出口。
-- Provider Adapter 改入正式 adapter 边界并锁定 exact host/role/REST schema；Live Transport 补齐并发启动、停止结算、有界丢弃、超时、重连和 future-time 拒绝测试。exact Node 22 完整 CI 进一步发现负责 Promise 结算的 timeout 被错误 `unref`，已根治并以修复提交 `2ae438b394d289a05f02dbfa0c2846cd2194ea37` 复验。
-- A0 第一批锁定 Node `22.23.1`、npm `10.9.8` 和全部直接依赖，升级 Next/PostCSS/Sharp 安全补丁，删除未使用的 `shadcn` CLI/MCP 依赖和死 CSS 导入。
-- 新增许可证门禁、CycloneDX SBOM、零高危审计、GitHub Action/runner/base-image pin、ESLint + Biome 和 Sharp/PostCSS 原生烟测；完成独立安全验收后，蓝图升级到 v1.48、机器矩阵升级到 v1.53。
-- 首次 GitHub Ubuntu Full Quality `30198990064` 与 Signed Dispatch `30198990079` 均在同一 host tar `--uid=0` 兼容点失败；没有掩盖红灯。提交 `29ab47dec0b9fbbbe66e1cfe7ce90aa2e1e4c25d` 已用纯 Node USTAR 根治四个活跃 V2 Bundle 的宿主方言依赖，Legacy 历史制品保持冻结。
-- Signed Dispatch `30199692352` 已在 Ubuntu PASS；Full Quality `30199692349` 随后暴露 checkout depth-1 无法读取 M0 审查祖先。提交 `1d5638d0fb538bacec09086ec7b719d9e7a85ce9` 已改为完整 Git 历史，A0 门禁会阻止该配置回退，M0 失败会输出具体失败检查。
-- Full Quality `30200077285`、job `89788386319` 已在 exact HEAD `dc5e1823d08ac5a2d1630f3989257e735f829695` 的 Ubuntu 24.04 完整 PASS；SBOM artifact `8631398374` digest=`sha256:ba6de688e0b2163ccc7f17c06e39c9ef35406eb98235d744a137d849cb57e241`。exact-runtime remote CI 控制项正式完成。
-- 独立安全工作流已固定 full-history Gitleaks `8.30.1`、CodeQL action `4.37.3` + linked bundle `2.26.1` + JS query pack `2.4.1` + `AlertSuppression.ql`、exact collector image 与 Trivy `0.72.0`。Gitleaks 只接受 exact historical fingerprint；CodeQL suppression 只接受 exact rule/file/alert-line/review/invariant 且源码紧邻。
-- exact source `4f501b0fb8b917ce87e0687eab8480b5c9595f27` 的 Security `30209898205` 三 job 全部 PASS：完整历史 secret finding=0；CodeQL result=8、reviewed=8、blocking=0；镜像 HIGH=0、CRITICAL=0。脱敏 artifact `8634143821`、`8634167593`、`8634153873` 已核验。同源 Full Quality `30209898207`、job `89814245105` PASS。
-- 收口提交后的 Security `30211083028` 如实保留 Gitleaks 红灯：新交付报告两次连续写入审查提交 SHA，被误判为 Sourcegraph token。artifact `8634464899` 已证明精确位置；v4 审查只增加两个历史 fingerprint，当前报告/矩阵改为两段 20-hex，材料门禁和 M0 同时阻止连续 40-hex 回归。
-- 修复 source parts `9f6d4731e6afbf0a68d3 + 2a98df64da179f20d84a` 已由 Security `30212437973` 和 Full Quality `30212437974` 复验：Gitleaks finding=0、CodeQL 8/8 reviewed 且 blocking=0、Trivy HIGH/CRITICAL=0；四个脱敏 artifact 与 SBOM 均已核验，生产 mutation=false。机器门禁现在同时绑定失败事故、精确历史 fingerprint、分段身份和修复后收据。
-- 长期治理补充 `DYNAMIC_BLUEPRINT_POSITIVE_ADJUSTMENT_GATE` 与 `GENERALIZATION_AND_ANTI_OVERFIT_GATE`：施工顺序可按当前事实正向调整，但核心、上下游追踪、测试、安全、恢复与验收不能降级；模型、规则、阈值、币种、Venue、时间和 regime 过拟合均被统一阻断。
-- 路线机器门禁把当前本地 A0、独立生产 P0R、A0 后 Scope V2 Shadow 和外部历史权利 Gate 分开表达；任一入口身份、阻断关系或生产权限漂移都会让 M0 失败。
-
-### 核心链路影响
-
-`Point-in-time Fact -> Market Mechanics Feature -> Bidirectional Research Hypothesis` 已有本地可执行合同和 fail-closed Gate，工程材料、跨平台归档、exact-runtime remote CI 与独立 secret/SAST/镜像扫描已收口。A0 总门禁仍缺性能/资源、完整制品 provenance/回滚和 P0R 真实恢复；真实 Trade/Book/Liquidation forward data、Detector Candidate、cohort/holdout、校准和最终决策链仍未形成，因此系统等级仍是 R1，不能支撑实战。
-
-### 验证结果
-
-- M1.4C Microstructure + Cache 定向 22/22 PASS。
-- M2.1A Precursor Atlas 定向 13/13 PASS。
-- exact Node `22.23.1` / npm `10.9.8` 最终树完整 `ci:production` PASS：Market 969 total / 965 pass / 4 explicit skip、Workers 23/23、Historical 4/4、V2 Foundation 589 total / 583 pass / 6 explicit skip、V2 Ops 153/153、M0、Next production build、Golden 16/16 与 security 全部通过。
-- A0 materials `10/10`、repository hygiene + CodeQL evidence `56/56`、ESLint、Biome、M0 与 remote-equivalent Gitleaks PASS；accepted source 的 GitHub Security/Full Quality PASS，后续失败 run 仍按上一条单独保留、不冒充 PASS。A0 总门禁仍为 `INCOMPLETE`，下一缺口为性能资源、完整 provenance/rollback 和 P0R。
-
-### 是否部署
-
-未部署。没有修改生产服务、数据库、Redis、Worker、env、Feature Flag、数据、GitHub main 或任何业务 authority。
-
-### 风险与遗留问题
-
-M1.5D 尚未执行；没有历史 L2 时只能从启用时前向积累。当前真实 Microstructure 样本、三 Outcome cohort、matched control 结果、跨 regime 校准和 untouched holdout 均为 0，不得宣称前兆图谱有效。A0 不能因材料子门禁 PASS 而减数；M3.4-R1 仍缺独立定向测试和 Scope V2 上游证据。
-
-### 下一轮建议
-
-P0R 继续作为独立生产第一关键路径。A0 下一工程包把同一 exact release 的制品 provenance/rollback 与性能/资源基线合并建设，减少重复构建和远端操作但不合并验收；三项 A0 剩余控制全部关闭后，才准备 M1.5C 与 M1.5D 同源 Scope V2 证据包并保持两套状态独立验收。

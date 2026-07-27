@@ -1,6 +1,6 @@
 # V2 M1.6-P0R 生产恢复运行手册
 
-状态：`OBJECT_LOCK_31D_ENABLED_AND_VERIFIED / AGE_IDENTITY_KEYCHAIN_PASS / LEGACY_BED938_STAGING_REJECTED_SUPERSEDED_SECURITY_SOURCE / READ_ONLY_REBIND_PACKAGE_LOCAL_AND_EXACT_SOURCE_REMOTE_QUALIFICATION_PASS / PRODUCTION_REBIND_NOT_EXECUTED / NO_USABLE_STS / PRODUCTION_RECOVERY_NOT_EXECUTED / P0_BLOCKED`
+状态：`OBJECT_LOCK_31D_ENABLED_AND_VERIFIED / AGE_IDENTITY_KEYCHAIN_PASS / LEGACY_BED938_STAGING_REJECTED_SUPERSEDED_SECURITY_SOURCE / READ_ONLY_REBIND_PACKAGE_LOCAL_AND_EXACT_SOURCE_REMOTE_QUALIFICATION_PASS / PREVIOUS_DISPATCH_CONFIRMED_NOT_EXECUTED_EXPIRED_NOT_CLAIMED / FIXED_DISPATCH_TIMEOUT_LOCK_RECOVERY_PASS / FRESH_REDISPATCH_REQUIRED / NO_USABLE_STS / PRODUCTION_RECOVERY_NOT_EXECUTED / P0_BLOCKED`
 
 ## 1. 唯一目标
 
@@ -99,6 +99,8 @@ npm run v2:m1:p0r:bundle -- \
 - 在 fixed dispatch evidence 根写入不可覆盖的脱敏结果，并清理自身精确 staging。
 
 它不得读取或输出 raw credential、bucket、object key、env、数据库业务行，也不得修改应用、数据库、Redis、Worker、生产仓库、COS 或历史 staging。唯一成功状态是 `PASS_P0R_READ_ONLY_REBIND_PREFLIGHT`；历史 staging 仍必须同时记录为 `REJECTED_SUPERSEDED_SECURITY_SOURCE`。
+
+首次 signed rebind dispatch 已在目标机被确认从未执行。生产固定派发代理曾因 Git child 超过 systemd 180 秒时限被终止，并遗留无 owner 的空锁；后续 4,526 次轮询均被旧锁拒绝。source parts `2b4fccc9f3affe613d4f + 0da0f97295d97b0c6452` 已将 Git child 固定为 90 秒硬上限，并加入 owner-aware、四分钟 stale 下限的锁恢复。腾讯生产验收通过后，旧 dispatch 被记录为 `FAIL_DISPATCH_NOT_REUSABLE / dispatch_not_current`，没有 claim、解包或业务 Runner，应用与 11 容器零漂移。该旧 dispatch 已消费且禁止复用；必须生成新的 90 分钟 signed dispatch 才能继续本节。
 
 ## 5. 临时凭证合同
 

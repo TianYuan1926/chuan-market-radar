@@ -289,6 +289,100 @@
         "A manually dispatched GitHub diagnostic may still fail and must never be interpreted as a product regression without provider-boundary classification.",
         "The current hardened source commit requires a new Tencent isolated no-authority run before its live Collector release can be promoted."
       ]
+    },
+    {
+      "id": "REC-2026-07-27-FIXED-DISPATCH-TIMEOUT-LOCK",
+      "faultClass": "fixed_dispatch.agent_timeout_orphan_lock",
+      "affectedChannel": "tencent_fixed_signed_git_dispatch",
+      "status": "CLOSED_VERIFIED",
+      "recurrenceCount": 4526,
+      "firstObservedDate": "2026-07-26",
+      "lastObservedDate": "2026-07-27",
+      "affectedOperations": [
+        "fixed_dispatch_unbounded_git_poll",
+        "fixed_dispatch_directory_only_lock",
+        "fixed_dispatch_signed_package_delivery"
+      ],
+      "prohibitedOperations": [
+        "fixed_dispatch_unbounded_git_poll",
+        "fixed_dispatch_directory_only_lock"
+      ],
+      "remediationOperations": [
+        "fixed_dispatch_bounded_git_and_owned_lock"
+      ],
+      "fingerprint": {
+        "signature": "A Git fetch outlives the systemd start deadline, SIGTERM leaves an empty agent.lock directory, and every later timer poll fails with dispatch_agent_already_running although no owner process exists.",
+        "stableConditions": [
+          "The fixed dispatch service is killed while the old directory-only lock is held.",
+          "The old agent removes the lock only through its normal finally path and stores no verifiable owner identity."
+        ],
+        "observedEvidence": [
+          "The production journal records a poll start at 2026-07-26 14:09:36 +08:00 and a 180-second systemd timeout with SIGTERM at 14:12:36.",
+          "The target retained an empty mode-700 ubuntu-owned agent.lock with no fuser, pgrep or lslocks owner.",
+          "The journal recorded 4,526 dispatch_agent_already_running failures before the repair acceptance."
+        ]
+      },
+      "rootCause": {
+        "boundary": "fixed_dispatch_process_lifecycle_and_git_child_timeout",
+        "conclusion": "The old agent combined an unbounded Git child with a directory-only lock that had no owner record or stale-owner recovery, so an external process termination permanently disabled the polling channel.",
+        "confidence": "DIRECT",
+        "evidence": [
+          "The lock mtime equals the start of the timed-out poll and predates all repeated already-running failures.",
+          "No live process owned the lock, while deleting or bypassing the lock was not required to reproduce the old failure.",
+          "The new agent recovered the same stale empty lock on Linux and immediately consumed the expired dispatch as non-reusable."
+        ]
+      },
+      "permanentFix": {
+        "status": "PASS",
+        "authorityPaths": [
+          "scripts/v2/production/fixed-channel/production-dispatch.mjs",
+          "scripts/v2/production/fixed-channel/git-ssh-dispatch.sh",
+          "scripts/v2/production/fixed-channel/production-dispatch.test.mjs",
+          "scripts/v2/production/fixed-channel/README.md"
+        ],
+        "workaroundDisposition": "RETIRED_AFTER_BOOTSTRAP",
+        "evidence": [
+          "Git children now have a hard 90-second timeout that callers cannot disable, below the 180-second systemd deadline.",
+          "The SSH wrapper bounds connection attempts and keepalive failure detection.",
+          "The lock records boot ID, PID, Linux process-start identity and a random token; live owners remain fail-closed, proven-dead owners are quarantined, and an unowned legacy lock is recoverable only after four minutes."
+        ]
+      },
+      "regression": {
+        "status": "PASS",
+        "redCase": "Killing the old poll after lock acquisition leaves an empty directory that permanently blocks every later dispatch.",
+        "greenCommand": "npm run test:production-dispatch && npm run test:recurrence-gate",
+        "evidence": [
+          "The fixed-channel suite passes 24 of 24 cases, including live-owner exclusion, dead-owner recovery, stale empty-lock recovery and recent empty-lock fail-closed behavior.",
+          "An isolated Tencent Linux smoke passed owner exclusion and stale-lock self-recovery with the production Node runtime."
+        ]
+      },
+      "runtimeGate": {
+        "status": "PASS",
+        "evidence": [
+          "Production installed agent sha256:ad12dc949dc25a047a1fc44ad7a4b0a914b7dba6f6452644394728bb53e4c31b and wrapper sha256:30e6294854f679555b7b2b7e8beaa30e91ebb1ff7f90d81770d429332ade7e04.",
+          "The stale lock was recovered, the timer is enabled and active, the lock is absent after execution, and manual plus timer-driven polls finish with IDLE_NO_NEW_DISPATCH and exit status 0."
+        ]
+      },
+      "realTargetAcceptance": {
+        "status": "PASS",
+        "evidence": [
+          "The expired dispatch commit 34b1f137e92be1649d64c6507c3e36204ce0b31e was recorded as FAIL_DISPATCH_NOT_REUSABLE with reason dispatch_not_current and no durable claim, extraction or business runner launch.",
+          "Production application HEAD cec0b6572bb09ae91ff9e013f8bb160f73c045e2, clean worktree and all 11 container identities remained unchanged.",
+          "Application level, source, persistence, scan and archive stayed ready; Redis and all six worker probes stayed healthy; database, Redis, application, environment, migration and business authority mutation were zero."
+        ]
+      },
+      "workaroundAccounting": {
+        "attemptCount": 4526,
+        "postTriggerEmergencyWorkaroundCount": 0,
+        "durationMeasurement": "MEASURED",
+        "durationSeconds": 103524,
+        "unknownReason": null
+      },
+      "remainingRisks": [
+        "A future kernel or filesystem failure can still make process identity unverifiable; the agent deliberately fails closed in that case.",
+        "The 90-second Git timeout prevents permanent lock loss but does not prove GitHub availability; provider or network failure remains an explicit dispatch failure.",
+        "The expired P0R rebind package was not executed and must be regenerated with a new approval window."
+      ]
     }
   ]
 }
