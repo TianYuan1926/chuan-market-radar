@@ -4,14 +4,14 @@ on:
   pull_request:
     paths:
       - ".github/workflows/v2-production-dispatch-quality.yml"
-      - "scripts/v2/production/fixed-channel/**"
+      - "scripts/v2/production/**"
       - "docs/governance/production-fixed-dispatch-channel.v1.json"
       - "docs/governance/recurrence-root-cause-registry.v1.json"
       - "package.json"
   push:
     paths:
       - ".github/workflows/v2-production-dispatch-quality.yml"
-      - "scripts/v2/production/fixed-channel/**"
+      - "scripts/v2/production/**"
       - "docs/governance/production-fixed-dispatch-channel.v1.json"
       - "docs/governance/recurrence-root-cause-registry.v1.json"
       - "package.json"

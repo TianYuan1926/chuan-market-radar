@@ -319,7 +319,8 @@ Cycle final
 ### 2026-07-27 / P0R STS Region Contract Root Remediation
 - source `94118...` 已通过本地与 GitHub 四门，并在腾讯完成 fresh read-only rebind PASS；生产 HEAD、clean worktree、11 容器与业务 health 零漂移。
 - 随后的 exact v2 plan/bundle 请求被腾讯以 `MissingParameter.Region` 拒绝；未生成 STS credential、未读数据库、未生成 backup 或 COS 对象，失效 remote staging 已精确清理。
-- provisioning plan 升级 v3，Region 进入 request 与两个 digest 并由 Go helper fail closed；P0R 72/72、Go helper、V2 Ops 194/194 与完整本地 CI PASS，四条新提交远端门禁和 fresh production rebind 待执行。
+- provisioning plan 升级 v3，Region 进入 request 与两个 digest 并由 Go helper fail closed；P0R 72/72、Go helper、V2 Ops 194/194 与完整本地 CI PASS。
+- Region 修复 source `b33661...` 的 A0、Full Quality 和 Independent Security 已 PASS，但 Signed Production Dispatch Quality 因旧工作流路径只覆盖 `fixed-channel` 而未触发，不能冒充四门通过。工作流现覆盖全部 `scripts/v2/production/**` 并有回归锁；包含该修复的新 exact source 四门与 fresh production rebind 仍待执行。
 
 ### 2026-07-27 / Fixed Dispatch Timeout Lock Recovery
 - 目标 receipt 已证明旧 P0R dispatch 未 claim、未解包、未启动，过期后以 `dispatch_not_current` 消费；原 `UNKNOWN` 状态正式失效。

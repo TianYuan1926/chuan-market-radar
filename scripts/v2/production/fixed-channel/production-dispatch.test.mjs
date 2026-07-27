@@ -1025,6 +1025,12 @@ test("V2 GitHub workflow has quality authority only", async () => {
   assert.match(workflow, /runs-on: ubuntu-24\.04/u);
   assert.match(workflow, /contents: read/u);
   assert.match(workflow, /production_execution=false/u);
+  assert.equal(
+    workflow.match(/"scripts\/v2\/production\/\*\*"/gu)?.length,
+    2,
+    "push and pull_request must qualify every V2 production script change",
+  );
+  assert.doesNotMatch(workflow, /"scripts\/v2\/production\/fixed-channel\/\*\*"/u);
   assert.doesNotMatch(workflow, /runs-on:\s*\[?self-hosted|environment:\s*production/iu);
   assert.doesNotMatch(workflow, /production:dispatch(?:\s+|:)publish|systemctl|docker compose|\bssh\b|\bscp\b/iu);
   assert.doesNotMatch(workflow, /permissions:[\s\S]*?\bwrite\b/iu);

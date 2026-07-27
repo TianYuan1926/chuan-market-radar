@@ -14,13 +14,15 @@
 - Go COS helper 同步要求 request Region 与 grant Region 精确一致，缺失或非香港一律 fail closed。
 - JavaScript 与 Go 回归覆盖 Region 缺失和错配；运行合同、生产手册、蓝图、追踪矩阵和上下文同步当前真值。
 - 历史 v2 staging/bundle 验证器仍只用于读取旧证据，不被机械改写为新可执行合同。
+- Signed Production Dispatch Quality 的 push/PR 路径从 `fixed-channel` 子目录扩大到全部 `scripts/v2/production/**`，并增加回归，防止 P0R 生产脚本变化再次漏掉第四门。
 
 ### 验收结果
 
 - source `94118d3b8270b6ac58c449380911ea77b8abeace` 的前序 GitHub 四门和腾讯 fresh read-only rebind 均 PASS，生产身份零漂移。
 - 随后的 v2 STS 请求真实返回 `MissingParameter.Region`；没有 credential、数据库读取、backup 或 COS 对象，失效 remote staging 已精确清理。
 - 新合同定向 P0R `72/72 PASS`、Go helper PASS、V2 Ops `194/194 PASS`。
-- 完整本地 `ci:production` 已 PASS；新修复提交四条 exact-source GitHub 门禁和 fresh production read-only rebind 尚待执行。
+- Region 修复 source `b33661...` 的 A0、Full Quality 和 Independent Security 已 PASS；旧路径过滤没有触发 Signed Production Dispatch Quality，因此不能标记四门通过。
+- 完整本地 `ci:production` 已 PASS；包含路径修复的新提交四条 exact-source GitHub 门禁和 fresh production read-only rebind 尚待执行。
 
 ### 风险与下一步
 
