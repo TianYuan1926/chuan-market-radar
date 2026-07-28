@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 077
 
 MODE="${1:-plan}"
 SOURCE_DIRECTORY="${P0R_SOURCE_DIRECTORY:-}"
@@ -24,6 +25,7 @@ FINGERPRINT_SHA256="${P0R_FINGERPRINT_SHA256:-}"
 PREFLIGHT_LIBRARY_SHA256="${P0R_PREFLIGHT_LIBRARY_SHA256:-}"
 RECOVERY_EVIDENCE_SHA256="${P0R_RECOVERY_EVIDENCE_SHA256:-}"
 RUNNER_SHA256="${P0R_RUNNER_SHA256:-}"
+SESSION_SHA256="${P0R_SESSION_SHA256:-}"
 
 fail() {
   printf '{"reason":%s,"status":"BLOCKED"}\n' "$(jq -Rn --arg value "$1" '$value')" >&2
@@ -32,7 +34,7 @@ fail() {
 
 print_plan() {
   cat <<'JSON'
-{"schemaVersion":"v2-m1-production-storage-p0r-runner-plan.v3","mode":"plan","sourceTransaction":"REPEATABLE_READ_READ_ONLY","plaintextDumpCreated":false,"encryption":"AGE_X25519","offHostProvider":"TENCENT_COS","offHostAvailabilityZoneType":"SINGLE_AZ_REQUIRED","offHostVersioning":"ENABLED","offHostRetention":"COMPLIANCE_30D_MINIMUM","offHostObjectKey":"HIGH_ENTROPY_RUN_BOUND","offHostReadOnlyPreflightBeforeDatabaseCapture":true,"preUploadAbsenceRequired":true,"stsPolicyPlanBound":true,"restorePostgresMajor":16,"restoreNetworkMode":"none","restoreCpuNano":1500000000,"restoreMemoryBytes":2147483648,"restoreMemorySwapBytes":3221225472,"restorePidsLimit":256,"hostPortsPublished":false,"productionNetworksAttached":false,"productionVolumesMounted":false,"productionCredentialsMounted":false,"productionDatabaseMutation":false,"productionServiceMutation":false,"productionRepositoryMutation":false,"migrationAllowed":false,"capacityMutationAllowed":false,"automaticTradingAllowed":false}
+{"schemaVersion":"v2-m1-production-storage-p0r-runner-plan.v4","mode":"plan","sourceTransaction":"REPEATABLE_READ_READ_ONLY","plaintextDumpCreated":false,"encryption":"AGE_X25519","offHostProvider":"TENCENT_COS","offHostAvailabilityZoneType":"SINGLE_AZ_REQUIRED","offHostVersioning":"ENABLED","offHostRetention":"COMPLIANCE_30D_MINIMUM","offHostObjectKey":"HIGH_ENTROPY_RUN_BOUND","offHostReadOnlyPreflightBeforeDatabaseCapture":true,"preUploadAbsenceRequired":true,"stsPolicyPlanBound":true,"containerSelection":"EXACT_COMPOSE_PROJECT_AND_SERVICE_LABELS","composeInterpolationRequired":false,"evidenceOutputDirectoryCreation":"ATOMIC_MODE_700","privateEphemeralRunnerDirectory":true,"ephemeralFileCreation":"EXCLUSIVE_MODE_600","restorePostgresMajor":16,"restoreNetworkMode":"none","restoreCpuNano":1500000000,"restoreMemoryBytes":2147483648,"restoreMemorySwapBytes":3221225472,"restorePidsLimit":256,"hostPortsPublished":false,"productionNetworksAttached":false,"productionVolumesMounted":false,"productionCredentialsMounted":false,"productionDatabaseMutation":false,"productionServiceMutation":false,"productionRepositoryMutation":false,"migrationAllowed":false,"capacityMutationAllowed":false,"automaticTradingAllowed":false}
 JSON
 }
 
@@ -44,7 +46,7 @@ fi
 [[ "${CONFIRM_RECOVERY_DRILL}" == "EXECUTE_V2_M1_P0R_ENCRYPTED_BACKUP_AND_ISOLATED_RESTORE" ]] \
   || fail "exact recovery drill confirmation is required"
 
-for command in awk basename chmod chown cmp date df docker git head id install jq ln mktemp readlink rm seq sha256sum sleep sort stat sudo tee timeout tr wc; do
+for command in awk basename chmod chown cmp date df dirname docker git head id install jq ln mkdir mktemp readlink rm seq sha256sum sleep sort stat sudo timeout tr wc; do
   command -v "${command}" >/dev/null 2>&1 || fail "required command missing: ${command}"
 done
 sudo -n true >/dev/null 2>&1 || fail "passwordless sudo is unavailable"
@@ -68,7 +70,8 @@ EXPECTED_OUTPUT_DIRECTORY="${OUTPUT_ROOT}/${RUN_ID}"
   || fail "source directory is outside the locked P0R run scope"
 [[ "${OUTPUT_DIRECTORY}" == "${EXPECTED_OUTPUT_DIRECTORY}" ]] \
   || fail "output directory is outside the locked P0R run scope"
-[[ ! -e "${OUTPUT_DIRECTORY}" ]] || fail "output directory already exists"
+[[ ! -e "${OUTPUT_DIRECTORY}" && ! -L "${OUTPUT_DIRECTORY}" ]] \
+  || fail "output directory already exists"
 [[ "${PRODUCTION_WORKTREE}" == /* && -d "${PRODUCTION_WORKTREE}" ]] \
   || fail "production worktree is invalid"
 [[ "${PRODUCTION_ENV_FILE}" == "${PRODUCTION_WORKTREE}/.env.production" \
@@ -82,19 +85,21 @@ EXPECTED_OUTPUT_DIRECTORY="${OUTPUT_ROOT}/${RUN_ID}"
   || fail "age identity file must be an ephemeral /dev/shm file"
 
 require_secure_secret() {
-  local path="$1" label="$2" maximum_size="$3" mode size
+  local path="$1" label="$2" maximum_size="$3" expected_owner_uid="$4" mode size
   [[ -f "${path}" && ! -L "${path}" ]] || fail "${label} must be a regular non-symlink file"
+  [[ "$(stat -c '%u' "${path}")" == "${expected_owner_uid}" ]] \
+    || fail "${label} owner is invalid"
   mode="$(stat -c '%a' "${path}")"
   [[ "$(( 8#${mode} & 8#077 ))" -eq 0 ]] || fail "${label} permissions are too open"
   size="$(stat -c '%s' "${path}")"
   [[ "${size}" -gt 0 && "${size}" -le "${maximum_size}" ]] || fail "${label} size is invalid"
 }
-require_secure_secret "${COS_CREDENTIAL_FILE}" "COS credential file" 65536
-require_secure_secret "${AGE_IDENTITY_FILE}" "age identity file" 8192
+require_secure_secret "${COS_CREDENTIAL_FILE}" "COS credential file" 65536 0
+require_secure_secret "${AGE_IDENTITY_FILE}" "age identity file" 8192 0
 read -r AGE_IDENTITY_LINE_COUNT AGE_IDENTITY_VALID_COUNT < <(
   sudo -n awk '
     /^[[:space:]]*#/ || /^[[:space:]]*$/ { next }
-    { total += 1; if ($0 ~ /^AGE-SECRET-KEY-1[0-9A-Z]+$/) valid += 1 }
+    { total += 1; if ($0 ~ /^AGE-SECRET-KEY-1[QPZRY9X8GF2TVDW0S3JN54KHCE6MUA7L]{58}$/) valid += 1 }
     END { print total + 0, valid + 0 }
   ' "${AGE_IDENTITY_FILE}"
 )
@@ -106,6 +111,7 @@ FINGERPRINT_SOURCE="${SOURCE_DIRECTORY}/m1-production-storage-database-fingerpri
 PREFLIGHT_LIBRARY_SOURCE="${SOURCE_DIRECTORY}/m1-production-storage-read-only-preflight.mjs"
 RECOVERY_EVIDENCE_SOURCE="${SOURCE_DIRECTORY}/m1-production-storage-recovery-evidence.mjs"
 RUNNER_SOURCE="${SOURCE_DIRECTORY}/m1-production-storage-p0r-runner.sh"
+SESSION_SOURCE="${SOURCE_DIRECTORY}/m1-production-storage-p0r-session.sh"
 AGE_BINARY_SOURCE="${SOURCE_DIRECTORY}/age"
 AGE_RECIPIENT_SOURCE="${SOURCE_DIRECTORY}/age-recipient.txt"
 COS_ARCHIVE_SOURCE="${SOURCE_DIRECTORY}/p0r-cos-archive"
@@ -124,6 +130,7 @@ verify_source "${FINGERPRINT_SOURCE}" "${FINGERPRINT_SHA256}" "database fingerpr
 verify_source "${PREFLIGHT_LIBRARY_SOURCE}" "${PREFLIGHT_LIBRARY_SHA256}" "preflight library"
 verify_source "${RECOVERY_EVIDENCE_SOURCE}" "${RECOVERY_EVIDENCE_SHA256}" "recovery evidence"
 verify_source "${RUNNER_SOURCE}" "${RUNNER_SHA256}" "P0R runner"
+verify_source "${SESSION_SOURCE}" "${SESSION_SHA256}" "P0R session"
 verify_source "${AGE_BINARY_SOURCE}" "${AGE_SHA256}" "age binary"
 verify_source "${COS_ARCHIVE_SOURCE}" "${COS_ARCHIVE_SHA256}" "COS archive binary"
 verify_source "${COS_PROVISIONING_PLAN_SOURCE}" "${COS_PROVISIONING_PLAN_SHA256}" "COS provisioning plan"
@@ -134,18 +141,24 @@ verify_source "${AGE_RECIPIENT_SOURCE}" "${AGE_RECIPIENT_SHA256}" "age recipient
 [[ "$(readlink -f "$0")" == "$(readlink -f "${RUNNER_SOURCE}")" ]] \
   || fail "executed runner path is not the checksum-bound staging file"
 
-install -d -m 700 "${OUTPUT_DIRECTORY}"
+mkdir --mode=700 -- "${OUTPUT_DIRECTORY}"
+[[ -d "${OUTPUT_DIRECTORY}" \
+  && ! -L "${OUTPUT_DIRECTORY}" \
+  && "$(stat -c '%u' "${OUTPUT_DIRECTORY}")" == "$(id -u)" \
+  && "$(stat -c '%a' "${OUTPUT_DIRECTORY}")" == "700" ]] \
+  || fail "P0R evidence output directory is invalid"
 RUNTIME_DIRECTORY="${OUTPUT_DIRECTORY}/.runtime"
 HOST_RUNTIME_DIRECTORY="${RUNTIME_DIRECTORY}/node"
 install -d -m 700 "${RUNTIME_DIRECTORY}" "${HOST_RUNTIME_DIRECTORY}"
 
 RESTORE_CONTAINER="mr-v2-p0r-${RUN_ID}"
 RESTORE_VOLUME="mr-v2-p0r-${RUN_ID}"
-DATABASE_CONNECTION_FILE="/dev/shm/market-radar-v2-p0r-${RUN_ID}.database.secret"
-RESTORE_CONNECTION_FILE="/dev/shm/market-radar-v2-p0r-${RUN_ID}.restore.secret"
-CANARY_PLAINTEXT="/dev/shm/market-radar-v2-p0r-${RUN_ID}.canary"
-CANARY_ENCRYPTED="/dev/shm/market-radar-v2-p0r-${RUN_ID}.canary.age"
-CANARY_DECRYPTED="/dev/shm/market-radar-v2-p0r-${RUN_ID}.canary.restored"
+SECRET_RUNTIME_DIRECTORY=""
+DATABASE_CONNECTION_FILE=""
+RESTORE_CONNECTION_FILE=""
+CANARY_PLAINTEXT=""
+CANARY_ENCRYPTED=""
+CANARY_DECRYPTED=""
 LOCAL_ENCRYPTED="${RUNTIME_DIRECTORY}/production.dump.age"
 RETRIEVED_ENCRYPTED="${RUNTIME_DIRECTORY}/retrieved.dump.age"
 CAPTURE_FACTS="${OUTPUT_DIRECTORY}/backup-capture-facts.json"
@@ -166,6 +179,7 @@ AGE_IDENTITY_REMOVED=false
 DATABASE_CONNECTION_REMOVED=false
 RESTORE_CONNECTION_REMOVED=false
 RUNTIME_REMOVED=false
+SECRET_RUNTIME_REMOVED=false
 
 cleanup() {
   if [[ "${RESTORE_CONTAINER_CREATED}" == "true" ]]; then
@@ -174,25 +188,46 @@ cleanup() {
   if [[ "${RESTORE_VOLUME_CREATED}" == "true" ]]; then
     sudo -n docker volume rm --force "${RESTORE_VOLUME}" >/dev/null 2>&1 || true
   fi
-  sudo -n rm -f \
-    "${DATABASE_CONNECTION_FILE}" \
-    "${RESTORE_CONNECTION_FILE}" \
-    "${CANARY_PLAINTEXT}" \
-    "${CANARY_ENCRYPTED}" \
-    "${CANARY_DECRYPTED}" \
-    "${COS_CREDENTIAL_FILE}" \
-    "${AGE_IDENTITY_FILE}" >/dev/null 2>&1 || true
+  if [[ -n "${SECRET_RUNTIME_DIRECTORY}" \
+    && "${SECRET_RUNTIME_DIRECTORY}" == "/dev/shm/market-radar-v2-p0r-${RUN_ID}.runner."* \
+    && -d "${SECRET_RUNTIME_DIRECTORY}" \
+    && ! -L "${SECRET_RUNTIME_DIRECTORY}" ]]; then
+    sudo -n rm -rf "${SECRET_RUNTIME_DIRECTORY}" >/dev/null 2>&1 || true
+  fi
+  sudo -n rm -f "${COS_CREDENTIAL_FILE}" "${AGE_IDENTITY_FILE}" \
+    >/dev/null 2>&1 || true
   if [[ -e "${RUNTIME_DIRECTORY}" ]]; then
     sudo -n rm -rf "${RUNTIME_DIRECTORY}" >/dev/null 2>&1 || true
   fi
 }
 trap cleanup EXIT
 
-compose() {
-  sudo -n docker compose \
-    --env-file "${PRODUCTION_ENV_FILE}" \
-    -f "${PRODUCTION_WORKTREE}/docker-compose.yml" \
-    "$@"
+SECRET_RUNTIME_DIRECTORY="$(
+  mktemp -d "/dev/shm/market-radar-v2-p0r-${RUN_ID}.runner.XXXXXX"
+)"
+chmod 700 "${SECRET_RUNTIME_DIRECTORY}"
+[[ -d "${SECRET_RUNTIME_DIRECTORY}" \
+  && ! -L "${SECRET_RUNTIME_DIRECTORY}" \
+  && "$(stat -c '%u' "${SECRET_RUNTIME_DIRECTORY}")" == "$(id -u)" \
+  && "$(stat -c '%a' "${SECRET_RUNTIME_DIRECTORY}")" == "700" ]] \
+  || fail "P0R private runner directory is invalid"
+DATABASE_CONNECTION_FILE="${SECRET_RUNTIME_DIRECTORY}/database.secret"
+RESTORE_CONNECTION_FILE="${SECRET_RUNTIME_DIRECTORY}/restore.secret"
+CANARY_PLAINTEXT="${SECRET_RUNTIME_DIRECTORY}/canary"
+CANARY_ENCRYPTED="${SECRET_RUNTIME_DIRECTORY}/canary.age"
+CANARY_DECRYPTED="${SECRET_RUNTIME_DIRECTORY}/canary.restored"
+
+find_production_container() {
+  local service="$1"
+  local -a containers
+  mapfile -t containers < <(
+    sudo -n docker ps -q --no-trunc \
+      --filter "label=com.docker.compose.project=chuan-market-radar" \
+      --filter "label=com.docker.compose.service=${service}"
+  )
+  [[ "${#containers[@]}" -eq 1 && "${containers[0]}" =~ ^[0-9a-f]{64}$ ]] \
+    || fail "exactly one production ${service} container is required"
+  printf '%s\n' "${containers[0]}"
 }
 
 capture_docker_state() {
@@ -244,6 +279,41 @@ adopt_evidence() {
   sudo -n chown "$(id -u):$(id -g)" "${path}"
 }
 
+write_private_text_exclusive() {
+  local path="$1" value="$2" label="$3"
+  [[ "$(dirname -- "${path}")" == "${SECRET_RUNTIME_DIRECTORY}" \
+    && ! -e "${path}" \
+    && ! -L "${path}" ]] \
+    || fail "${label} output path is unsafe"
+  if ! (
+    umask 077
+    set -o noclobber
+    printf '%s\n' "${value}" > "${path}"
+  ); then
+    fail "${label} exclusive write failed"
+  fi
+  [[ -f "${path}" \
+    && ! -L "${path}" \
+    && "$(stat -c '%u' "${path}")" == "$(id -u)" \
+    && "$(stat -c '%a' "${path}")" == "600" \
+    && "$(stat -c '%s' "${path}")" -gt 0 ]] \
+    || fail "${label} output file is invalid"
+}
+
+require_private_runtime_file() {
+  local path="$1" label="$2" minimum_size="$3" maximum_size="$4"
+  local size
+  [[ "$(dirname -- "${path}")" == "${SECRET_RUNTIME_DIRECTORY}" \
+    && -f "${path}" \
+    && ! -L "${path}" \
+    && "$(stat -c '%u' "${path}")" == "$(id -u)" \
+    && "$(stat -c '%a' "${path}")" == "600" ]] \
+    || fail "${label} is not a private mode-600 regular file"
+  size="$(stat -c '%s' "${path}")"
+  [[ "${size}" -ge "${minimum_size}" && "${size}" -le "${maximum_size}" ]] \
+    || fail "${label} size is invalid"
+}
+
 PRODUCTION_HEAD_BEFORE="$(git -C "${PRODUCTION_WORKTREE}" rev-parse HEAD)"
 [[ "${PRODUCTION_HEAD_BEFORE}" =~ ^[0-9a-f]{40}$ ]] || fail "production HEAD is invalid"
 [[ -z "$(git -C "${PRODUCTION_WORKTREE}" status --porcelain=v1)" ]] \
@@ -251,8 +321,8 @@ PRODUCTION_HEAD_BEFORE="$(git -C "${PRODUCTION_WORKTREE}" rev-parse HEAD)"
 capture_docker_state "${DOCKER_BEFORE}"
 DOCKER_BEFORE_DIGEST="sha256:$(sha256sum "${DOCKER_BEFORE}" | awk '{print $1}')"
 
-WEB_CONTAINER="$(compose ps -q web)"
-POSTGRES_CONTAINER="$(compose ps -q postgres)"
+WEB_CONTAINER="$(find_production_container web)"
+POSTGRES_CONTAINER="$(find_production_container postgres)"
 [[ "${WEB_CONTAINER}" =~ ^[0-9a-f]{64}$ && "${POSTGRES_CONTAINER}" =~ ^[0-9a-f]{64}$ ]] \
   || fail "production Web or PostgreSQL container identity is invalid"
 [[ "$(sudo -n docker inspect -f '{{.State.Running}}' "${WEB_CONTAINER}")" == "true" ]] \
@@ -292,15 +362,33 @@ sudo -n "${HOST_NODE_BINARY}" --preserve-symlinks \
     --run-id "${RUN_ID}" \
     --source-commit "${SOURCE_COMMIT}" >/dev/null
 
-# A memory-only canary proves the supplied private identity matches the public recipient.
-sudo -n head -c 64 /dev/urandom > "${CANARY_PLAINTEXT}"
-sudo -n chmod 600 "${CANARY_PLAINTEXT}"
-sudo -n "${RUNTIME_DIRECTORY}/age" --encrypt \
-  --recipients-file "${RUNTIME_DIRECTORY}/age-recipient.txt" \
-  --output "${CANARY_ENCRYPTED}" "${CANARY_PLAINTEXT}"
-sudo -n "${RUNTIME_DIRECTORY}/age" --decrypt \
-  --identity "${AGE_IDENTITY_FILE}" \
-  --output "${CANARY_DECRYPTED}" "${CANARY_ENCRYPTED}"
+# A private memory-backed canary proves the supplied identity matches the recipient.
+if ! (
+  umask 077
+  set -o noclobber
+  sudo -n head -c 64 /dev/urandom > "${CANARY_PLAINTEXT}"
+); then
+  fail "age canary exclusive creation failed"
+fi
+require_private_runtime_file "${CANARY_PLAINTEXT}" "age canary plaintext" 64 64
+if ! (
+  set -o noclobber
+  sudo -n "${RUNTIME_DIRECTORY}/age" --encrypt \
+    --recipients-file "${RUNTIME_DIRECTORY}/age-recipient.txt" \
+    "${CANARY_PLAINTEXT}" > "${CANARY_ENCRYPTED}"
+); then
+  fail "age canary encrypted exclusive creation failed"
+fi
+require_private_runtime_file "${CANARY_ENCRYPTED}" "age canary encrypted output" 1 8192
+if ! (
+  set -o noclobber
+  sudo -n "${RUNTIME_DIRECTORY}/age" --decrypt \
+    --identity "${AGE_IDENTITY_FILE}" \
+    "${CANARY_ENCRYPTED}" > "${CANARY_DECRYPTED}"
+); then
+  fail "age canary decrypted exclusive creation failed"
+fi
+require_private_runtime_file "${CANARY_DECRYPTED}" "age canary decrypted output" 64 64
 sudo -n cmp --silent "${CANARY_PLAINTEXT}" "${CANARY_DECRYPTED}" \
   || fail "age recovery identity does not match the recipient"
 sudo -n rm -f "${CANARY_PLAINTEXT}" "${CANARY_ENCRYPTED}" "${CANARY_DECRYPTED}"
@@ -311,8 +399,9 @@ sudo -n timeout 5m "${RUNTIME_DIRECTORY}/p0r-cos-archive" preflight \
   --provisioning-plan "${RUNTIME_DIRECTORY}/cos-provisioning-plan.json" \
   --run-id "${RUN_ID}" >/dev/null
 
-sudo -n docker inspect "${POSTGRES_CONTAINER}" \
-  | jq -er --arg socketDirectory "${POSTGRES_SOCKET_SOURCE}" '
+DATABASE_CONNECTION_VALUE="$(
+  sudo -n docker inspect "${POSTGRES_CONTAINER}" \
+    | jq -er --arg socketDirectory "${POSTGRES_SOCKET_SOURCE}" '
       .[0].Config.Env
       | map(capture("^(?<key>POSTGRES_(?:USER|DB))=(?<value>.*)$"))
       | from_entries
@@ -323,9 +412,13 @@ sudo -n docker inspect "${POSTGRES_CONTAINER}" \
         else
           error("PostgreSQL bootstrap identity is invalid")
         end
-    ' \
-  | sudo -n tee "${DATABASE_CONNECTION_FILE}" >/dev/null
-sudo -n chmod 600 "${DATABASE_CONNECTION_FILE}"
+    '
+)"
+write_private_text_exclusive \
+  "${DATABASE_CONNECTION_FILE}" \
+  "${DATABASE_CONNECTION_VALUE}" \
+  "production database connection"
+unset DATABASE_CONNECTION_VALUE
 DATABASE_USER="$(sudo -n docker inspect "${POSTGRES_CONTAINER}" | jq -er '.[0].Config.Env[] | select(startswith("POSTGRES_USER=")) | sub("^POSTGRES_USER="; "")')"
 DATABASE_NAME="$(sudo -n docker inspect "${POSTGRES_CONTAINER}" | jq -er '.[0].Config.Env[] | select(startswith("POSTGRES_DB=")) | sub("^POSTGRES_DB="; "")')"
 
@@ -481,10 +574,15 @@ RESTORE_PID="$(sudo -n docker inspect -f '{{.State.Pid}}' "${RESTORE_CONTAINER}"
 RESTORE_SOCKET_SOURCE="/proc/${RESTORE_PID}/root/var/run/postgresql"
 sudo -n test -S "${RESTORE_SOCKET_SOURCE}/.s.PGSQL.5432" \
   || fail "restore PostgreSQL local socket is unavailable"
-printf 'postgresql://postgres:local-socket@localhost/market_radar_restore?host=%s\n' \
-  "$(jq -rn --arg value "${RESTORE_SOCKET_SOURCE}" '$value | @uri')" \
-  | sudo -n tee "${RESTORE_CONNECTION_FILE}" >/dev/null
-sudo -n chmod 600 "${RESTORE_CONNECTION_FILE}"
+RESTORE_CONNECTION_VALUE="$(
+  printf 'postgresql://postgres:local-socket@localhost/market_radar_restore?host=%s' \
+    "$(jq -rn --arg value "${RESTORE_SOCKET_SOURCE}" '$value | @uri')"
+)"
+write_private_text_exclusive \
+  "${RESTORE_CONNECTION_FILE}" \
+  "${RESTORE_CONNECTION_VALUE}" \
+  "restore database connection"
+unset RESTORE_CONNECTION_VALUE
 sudo -n timeout 20m "${HOST_NODE_BINARY}" --preserve-symlinks \
   "${HOST_RUNTIME_DIRECTORY}/m1-production-storage-database-fingerprint.mjs" capture \
     --database-connection-file "${RESTORE_CONNECTION_FILE}" \
@@ -493,6 +591,10 @@ sudo -n timeout 20m "${HOST_NODE_BINARY}" --preserve-symlinks \
 adopt_evidence "${RESTORE_FINGERPRINT}"
 sudo -n rm -f "${RESTORE_CONNECTION_FILE}"
 RESTORE_CONNECTION_REMOVED=true
+sudo -n rm -rf "${SECRET_RUNTIME_DIRECTORY}"
+[[ ! -e "${SECRET_RUNTIME_DIRECTORY}" && ! -L "${SECRET_RUNTIME_DIRECTORY}" ]] \
+  || fail "P0R private runner directory was not removed"
+SECRET_RUNTIME_REMOVED=true
 
 SOURCE_STRUCTURAL_DIGEST="$(jq -er '.structuralDigest' "${CAPTURE_FACTS}")"
 SOURCE_VERIFICATION_DIGEST="$(jq -er '.verificationDigest' "${CAPTURE_FACTS}")"
@@ -595,12 +697,14 @@ for path in \
   "${AGE_IDENTITY_FILE}" \
   "${DATABASE_CONNECTION_FILE}" \
   "${RESTORE_CONNECTION_FILE}"; do
-  [[ ! -e "${path}" ]] || fail "ephemeral credential material remains"
+  [[ ! -e "${path}" && ! -L "${path}" ]] \
+    || fail "ephemeral credential material remains"
 done
 [[ "${COS_CREDENTIAL_REMOVED}" == "true" \
   && "${AGE_IDENTITY_REMOVED}" == "true" \
   && "${DATABASE_CONNECTION_REMOVED}" == "true" \
-  && "${RESTORE_CONNECTION_REMOVED}" == "true" ]] \
+  && "${RESTORE_CONNECTION_REMOVED}" == "true" \
+  && "${SECRET_RUNTIME_REMOVED}" == "true" ]] \
   || fail "credential cleanup state is incomplete"
 
 jq -S -n \

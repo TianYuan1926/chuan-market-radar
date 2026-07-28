@@ -30,7 +30,7 @@ export const P0R_AGE_LINUX_AMD64_ARCHIVE_URL =
 export const P0R_AGE_LINUX_AMD64_ARCHIVE_SHA256 =
   "bdc69c09cbdd6cf8b1f333d372a1f58247b3a33146406333e30c0f26e8f51377";
 export const P0R_BUNDLE_SCHEMA_VERSION =
-  "v2-m1-production-storage-p0r-transport.v1";
+  "v2-m1-production-storage-p0r-transport.v2";
 
 const SOURCE_DATE_EPOCH = 946_684_800;
 const FIXED_TIME = new Date(SOURCE_DATE_EPOCH * 1000);
@@ -38,11 +38,12 @@ const AGE_RECIPIENT_PATTERN = /^age1[0-9a-z]{58}$/u;
 const COMMIT_PATTERN = /^[0-9a-f]{40}$/u;
 const MAXIMUM_BINARY_BYTES = 64 * 1024 * 1024;
 const MAXIMUM_ARCHIVE_BYTES = 128 * 1024 * 1024;
-const TRANSPORT_SOURCES = Object.freeze([
+export const P0R_TRANSPORT_SOURCES = Object.freeze([
   "scripts/v2/production/m1-production-storage-backup-capture.mjs",
   "scripts/v2/production/m1-production-storage-database-fingerprint.mjs",
   "scripts/v2/production/m1-production-storage-p0r-cos-provisioning.mjs",
   "scripts/v2/production/m1-production-storage-p0r-runner.sh",
+  "scripts/v2/production/m1-production-storage-p0r-session.sh",
   "scripts/v2/production/m1-production-storage-read-only-preflight.mjs",
   "scripts/v2/production/m1-production-storage-recovery-evidence.mjs",
 ]);
@@ -178,6 +179,7 @@ function bindings(sourceCommit, files) {
     `P0R_PREFLIGHT_LIBRARY_SHA256=${byName["m1-production-storage-read-only-preflight.mjs"]}`,
     `P0R_RECOVERY_EVIDENCE_SHA256=${byName["m1-production-storage-recovery-evidence.mjs"]}`,
     `P0R_RUNNER_SHA256=${byName["m1-production-storage-p0r-runner.sh"]}`,
+    `P0R_SESSION_SHA256=${byName["m1-production-storage-p0r-session.sh"]}`,
     "",
   ].join("\n");
 }
@@ -220,7 +222,7 @@ export async function buildP0RTransportBundle(input) {
   try {
     await mkdir(payload, { recursive: true, mode: 0o700 });
     const fileBytes = [];
-    for (const sourcePath of TRANSPORT_SOURCES) {
+    for (const sourcePath of P0R_TRANSPORT_SOURCES) {
       fileBytes.push({
         bytes: await readSource(root, sourcePath),
         mode: sourcePath.endsWith(".sh") ? 0o700 : 0o600,

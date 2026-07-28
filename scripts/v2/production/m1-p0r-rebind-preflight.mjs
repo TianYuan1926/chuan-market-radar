@@ -23,11 +23,11 @@ const execFileAsync = promisify(execFile);
 export const P0R_REBIND_PACKAGE_ID =
   "V2-M1-6-P0R-READ-ONLY-REBIND-PREFLIGHT";
 export const P0R_REBIND_REQUEST_SCHEMA =
-  "market-radar-v2-m1-p0r-rebind-request.v1";
+  "market-radar-v2-m1-p0r-rebind-request.v2";
 export const P0R_REBIND_RESULT_SCHEMA =
-  "market-radar-v2-m1-p0r-rebind-result.v1";
+  "market-radar-v2-m1-p0r-rebind-result.v2";
 export const P0R_REBIND_FAILURE_RESULT_SCHEMA =
-  "market-radar-v2-m1-p0r-rebind-failure-result.v1";
+  "market-radar-v2-m1-p0r-rebind-failure-result.v2";
 export const P0R_REBIND_MANIFEST_SCHEMA =
   "market-radar-v2-m1-p0r-rebind-manifest.v1";
 export const P0R_REBIND_MANIFEST =
@@ -41,9 +41,19 @@ export const P0R_REBIND_SUCCESS_MARKER =
 export const P0R_REBIND_METADATA_ENDPOINT =
   "http://metadata.tencentyun.com/latest/meta-data/public-ipv4";
 
-export const P0R_REBIND_CRITICAL_FILES = Object.freeze([
+export const P0R_REBIND_LEGACY_SUPERSESSION_FILES = Object.freeze([
   "m1-production-storage-backup-capture.mjs",
   "m1-production-storage-p0r-cos-provisioning.mjs",
+  "m1-production-storage-recovery-evidence.mjs",
+]);
+
+export const P0R_REBIND_CURRENT_RUNTIME_FILES = Object.freeze([
+  "m1-production-storage-backup-capture.mjs",
+  "m1-production-storage-database-fingerprint.mjs",
+  "m1-production-storage-p0r-cos-provisioning.mjs",
+  "m1-production-storage-p0r-runner.sh",
+  "m1-production-storage-p0r-session.sh",
+  "m1-production-storage-read-only-preflight.mjs",
   "m1-production-storage-recovery-evidence.mjs",
 ]);
 
@@ -65,7 +75,8 @@ const REQUEST_KEYS = Object.freeze([
   "approvalIssuedAt",
   "artifactManifestSha256",
   "automaticRollbackRequired",
-  "currentCriticalFileDigests",
+  "currentLegacySupersessionFileDigests",
+  "currentP0RRuntimeFileDigests",
   "databaseMutationAllowed",
   "dispatchId",
   "dispatchStateRoot",
@@ -216,9 +227,14 @@ export function validateP0RRebindRequest(
     "p0r_rebind_health_keys_invalid",
   );
   exactKeys(
-    request.currentCriticalFileDigests,
-    P0R_REBIND_CRITICAL_FILES,
-    "p0r_rebind_critical_file_keys_invalid",
+    request.currentLegacySupersessionFileDigests,
+    P0R_REBIND_LEGACY_SUPERSESSION_FILES,
+    "p0r_rebind_legacy_supersession_file_keys_invalid",
+  );
+  exactKeys(
+    request.currentP0RRuntimeFileDigests,
+    P0R_REBIND_CURRENT_RUNTIME_FILES,
+    "p0r_rebind_current_runtime_file_keys_invalid",
   );
   ensure(
     request.schemaVersion === P0R_REBIND_REQUEST_SCHEMA,
@@ -273,7 +289,8 @@ export function validateP0RRebindRequest(
     request.expectedLegacyTransportManifestSha256,
     request.expectedSourceIpCidrSha256,
     request.transportBundleSha256,
-    ...Object.values(request.currentCriticalFileDigests),
+    ...Object.values(request.currentLegacySupersessionFileDigests),
+    ...Object.values(request.currentP0RRuntimeFileDigests),
   ]) {
     ensure(SHA256.test(digest), "p0r_rebind_digest_invalid");
   }
@@ -1012,9 +1029,10 @@ export async function inspectSupersededP0RStaging(request) {
   );
 
   const superseded = {};
-  for (const name of P0R_REBIND_CRITICAL_FILES) {
+  for (const name of P0R_REBIND_LEGACY_SUPERSESSION_FILES) {
     const legacyDigest = fileMap[name]?.sha256;
-    const currentDigest = request.currentCriticalFileDigests[name];
+    const currentDigest =
+      request.currentLegacySupersessionFileDigests[name];
     ensure(
       SHA256.test(legacyDigest ?? "") &&
         SHA256.test(currentDigest) &&
@@ -1029,6 +1047,9 @@ export async function inspectSupersededP0RStaging(request) {
     .map(([name, digest]) => `${name}\0${digest}`);
   return {
     currentSourceCommit: request.sourceCommit,
+    currentP0RRuntimeFileSetSha256: sha256(
+      canonicalJson(request.currentP0RRuntimeFileDigests),
+    ),
     expectedLegacyBundleSha256: request.expectedLegacyBundleSha256,
     fileCount: actualNames.length,
     legacyBindingsSha256: request.expectedLegacyBindingsSha256,

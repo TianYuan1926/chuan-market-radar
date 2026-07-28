@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
-import { mkdtemp, open } from "node:fs/promises";
+import { execFileSync, spawnSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
+import { access, mkdtemp, open, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { Readable } from "node:stream";
 import test from "node:test";
 import {
   buildP0RCosProvisioningPlan,
@@ -10,7 +12,11 @@ import {
   createP0RRunId,
   P0R_COS_CREDENTIAL_SCHEMA_VERSION,
   P0R_COS_GRANT_ACTIONS,
+  readBoundedSecretInput,
+  receiveP0RAgeIdentity,
+  receiveP0RCredentials,
   stableSha256,
+  validateP0RAgeIdentity,
   validateP0RCosProvisioningPlan,
 } from "./m1-production-storage-p0r-cos-provisioning.mjs";
 
@@ -185,6 +191,112 @@ test("credential compiler fails closed on stale, inflated or ambiguous responses
   const mismatch = response();
   mismatch.Response.Expiration = "2026-07-21T14:35:00.000Z";
   assert.throws(() => compileP0RCosCredentials({ now: NOW, plan: plan(), stsResponse: mismatch }), /disagree/u);
+});
+
+test("bounded secret ingress drains, limits and validates exact age identity input", async () => {
+  const sourceChunk = Buffer.from("abcdef");
+  const value = await readBoundedSecretInput(
+    Readable.from([sourceChunk]),
+    6,
+    "fixture",
+  );
+  assert.equal(value.toString("utf8"), "abcdef");
+  assert.equal(sourceChunk.equals(Buffer.alloc(sourceChunk.length)), true);
+  value.fill(0);
+  await assert.rejects(
+    () => readBoundedSecretInput(Readable.from(["abcdef", "g"]), 6, "fixture"),
+    /bounded input limit/u,
+  );
+  assert.equal(
+    validateP0RAgeIdentity(`# generated\nAGE-SECRET-KEY-1${"A".repeat(58)}\n`),
+    `AGE-SECRET-KEY-1${"A".repeat(58)}\n`,
+  );
+  assert.throws(
+    () => validateP0RAgeIdentity("AGE-SECRET-KEY-1ABC\nAGE-SECRET-KEY-1DEF\n"),
+    /exactly one/u,
+  );
+  assert.throws(
+    () => validateP0RAgeIdentity(`AGE-SECRET-KEY-1${"B".repeat(58)}\n`),
+    /not one X25519/u,
+  );
+  assert.throws(
+    () => validateP0RAgeIdentity(`AGE-SECRET-KEY-1${"A".repeat(57)}\n`),
+    /not one X25519/u,
+  );
+});
+
+test("stdin credential ingress compiles immediately without persisting a raw response", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "p0r-cos-stdin-"));
+  const runId = createP0RRunId(new Date(NOW), randomBytes(16));
+  const exactPlan = buildP0RCosProvisioningPlan({
+    appId: "1234567890",
+    bucketBaseName: "market-radar-v2-p0r",
+    plannedAt: NOW,
+    region: "ap-hongkong",
+    runId,
+    sourceCommit: SOURCE_COMMIT,
+    sourceIpCidr: "203.0.113.24/32",
+  });
+  const credentialPath = join(directory, "cos-credentials.json");
+  const rawPath = join(directory, "sts-response.json");
+  try {
+    const credentials = await receiveP0RCredentials({
+      input: Readable.from([JSON.stringify(response())]),
+      now: NOW,
+      output: credentialPath,
+      plan: exactPlan,
+    });
+    assert.equal(credentials.issuance.planDigest, exactPlan.planDigest);
+    await assert.rejects(() => access(rawPath), /ENOENT/u);
+    const handle = await open(credentialPath, "r");
+    try {
+      const facts = await handle.stat();
+      assert.equal(facts.mode & 0o077, 0);
+      const stored = JSON.parse(await handle.readFile("utf8"));
+      assert.equal(stored.issuance.planDigest, exactPlan.planDigest);
+    } finally {
+      await handle.close();
+    }
+  } finally {
+    await rm(credentialPath, { force: true });
+    await rm(rawPath, { force: true });
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("credential ingress CLI rejects every caller-supplied clock override", () => {
+  const result = spawnSync(process.execPath, [
+    "scripts/v2/production/m1-production-storage-p0r-cos-provisioning.mjs",
+    "receive-credentials",
+    "--plan", "/does/not/matter.json",
+    "--now", NOW,
+  ], { encoding: "utf8", input: "{}" });
+  assert.notEqual(result.status, 0);
+  const failure = JSON.parse(result.stderr);
+  assert.equal(failure.status, "BLOCKED");
+  assert.match(failure.reason, /accepts only the exact plan path/u);
+});
+
+test("stdin age ingress writes only the exact mode-600 run-bound identity path", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "p0r-age-stdin-"));
+  const identityPath = join(directory, "age-identity.txt");
+  const identity = `AGE-SECRET-KEY-1${"Q".repeat(58)}`;
+  try {
+    await receiveP0RAgeIdentity({
+      input: Readable.from([`${identity}\n`]),
+      output: identityPath,
+    });
+    const handle = await open(identityPath, "r");
+    try {
+      assert.equal((await handle.stat()).mode & 0o077, 0);
+      assert.equal(await handle.readFile("utf8"), `${identity}\n`);
+    } finally {
+      await handle.close();
+    }
+  } finally {
+    await rm(identityPath, { force: true });
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test("create-plan CLI writes a mode-600, secret-free artifact", async () => {

@@ -23,8 +23,9 @@ import {
 } from "../lib/deterministic-ustar.mjs";
 import {
   DEFAULT_P0R_REBIND_POLICY,
-  P0R_REBIND_CRITICAL_FILES,
+  P0R_REBIND_CURRENT_RUNTIME_FILES,
   P0R_REBIND_ENTRYPOINT,
+  P0R_REBIND_LEGACY_SUPERSESSION_FILES,
   P0R_REBIND_MANIFEST,
   P0R_REBIND_MANIFEST_SCHEMA,
   P0R_REBIND_METADATA_ENDPOINT,
@@ -252,10 +253,19 @@ export async function buildP0RRebindBundle({
       ? await committedFile(repository, sourceCommit, path)
       : await readFile(join(repository, path));
   }
-  const currentCriticalFileDigests = {};
-  for (const name of P0R_REBIND_CRITICAL_FILES) {
+  const currentLegacySupersessionFileDigests = {};
+  for (const name of P0R_REBIND_LEGACY_SUPERSESSION_FILES) {
     const path = `scripts/v2/production/${name}`;
-    currentCriticalFileDigests[name] = sha256(
+    currentLegacySupersessionFileDigests[name] = sha256(
+      verifySourceBinding
+        ? await committedFile(repository, sourceCommit, path)
+        : await readFile(join(repository, path)),
+    );
+  }
+  const currentP0RRuntimeFileDigests = {};
+  for (const name of P0R_REBIND_CURRENT_RUNTIME_FILES) {
+    const path = `scripts/v2/production/${name}`;
+    currentP0RRuntimeFileDigests[name] = sha256(
       verifySourceBinding
         ? await committedFile(repository, sourceCommit, path)
         : await readFile(join(repository, path)),
@@ -328,7 +338,8 @@ export async function buildP0RRebindBundle({
       approvalIssuedAt: approval.issuedAt,
       artifactManifestSha256: sha256(manifestBytes),
       automaticRollbackRequired: true,
-      currentCriticalFileDigests,
+      currentLegacySupersessionFileDigests,
+      currentP0RRuntimeFileDigests,
       databaseMutationAllowed: false,
       dispatchId: approval.dispatchId,
       dispatchStateRoot: DEFAULT_P0R_REBIND_POLICY.dispatchStateRoot,

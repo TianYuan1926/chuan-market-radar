@@ -1007,10 +1007,94 @@ test("governance contract matches the executable transport and truth boundary", 
   assert.equal(contract.timeoutLockRecoveryEvidence.businessRuntimeMutation, false);
   assert.equal(contract.timeoutLockRecoveryEvidence.stagingCleaned, true);
   assert.equal(contract.recurrenceRootCauseGate.requiredForEveryActivePackage, true);
-  assert.equal(contract.recurrenceRootCauseGate.currentOpenIncidentCount, 0);
+  assert.equal(contract.recurrenceRootCauseGate.currentOpenIncidentCount, 1);
   assert.equal(contract.recurrenceRootCauseGate.allowedBootstrapOperation,
     "fixed_dispatch_bootstrap_install");
-  assert.equal(contract.recurrenceRootCauseGate.nextRequiredOperation, null);
+  assert.equal(contract.recurrenceRootCauseGate.nextRequiredOperation,
+    "p0r_atomic_credential_age_runner_session");
+  assert.equal(contract.recurrenceRootCauseGate.p0rReceiverCanaryStatus,
+    "PASS_REAL_TARGET_NO_SECRET_DUAL_SESSION_BOUNDED_SHORT_COMMAND");
+  assert.equal(contract.recurrenceRootCauseGate.p0rAtomicSessionStatus,
+    "LOCAL_TEST_PASS_REMOTE_SOURCE_QUALIFICATION_AND_REAL_TARGET_PENDING");
+  assert.equal(contract.recurrenceRootCauseGate.p0rRawStsResponsePersistenceAllowed, false);
+  assert.equal(
+    contract.recurrenceRootCauseGate.p0rComposeEnvReinterpolationForRuntimeIdentityAllowed,
+    false,
+  );
+  assert.equal(
+    contract.recurrenceRootCauseGate.p0rSessionPidStartTokenAndSourceBindingRequired,
+    true,
+  );
+  assert.equal(
+    contract.recurrenceRootCauseGate.p0rSecondaryFailureCleansAllSessionSecrets,
+    true,
+  );
+  assert.equal(
+    contract.recurrenceRootCauseGate.p0rSuccessRequiresVerifiedSecretCleanup,
+    true,
+  );
+  assert.equal(
+    contract.recurrenceRootCauseGate.p0rCredentialAndAgeIdentityOwnerUid,
+    0,
+  );
+  assert.equal(
+    contract.recurrenceRootCauseGate
+      .p0rAgeIdentityExactBech32AlphabetAndLengthRequired,
+    true,
+  );
+  assert.equal(
+    contract.recurrenceRootCauseGate.p0rRunnerEvidenceOutputDirectoryCreation,
+    "ATOMIC_MODE_700",
+  );
+  assert.equal(
+    contract.recurrenceRootCauseGate.p0rRunnerPrivateEphemeralDirectoryRequired,
+    true,
+  );
+  assert.equal(contract.recurrenceRootCauseGate.p0rRunnerInternalTeeAllowed, false);
+  assert.equal(
+    contract.recurrenceRootCauseGate
+      .p0rRunnerPrivateEphemeralDirectoryVerifiedCleanupRequired,
+    true,
+  );
+  assert.equal(
+    contract.recurrenceRootCauseGate.p0rFreshRebindRequestSchema,
+    "market-radar-v2-m1-p0r-rebind-request.v2",
+  );
+  assert.equal(
+    contract.recurrenceRootCauseGate.p0rFreshRebindCurrentRuntimeFileCount,
+    7,
+  );
+  assert.equal(
+    contract.recurrenceRootCauseGate.p0rFreshRebindCurrentRuntimeIncludesAtomicSession,
+    true,
+  );
+  assert.equal(
+    contract.recurrenceRootCauseGate.p0rHistoricalSupersessionComparisonFileCount,
+    3,
+  );
+  assert.equal(
+    contract.recurrenceRootCauseGate
+      .p0rCurrentRuntimeAndHistoricalComparisonSetsMustRemainSeparate,
+    true,
+  );
+  assert.equal(
+    contract.recurrenceRootCauseGate.p0rSecretInputCompletion,
+    "PRESS_ENTER_THEN_CTRL_D_ONCE",
+  );
+  assert.equal(contract.recurrenceRootCauseGate.p0rSecretSessionEntrypointCount, 2);
+  assert.equal(contract.recurrenceRootCauseGate.p0rOrcaTermCommandMaxUtf8Bytes, 200);
+  assert.equal(contract.recurrenceRootCauseGate.p0rOrcaTermEditorClearBeforeEveryCommand, true);
+  assert.equal(contract.recurrenceRootCauseGate.p0rOrcaTermEditorMinimumSettleMilliseconds, 1000);
+  assert.equal(contract.recurrenceRootCauseGate.p0rOrcaTermExactVisiblePreviewBeforeEveryExecution, true);
+  assert.ok(contract.recurrenceRootCauseGate.retiredOperations.includes(
+    "p0r_orcaterm_overlength_composite_command"));
+  assert.ok(contract.recurrenceRootCauseGate.retiredOperations.includes(
+    "p0r_orcaterm_unsettled_rapid_editor_write"));
+  for (const operation of [
+    "p0r_persisted_raw_sts_and_manual_compile_sequence",
+    "p0r_ax_response_reconstruction",
+    "p0r_compose_env_reinterpolation_for_runtime_identity",
+  ]) assert.ok(contract.recurrenceRootCauseGate.retiredOperations.includes(operation));
   assert.equal(contract.exceptions[0].mayBypassCloudMfa, false);
   assert.equal(contract.exceptions[1].mayMisreportTransport, false);
 });

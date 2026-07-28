@@ -52,6 +52,7 @@ test("builds a byte-reproducible, secret-free local template", async () => {
     assert.equal(first.bundleSha256, second.bundleSha256);
     assert.deepEqual(await readFile(first.output), await readFile(second.output));
     assert.equal(first.schemaVersion, P0R_BUNDLE_SCHEMA_VERSION);
+    assert.equal(P0R_BUNDLE_SCHEMA_VERSION, "v2-m1-production-storage-p0r-transport.v2");
     assert.equal(first.approvalEligible, false);
     assert.equal(first.containsSecrets, false);
     const { stdout } = await execFileAsync("tar", ["-tzf", first.output], { encoding: "utf8" });
@@ -64,6 +65,7 @@ test("builds a byte-reproducible, secret-free local template", async () => {
       "transport-manifest.json",
       "m1-production-storage-p0r-cos-provisioning.mjs",
       "m1-production-storage-p0r-runner.sh",
+      "m1-production-storage-p0r-session.sh",
     ]) assert.ok(stdout.split("\n").includes(expected), `missing ${expected}`);
     assert.doesNotMatch(stdout, /identity|credentials|\.env\.production|private-key/iu);
   } finally {
@@ -122,6 +124,25 @@ test("approval package embeds and checksum-binds the exact COS provisioning plan
       sourceCommit,
     });
     assert.equal(result.approvalEligible, true);
+    const { stdout: archiveListing } = await execFileAsync(
+      "tar",
+      ["-tzf", result.output],
+      { encoding: "utf8" },
+    );
+    const archiveMembers = archiveListing.trim().split("\n");
+    assert.equal(archiveMembers.length, 14);
+    assert.equal(new Set(archiveMembers).size, 14);
+    const { stdout: manifestText } = await execFileAsync(
+      "tar",
+      ["-xOzf", result.output, "transport-manifest.json"],
+      { encoding: "utf8" },
+    );
+    const manifest = JSON.parse(manifestText);
+    assert.equal(manifest.files.length, 13);
+    assert.ok(
+      manifest.files.some(({ name }) => name === "m1-production-storage-p0r-session.sh"),
+      "transport manifest must bind the atomic P0R session helper",
+    );
     const { stdout: planText } = await execFileAsync(
       "tar",
       ["-xOzf", result.output, "cos-provisioning-plan.json"],
@@ -135,6 +156,7 @@ test("approval package embeds and checksum-binds the exact COS provisioning plan
     );
     assert.match(bindings, /P0R_COS_PROVISIONING_PLAN_SHA256=[0-9a-f]{64}/u);
     assert.match(bindings, /P0R_COS_PROVISIONING_TOOL_SHA256=[0-9a-f]{64}/u);
+    assert.match(bindings, /P0R_SESSION_SHA256=[0-9a-f]{64}/u);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

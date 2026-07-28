@@ -173,7 +173,7 @@ test("duplicate open fault classes and duplicate operations are rejected", () =>
   ));
 });
 
-test("the real registry keeps every root-cause remediation closed and verified", async () => {
+test("the real registry exposes the open P0R receiver remediation and retires unsafe operations", async () => {
   const [state, registry] = await Promise.all([
     readFile(new URL("../../../../AUTONOMOUS_ENGINEERING_STATE.json", import.meta.url), "utf8")
       .then(JSON.parse),
@@ -182,21 +182,135 @@ test("the real registry keeps every root-cause remediation closed and verified",
   ]);
   assert.deepEqual(validateActiveStateDeclaration(state, registry), []);
   const summary = summarizeRecurrenceRegistry(registry, ["fixed_dispatch_first_signed_acceptance"]);
-  assert.equal(summary.openIncidentCount, 0);
-  assert.ok(
-    summary.incidents.every(
-      (incident) => incident.status === "CLOSED_VERIFIED",
-    ),
+  assert.equal(summary.openIncidentCount, 1);
+  assert.deepEqual(
+    summary.incidents.filter((incident) => incident.status !== "CLOSED_VERIFIED"),
+    [{
+      id: "REC-2026-07-28-P0R-SECRET-RECEIVER-FOCUS",
+      status: "REMEDIATION_IN_PROGRESS",
+      recurrenceCount: 5,
+    }],
   );
   assert.deepEqual(evaluateRecurrenceOperations(registry, ["fixed_dispatch_bootstrap_install"]), []);
   assert.deepEqual(evaluateRecurrenceOperations(
     registry,
     ["fixed_dispatch_first_signed_acceptance"],
   ), []);
+  assert.deepEqual(evaluateRecurrenceOperations(
+    registry,
+    ["p0r_dual_session_exact_receiver_qualification"],
+  ), []);
+  assert.deepEqual(evaluateRecurrenceOperations(
+    registry,
+    ["p0r_bounded_short_command_segmented_receiver"],
+  ), []);
+  assert.deepEqual(evaluateRecurrenceOperations(
+    registry,
+    ["p0r_clear_settle_exact_preview_each_command"],
+  ), []);
+  assert.deepEqual(evaluateRecurrenceOperations(
+    registry,
+    ["p0r_safe_sts_reissue_compile_and_recovery"],
+  ), []);
+  for (const operation of [
+    "p0r_noecho_memory_ingress_and_immediate_compile",
+    "p0r_exact_compose_label_runtime_identity",
+    "p0r_atomic_credential_age_runner_session",
+  ]) {
+    assert.deepEqual(evaluateRecurrenceOperations(registry, [operation]), []);
+  }
+  assert.deepEqual(
+    evaluateRecurrenceOperations(registry, ["p0r_unverified_orcaterm_receiver_paste"]),
+    [
+      "recurrence_operation_retired:REC-2026-07-28-P0R-SECRET-RECEIVER-FOCUS:p0r_unverified_orcaterm_receiver_paste",
+    ],
+  );
+  assert.deepEqual(
+    evaluateRecurrenceOperations(registry, ["p0r_orcaterm_overlength_composite_command"]),
+    [
+      "recurrence_operation_retired:REC-2026-07-28-P0R-SECRET-RECEIVER-FOCUS:p0r_orcaterm_overlength_composite_command",
+    ],
+  );
+  assert.deepEqual(
+    evaluateRecurrenceOperations(registry, ["p0r_orcaterm_unsettled_rapid_editor_write"]),
+    [
+      "recurrence_operation_retired:REC-2026-07-28-P0R-SECRET-RECEIVER-FOCUS:p0r_orcaterm_unsettled_rapid_editor_write",
+    ],
+  );
+  for (const operation of [
+    "p0r_persisted_raw_sts_and_manual_compile_sequence",
+    "p0r_ax_response_reconstruction",
+    "p0r_compose_env_reinterpolation_for_runtime_identity",
+  ]) {
+    assert.deepEqual(
+      evaluateRecurrenceOperations(registry, [operation]),
+      [
+        `recurrence_operation_retired:REC-2026-07-28-P0R-SECRET-RECEIVER-FOCUS:${operation}`,
+      ],
+    );
+  }
   assert.deepEqual(
     evaluateRecurrenceOperations(registry, ["ordinary_orcaterm_bundle_transport"]),
     [
       "recurrence_operation_retired:REC-2026-07-23-ORCATERM-ZERO-BYTE-UPLOAD:ordinary_orcaterm_bundle_transport",
     ],
   );
+  const openIncident = registry.incidents.find(
+    (incident) =>
+      incident.id === "REC-2026-07-28-P0R-SECRET-RECEIVER-FOCUS",
+  );
+  assert.ok(
+    openIncident.permanentFix.evidence.some(
+      (item) =>
+        item.includes("seven-file transport-v2 runtime digest set") &&
+        item.includes("three-file transport-v1 supersession comparison"),
+    ),
+  );
+  assert.ok(
+    openIncident.permanentFix.evidence.some(
+      (item) =>
+        item.includes("mode-700 private /dev/shm directory") &&
+        item.includes("mode-600 non-symlink file") &&
+        item.includes("forbids internal tee"),
+    ),
+  );
+  assert.ok(
+    openIncident.regression.evidence.some(
+      (item) =>
+        item.includes("private mode-700 /dev/shm directory") &&
+        item.includes("prohibition of internal tee") &&
+        item.includes("verified directory cleanup"),
+    ),
+  );
+  assert.ok(
+    openIncident.realTargetAcceptance.evidence.some(
+      (item) =>
+        item.includes("seven-file current P0R runtime set digest") &&
+        item.includes("three-file historical supersession proof"),
+    ),
+  );
+});
+
+test("the P0R runbook keeps atomic no-echo session commands below the OrcaTerm ceiling", async () => {
+  const runbook = await readFile(new URL(
+    "../../../../docs/runbooks/V2_M1_6_P0R_PRODUCTION_RECOVERY_RUNBOOK.md",
+    import.meta.url,
+  ), "utf8");
+  const runId = "p0r-20260727t142908z-03d9dbeef09a8b47290dd5638115449f";
+  const source = `/home/ubuntu/.cache/market-radar-v2/p0r/staging/${runId}`;
+  const commands = [
+    `cd ${source} && ./m1-production-storage-p0r-session.sh receive-credentials-and-run`,
+    `cd ${source} && ./m1-production-storage-p0r-session.sh receive-age-identity`,
+  ];
+
+  assert.match(runbook, /UTF-8 `<=200` 字节/u);
+  assert.match(runbook, /clear -> settle >=1000ms -> set -> settle >=1000ms -> exact visible preview -> execute/u);
+  assert.match(runbook, /原始 STS response 不落盘/u);
+  assert.match(runbook, /裸 `tee` receiver/u);
+  assert.match(runbook, /按一次 Enter 保证最后一行进入 stdin，再按一次 Ctrl-D 发送 EOF/u);
+  assert.match(runbook, /同样按一次 Enter，再按一次 Ctrl-D 完成 stdin/u);
+  assert.match(runbook, /CLEAR_SETTLE_EXACT_PREVIEW_SHORT_COMMAND_GATE_ACTIVE/u);
+  for (const command of commands) {
+    assert.ok(Buffer.byteLength(command, "utf8") <= 200, command);
+  }
 });

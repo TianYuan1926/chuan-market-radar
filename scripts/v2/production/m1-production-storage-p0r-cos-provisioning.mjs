@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
 import { constants as fsConstants } from "node:fs";
-import { chmod, open, rm, writeFile } from "node:fs/promises";
+import { chmod, open, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -33,6 +33,9 @@ const DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/u;
 const ISO_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u;
 const REQUEST_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const RUN_ID_PATTERN = /^p0r-\d{8}t\d{6}z-[0-9a-f]{32}$/u;
+const AGE_IDENTITY_PATTERN =
+  /^AGE-SECRET-KEY-1[QPZRY9X8GF2TVDW0S3JN54KHCE6MUA7L]{58}$/u;
+const MAXIMUM_AGE_IDENTITY_BYTES = 8 * 1024;
 const MAXIMUM_JSON_BYTES = 256 * 1024;
 const MINIMUM_COMPILED_REMAINING_SECONDS = 6_600;
 
@@ -341,6 +344,74 @@ async function writeJsonExclusive(path, value) {
   await chmod(path, 0o600);
 }
 
+async function writeSecretExclusive(path, value) {
+  await writeFile(path, value, { flag: "wx", mode: 0o600 });
+  await chmod(path, 0o600);
+}
+
+export async function readBoundedSecretInput(input, maximumBytes, label) {
+  assert.ok(Number.isSafeInteger(maximumBytes) && maximumBytes > 0, "input limit is invalid");
+  const chunks = [];
+  let size = 0;
+  let oversized = false;
+  try {
+    for await (const value of input) {
+      const chunk = Buffer.isBuffer(value) ? value : Buffer.from(value);
+      try {
+        size += chunk.length;
+        if (size <= maximumBytes) chunks.push(Buffer.from(chunk));
+        else oversized = true;
+      } finally {
+        chunk.fill(0);
+      }
+    }
+    assert.equal(oversized, false, `${label} exceeds the bounded input limit`);
+    assert.ok(size > 0, `${label} is empty`);
+    return Buffer.concat(chunks, size);
+  } finally {
+    for (const chunk of chunks) chunk.fill(0);
+  }
+}
+
+export function validateP0RAgeIdentity(value) {
+  assert.equal(typeof value, "string", "age identity must be text");
+  assert.doesNotMatch(value, /\0/u, "age identity contains a forbidden null byte");
+  const lines = value
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#"));
+  assert.equal(lines.length, 1, "age identity must contain exactly one non-comment line");
+  assert.match(lines[0], AGE_IDENTITY_PATTERN, "age identity is not one X25519 private identity");
+  return `${lines[0]}\n`;
+}
+
+export async function receiveP0RCredentials({ input, now, plan, output }) {
+  const bytes = await readBoundedSecretInput(input, MAXIMUM_JSON_BYTES, "STS response");
+  try {
+    const value = JSON.parse(bytes.toString("utf8"));
+    assert.ok(isRecord(value), "STS response must contain one JSON object");
+    const credentials = compileP0RCosCredentials({ now, plan, stsResponse: value });
+    await writeJsonExclusive(output, credentials);
+    return credentials;
+  } finally {
+    bytes.fill(0);
+  }
+}
+
+export async function receiveP0RAgeIdentity({ input, output }) {
+  const bytes = await readBoundedSecretInput(
+    input,
+    MAXIMUM_AGE_IDENTITY_BYTES,
+    "age identity",
+  );
+  try {
+    const identity = validateP0RAgeIdentity(bytes.toString("utf8"));
+    await writeSecretExclusive(output, identity);
+  } finally {
+    bytes.fill(0);
+  }
+}
+
 function parseArguments(argv) {
   assert.equal(argv.length % 2, 0, "arguments must be name/value pairs");
   const options = {};
@@ -400,41 +471,54 @@ async function main() {
     })}\n`);
     return;
   }
-  if (command === "compile-credentials") {
-    assert.deepEqual(Object.keys(options).sort(), ["now", "output", "plan", "sts-response"]
-      .filter((name) => options[name] !== undefined).sort());
-    for (const name of ["output", "plan", "sts-response"]) {
-      assert.ok(options[name], `--${name} is required`);
-    }
+  if (command === "receive-credentials") {
+    assert.deepEqual(
+      Object.keys(options).sort(),
+      ["plan"],
+      "receive-credentials accepts only the exact plan path",
+    );
+    assert.ok(options.plan, "--plan is required");
     const plan = validateP0RCosProvisioningPlan(await readJson(resolve(options.plan), "plan"));
-    const output = resolve(options.output);
+    const output =
+      `/dev/shm/market-radar-v2-p0r-${plan.credentialGrant.runId}.cos-credentials.json`;
     assert.equal(
       output,
       `/dev/shm/market-radar-v2-p0r-${plan.credentialGrant.runId}.cos-credentials.json`,
       "credential output must use the exact /dev/shm run path",
     );
-    const responsePath = resolve(options["sts-response"]);
-    assert.ok(responsePath.startsWith("/dev/shm/"), "STS response must remain in /dev/shm");
-    try {
-      const stsResponse = await readJson(responsePath, "STS response", { secure: true });
-      const credentials = compileP0RCosCredentials({
-        now: options.now ?? new Date().toISOString(),
-        plan,
-        stsResponse,
-      });
-      await writeJsonExclusive(output, credentials);
-      process.stdout.write(`${JSON.stringify({
-        containsSecret: false,
-        planDigest: credentials.issuance.planDigest,
-        requestId: credentials.issuance.requestId,
-        status: "PASS_P0R_EPHEMERAL_CREDENTIAL_COMPILED",
-      })}\n`);
-    } finally {
-      await rm(responsePath, { force: true });
-    }
+    const credentials = await receiveP0RCredentials({
+      input: process.stdin,
+      now: new Date().toISOString(),
+      output,
+      plan,
+    });
+    process.stdout.write(`${JSON.stringify({
+      containsSecret: false,
+      planDigest: credentials.issuance.planDigest,
+      rawResponsePersisted: false,
+      requestId: credentials.issuance.requestId,
+      status: "PASS_P0R_EPHEMERAL_CREDENTIAL_COMPILED",
+    })}\n`);
     return;
   }
-  throw new Error("command must be create-plan, verify-plan or compile-credentials");
+  if (command === "receive-age-identity") {
+    assert.deepEqual(Object.keys(options).sort(), ["plan"]);
+    assert.ok(options.plan, "--plan is required");
+    const plan = validateP0RCosProvisioningPlan(await readJson(resolve(options.plan), "plan"));
+    const output =
+      `/dev/shm/market-radar-v2-p0r-${plan.credentialGrant.runId}.age-identity.txt`;
+    await receiveP0RAgeIdentity({ input: process.stdin, output });
+    process.stdout.write(`${JSON.stringify({
+      normalizedIdentityPersistedInExactDevShm: true,
+      containsSecret: false,
+      rawInputPersisted: false,
+      status: "PASS_P0R_AGE_IDENTITY_RECEIVED",
+    })}\n`);
+    return;
+  }
+  throw new Error(
+    "command must be create-plan, verify-plan, receive-credentials or receive-age-identity",
+  );
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] || "").href) {

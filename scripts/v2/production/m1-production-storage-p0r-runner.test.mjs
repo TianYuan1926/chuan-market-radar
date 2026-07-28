@@ -7,6 +7,7 @@ const RUNNER = "scripts/v2/production/m1-production-storage-p0r-runner.sh";
 
 test("plan exposes the exact no-mutation and isolated-restore boundary", () => {
   const plan = JSON.parse(execFileSync("bash", [RUNNER, "plan"], { encoding: "utf8" }));
+  assert.equal(plan.schemaVersion, "v2-m1-production-storage-p0r-runner-plan.v4");
   assert.equal(plan.sourceTransaction, "REPEATABLE_READ_READ_ONLY");
   assert.equal(plan.plaintextDumpCreated, false);
   assert.equal(plan.offHostAvailabilityZoneType, "SINGLE_AZ_REQUIRED");
@@ -16,6 +17,11 @@ test("plan exposes the exact no-mutation and isolated-restore boundary", () => {
   assert.equal(plan.offHostReadOnlyPreflightBeforeDatabaseCapture, true);
   assert.equal(plan.preUploadAbsenceRequired, true);
   assert.equal(plan.stsPolicyPlanBound, true);
+  assert.equal(plan.containerSelection, "EXACT_COMPOSE_PROJECT_AND_SERVICE_LABELS");
+  assert.equal(plan.composeInterpolationRequired, false);
+  assert.equal(plan.evidenceOutputDirectoryCreation, "ATOMIC_MODE_700");
+  assert.equal(plan.privateEphemeralRunnerDirectory, true);
+  assert.equal(plan.ephemeralFileCreation, "EXCLUSIVE_MODE_600");
   assert.equal(plan.restoreNetworkMode, "none");
   assert.equal(plan.restoreCpuNano, 1_500_000_000);
   assert.equal(plan.restoreMemoryBytes, 2 * 1024 ** 3);
@@ -64,13 +70,29 @@ test("runner encodes hard cleanup, digest binding and no-source-sync invariants"
     "P0R_AGE_RECIPIENT_SHA256",
     "P0R_COS_PROVISIONING_PLAN_SHA256",
     "P0R_COS_PROVISIONING_TOOL_SHA256",
+    "P0R_SESSION_SHA256",
     "m1-production-storage-p0r-cos-provisioning.mjs\" verify-plan",
     '"${RUNTIME_DIRECTORY}/p0r-cos-archive" preflight',
     '--provisioning-plan "${RUNTIME_DIRECTORY}/cos-provisioning-plan.json"',
     '--run-id "${RUN_ID}"',
     "EXPECTED_SOURCE_DIRECTORY",
     "EXPECTED_OUTPUT_DIRECTORY",
+    "! -L \"${OUTPUT_DIRECTORY}\"",
+    'mkdir --mode=700 -- "${OUTPUT_DIRECTORY}"',
+    "P0R evidence output directory is invalid",
+    "com.docker.compose.project=chuan-market-radar",
+    "com.docker.compose.service=${service}",
+    "write_private_text_exclusive",
+    'mktemp -d "/dev/shm/market-radar-v2-p0r-${RUN_ID}.runner.XXXXXX"',
+    "require_private_runtime_file",
+    "age canary encrypted exclusive creation failed",
+    "age canary decrypted exclusive creation failed",
+    "P0R private runner directory was not removed",
     '"/dev/shm/market-radar-v2-p0r-${RUN_ID}.age-identity.txt"',
+    '"COS credential file" 65536 0',
+    '"age identity file" 8192 0',
+    "AGE-SECRET-KEY-1[QPZRY9X8GF2TVDW0S3JN54KHCE6MUA7L]{58}",
+    "! -L \"${path}\"",
   ]) assert.ok(combined.includes(required), `missing runner invariant: ${required}`);
   assert.ok(
     source.indexOf('"${RUNTIME_DIRECTORY}/p0r-cos-archive" preflight')
@@ -82,6 +104,8 @@ test("runner encodes hard cleanup, digest binding and no-source-sync invariants"
     "git checkout",
     "docker compose up",
     "docker compose down",
+    "docker compose",
+    "sudo -n tee",
     "prisma migrate",
     "psql -c",
   ]) assert.equal(source.includes(forbidden), false, `forbidden runner action: ${forbidden}`);

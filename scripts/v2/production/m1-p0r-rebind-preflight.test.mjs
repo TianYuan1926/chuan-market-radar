@@ -12,7 +12,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import test from "node:test";
 import { promisify } from "node:util";
 import {
@@ -28,8 +28,12 @@ import {
   parseP0RRebindBundleArguments,
 } from "./m1-p0r-rebind-preflight-bundle.mjs";
 import {
-  P0R_REBIND_CRITICAL_FILES,
+  P0R_TRANSPORT_SOURCES,
+} from "./m1-production-storage-p0r-bundle.mjs";
+import {
+  P0R_REBIND_CURRENT_RUNTIME_FILES,
   P0R_REBIND_ENTRYPOINT,
+  P0R_REBIND_LEGACY_SUPERSESSION_FILES,
   P0R_REBIND_MANIFEST,
   P0R_REBIND_MANIFEST_SCHEMA,
   P0R_REBIND_METADATA_ENDPOINT,
@@ -95,11 +99,20 @@ function testPolicy(root) {
   };
 }
 
-function currentCriticalFileDigests() {
+function currentLegacySupersessionFileDigests() {
   return Object.fromEntries(
-    P0R_REBIND_CRITICAL_FILES.map((name) => [
+    P0R_REBIND_LEGACY_SUPERSESSION_FILES.map((name) => [
       name,
       sha256(`current:${name}`),
+    ]),
+  );
+}
+
+function currentP0RRuntimeFileDigests() {
+  return Object.fromEntries(
+    P0R_REBIND_CURRENT_RUNTIME_FILES.map((name) => [
+      name,
+      sha256(`current-runtime:${name}`),
     ]),
   );
 }
@@ -203,7 +216,9 @@ function fixtureRequest(policy, legacy) {
     approvalIssuedAt: ISSUED_AT,
     artifactManifestSha256: "3".repeat(64),
     automaticRollbackRequired: true,
-    currentCriticalFileDigests: currentCriticalFileDigests(),
+    currentLegacySupersessionFileDigests:
+      currentLegacySupersessionFileDigests(),
+    currentP0RRuntimeFileDigests: currentP0RRuntimeFileDigests(),
     databaseMutationAllowed: false,
     dispatchId: DISPATCH_ID,
     dispatchStateRoot: policy.dispatchStateRoot,
@@ -280,8 +295,16 @@ test("request freezes no-secret read-only rebinding boundaries", async () => {
       },
       {
         ...request,
-        currentCriticalFileDigests: Object.fromEntries(
-          Object.entries(request.currentCriticalFileDigests).slice(1),
+        currentLegacySupersessionFileDigests: Object.fromEntries(
+          Object.entries(
+            request.currentLegacySupersessionFileDigests,
+          ).slice(1),
+        ),
+      },
+      {
+        ...request,
+        currentP0RRuntimeFileDigests: Object.fromEntries(
+          Object.entries(request.currentP0RRuntimeFileDigests).slice(1),
         ),
       },
       {
@@ -416,6 +439,12 @@ test("legacy staging is fully verified and explicitly rejected as superseded", a
     );
     assert.equal(result.status, "REJECTED_SUPERSEDED_SECURITY_SOURCE");
     assert.equal(result.fileCount, 13);
+    assert.equal(
+      result.currentP0RRuntimeFileSetSha256,
+      sha256(canonicalJson(
+        fixtureRequest(policy, legacy).currentP0RRuntimeFileDigests,
+      )),
+    );
     assert.equal(result.transportArchivePresentInStaging, false);
     assert.doesNotMatch(JSON.stringify(result), /restricted-test-bucket/u);
     await writeFile(
@@ -430,6 +459,24 @@ test("legacy staging is fully verified and explicitly rejected as superseded", a
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test("current runtime qualification covers the complete transport source set", () => {
+  assert.deepEqual(
+    [...P0R_REBIND_CURRENT_RUNTIME_FILES].sort(),
+    P0R_TRANSPORT_SOURCES.map((path) => basename(path)).sort(),
+  );
+  assert.ok(
+    P0R_REBIND_CURRENT_RUNTIME_FILES.includes(
+      "m1-production-storage-p0r-session.sh",
+    ),
+  );
+  assert.equal(
+    P0R_REBIND_LEGACY_SUPERSESSION_FILES.includes(
+      "m1-production-storage-p0r-session.sh",
+    ),
+    false,
+  );
 });
 
 test("bundle is deterministic, redacted and accepted by fixed dispatch", async () => {
@@ -483,6 +530,21 @@ test("bundle is deterministic, redacted and accepted by fixed dispatch", async (
     );
     assert.equal(first.request.transportContainsSecrets, false);
     assert.equal(first.request.applicationMutationAllowed, false);
+    assert.deepEqual(
+      Object.keys(first.request.currentP0RRuntimeFileDigests).sort(),
+      [...P0R_REBIND_CURRENT_RUNTIME_FILES].sort(),
+    );
+    assert.equal(
+      first.request.currentP0RRuntimeFileDigests[
+        "m1-production-storage-p0r-session.sh"
+      ],
+      sha256(await readFile(
+        join(
+          process.cwd(),
+          "scripts/v2/production/m1-production-storage-p0r-session.sh",
+        ),
+      )),
+    );
 
     const privateKey = join(root, "keys/private.pem");
     const publicKey = join(root, "keys/public.pem");

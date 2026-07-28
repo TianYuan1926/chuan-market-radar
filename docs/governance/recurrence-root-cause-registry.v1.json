@@ -383,6 +383,145 @@
         "The 90-second Git timeout prevents permanent lock loss but does not prove GitHub availability; provider or network failure remains an explicit dispatch failure.",
         "The expired P0R rebind package was not executed and must be regenerated with a new approval window."
       ]
+    },
+    {
+      "id": "REC-2026-07-28-P0R-SECRET-RECEIVER-FOCUS",
+      "faultClass": "orcaterm.secret_receiver.focus_and_process_ambiguity",
+      "affectedChannel": "tencent_orcaterm_browser_terminal_p0r_secret_exception",
+      "status": "REMEDIATION_IN_PROGRESS",
+      "recurrenceCount": 5,
+      "firstObservedDate": "2026-07-28",
+      "lastObservedDate": "2026-07-28",
+      "affectedOperations": [
+        "p0r_single_session_secret_receiver",
+        "p0r_unverified_orcaterm_receiver_paste",
+        "p0r_orcaterm_overlength_composite_command",
+        "p0r_orcaterm_unsettled_rapid_editor_write",
+        "p0r_persisted_raw_sts_and_manual_compile_sequence",
+        "p0r_ax_response_reconstruction",
+        "p0r_compose_env_reinterpolation_for_runtime_identity"
+      ],
+      "prohibitedOperations": [
+        "p0r_single_session_secret_receiver",
+        "p0r_unverified_orcaterm_receiver_paste",
+        "p0r_orcaterm_overlength_composite_command",
+        "p0r_orcaterm_unsettled_rapid_editor_write",
+        "p0r_persisted_raw_sts_and_manual_compile_sequence",
+        "p0r_ax_response_reconstruction",
+        "p0r_compose_env_reinterpolation_for_runtime_identity"
+      ],
+      "remediationOperations": [
+        "p0r_dual_session_exact_receiver_qualification",
+        "p0r_compromised_credential_containment",
+        "p0r_bounded_short_command_segmented_receiver",
+        "p0r_clear_settle_exact_preview_each_command",
+        "p0r_noecho_memory_ingress_and_immediate_compile",
+        "p0r_exact_compose_label_runtime_identity",
+        "p0r_atomic_credential_age_runner_session",
+        "p0r_safe_sts_reissue_compile_and_recovery"
+      ],
+      "fingerprint": {
+        "signature": "An OrcaTerm editor contains or previously executed the intended tee command, but no exact target tee process is listening when the STS response is pasted and the response reaches the interactive shell.",
+        "stableConditions": [
+          "P0R secret transport uses the exceptional browser terminal path because the signed Git channel forbids credentials.",
+          "Receiver readiness is inferred from editor or UI state without independent target-process proof.",
+          "An overlength composite command is trusted without proving that OrcaTerm preserved its prefix.",
+          "A new editor value is written immediately after the prior execution without an explicit clear, settle interval and exact visible-value comparison.",
+          "A raw STS response is persisted and its compile is deferred across multiple manual UI commands despite a five-minute issuance gate.",
+          "Current container identity is rediscovered by re-rendering Compose from an env file that does not contain every required interpolation value."
+        ],
+        "observedEvidence": [
+          "The pre-MFA receiver session disconnected and could not prove that its waiting process survived.",
+          "After MFA, the raw STS response was echoed by the interactive shell while no matching tee process or raw file existed.",
+          "A real-target no-secret canary proved dual-session PID, path, owner, mode, exact 32-byte content, EOF exit and cleanup.",
+          "The canary also proved that an approximately 300-byte composite quick command silently lost its prefix while a 198-byte command remained intact.",
+          "A later 94-byte read-only find command written rapidly after the preceding execution lost its leading find token; the exact preview gate rejected it before execution.",
+          "The second exact STS reached the target, but the real-time compiler rejected it because the multi-command recovery path exceeded five minutes after issuance.",
+          "The raw pathname was removed, yet PID 1175383 still held the unlinked target in a waiting tee process until it was independently identified and terminated.",
+          "docker compose ps failed before any mutation because POSTGRES_USER was unavailable to interpolation even though the running PostgreSQL container retained its current identity."
+        ]
+      },
+      "rootCause": {
+        "boundary": "external_orcaterm_ui_secret_transport_split_from_immediate_compile_and_current_runtime_identity",
+        "conclusion": "The secret path incorrectly persisted a raw response and split reception, verification, runtime discovery and compile across fragile UI commands. That design exceeded the five-minute issuance gate, could leave an unlinked waiting tee, and attempted to recreate current runtime identity through incomplete Compose interpolation. UI command hardening alone cannot fix this architecture.",
+        "confidence": "DIRECT",
+        "evidence": [
+          "Independent production verification found no matching tee process and no P0R raw credential file.",
+          "The same terminal input path visibly removed punctuation from a later non-secret diagnostic command.",
+          "The quick-command editor preserved the exact command only after its panel was visibly opened and the target output was independently read.",
+          "A bounded 154-byte receiver command and 198-byte cleanup command passed the real-target canary; the longer composite verifier command lost its prefix and was split into short commands.",
+          "The independent preview check caught a missing leading find token on a 94-byte command; clearing the editor, waiting at least one second, setting the value, waiting again and comparing the full visible value preserved the retry exactly.",
+          "The exact compiler rejected the second STS with STS response was not compiled immediately after issuance and no clock override was used.",
+          "Production read-only checks proved one exact Web container under project and service labels, while Compose interpolation failed before container discovery.",
+          "Post-failure inspection proved zero P0R files only after the exact residual tee PID was terminated; a file-only check would have been a false cleanup claim."
+        ]
+      },
+      "permanentFix": {
+        "status": "PARTIAL",
+        "authorityPaths": [
+          "docs/runbooks/V2_M1_6_P0R_PRODUCTION_RECOVERY_RUNBOOK.md",
+          "docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json"
+        ],
+        "workaroundDisposition": "RETIRED_AFTER_BOOTSTRAP",
+        "evidence": [
+          "Single-session and unverified receiver paste operations are retired.",
+          "The old tee receiver and verifier flow is retained only as a no-secret historical canary; current credential transport uses exactly two checksum-bound no-echo session entrypoints and never persists the raw STS response.",
+          "Credential-visible screenshots, accessibility output, OCR and logs are prohibited.",
+          "Every OrcaTerm command in the secret exception is single-purpose, at most 200 UTF-8 bytes and independently reviewed; overlength composite commands are retired.",
+          "Before every command the editor must be cleared and allowed to settle for at least one second; after setting the command it must settle again and the complete visible value must match byte-for-byte before execution. Unsettled rapid editor writes are retired.",
+          "The local replacement session disables terminal echo, receives bounded STS bytes directly in memory, compiles immediately, never creates a raw response file and exclusively creates only root-owned mode-600 run-bound credential and age identity files while keeping the ready file operator-owned.",
+          "The same session validates exact binding keys and source checksums, locates current Web and PostgreSQL containers by exact Compose labels, and rejects caller-supplied clock overrides.",
+          "The second session binds the first by PID, Linux process-start token and source commit before age identity handoff, then starts the checksum-bound Runner automatically.",
+          "Any timeout, disconnect, invalid secret, secondary-session failure or Runner exit immediately cleans credential, age identity and session-ready paths; a successful Runner exit must synchronously delete and verify absence of all three paths before the session can report success.",
+          "Fresh read-only rebind schema v2 keeps the frozen three-file transport-v1 supersession comparison separate from the complete seven-file transport-v2 runtime digest set, including the Runner and atomic session helper.",
+          "The Runner creates one high-entropy mode-700 private /dev/shm directory, exclusively creates every internal plaintext or recovered canary as a mode-600 non-symlink file, forbids internal tee writes and verifies removal of the entire private directory before success."
+        ]
+      },
+      "regression": {
+        "status": "PARTIAL",
+        "redCase": "A secret receiver persists raw STS bytes, defers compile across manual UI commands, trusts AX reconstruction, leaves a waiting tee or recreates current container identity through incomplete Compose interpolation.",
+        "greenCommand": "npm run test:recurrence-gate",
+        "evidence": [
+          "The registry structurally retires both affected operations and exposes the open remediation.",
+          "The registry also retires overlength P0R OrcaTerm composite commands and allows only bounded segmented remediation.",
+          "The registry retires unsettled rapid editor writes and requires clear, settle and exact visible preview before every execution.",
+          "P0R tests prove bounded in-memory stdin ingress, no raw-response file, exclusive mode-600 credential and age outputs, rejection of clock overrides, exact binding parsing, Compose-label identity, PID/start-token/source session binding, automatic Runner handoff and abandoned-session cleanup.",
+          "The rebind regression proves that the current seven-file runtime set exactly matches the transport-v2 source set while the historical verifier remains limited to files that existed in transport v1.",
+          "Runner regression locks the private mode-700 /dev/shm directory, exclusive mode-600 internal file creation, exact age identity grammar, prohibition of internal tee and verified directory cleanup.",
+          "Closure still requires the new helper to pass clean commit, remote gates, fresh read-only rebind and real-target recovery acceptance."
+        ]
+      },
+      "runtimeGate": {
+        "status": "PARTIAL",
+        "evidence": [
+          "Containment verified zero P0R files in production /dev/shm after exact termination of residual tee PID 1175383.",
+          "Containment independently verified no matching P0R process; local clipboard was covered and the secret-bearing Node session was reset.",
+          "Local UTC 2026-07-28T20:57:48Z and Tencent STS HTTPS Date 2026-07-28T20:57:56Z independently proved the second exact STS expired after 2026-07-28T20:57:29Z; it is permanently forbidden from reuse.",
+          "No COS, database, backup, retrieval, restore, application, repository, env, migration or authority mutation occurred."
+        ]
+      },
+      "realTargetAcceptance": {
+        "status": "PENDING",
+        "evidence": [
+          "The local no-echo in-memory session helper must first become a clean exact commit, pass all GitHub gates and pass a fresh production read-only rebind.",
+          "The fresh rebind result must bind the canonical seven-file current P0R runtime set digest and separately retain the frozen three-file historical supersession proof.",
+          "The second STS expiry prerequisite is proven; a new exact-plan STS may be requested only after a clean exact source, all GitHub gates, fresh read-only rebind and new plan/bundle pass, and it must be compiled immediately without ever persisting the raw response.",
+          "The P0R Runner must still complete backup, exact retrieval, isolated restore, cleanup and zero-drift verification."
+        ]
+      },
+      "workaroundAccounting": {
+        "attemptCount": 5,
+        "postTriggerEmergencyWorkaroundCount": 0,
+        "durationMeasurement": "MEASURED",
+        "durationSeconds": 2400,
+        "unknownReason": null
+      },
+      "remainingRisks": [
+        "Future Tencent STS credentials still have no verified per-token revocation control, so any future compromise must fail closed, forbid reuse and wait for independently proven exact expiry.",
+        "OrcaTerm remains required only as the interactive stdin transport for this short-lived secret exception; its UI focus state is not authoritative.",
+        "The exact OrcaTerm editor implementation has no trusted published maximum; the 200-byte ceiling is a conservative local safety limit and every command still requires visible pre-execution review.",
+        "The local atomic session is not production evidence until a new exact source passes remote gates, read-only rebind and the complete P0R recovery."
+      ]
     }
   ]
 }

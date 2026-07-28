@@ -2,6 +2,55 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-29 / P0R Atomic Secret Session Root Remediation
+
+### 本轮目标
+
+根据两次真实 STS 失败证据，永久移除 raw response 落盘、裸 `tee`、手工编译、AX response reconstruction 和 Compose env 重插值路径；建立无回显、内存即时编译、两项 secret 到齐后自动执行且失败全清理的原子会话。
+
+### 当前证据
+
+- `bd20bd5b73ef0beb41c331aa43c58051ef01d37a` 的四条 GitHub 门禁、fresh production read-only rebind 和 v3 plan/bundle staging 核验仍是可信历史证据，但其旧 secret 会话实现已被真实失败证伪，因此不再拥有执行权。
+- 第一枚 STS 因 receiver 未运行而误入交互 shell，已过期且永久禁用。第二枚 STS 最终进入真实 receiver，但多条手工操作导致超过签发后 5 分钟；编译器按真实时钟返回 `STS response was not compiled immediately after issuance`。未使用 `--now` 伪造时间，也未继续 COS、数据库、backup、retrieval 或 restore。
+- raw path 删除后，独立现场核验发现 PID `1175383` 的 `tee` 仍持有已 unlink 文件并等待输入。该进程经 exact identity 核对后终止；随后分别证明生产 P0R 文件数 `0`、进程数 `0`。本机 clipboard 已覆盖，secret-bearing Node 会话已整体 reset。
+- 第二枚 STS 的 exact expiry `2026-07-28T20:57:29Z` 已由本机 UTC `2026-07-28T20:57:48Z` 与腾讯 STS HTTPS Date `2026-07-28T20:57:56Z` 双重证明超过；该凭证现为 `EXPIRED_FORBIDDEN_REUSE`，永久禁止复用。两次尝试均没有生产数据库读取、COS 对象、backup、retrieval、restore、业务服务或 authority 变更。
+- 新 `m1-production-storage-p0r-session.sh` 在 TTY 关闭 echo，使用 Web 容器内的受控 Node 从 stdin 有界读取 STS、在内存校验并即时编译，原始响应不落盘；credential 与 age identity 只以 exclusive mode 600 写入 `/dev/shm`。第二会话以 PID、Linux process-start token 和 source commit 三重绑定第一会话，拒绝 PID 复用或陈旧 ready 文件；两项 secret 到齐后自动启动 checksum-bound Runner，任一会话超时、断线、验证失败或 Runner 退出均立即清理整组 exact session 路径。
+- session helper 不执行 `p0r-bindings.env`，只把它作为普通数据解析；恰好接受 12 个白名单键、一个 40 位 source commit 和 11 个 SHA-256。生产容器仅按 exact Compose project/service labels 选择，不再重新渲染 Compose 或读取 env。
+- Runner 内部数据库描述和 canary 不再使用可预测公共 `/dev/shm` 文件：每次执行创建 owner-bound mode-700 私有目录，内部 plaintext/recovered canary 以 no-clobber mode-600 regular file 生成，禁止内部 `tee`，并在成功前验证整个目录已删除。
+- credential ingress CLI 已删除 caller-supplied `--now`，生产编译只能使用进程真实时钟；回归证明任何时钟覆盖参数都会 fail closed。
+- fresh rebind request/result schema v2 已把历史 transport v1 三文件替代比较与当前 transport v2 七文件运行资格分离；七文件集包含 runner 和 atomic session helper，任一摘要缺失或混写都 fail closed，且历史 13-member verifier 边界保持冻结。
+- 当前定向 P0R `81/81`、Go helper、recurrence gate `10/10`、production dispatch `24/24`、`git diff --check` 和完整 `ci:production` 已通过；完整 CI 同时取得 V2 Foundation `631 PASS / 6 explicit skip`、V2 Ops `203/203`、Next production build、Golden `16/16` 与 security PASS。新 clean commit、GitHub 四门、fresh production read-only rebind、新 plan/bundle、真实目标 session acceptance 与恢复仍待完成。
+
+### 当前真值
+
+P0R 当前是“本地根因修复通过专项门禁，完整资格和真实生产恢复未完成”。没有可用 credential，没有读取生产数据库，没有生成或上传 backup，没有创建 COS 对象，没有执行 exact retrieval 或独立 PostgreSQL 16 restore。生产应用、数据库、Redis、Worker、env、migration、Feature Flag、生产仓库和业务 authority 未改变。旧 raw/tee/manual-compile 路线已永久退役，不能因历史四门或 staging PASS 恢复执行权。
+
+### 下一步
+
+第二枚 STS 的精确过期前置已完成证明。先完成最终权威文档同步与提交前复核，形成 clean commit，随后通过 GitHub 四门、fresh production read-only rebind 和新 exact plan/bundle；只有这些新 source 资格全部通过后才允许生成新的 7200 秒 STS。使用两个 fresh OrcaTerm 会话分别进入唯一无回显 session 入口，由 helper 完成即时编译、age handoff 和自动 Runner。只有真实 backup、exact retrieval、独立 PostgreSQL 16 restore、证据封存、secret/container/volume/runtime 清理和生产零漂移全部 PASS，P0R 才能关闭。
+
+## 2026-07-28 / Strategy Archetype Labeling Blueprint Integration
+
+### 本轮目标
+
+把“每笔策略必须说明属于哪一种交易逻辑”纳入 V2 权威链，并确保它是可版本化、可验证、可复盘的后端事实，而不是前端自由文案或事后解释。
+
+### 修改范围
+
+- 新增 `M3.3E Strategy Archetype Labeling and Outcome Attribution` 独立合同，区分 canonical 主标签、有界辅助标签和 Action State 派生状态标签。
+- 冻结突破回踩、跌破反抽、支撑反弹、压力受阻、趋势延续、假突破/假跌破反转、区间反转、压缩扩张、流动性扫单、相对强弱和衍生品资金流等初始双向词表。
+- Strategy Construction 是主标签唯一生成者；Candidate/Analysis 只能输出 `setupHypothesis`，Final Decision 只校验和冻结，前端只本地化、展示和筛选。
+- Decision Snapshot、Alert 和 Outcome 必须原样传播原标签；Outcome 按标签、方向、regime、Venue、流动性、资产域和生命周期分层评价。
+- 新标签必须通过真实 cohort、matched control、sealed holdout、前向 Shadow 和独立审计，禁止单币种、单日或少量成功案例过拟合。
+
+### 当前真值
+
+本轮只完成设计权威、追踪矩阵和施工顺序整合。schema、builder、strict decoder、Final Decision parity、Outcome 归因、前端消费、测试、真实 Shadow 和生产 authority 均尚未实现；不得将 `DESIGN_AUTHORITY_ADDED` 误写为策略标签能力完成。腾讯应用、数据库、Redis、Worker、COS、env、migration 和业务 authority 未由本包改变。
+
+### 下一步
+
+先继续关闭当前独立第一关键路径 P0R；随后按 `schema -> Strategy builder -> Final Decision -> DecisionSnapshot/Alert -> Outcome -> frontend -> replay/holdout/Shadow` 实施 M3.3E，并与真实 M3.1A-M3.3D 分域策略共同验收。
+
 ## 2026-07-27 / P0R STS Required Region Contract Root Remediation
 
 ### 本轮目标
@@ -82,63 +131,3 @@
 ### 风险与下一步
 
 本地工程 PASS 不代表四 Venue coverage、微观结构 SLO 或容量 PASS。当前生产 Bundle 必须 fail closed，因为 A0/P0R 尚未关闭，且旧 M1.4B/source-conformance evidence 与当前源码不是 same-commit upstream。正确顺序是先完成 P0R 和 fresh P0，再在同一 clean commit 刷新 upstream，执行 M1.5C/M1.5D 两包并分别验收，最后进入 M1.6-D1。
-
-## 2026-07-27 / V2 M2.2-C1 Forward Evidence Refresh and Domain Isolation
-
-### 本轮目标
-
-把 C1 前向目录证据的完整历史复核固化为正式只读验证器，并用 Scope V2 多资产 normalizer 重放最新 raw，防止旧 `CANONICAL_TARGET` 合约形状标签被误写成加密资产域结论。
-
-### 修改范围
-
-- Evidence Store 新增 `READ_ONLY_EXISTING`，验证时不得创建、补写或修复 evidence root。
-- 新增完整 journal、artifact/raw 引用、跨轮 continuity、精确文件集、权限、symlink、orphan、partial 与 lock 审计。
-- 新增 clean-HEAD CLI，分别绑定 evidence release 与 verifier release，证据完整但连续性不够时仍返回非零 readiness。
-- 最新 retained raw 复用 Scope V2 Binance/OKX/Bybit 多资产 normalizer；Bybit 广义 `stock` 缺官方 mapping 时保持 `OTHER_RWA_DERIVATIVE`，不按名称猜单股或 ETF。
-- Candidate、Strategy、READY、历史回填、生产写入和交易权限全部保持关闭。
-
-### 验收结果
-
-- 四轮 Batch 全部 `COMPLETE`；4 条 journal、28 个 artifact 引用、12 个 raw 引用和 37 个精确保留文件全部通过。
-- Binance/OKX/Bybit 分别保留 845/426/757 行，三家均为 4/4 完整快照、约 998.5-998.7 秒跨度、gap=0 和 `FORWARD_ONLY_READY`。
-- Scope V2 重放中，Binance 为 crypto 698、单股 125、指数/ETF 3、其他 RWA 8、unresolved 11；OKX 为 287/131/0/8/0；Bybit 为 crypto 620、其他 RWA 137，其中 133 个只能证明 provider `stock` 大类。三家 normalizer 都是 `PARTIAL`。
-- 定向 42/42 与完整本地 CI PASS：Market 965 pass / 4 explicit skip、Workers 23/23、Historical 4/4、V2 Foundation 592 pass / 6 explicit skip、V2 Ops 180/180、M0、Next build、Golden 16/16 和 security 全部通过。
-- verifier source 的 A0 `30223737098`、Full Quality `30223737124`、Independent Security `30223737105` 与 Signed Dispatch Quality `30223737131` 全部 PASS。
-
-### 是否部署
-
-未派发或部署本包。腾讯应用、数据库、Redis、Worker、容器、env、Feature Flag、migration、COS 和业务 authority 未由本包改变。当时独立 P0R receipt 尚未读取；该历史未知状态现已由本日志首条的目标核对结果覆盖。
-
-### 风险与下一步
-
-该证据只覆盖三 Venue 约 16.6 分钟目录连续性，不含 Bitget、24h SLO、官方 mapping 完整性、价格或微观结构 Fact、真实 cohort、Detector、Candidate、Strategy 或 READY。P0R 旧包已确认未执行，当前下一生产动作是 fresh signed read-only rebind；A0 总门禁关闭后再启动同源 M1.5C/M1.5D。
-
-## 2026-07-27 / V2 M1.6-P0R Read-Only Source Rebind
-
-### 本轮目标
-
-根据当前源码与服务器历史 staging 的真实差异，阻止 superseded P0R 包被误执行，并建立无 secret、只读、可签名派发的现场重绑定入口。
-
-### 修改范围
-
-- 历史 `bed938...` staging 的成员、manifest、plan、bindings 和摘要继续保留为审计事实，但状态改为 `REJECTED_SUPERSEDED_SECURITY_SOURCE`，禁止执行、复用或绑定新 STS。
-- 根因是其三个目标机运行文件早于单句柄 `O_NOFOLLOW`、独占输出和有界读取修复；本地 bundle builder 也早于确定性 Node USTAR。
-- source parts `408803e0bdc21051124a + 79e307db8e9eb39c793c` 新增 deterministic no-secret rebind bundle、strict request、精确只读命令 allowlist、single-use runner、staging 自动清理和脱敏 evidence。
-- 重绑定核对生产 Git、容器、timer、listener、health、`/dev/shm`、P0R container/volume、腾讯 metadata `/32` 摘要与历史 staging 全成员；生产身份前后必须零漂移。
-- 证据发布改为同目录临时文件加原子硬链接，任何同名结果直接失败，不能覆盖已有证据。
-
-### 验收结果
-
-- rebind package `9/9 PASS`。
-- 完整 P0R `70/70 PASS`，Go COS helper PASS。
-- 完整本地 CI PASS：Market 965 pass / 4 explicit skip、Workers 23/23、Historical 4/4、V2 Foundation 584 pass / 6 explicit skip、V2 Ops 179/179、M0、Next build、Golden 16/16 与 security 全部通过。
-- exact-source Full Quality `30219999104`、A0 Release Qualification `30219999094` 与 Independent Security `30219999063` 全部 PASS；Security 明确证明 Gitleaks finding=`0`、CodeQL untriaged=`0`、Trivy HIGH/CRITICAL=`0`。
-- 三条远端工作流均声明 `production_execution=false`、`production_mutation=false` 且未使用生产凭证；该结果关闭源码资格前置，不等于腾讯现场重绑定完成。
-
-### 是否部署
-
-signed read-only dispatch `p0r-rebind-preflight-20260726t213258z-e77631a3` 当时已发布并过期，现场状态最初保持 `UNKNOWN`。当前 receipt 已证明它未 claim、未解包、未执行，并因过期写入 `dispatch_not_current`；该旧未知结论已失效。仍没有 STS、backup、retrieval 或 restore。
-
-### 下一步
-
-下一入口仍是 `V2-M1.6-P0R-R0-READ-ONLY-SOURCE-REBIND`，但必须生成新的时效派发，禁止复用已消费的旧 commit。生产重绑定 PASS 后才允许从 current source 重建 plan/bundle；fresh STS 与 age identity 只能单独进入 `/dev/shm`，随后才能执行真实 backup、exact retrieval、isolated restore 与 cleanup。
