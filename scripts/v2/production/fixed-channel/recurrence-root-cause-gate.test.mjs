@@ -329,6 +329,16 @@ test("the P0R runbook retires post-response browser recovery and OrcaTerm secret
   assert.match(runbook, /Keychain 项内部读取 age identity/u);
   assert.match(
     runbook,
+    /request schema 必须为 `market-radar-v2-m1-p0r-rebind-request\.v3`/u,
+  );
+  assert.match(
+    runbook,
+    /result schema 必须为 `market-radar-v2-m1-p0r-rebind-result\.v2`/u,
+  );
+  assert.match(runbook, /`dispatchRuntimeMaxSeconds=90`/u);
+  assert.match(runbook, /`v2:m1:p0r:rebind-release`/u);
+  assert.match(
+    runbook,
     /m1-production-storage-p0r-local-tty-bridge\.exp execute --plan <plan>/u,
   );
   assert.doesNotMatch(runbook, /以下两条是唯一允许的 secret session 入口/u);

@@ -91,7 +91,7 @@ npm run v2:m1:p0r:bundle -- \
 
 ### 4.1 只读现场重绑定
 
-只读重绑定必须通过 `v2:m1:p0r:rebind-bundle` 从 clean、已推送的 exact commit 构建，并通过固定 Ed25519 signed dispatch 通道执行。当前 request/result schema 必须为 v2：历史 transport v1 的替代比较集固定为当时已经存在的三个安全文件，当前 source 资格集则必须完整绑定 transport v2 的七个运行文件，尤其包括 runner 与 `m1-production-storage-p0r-session.sh`；两者不得混为同一分母。它只能：
+只读重绑定必须通过 `v2:m1:p0r:rebind-bundle` 从 clean、已推送的 exact commit 构建，并且只允许由 `v2:m1:p0r:rebind-release` 通过固定 Ed25519 signed dispatch 通道发布。当前 request schema 必须为 `market-radar-v2-m1-p0r-rebind-request.v3`，result schema 必须为 `market-radar-v2-m1-p0r-rebind-result.v2`；request 必须显式绑定 `dispatchRuntimeMaxSeconds=90`，release 入口必须从 canonical request 派生 source、ref、approval window、runner、staging、success marker 和 runtime，禁止操作员重复填写或覆盖。历史 transport v1 的替代比较集固定为当时已经存在的三个安全文件，当前 source 资格集则必须完整绑定 transport v2 的七个运行文件，尤其包括 runner 与 `m1-production-storage-p0r-session.sh`；两者不得混为同一分母。它只能：
 
 - 核对生产 HEAD、clean worktree、完整容器身份、timer、listener 和 health；
 - 证明 `/dev/shm` 无 P0R 临时 secret，且无 P0R container/volume；
