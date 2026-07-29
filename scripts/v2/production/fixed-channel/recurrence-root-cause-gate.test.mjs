@@ -188,7 +188,7 @@ test("the real registry exposes the open P0R receiver remediation and retires un
     [{
       id: "REC-2026-07-28-P0R-SECRET-RECEIVER-FOCUS",
       status: "REMEDIATION_IN_PROGRESS",
-      recurrenceCount: 5,
+      recurrenceCount: 6,
     }],
   );
   assert.deepEqual(evaluateRecurrenceOperations(registry, ["fixed_dispatch_bootstrap_install"]), []);
@@ -216,6 +216,10 @@ test("the real registry exposes the open P0R receiver remediation and retires un
     "p0r_noecho_memory_ingress_and_immediate_compile",
     "p0r_exact_compose_label_runtime_identity",
     "p0r_atomic_credential_age_runner_session",
+    "p0r_prearmed_local_tty_bridge",
+    "p0r_native_copy_without_browser_read",
+    "p0r_fixed_ssh_tty_keychain_handoff",
+    "p0r_zero_residue_after_exposed_response",
   ]) {
     assert.deepEqual(evaluateRecurrenceOperations(registry, [operation]), []);
   }
@@ -241,6 +245,8 @@ test("the real registry exposes the open P0R receiver remediation and retires un
     "p0r_persisted_raw_sts_and_manual_compile_sequence",
     "p0r_ax_response_reconstruction",
     "p0r_compose_env_reinterpolation_for_runtime_identity",
+    "p0r_browser_state_recovery_after_sts_response",
+    "p0r_orcaterm_secret_session_entry_after_api_response",
   ]) {
     assert.deepEqual(
       evaluateRecurrenceOperations(registry, [operation]),
@@ -289,28 +295,41 @@ test("the real registry exposes the open P0R receiver remediation and retires un
         item.includes("three-file historical supersession proof"),
     ),
   );
+  assert.ok(
+    openIncident.permanentFix.evidence.some(
+      (item) =>
+        item.includes("native-copied Tencent response") &&
+        item.includes("clears the clipboard") &&
+        item.includes("Keychain"),
+    ),
+  );
+  assert.ok(
+    openIncident.runtimeGate.evidence.some(
+      (item) =>
+        item.includes("zero P0R files") &&
+        item.includes("containers and volumes"),
+    ),
+  );
 });
 
-test("the P0R runbook keeps atomic no-echo session commands below the OrcaTerm ceiling", async () => {
+test("the P0R runbook retires post-response browser recovery and OrcaTerm secret entry", async () => {
   const runbook = await readFile(new URL(
     "../../../../docs/runbooks/V2_M1_6_P0R_PRODUCTION_RECOVERY_RUNBOOK.md",
     import.meta.url,
   ), "utf8");
-  const runId = "p0r-20260727t142908z-03d9dbeef09a8b47290dd5638115449f";
-  const source = `/home/ubuntu/.cache/market-radar-v2/p0r/staging/${runId}`;
-  const commands = [
-    `cd ${source} && ./m1-production-storage-p0r-session.sh receive-credentials-and-run`,
-    `cd ${source} && ./m1-production-storage-p0r-session.sh receive-age-identity`,
-  ];
 
-  assert.match(runbook, /UTF-8 `<=200` 字节/u);
-  assert.match(runbook, /clear -> settle >=1000ms -> set -> settle >=1000ms -> exact visible preview -> execute/u);
   assert.match(runbook, /原始 STS response 不落盘/u);
   assert.match(runbook, /裸 `tee` receiver/u);
-  assert.match(runbook, /按一次 Enter 保证最后一行进入 stdin，再按一次 Ctrl-D 发送 EOF/u);
-  assert.match(runbook, /同样按一次 Enter，再按一次 Ctrl-D 完成 stdin/u);
-  assert.match(runbook, /CLEAR_SETTLE_EXACT_PREVIEW_SHORT_COMMAND_GATE_ACTIVE/u);
-  for (const command of commands) {
-    assert.ok(Buffer.byteLength(command, "utf8") <= 200, command);
-  }
+  assert.match(runbook, /response-after browser state read/u);
+  assert.match(runbook, /OrcaTerm secret entry/u);
+  assert.match(runbook, /READY_P0R_API_NATIVE_COPY_TO_LOCAL_TTY_BRIDGE/u);
+  assert.match(runbook, /页面原生 Copy/u);
+  assert.match(runbook, /bridge 返回 READY 前禁止请求 STS/u);
+  assert.match(runbook, /先清空 clipboard/u);
+  assert.match(runbook, /Keychain 项内部读取 age identity/u);
+  assert.match(
+    runbook,
+    /m1-production-storage-p0r-local-tty-bridge\.exp execute --plan <plan>/u,
+  );
+  assert.doesNotMatch(runbook, /以下两条是唯一允许的 secret session 入口/u);
 });

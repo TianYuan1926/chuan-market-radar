@@ -13,7 +13,7 @@ fail() {
 
 if [[ "${MODE}" == "plan" ]]; then
   cat <<'JSON'
-{"schemaVersion":"v2-m1-production-storage-p0r-session.v1","rawStsResponsePersisted":false,"terminalEchoDisabledDuringSecretInput":true,"boundedSecretInput":true,"inputCompletion":"PRESS_ENTER_THEN_CTRL_D_ONCE","credentialCompileImmediate":true,"callerClockOverrideAllowed":false,"credentialOutputExclusive":true,"ageIdentityOutputExclusive":true,"credentialAndIdentityOnlyInDevShm":true,"credentialAndIdentityOwnerUid":0,"containerSelection":"EXACT_COMPOSE_PROJECT_AND_SERVICE_LABELS","composeInterpolationRequired":false,"sessionPidStartTokenAndSourceBound":true,"runnerStartsAutomaticallyAfterBothSecrets":true,"abandonedSessionCleansSecrets":true,"secondaryFailureCleansAllSessionSecrets":true,"cancelledReadyAbortsPrimaryWait":true,"successRequiresVerifiedSecretCleanup":true,"productionDatabaseMutation":false,"productionServiceMutation":false,"productionRepositoryMutation":false}
+{"schemaVersion":"v2-m1-production-storage-p0r-session.v2","rawStsResponsePersisted":false,"terminalEchoDisabledDuringSecretInput":true,"readyMarkerAfterEchoDisabled":true,"boundedSecretInput":true,"inputCompletion":"NEWLINE_THEN_EOT_FROM_PREARMED_LOCAL_TTY_BRIDGE","localTtyBridgeRequired":true,"browserStateReadAfterResponseAllowed":false,"credentialCompileImmediate":true,"callerClockOverrideAllowed":false,"credentialOutputExclusive":true,"ageIdentityOutputExclusive":true,"credentialAndIdentityOnlyInDevShm":true,"credentialAndIdentityOwnerUid":0,"containerSelection":"EXACT_COMPOSE_PROJECT_AND_SERVICE_LABELS","composeInterpolationRequired":false,"sessionPidStartTokenAndSourceBound":true,"runnerStartsAutomaticallyAfterBothSecrets":true,"abandonedSessionCleansSecrets":true,"secondaryFailureCleansAllSessionSecrets":true,"cancelledReadyAbortsPrimaryWait":true,"successRequiresVerifiedSecretCleanup":true,"productionDatabaseMutation":false,"productionServiceMutation":false,"productionRepositoryMutation":false}
 JSON
   exit 0
 fi
@@ -163,12 +163,12 @@ trap 'exit 130' HUP INT TERM
 
 receive_secret() {
   local action="$1" ready_status="$2"
-  printf '{"status":"%s","runId":"%s","terminalEcho":false,"inputCompletion":"PRESS_ENTER_THEN_CTRL_D_ONCE"}\n' \
-    "${ready_status}" "${RUN_ID}"
   stty -echo
   TTY_ECHO_DISABLED=true
+  printf '{"status":"%s","runId":"%s","terminalEcho":false,"inputCompletion":"NEWLINE_THEN_EOT_FROM_PREARMED_LOCAL_TTY_BRIDGE"}\n' \
+    "${ready_status}" "${RUN_ID}"
   set +e
-  sudo -n timeout --foreground 180s \
+  sudo -n timeout --foreground 600s \
     "${HOST_NODE}" --preserve-symlinks \
     "${PROVISIONING_TOOL}" "${action}" --plan "${PLAN_FILE}"
   local status=$?

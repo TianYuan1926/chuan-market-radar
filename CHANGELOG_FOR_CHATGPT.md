@@ -2,6 +2,32 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-29 / P0R Post-Response Disclosure Containment and Fixed Local TTY Bridge
+
+### 本轮目标
+
+根据第三枚真实 STS 在 browser-state recovery 中进入工具输出的直接证据，永久移除 API response 出现后的浏览器状态读取和 OrcaTerm secret entry，改为签发前预先建立的固定本机 TTY bridge。
+
+### 当前证据
+
+- source `e3626387ee8d57ef8e4f9c11c2e098b781ac6fbe` 的本地 CI、GitHub 四门、fresh read-only rebind 和 staged transport-v2 曾真实 PASS，但 run `p0r-20260728t222552z-299113ff2921579d305df1e295e51914` 的 STS response 随后被浏览器状态读取披露。因此该 source 的资格证据仍是历史事实，该 run、plan、object key、bundle 和 staging 则全部永久失去执行权。
+- 第三枚 STS 从未进入服务器、从未编译、从未访问 COS；没有数据库 backup、retrieval 或 restore。其 exact expiry 为 `2026-07-29T06:09:17Z`，到期前状态是 `COMPROMISED_FORBIDDEN_UNTIL_EXPIRED`，到期后仍永久禁止复用。
+- 本机 UTC `2026-07-29T10:32:53Z` 与腾讯 STS HTTPS Date `2026-07-29T10:35:42Z` 已分别晚于该 exact expiry，第三枚 STS 现为 `EXPIRED_FORBIDDEN_REUSE`；双时钟证明只允许后续在新 source、新 run 和新 plan 下重新签发，绝不恢复旧 credential 或旧 execution identity。
+- 事故后 API 页已清空、clipboard 已覆盖、secret-bearing browser/Node context 已销毁。生产四条独立只读检查证明 P0R 文件、session/provisioning 进程、container 和 volume 全部为 0；生产应用、数据库、Redis、仓库、env、migration、authority 和 11 个既有容器未改变。
+- direct SSH read-only probe 已真实 PASS。新 `m1-production-storage-p0r-local-tty-bridge.exp` 固定目标、SSH identity、known_hosts、ed25519 host key、loopback proxy、run-derived staging 和两个远端命令；execute 模式不接受任意 host、remote command、secret 或 Keychain 名称。
+- bridge 必须在 STS 签发前收到远端 echo-disabled READY marker。之后只接受 API Explorer 原生 Copy 的结构精确有界 JSON，先覆盖 clipboard 再 handoff；credential compile 后从固定 Keychain 项内部读取 age identity。response 后禁止 screenshot、OCR、AX、browser state、computer-use 和 OrcaTerm secret 输入。
+- 远端 session 已改为先执行 `stty -echo` 再输出 READY，移除 ready/echo 竞态，接收窗口扩至 600 秒但仍由编译器强制签发后 5 分钟即时编译。
+- 本地伪 TTY 红绿测试 10/10 PASS：覆盖完整双 session、secret 不进入 stdout/stderr、固定命令、固定 Keychain 参数、malformed clipboard、错误 marker、SSH failure 和无论成败 clipboard 清理。
+- bridge 的计划校验运行时已固定为本机受控 Node `v22.23.1`，并 fail closed 拒绝版本漂移；完整 P0R `87/87`、Go helper、recurrence gate `10/10`、production dispatch `24/24`、精确 Node/npm 的完整 `ci:production`、Next production build、Golden `16/16` 与 security check 均已 PASS。新 clean commit、GitHub 四门、fresh rebind、新 execution identity 和真实生产恢复仍待完成，不能用本地全绿冒充生产 PASS。
+
+### 当前真值
+
+P0R 仍是 `PRODUCTION_RECOVERY_NOT_EXECUTED / P0_BLOCKED`。现在没有可用 credential；第三枚已取得双时钟过期证明并永久禁用。新 local bridge 已完成本地全资格，但不是生产 PASS。旧 browser/OrcaTerm secret 路线已经永久退役。
+
+### 下一步
+
+形成新 clean exact commit 并取得 GitHub 四门；随后执行 fresh read-only rebind，生成全新 run/object key/plan/bundle/staging。所有新 source 资格成立后，先启动 bridge 并看到 READY，再由用户完成 MFA 和 API Explorer 原生 Copy。只有真实 backup、exact retrieval、独立 PostgreSQL 16 restore、证据封存、secret/container/volume/runtime 清理与生产零漂移全部 PASS，P0R 才能关闭。
+
 ## 2026-07-29 / P0R Atomic Secret Session Root Remediation
 
 ### 本轮目标
@@ -25,9 +51,9 @@
 
 P0R 当前是“本地根因修复通过专项门禁，完整资格和真实生产恢复未完成”。没有可用 credential，没有读取生产数据库，没有生成或上传 backup，没有创建 COS 对象，没有执行 exact retrieval 或独立 PostgreSQL 16 restore。生产应用、数据库、Redis、Worker、env、migration、Feature Flag、生产仓库和业务 authority 未改变。旧 raw/tee/manual-compile 路线已永久退役，不能因历史四门或 staging PASS 恢复执行权。
 
-### 下一步
+### 下一步（已由上方固定 TTY bridge 路线覆盖）
 
-第二枚 STS 的精确过期前置已完成证明。先完成最终权威文档同步与提交前复核，形成 clean commit，随后通过 GitHub 四门、fresh production read-only rebind 和新 exact plan/bundle；只有这些新 source 资格全部通过后才允许生成新的 7200 秒 STS。使用两个 fresh OrcaTerm 会话分别进入唯一无回显 session 入口，由 helper 完成即时编译、age handoff 和自动 Runner。只有真实 backup、exact retrieval、独立 PostgreSQL 16 restore、证据封存、secret/container/volume/runtime 清理和生产零漂移全部 PASS，P0R 才能关闭。
+本条原定的两个 fresh OrcaTerm secret 会话已被第三枚 STS disclosure 证伪并永久退役。当前只执行上方 `P0R Post-Response Disclosure Containment and Fixed Local TTY Bridge` 的新顺序；本段保留为历史演进证据，不再具有执行权。
 
 ## 2026-07-28 / Strategy Archetype Labeling Blueprint Integration
 

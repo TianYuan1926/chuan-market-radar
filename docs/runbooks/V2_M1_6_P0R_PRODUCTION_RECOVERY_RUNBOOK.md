@@ -1,6 +1,6 @@
 # V2 M1.6-P0R 生产恢复运行手册
 
-状态：`OBJECT_LOCK_31D_ENABLED_AND_VERIFIED / AGE_IDENTITY_KEYCHAIN_PASS / LEGACY_BED938_STAGING_REJECTED_SUPERSEDED_SECURITY_SOURCE / BD20_REMOTE_GATES_AND_READ_ONLY_REBIND_HISTORICAL_PASS / BD20_V3_PLAN_BUNDLE_SUPERSEDED_BY_LOCAL_SESSION_REMEDIATION / FIRST_STS_EXPIRED_COMPROMISED / SECOND_STS_EXPIRED_FORBIDDEN_REUSE_DUAL_CLOCK_VERIFIED / PROD_P0R_SHM_AND_PROCESS_ZERO_VERIFIED / LOCAL_NOECHO_MEMORY_INGRESS_ATOMIC_SESSION_TESTS_PASS_REMOTE_AND_PRODUCTION_PENDING / CLEAR_SETTLE_EXACT_PREVIEW_SHORT_COMMAND_GATE_ACTIVE / NO_USABLE_CREDENTIAL / PRODUCTION_RECOVERY_NOT_EXECUTED / P0_BLOCKED`
+状态：`OBJECT_LOCK_31D_ENABLED_AND_VERIFIED / AGE_IDENTITY_KEYCHAIN_PASS / LEGACY_BED938_STAGING_REJECTED_SUPERSEDED_SECURITY_SOURCE / E362_REMOTE_GATES_AND_READ_ONLY_REBIND_HISTORICAL_PASS / E362_RUN_PLAN_BUNDLE_INVALIDATED_BY_POST_RESPONSE_DISCLOSURE / FIRST_SECOND_AND_THIRD_STS_EXPIRED_FORBIDDEN_REUSE / THIRD_STS_DUAL_CLOCK_EXPIRY_PROOF_PASS / PROD_P0R_FILES_PROCESSES_CONTAINERS_VOLUMES_ZERO_VERIFIED / LOCAL_FIXED_TTY_BRIDGE_FULL_QUALIFICATION_PASS / NEW_EXACT_COMMIT_REMOTE_REBIND_AND_PRODUCTION_RECOVERY_PENDING / NO_USABLE_CREDENTIAL / PRODUCTION_RECOVERY_NOT_EXECUTED / P0_BLOCKED`
 
 ## 1. 唯一目标
 
@@ -14,7 +14,7 @@
 -> 用 signed dispatch 执行 current-source 只读现场重绑定
 -> 从 exact pushed current source 重建 plan 与 checksum-bound transport bundle
 -> 上传无 secret、含受限目标元数据的 bundle
--> 通过 no-echo session 把 fresh STS 在内存即时编译到 /dev/shm，并单独注入临时 age identity
+-> 预先启动固定本机 TTY bridge，在 exact remote no-echo marker 后把 native-copied fresh STS 在内存即时编译到 /dev/shm，并从 Keychain 内部注入临时 age identity
 -> 执行真实 backup / retrieval / isolated restore
 -> 封存脱敏 evidence，确认临时 secret 与容器/volume 已清理
 -> 执行并证明零付费容量驻留重设计
@@ -85,6 +85,8 @@ npm run v2:m1:p0r:bundle -- \
 
 验收输出必须为 `PASS_P0R_PRODUCTION_TRANSPORT_BUNDLE`，新原子会话 Bundle 的 schema 必须为 `v2-m1-production-storage-p0r-transport.v2`、归档成员必须恰好 14 个、manifest 必须恰好绑定除自身外的 13 个文件，并独立记录 source commit、bundle SHA-256、manifest digest 和 size。历史 transport v1 只允许由历史证据 verifier 读取，不得冒充当前执行包。`6a81e865e61569f7d2d7c3bb3be1d78db72a9eab` 与 `bed938...` 均只保留为历史来源证据，不再拥有执行权。历史 `bed938...` staging 的 run、plan 和 transport bundle 已完整保留并校验，但其源码早于三项生产安全修复：backup/credential/recovery evidence 读取尚未统一使用单一 `O_NOFOLLOW` 句柄，部分输出尚未使用独占创建；其本地 bundle builder 也早于确定性 Node USTAR 替换。因此该 staging 的权威状态改为 `REJECTED_SUPERSEDED_SECURITY_SOURCE`，禁止执行、复制成新包或签发绑定它的 STS。
 
+`m1-production-storage-p0r-local-tty-bridge.exp` 是可信 Mac 上的 operator-side 控制面，不进入生产 transport bundle，也不扩大生产运行成员分母。它必须与 plan 的 exact source commit 同属一个 clean worktree，通过本地测试和 GitHub 四门，并在执行时重新校验 plan、clean HEAD、本机私钥、known_hosts、固定目标、固定代理和两个不可注入的远端命令。bridge 未通过自身 plan/test/source gate 时，不得签发 STS。
+
 历史重绑定实现 source parts `408803e0bdc21051124a + 79e307db8e9eb39c793c` 和 source `94118...` 的 PASS 均保留为前序证据。Region 与第四门触发根因修复 source `bd20bd5b73ef0beb41c331aa43c58051ef01d37a` 也已通过 GitHub Full Quality `30273183761`、Signed Dispatch `30273183650`、Independent Security `30273183504` 与 A0 Qualification `30273183454`；fresh read-only dispatch `p0r-rebind-preflight-20260728t110438z-b2815255` 返回 `PASS_P0R_READ_ONLY_REBIND_PREFLIGHT` 且生产零漂移。这些均是真实历史证据，但 `bd20...` 的 bundle 不含当前固定 atomic session helper，旧 secret 路线又被第二次真实 STS 失败证伪，因此它已失去执行权。后续 plan、bundle、STS 和 recovery 必须绑定 replacement clean exact source；不得退回 `bd20...` 或更早 source。
 
 ### 4.1 只读现场重绑定
@@ -102,6 +104,8 @@ npm run v2:m1:p0r:bundle -- \
 
 首次 signed rebind dispatch 已在目标机被确认从未执行。生产固定派发代理曾因 Git child 超过 systemd 180 秒时限被终止，并遗留无 owner 的空锁；后续 4,526 次轮询均被旧锁拒绝。source parts `2b4fccc9f3affe613d4f + 0da0f97295d97b0c6452` 已将 Git child 固定为 90 秒硬上限，并加入 owner-aware、四分钟 stale 下限的锁恢复。腾讯生产验收通过后，旧 dispatch 被记录为 `FAIL_DISPATCH_NOT_REUSABLE / dispatch_not_current`，没有 claim、解包或业务 Runner，应用与 11 容器零漂移。该旧 dispatch 已消费且禁止复用；其“必须 fresh redispatch”结论已由 `p0r-rebind-preflight-20260728t110438z-b2815255` 的 current-source PASS 正式关闭。
 
+source `e3626387ee8d57ef8e4f9c11c2e098b781ac6fbe` 曾完整通过本地 CI、GitHub 四门和 fresh read-only rebind `p0r-rebind-preflight-20260728t222400z-e994dde2`；生产 HEAD、11 个容器和应用真值均保持不变。但随后绑定 run `p0r-20260728t222552z-299113ff2921579d305df1e295e51914` 的 STS 响应在浏览器状态恢复时被披露，因此该 run、plan、object key、bundle 和 staging 全部失去执行权。它们只可作为事故证据保留，必须由新的 clean source、新 run、新 plan、新 object key 和新 bundle 替代，禁止向旧 run 重新签发 credential。
+
 ## 5. 临时凭证合同
 
 不得手工编 credential JSON。必须在腾讯 API Explorer 中逐字使用 plan 的 `stsRequest`，包括 `Region=ap-hongkong`；API policy 不含 `principal`，由源 IP、HTTPS、TLS、private ACL、Content-Type、COMPLIANCE retention 和唯一 resource 约束。
@@ -118,14 +122,18 @@ npm run v2:m1:p0r:bundle -- \
 
 编译器删除 raw path 后，独立现场核验仍发现 PID `1175383` 的旧 `tee` 持有已经 unlink 的同一路径并等待输入。该 PID 已核对为本 run 的唯一 P0R receiver 后精确终止；随后两次独立命令分别证明 `/dev/shm/market-radar-v2-p0r-*` 文件为零、P0R 进程为零。本机 clipboard 已由固定无敏感文本覆盖，Node 会话已整体 reset。第二枚 credential 的 exact expiry `2026-07-28T20:57:29Z` 已由本机 UTC `2026-07-28T20:57:48Z` 与腾讯 STS HTTPS Date `2026-07-28T20:57:56Z` 双重证明超过，现为 `EXPIRED_FORBIDDEN_REUSE`，永久不得复用。
 
-### 5.1 固定无回显内存入口
+2026-07-29，source `e362...`、新 run、v3 plan、transport-v2 bundle、GitHub 四门与 fresh read-only rebind 均已通过后，用户完成本人 MFA，腾讯 API Explorer 成功返回第三枚 exact 7200 秒 STS。随后为了恢复浏览器上下文而读取页面状态时，完整响应进入了工具输出。该 credential 立即定级为 `COMPROMISED_FORBIDDEN_UNTIL_EXPIRED`，exact expiry 为 `2026-07-29T06:09:17Z`，永久禁止用于 P0R；它从未进入服务器、从未编译、从未访问 COS，也没有发生数据库 backup、retrieval 或 restore。
 
-裸 `tee` receiver、raw `.sts-response.json`、manual `compile-credentials`、AX response reconstruction、terminal direct typing、多条手工变量命令和 `docker compose --env-file ... ps` 全部退役。原因分别是 secret 回显或残留、5 分钟即时编译窗口丢失、UI 状态不权威、标点丢失、命令前缀漂移和 `.env.production` 无法独立重建当前 Compose 插值环境。
+事故后 API 页被替换为空白页，本机 clipboard 被固定无敏感值覆盖，secret-bearing browser/Node context 被销毁；生产通过四条独立只读命令证明 `/dev/shm` P0R 文件、P0R session/provisioning 进程、P0R container 和 P0R volume 全部为零。生产应用、数据库、Redis、仓库、env、migration、authority 和 11 个既有容器均未改变。direct SSH read-only probe 随后返回 PASS，证明可以在签发前建立不依赖 OrcaTerm 或响应后浏览器状态恢复的固定 TTY 通道。
+
+### 5.1 固定本机 TTY bridge 与远端无回显内存入口
+
+裸 `tee` receiver、raw `.sts-response.json`、manual `compile-credentials`、AX response reconstruction、response-after browser state read、OrcaTerm secret entry、terminal direct typing、多条手工变量命令和 `docker compose --env-file ... ps` 全部退役。原因分别是 secret 回显或残留、5 分钟即时编译窗口丢失、浏览器与 UI 状态不权威、标点丢失、命令前缀漂移和 `.env.production` 无法独立重建当前 Compose 插值环境。
 
 新 bundle 必须包含 checksum-bound `m1-production-storage-p0r-session.sh`。它只允许：
 
 - 通过 exact Compose project=`chuan-market-radar` 与 service label 定位唯一运行中 Web/PostgreSQL 容器，不重新渲染 Compose，不读取或输出 env；
-- 在交互 TTY 上先关闭 echo，再由 Web 容器内已验证 Node 从 stdin 有界读取 STS response；
+- 在交互 TTY 上先关闭 echo，只有 echo 已关闭后才输出 exact READY marker，再由 Web 容器内已验证 Node 从 stdin 有界读取 STS response；
 - 直接在内存解析、校验并即时编译 credential，原始响应不写任何文件；
 - 以 exclusive create、root owner、mode 600 写入 exact `/dev/shm/...cos-credentials.json`；
 - 等待第二个独立会话通过同一 no-echo 入口以 root owner、mode 600 写入唯一 age X25519 identity；session-ready 则必须精确属于当前 operator；
@@ -139,29 +147,40 @@ npm run v2:m1:p0r:bundle -- \
 
 `p0r-bindings.env` 不得再由 Shell `source`。session helper 必须把它当普通数据逐项解析，只接受 12 个精确白名单键、一个 40 位 source commit 和 11 个 64 位 SHA-256；重复、缺失、额外、非法值或任一 source checksum 不一致均失败关闭。credential ingress CLI 不接受 caller-supplied `--now`，即时编译门禁只能使用进程真实时钟。
 
+可信 Mac 上必须先运行 `m1-production-storage-p0r-local-tty-bridge.exp`。它只允许：
+
+- 从 mode-600、当前用户拥有、非 symlink 的 exact plan 读取 run-id/source commit，并要求本地 Git HEAD 完全一致且 worktree clean；
+- 固定并验证 `/Users/chuan/.nvm/versions/node/v22.23.1/bin/node`，拒绝 PATH 或 Node 版本漂移；
+- 固定目标 IP、ubuntu 用户、SSH identity、known_hosts、ed25519 host key、loopback SOCKS proxy、BatchMode 和两个由 run-id 派生的远端命令；execute 模式不接受任意 host、remote command、secret 或 Keychain 名称；
+- 在 API 请求前建立第一条 SSH TTY，只有收到 `READY_P0R_STS_RESPONSE_INPUT_NO_ECHO` 后才开放 native-copy 窗口；
+- 把 clipboard 先设为 run-bound sentinel，只接受结构精确、大小有界的腾讯响应 JSON；在远端 handoff 前立即覆盖 clipboard；
+- response 出现后不调用 screenshot、OCR、AX、browser state、computer-use 或 OrcaTerm；
+- 在 credential compile PASS 后建立第二条固定 SSH TTY，从固定 macOS Keychain service/account 内部读取 exact age identity，不把 identity 放入参数、日志或 clipboard；
+- 全程抑制 child output，只输出 bridge 自己的无 secret 状态；任一 marker、SSH、clipboard、JSON、Keychain、remote exit 或 timeout 异常都断开 TTY、触发远端 cleanup 并失败关闭；
+- 无论成功或失败都再次覆盖 clipboard；只有远端 `PASS_P0R_RECOVERY_DRILL`、两个 SSH clean exit 和最终 clipboard clear 同时成立，bridge 才返回 PASS。
+
 ### 5.2 下一次 exact 执行顺序
 
 固定顺序如下：
 
-1. `COMPLETED_PREREQUISITE`：本机 UTC 与腾讯 STS HTTPS Date 已分别在 `2026-07-28T20:57:48Z` 和 `2026-07-28T20:57:56Z` 证明第二枚 STS 超过 exact expiry `2026-07-28T20:57:29Z`；旧凭证永久禁止复用。
-2. 把本地修复形成新的 clean exact commit，完整通过本地 CI、GitHub 四门和 fresh 生产只读重绑定；`bd20...` plan/bundle 因不含固定 session helper 而失去后续执行权。
-3. 由新 source 生成新 run-id、plan 和 bundle，并在生产 staging 完成成员、checksum、plan-mode、零 secret 与零漂移验证。
-4. 在 Microsoft Edge 预先把 API Explorer、两个 fresh OrcaTerm 会话和 Keychain 取回路径准备好；两个 OrcaTerm 均须显示已连接且不得睡眠。API response 出现后不得离开页面或依赖 AX/OCR 重建。
-5. 本人 MFA 后只执行新 plan 的 exact `GetFederationToken`。使用页面原生 copy action；copy 不可验证时停止，不得以页面文本重建 secret。
-6. 在第一 OrcaTerm 会话执行下面第一条短命令，逐字预览后确认出现 `READY_P0R_STS_RESPONSE_INPUT_NO_ECHO`；只把原始响应粘贴到正在读取 stdin 的无回显进程，随后按一次 Enter 保证最后一行进入 stdin，再按一次 Ctrl-D 发送 EOF。不得只依赖一次不确定的 Ctrl-D。
-7. helper 必须在签发后 5 分钟内返回 `PASS_P0R_EPHEMERAL_CREDENTIAL_COMPILED` 和 `WAITING_P0R_AGE_IDENTITY`；否则自动清理并停止。
-8. 从 macOS Keychain 只把 exact age identity 送入第二 OrcaTerm 会话的第二条无回显命令；同样按一次 Enter，再按一次 Ctrl-D 完成 stdin，随后立即覆盖 clipboard。
-9. 第一 helper 自动接管 identity、启动 Runner 并执行 COS preflight、只读加密 backup、exact version retrieval、隔离 PG16 restore、证据封存、容器/volume/runtime/secret 清理和零漂移复核。
-10. 无论成功或失败，独立新会话都必须再次证明 P0R `/dev/shm` 文件、session helper、临时 container/volume 和 runtime 为零；只有 `PASS_P0R_RECOVERY_DRILL` 及完整证据同时存在才可关闭。
+1. `COMPLETED_EXPIRY_PREREQUISITE`：第三枚 STS exact expiry=`2026-07-29T06:09:17Z`；本机 UTC `2026-07-29T10:32:53Z` 与腾讯 HTTPS Date `2026-07-29T10:35:42Z` 已独立证明超过到期点。它现为 `EXPIRED_FORBIDDEN_REUSE`，且永不恢复旧 run 的执行权。
+2. `NEXT_EXACT_SOURCE`：local TTY bridge、echo-before-ready 和防复发门禁已通过伪 TTY 10/10、P0R 87/87、recurrence 10/10、dispatch 24/24 与精确 Node/npm 完整 `ci:production`；现在形成新的 clean exact commit，再通过 GitHub 四门和 fresh 生产只读重绑定。`e362...` run/plan/bundle/staging 永久失去执行权。
+3. 由新 source 生成全新 run-id、object key、plan 和 bundle，并在全新生产 staging 完成成员、checksum、plan-mode、零 secret 与零漂移验证；禁止复用旧 run 的任何 execution identity。
+4. 在签发前先验证 direct SSH read-only channel，并从可信 Mac 启动 bridge。只有 bridge 已建立 exact remote TTY、远端 echo 已关闭且本机出现 `READY_P0R_API_NATIVE_COPY_TO_LOCAL_TTY_BRIDGE`，才允许进入 API Explorer 动作。
+5. Microsoft Edge 中只执行新 plan 的 exact `GetFederationToken`，由用户完成本人 MFA，并点击 API Explorer 的页面原生 Copy。response 出现后任何自动化都不得读取页面状态、截图、OCR、AX tree 或切换到 OrcaTerm；native Copy 无法完成时立即停止。
+6. bridge 只接受结构精确且有界的 clipboard JSON，语义无损紧凑化后先清空 clipboard，再经已握手的 no-echo TTY 发送 newline + EOT。helper 必须在签发后 5 分钟内返回 compile PASS；否则自动清理并停止。
+7. bridge 在 compile PASS 后自动建立第二条固定 TTY，从固定 Keychain 项内部读取 age identity 并完成 no-echo handoff；identity 不进入 shell 参数、clipboard、日志或工具输出。credential compile 已确认后，用户关闭 API response 页。
+8. 第一 helper 自动接管 identity、启动 Runner 并执行 COS preflight、只读加密 backup、exact version retrieval、隔离 PG16 restore、证据封存、容器/volume/runtime/secret 清理和零漂移复核。
+9. bridge 只有在 `PASS_P0R_RECOVERY_DRILL`、secondary/primary SSH clean exit 和最终 clipboard clear 同时成立时才返回 `PASS_P0R_LOCAL_TTY_BRIDGE`。
+10. 无论成功或失败，独立只读验证仍须再次证明 P0R `/dev/shm` 文件、session/provisioning 进程、临时 container/volume 和 runtime 为零；只有完整证据同时存在才可关闭。
 
-OrcaTerm 快捷命令编辑器仍只允许单一职责、UTF-8 `<=200` 字节、clear -> settle >=1000ms -> set -> settle >=1000ms -> exact visible preview -> execute。不得使用 terminal direct typing 发送含 shell 标点的命令。secret 可见期间禁止截图、屏幕录制、AX 全树读取、OCR、日志或回显。
-
-以下两条是唯一允许的 secret session 入口；`<source>` 必须替换为新 plan 的 exact staging：
+唯一允许的本机 secret orchestration 入口如下；`<plan>` 是新 run 的 restricted mode-600 exact plan。命令本身不含 secret：
 
 ```bash
-cd <source> && ./m1-production-storage-p0r-session.sh receive-credentials-and-run
-cd <source> && ./m1-production-storage-p0r-session.sh receive-age-identity
+/usr/bin/expect scripts/v2/production/m1-production-storage-p0r-local-tty-bridge.exp execute --plan <plan>
 ```
+
+bridge 返回 READY 前禁止请求 STS。bridge 返回 READY 后，只允许 API Explorer 原生 Copy 这一项浏览器动作。secret 可见期间禁止截图、屏幕录制、AX/OCR、browser state read、日志、回显或 OrcaTerm secret 输入。
 
 原始 STS response 不落盘。credential file 是 mode 600 的单一 JSON 对象，schema 为 v2，除临时三元组外还绑定运行计划与签发证据：
 
@@ -218,7 +237,7 @@ COS credential: /dev/shm/market-radar-v2-p0r-<run-id>.cos-credentials.json
 age identity: /dev/shm/market-radar-v2-p0r-<run-id>.age-identity.txt
 ```
 
-staging/evidence 根目录和 source 目录必须是实际目录，不得是 symlink。解包后必须核验 transport bundle SHA-256、manifest、所有 file checksum 和 source commit。只上传 checksum-bound bundle、临时 credential file 与临时 age identity；不得同步源码仓库或生产 env。bundle 无 secret，但含受限 COS 目标元数据，执行后 staging 必须清理。
+staging/evidence 根目录和 source 目录必须是实际目录，不得是 symlink。解包后必须核验 transport bundle SHA-256、manifest、所有 file checksum 和 source commit。只上传 checksum-bound、无 secret 的 bundle；credential response 与 age identity 只可经固定 TTY bridge 进入远端 session 的 stdin，并由 session 独占写入 exact `/dev/shm`。不得把两项 secret 当文件上传，不得同步源码仓库或生产 env。bundle 无 secret，但含受限 COS 目标元数据，执行后 staging 必须清理。
 
 2026-07-23 只读 inventory 最初发现两个 staging run；较早副本已在动作时确认后精确删除。剩余 `bed938...` staging 的成员和摘要仍作为历史审计材料保留，但不再是执行入口。只读重绑定通过前不得删除它；重绑定 PASS 后也只能在新的 current-source plan、bundle 和回滚证据全部绑定后，以独立精确清理动作删除，不能覆盖、修改或复用。
 
@@ -230,7 +249,7 @@ staging/evidence 根目录和 source 目录必须是实际目录，不得是 sym
 bash <source>/m1-production-storage-p0r-runner.sh plan
 ```
 
-生产执行不得再手工 `source p0r-bindings.env`、设置变量或直接调用 Runner。`m1-production-storage-p0r-session.sh` 会把 binding 文件作为普通数据解析、验证精确白名单与 checksum，并在两项 secret 都通过后自动提供以下运行合同：
+生产执行不得再手工 `source p0r-bindings.env`、设置变量、进入 OrcaTerm secret session 或直接调用 Runner。local TTY bridge 只能启动两个固定远端 session；`m1-production-storage-p0r-session.sh` 会把 binding 文件作为普通数据解析、验证精确白名单与 checksum，并在两项 secret 都通过后自动提供以下运行合同：
 
 ```text
 P0R_SOURCE_DIRECTORY

@@ -7,11 +7,14 @@ const SESSION_SCRIPT = "scripts/v2/production/m1-production-storage-p0r-session.
 
 test("session plan fixes the no-echo in-memory ingress and exact runtime identity boundary", () => {
   const plan = JSON.parse(execFileSync("bash", [SESSION_SCRIPT, "plan"], { encoding: "utf8" }));
-  assert.equal(plan.schemaVersion, "v2-m1-production-storage-p0r-session.v1");
+  assert.equal(plan.schemaVersion, "v2-m1-production-storage-p0r-session.v2");
   assert.equal(plan.rawStsResponsePersisted, false);
   assert.equal(plan.terminalEchoDisabledDuringSecretInput, true);
+  assert.equal(plan.readyMarkerAfterEchoDisabled, true);
   assert.equal(plan.boundedSecretInput, true);
-  assert.equal(plan.inputCompletion, "PRESS_ENTER_THEN_CTRL_D_ONCE");
+  assert.equal(plan.inputCompletion, "NEWLINE_THEN_EOT_FROM_PREARMED_LOCAL_TTY_BRIDGE");
+  assert.equal(plan.localTtyBridgeRequired, true);
+  assert.equal(plan.browserStateReadAfterResponseAllowed, false);
   assert.equal(plan.credentialCompileImmediate, true);
   assert.equal(plan.callerClockOverrideAllowed, false);
   assert.equal(plan.credentialOutputExclusive, true);
@@ -37,7 +40,7 @@ test("session source retires tee and Compose interpolation while preserving exac
     "receive-credentials-and-run",
     "receive-age-identity",
     "stty -echo",
-    "timeout --foreground 180s",
+    "timeout --foreground 600s",
     "com.docker.compose.project=chuan-market-radar",
     "com.docker.compose.service=web",
     "P0R_SESSION_SHA256",
@@ -55,7 +58,7 @@ test("session source retires tee and Compose interpolation while preserving exac
     '"age identity file" 8192 0',
     "require_absent \"${OUTPUT_DIRECTORY}\"",
     "WAITING_P0R_AGE_IDENTITY",
-    "PRESS_ENTER_THEN_CTRL_D_ONCE",
+    "NEWLINE_THEN_EOT_FROM_PREARMED_LOCAL_TTY_BRIDGE",
     "kill -0",
     "/proc/${SESSION_PID}/stat",
     "P0R credential session start token mismatch",
@@ -71,11 +74,18 @@ test("session source retires tee and Compose interpolation while preserving exac
     "cat ${",
     "base64",
     "pbpaste",
+    "PRESS_ENTER_THEN_CTRL_D_ONCE",
     "source \"${BINDINGS_FILE}\"",
   ]) assert.equal(source.includes(forbidden), false, `forbidden session operation: ${forbidden}`);
+
+  assert.ok(
+    source.indexOf("stty -echo") <
+      source.lastIndexOf("NEWLINE_THEN_EOT_FROM_PREARMED_LOCAL_TTY_BRIDGE"),
+    "the READY contract must be emitted only after terminal echo is disabled",
+  );
 });
 
-test("the two exact OrcaTerm entry commands remain below the hard byte ceiling", () => {
+test("the two exact bridge-controlled remote entry commands remain bounded", () => {
   const runId = "p0r-20260727t142908z-03d9dbeef09a8b47290dd5638115449f";
   const source = `/home/ubuntu/.cache/market-radar-v2/p0r/staging/${runId}`;
   for (const command of [

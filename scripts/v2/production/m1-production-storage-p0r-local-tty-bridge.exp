@@ -1,0 +1,412 @@
+#!/usr/bin/expect -f
+
+set BRIDGE_SCHEMA_VERSION "v2-m1-production-storage-p0r-local-tty-bridge.v1"
+set CLIPBOARD_CLEAR_VALUE "MARKET_RADAR_P0R_CLIPBOARD_CLEAR"
+set KEYCHAIN_ACCOUNT "market-radar-v2-p0r-recovery"
+set KEYCHAIN_SERVICE "com.chuan.market-radar.v2.p0r.age"
+set LOCKED_NODE_BINARY "/Users/chuan/.nvm/versions/node/v22.23.1/bin/node"
+set LOCKED_NODE_VERSION "v22.23.1"
+set MAXIMUM_STS_BYTES 65536
+set MAXIMUM_AGE_IDENTITY_BYTES 8192
+set RUN_ID_PATTERN {^p0r-[0-9]{8}t[0-9]{6}z-[0-9a-f]{32}$}
+set COMMIT_PATTERN {^[0-9a-f]{40}$}
+set AGE_IDENTITY_PATTERN {^AGE-SECRET-KEY-1[QPZRY9X8GF2TVDW0S3JN54KHCE6MUA7L]{58}$}
+set STS_JQ_FILTER {
+  if (
+    type == "object"
+    and (keys == ["Response"])
+    and (.Response | type == "object")
+    and (.Response | keys == ["Credentials", "Expiration", "ExpiredTime", "RequestId"])
+    and (.Response.Credentials | type == "object")
+    and (.Response.Credentials | keys == ["TmpSecretId", "TmpSecretKey", "Token"])
+    and (.Response.Credentials.TmpSecretId | type == "string" and length >= 12)
+    and (.Response.Credentials.TmpSecretKey | type == "string" and length >= 16)
+    and (.Response.Credentials.Token | type == "string" and length >= 16)
+    and (.Response.Expiration | type == "string" and length > 0)
+    and (.Response.ExpiredTime | type == "number")
+    and (.Response.RequestId | type == "string" and length > 0)
+  ) then . else error("invalid") end
+}
+
+set timeout 30
+match_max 131072
+log_user 0
+set spawn_ids {}
+set test_mode false
+set clipboard_wait_seconds 540
+set recovery_wait_seconds 5400
+set remote_marker_wait_seconds 30
+
+proc bridge_fail {reason} {
+  error $reason
+}
+
+proc emit_status {status} {
+  puts stdout "{\"containsSecret\":false,\"status\":\"$status\"}"
+  flush stdout
+}
+
+proc clear_clipboard {} {
+  if {[catch {
+    exec $::pbcopy_binary << $::CLIPBOARD_CLEAR_VALUE 2> /dev/null
+  }]} {
+    return false
+  }
+  return true
+}
+
+proc close_spawned_sessions {} {
+  foreach id $::spawn_ids {
+    catch {close -i $id}
+  }
+}
+
+proc require_secure_regular_file {path label} {
+  if {[file pathtype $path] ne "absolute"} {
+    bridge_fail "${label}_path_not_absolute"
+  }
+  if {[catch {file lstat $path facts}]} {
+    bridge_fail "${label}_unavailable"
+  }
+  if {$facts(type) ne "file"} {
+    bridge_fail "${label}_not_regular"
+  }
+  if {[catch {set mode [exec /usr/bin/stat -f %Lp $path 2> /dev/null]}]} {
+    bridge_fail "${label}_mode_unavailable"
+  }
+  if {$mode ne "600"} {
+    bridge_fail "${label}_mode_invalid"
+  }
+  if {[catch {set owner [exec /usr/bin/stat -f %u $path 2> /dev/null]}]} {
+    bridge_fail "${label}_owner_unavailable"
+  }
+  if {[catch {set current_uid [exec /usr/bin/id -u 2> /dev/null]}]} {
+    bridge_fail "local_uid_unavailable"
+  }
+  if {$owner ne $current_uid} {
+    bridge_fail "${label}_owner_invalid"
+  }
+}
+
+proc configure_production_runtime {plan_path} {
+  set ::pbcopy_binary "/usr/bin/pbcopy"
+  set ::pbpaste_binary "/usr/bin/pbpaste"
+  set ::jq_binary "/usr/bin/jq"
+  set ::security_binary "/usr/bin/security"
+  set ::ssh_binary "/usr/bin/ssh"
+  set ::git_binary "/usr/bin/git"
+  set ::node_binary $::LOCKED_NODE_BINARY
+  set ::ssh_identity "/Users/chuan/.ssh/chuan_radar_tencent_ed25519"
+  set ::ssh_known_hosts "/Users/chuan/.ssh/known_hosts"
+  set ::ssh_target "ubuntu@43.161.202.227"
+  set ::repository_root [file normalize [file join [file dirname [info script]] ".." ".." ".."]]
+  set ::provisioning_tool [file join \
+    $::repository_root \
+    "scripts" "v2" "production" \
+    "m1-production-storage-p0r-cos-provisioning.mjs"]
+
+  require_secure_regular_file $plan_path "plan"
+  require_secure_regular_file $::ssh_identity "ssh_identity"
+  require_secure_regular_file $::ssh_known_hosts "ssh_known_hosts"
+
+  if {![file isfile $::node_binary] || ![file executable $::node_binary]} {
+    bridge_fail "locked_node_binary_unavailable"
+  }
+  if {[catch {
+    set node_version [exec $::node_binary --version 2> /dev/null]
+  }] || $node_version ne $::LOCKED_NODE_VERSION} {
+    bridge_fail "locked_node_version_invalid"
+  }
+
+  if {[catch {
+    set run_id [exec $::jq_binary -er ".credentialGrant.runId" $plan_path 2> /dev/null]
+    set source_commit [exec $::jq_binary -er ".sourceCommit" $plan_path 2> /dev/null]
+  }]} {
+    bridge_fail "plan_identity_invalid"
+  }
+  if {![regexp $::RUN_ID_PATTERN $run_id]} {
+    bridge_fail "plan_run_id_invalid"
+  }
+  if {![regexp $::COMMIT_PATTERN $source_commit]} {
+    bridge_fail "plan_source_commit_invalid"
+  }
+  if {[catch {
+    exec $::node_binary $::provisioning_tool verify-plan \
+      --input $plan_path \
+      --run-id $run_id \
+      --source-commit $source_commit \
+      > /dev/null 2> /dev/null
+  }]} {
+    bridge_fail "plan_contract_invalid"
+  }
+  if {[catch {
+    set head [exec $::git_binary -C $::repository_root rev-parse HEAD 2> /dev/null]
+    set worktree [exec $::git_binary -C $::repository_root status --porcelain=v1 2> /dev/null]
+  }]} {
+    bridge_fail "source_identity_unavailable"
+  }
+  if {$head ne $source_commit || $worktree ne ""} {
+    bridge_fail "source_identity_not_clean_exact_plan_commit"
+  }
+
+  set ::run_id $run_id
+  set ::remote_source \
+    "/home/ubuntu/.cache/market-radar-v2/p0r/staging/$run_id"
+}
+
+proc configure_test_runtime {fixture_root} {
+  if {$::env(P0R_BRIDGE_SELF_TEST) ne "1"} {
+    bridge_fail "self_test_not_enabled"
+  }
+  if {[file pathtype $fixture_root] ne "absolute"} {
+    bridge_fail "fixture_root_not_absolute"
+  }
+  if {![file isdirectory $fixture_root]} {
+    bridge_fail "fixture_root_invalid"
+  }
+  set ::test_mode true
+  set ::pbcopy_binary [file join $fixture_root "pbcopy"]
+  set ::pbpaste_binary [file join $fixture_root "pbpaste"]
+  set ::jq_binary "/usr/bin/jq"
+  set ::security_binary [file join $fixture_root "security"]
+  set ::ssh_binary [file join $fixture_root "ssh"]
+  set ::env(P0R_BRIDGE_FIXTURE_ROOT) $fixture_root
+  set ::run_id "p0r-20990101t000000z-0123456789abcdef0123456789abcdef"
+  set ::remote_source "/test/staging/$::run_id"
+  set ::clipboard_wait_seconds 3
+  set ::recovery_wait_seconds 8
+  set ::remote_marker_wait_seconds 3
+}
+
+proc spawn_remote_session {mode} {
+  if {$mode ne "receive-credentials-and-run" && $mode ne "receive-age-identity"} {
+    bridge_fail "remote_mode_invalid"
+  }
+  set remote_command \
+    "cd $::remote_source && exec ./m1-production-storage-p0r-session.sh $mode"
+  if {$::test_mode} {
+    set command [list $::ssh_binary $remote_command]
+  } else {
+    set command [list \
+      $::ssh_binary \
+      -F /dev/null \
+      -i $::ssh_identity \
+      -o BatchMode=yes \
+      -o ClearAllForwardings=yes \
+      -o ConnectTimeout=12 \
+      -o ConnectionAttempts=2 \
+      -o ExitOnForwardFailure=yes \
+      -o HostKeyAlgorithms=ssh-ed25519 \
+      -o IdentitiesOnly=yes \
+      -o LogLevel=ERROR \
+      -o "ProxyCommand=/usr/bin/nc -x 127.0.0.1:7892 -X 5 %h %p" \
+      -o RequestTTY=force \
+      -o ServerAliveCountMax=2 \
+      -o ServerAliveInterval=15 \
+      -o StrictHostKeyChecking=yes \
+      -o UserKnownHostsFile=$::ssh_known_hosts \
+      $::ssh_target \
+      $remote_command]
+  }
+  eval [linsert $command 0 spawn -noecho]
+  set id $spawn_id
+  lappend ::spawn_ids $id
+  return $id
+}
+
+proc wait_for_marker {id marker wait_seconds failure_code} {
+  set previous_timeout $::timeout
+  set ::timeout $wait_seconds
+  set outcome ""
+  expect -i $id \
+    -exact $marker {set outcome "pass"} \
+    -exact "\"status\":\"BLOCKED\"" {set outcome "blocked"} \
+    eof {set outcome "eof"} \
+    timeout {set outcome "timeout"}
+  set ::timeout $previous_timeout
+  if {$outcome ne "pass"} {
+    bridge_fail "${failure_code}_${outcome}"
+  }
+}
+
+proc wait_for_clean_exit {id failure_code} {
+  set previous_timeout $::timeout
+  set ::timeout 30
+  set outcome ""
+  expect -i $id \
+    eof {set outcome "eof"} \
+    timeout {set outcome "timeout"}
+  set ::timeout $previous_timeout
+  if {$outcome ne "eof"} {
+    bridge_fail "${failure_code}_${outcome}"
+  }
+  if {[catch {set wait_result [wait -i $id]}]} {
+    bridge_fail "${failure_code}_wait_failed"
+  }
+  if {[llength $wait_result] < 4 \
+      || [lindex $wait_result 2] ne "0" \
+      || [lindex $wait_result 3] ne "0"} {
+    bridge_fail "${failure_code}_nonzero"
+  }
+}
+
+proc arm_clipboard {} {
+  set ::clipboard_sentinel "MARKET_RADAR_P0R_WAITING_FOR_NATIVE_COPY_$::run_id"
+  if {[catch {
+    exec $::pbcopy_binary << $::clipboard_sentinel 2> /dev/null
+  }]} {
+    bridge_fail "clipboard_arm_failed"
+  }
+}
+
+proc wait_for_normalized_sts_response {} {
+  set deadline [expr {[clock milliseconds] + ($::clipboard_wait_seconds * 1000)}]
+  while {[clock milliseconds] < $deadline} {
+    if {[catch {set raw [exec $::pbpaste_binary 2> /dev/null]}]} {
+      bridge_fail "clipboard_read_failed"
+    }
+    if {$raw ne $::clipboard_sentinel && $raw ne $::CLIPBOARD_CLEAR_VALUE} {
+      set byte_count [string bytelength $raw]
+      if {$byte_count <= 0 || $byte_count > $::MAXIMUM_STS_BYTES} {
+        set raw ""
+        clear_clipboard
+        bridge_fail "clipboard_response_size_invalid"
+      }
+      if {[catch {
+        set normalized [exec \
+          $::jq_binary -c -e $::STS_JQ_FILTER \
+          << $raw 2> /dev/null]
+      }]} {
+        set raw ""
+        clear_clipboard
+        bridge_fail "clipboard_response_invalid"
+      }
+      set raw ""
+      if {![clear_clipboard]} {
+        set normalized ""
+        bridge_fail "clipboard_clear_before_handoff_failed"
+      }
+      return $normalized
+    }
+    set raw ""
+    after 200
+  }
+  bridge_fail "clipboard_response_timeout"
+}
+
+proc read_age_identity_from_keychain {} {
+  if {[catch {
+    set identity [exec \
+      $::security_binary find-generic-password \
+      -a $::KEYCHAIN_ACCOUNT \
+      -s $::KEYCHAIN_SERVICE \
+      -w 2> /dev/null]
+  }]} {
+    bridge_fail "keychain_read_failed"
+  }
+  set identity [string trim $identity]
+  if {[string bytelength $identity] <= 0 \
+      || [string bytelength $identity] > $::MAXIMUM_AGE_IDENTITY_BYTES \
+      || ![regexp $::AGE_IDENTITY_PATTERN $identity]} {
+    set identity ""
+    bridge_fail "keychain_identity_invalid"
+  }
+  return $identity
+}
+
+proc send_secret_and_eof {id secret} {
+  send -i $id -- $secret
+  send -i $id -- "\r\004"
+}
+
+proc run_bridge {} {
+  arm_clipboard
+  set primary [spawn_remote_session "receive-credentials-and-run"]
+  wait_for_marker \
+    $primary \
+    "READY_P0R_STS_RESPONSE_INPUT_NO_ECHO" \
+    $::remote_marker_wait_seconds \
+    "credential_receiver_not_ready"
+  emit_status "READY_P0R_API_NATIVE_COPY_TO_LOCAL_TTY_BRIDGE"
+
+  set sts_response [wait_for_normalized_sts_response]
+  send_secret_and_eof $primary $sts_response
+  set sts_response ""
+  wait_for_marker \
+    $primary \
+    "PASS_P0R_EPHEMERAL_CREDENTIAL_COMPILED" \
+    30 \
+    "credential_compile_failed"
+  wait_for_marker \
+    $primary \
+    "WAITING_P0R_AGE_IDENTITY" \
+    30 \
+    "credential_session_handoff_failed"
+  emit_status "PASS_P0R_EPHEMERAL_CREDENTIAL_HANDOFF"
+
+  set secondary [spawn_remote_session "receive-age-identity"]
+  wait_for_marker \
+    $secondary \
+    "READY_P0R_AGE_IDENTITY_INPUT_NO_ECHO" \
+    $::remote_marker_wait_seconds \
+    "age_receiver_not_ready"
+  set age_identity [read_age_identity_from_keychain]
+  send_secret_and_eof $secondary $age_identity
+  set age_identity ""
+  wait_for_marker \
+    $secondary \
+    "PASS_P0R_AGE_IDENTITY_HANDOFF" \
+    30 \
+    "age_identity_handoff_failed"
+  wait_for_clean_exit $secondary "age_identity_session_exit_failed"
+  emit_status "PASS_P0R_AGE_IDENTITY_HANDOFF"
+
+  wait_for_marker \
+    $primary \
+    "PASS_P0R_RECOVERY_DRILL" \
+    $::recovery_wait_seconds \
+    "recovery_drill_failed"
+  wait_for_clean_exit $primary "recovery_session_exit_failed"
+}
+
+proc parse_mode {} {
+  if {$::argc == 1 && [lindex $::argv 0] eq "plan"} {
+    puts stdout "{\"ageIdentityFromKeychainOnly\":true,\"browserAccessibilityReadAfterResponseAllowed\":false,\"browserOcrAfterResponseAllowed\":false,\"browserScreenshotAfterResponseAllowed\":false,\"clipboardClearedBeforeAndAfterHandoff\":true,\"containsSecret\":false,\"exactRemoteCommandsOnly\":true,\"nativeApiResponseCopyOnly\":true,\"remoteReadyMarkerRequired\":true,\"schemaVersion\":\"$::BRIDGE_SCHEMA_VERSION\",\"secretOutputAllowed\":false,\"status\":\"PASS_P0R_LOCAL_TTY_BRIDGE_PLAN\"}"
+    exit 0
+  }
+  if {$::argc == 3 \
+      && [lindex $::argv 0] eq "execute" \
+      && [lindex $::argv 1] eq "--plan"} {
+    configure_production_runtime [lindex $::argv 2]
+    return
+  }
+  if {$::argc == 3 \
+      && [lindex $::argv 0] eq "self-test" \
+      && [lindex $::argv 1] eq "--fixture-root"} {
+    configure_test_runtime [lindex $::argv 2]
+    return
+  }
+  bridge_fail "arguments_invalid"
+}
+
+set execution_status [catch {
+  parse_mode
+  run_bridge
+} failure_reason]
+
+set clipboard_cleared [clear_clipboard]
+close_spawned_sessions
+
+if {$execution_status != 0} {
+  if {![regexp {^[a-z0-9_]+$} $failure_reason]} {
+    set failure_reason "unexpected_failure"
+  }
+  puts stderr "{\"containsSecret\":false,\"reason\":\"$failure_reason\",\"status\":\"BLOCKED_P0R_LOCAL_TTY_BRIDGE\"}"
+  exit 1
+}
+if {!$clipboard_cleared} {
+  puts stderr "{\"containsSecret\":false,\"reason\":\"clipboard_final_clear_failed\",\"status\":\"BLOCKED_P0R_LOCAL_TTY_BRIDGE\"}"
+  exit 1
+}
+
+emit_status "PASS_P0R_LOCAL_TTY_BRIDGE"

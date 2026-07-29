@@ -2,7 +2,7 @@
 
 Date: 2026-07-29
 
-Status: `BD20_EXACT_SOURCE_GATES_REBIND_AND_V3_BUNDLE_HISTORICAL_PASS_SUPERSEDED / SECOND_STS_DELAYED_COMPILE_BLOCKED_EXPIRED_FORBIDDEN_REUSE_DUAL_CLOCK_VERIFIED / PROD_P0R_FILES_AND_PROCESSES_ZERO / LOCAL_NOECHO_MEMORY_ATOMIC_SESSION_PASS / REPLACEMENT_REMOTE_QUALIFICATION_REBIND_PLAN_BUNDLE_AND_REAL_RECOVERY_PENDING`
+Status: `E362_EXACT_SOURCE_GATES_REBIND_AND_STAGING_HISTORICAL_PASS_RUN_INVALIDATED / THIRD_STS_POST_RESPONSE_DISCLOSED_NEVER_USED_EXPIRED_FORBIDDEN_REUSE_DUAL_CLOCK_PROOF_PASS / PROD_P0R_FILES_PROCESSES_CONTAINERS_VOLUMES_ZERO / LOCAL_PREARMED_FIXED_TTY_BRIDGE_FULL_QUALIFICATION_PASS / NEW_EXACT_SOURCE_REMOTE_QUALIFICATION_REBIND_EXECUTION_IDENTITY_AND_REAL_RECOVERY_PENDING`
 
 ## 1. Why This Package Exists
 
@@ -333,3 +333,84 @@ FINAL_AUTHORITATIVE_DOCUMENT_SYNC_AND_REVIEW
 
 P0R remains incomplete until the Runner returns its explicit recovery PASS,
 the final independent cleanup has zero residue, and fresh P0 also passes.
+
+## 9. Current E362 Qualification, Third STS Containment and Fixed TTY Bridge
+
+The section 8 sequence is now historical and its two OrcaTerm secret entries
+are permanently retired. Source
+`e3626387ee8d57ef8e4f9c11c2e098b781ac6fbe` subsequently passed:
+
+- Full Quality `30403475812`;
+- Signed Production Dispatch Quality `30403475763`;
+- Independent Security `30403475844`;
+- A0 Release Qualification `30403475716`;
+- fresh production read-only rebind
+  `p0r-rebind-preflight-20260728t222400z-e994dde2`.
+
+Production HEAD `cec0b6572bb09ae91ff9e013f8bb160f73c045e2`, the clean
+worktree and all 11 container identities remained unchanged. A new run,
+plan and transport-v2 staging were also verified. Those facts remain valid
+historical qualification evidence.
+
+The third exact-plan STS response was then disclosed by a browser-state read
+before server handoff. The credential was immediately forbidden. It expires at
+`2026-07-29T06:09:17Z`, but expiry will never restore reuse authority. It was
+never sent to production, compiled or used for COS. No database backup,
+retrieval or restore ran. Independent production checks proved zero P0R files,
+session/provisioning processes, containers and volumes. Application, database,
+Redis, repository, environment, migration and business authority were
+unchanged.
+
+Local UTC `2026-07-29T10:32:53Z` and Tencent STS HTTPS Date
+`2026-07-29T10:35:42Z` independently proved that exact expiry has passed. The
+credential is now `EXPIRED_FORBIDDEN_REUSE`; this proof only permits a future
+issue against a new exact source, run and plan.
+
+The bound run, plan, object key, bundle and staging are therefore invalidated
+for execution even though their source and qualification evidence remain
+historically true. A replacement credential may not be issued against that run.
+
+The new operator-side
+`m1-production-storage-p0r-local-tty-bridge.exp` establishes both exact SSH TTY
+sessions before and during the recovery without accepting an arbitrary host or
+remote command. The first remote helper now disables echo before emitting its
+READY marker. Only after that marker may the user execute MFA and use Tencent
+API Explorer's native Copy action. The bridge validates a bounded exact-shape
+response, clears the clipboard before handoff, compiles immediately, retrieves
+the age identity internally from the fixed macOS Keychain item and clears the
+clipboard on every exit path. Browser-state reads, screenshots, OCR,
+accessibility extraction, computer-use and OrcaTerm secret entry are forbidden
+after the response exists.
+
+Pseudo-TTY tests pass 10/10, including malformed clipboard, marker mismatch and
+SSH failure injection, exact primary/secondary command checks, fixed Keychain
+lookup, secret-free stdout/stderr and clipboard cleanup. The bridge also pins
+and validates local Node `v22.23.1` instead of trusting `PATH`. Complete P0R
+tests pass 87/87 with the Go helper, recurrence passes 10/10, production
+dispatch passes 24/24, and exact Node/npm `ci:production`, Next production
+build, Golden 16/16 and security checks all pass. A new clean commit, four new
+GitHub gates, a fresh read-only rebind, a new run/object
+key/plan/bundle/staging and real recovery remain pending.
+
+The current allowed sequence is:
+
+```text
+NEW_CLEAN_EXACT_SOURCE
+-> FOUR_GITHUB_GATES
+-> FRESH_PRODUCTION_READ_ONLY_REBIND
+-> NEW_RUN_OBJECT_KEY_PLAN_AND_14_MEMBER_BUNDLE
+-> INDEPENDENTLY_PROVE_THIRD_STS_EXPIRED_AND_NEVER_REUSE
+-> PREARM_FIXED_LOCAL_TTY_BRIDGE_AND_RECEIVE_ECHO_DISABLED_READY
+-> USER_MFA_AND_TENCENT_NATIVE_COPY_ONLY
+-> IMMEDIATE_STS_COMPILE_AND_INTERNAL_KEYCHAIN_AGE_HANDOFF
+-> AUTOMATIC_CHECKSUM_BOUND_RUNNER
+-> ENCRYPTED_READ_ONLY_BACKUP
+-> EXACT_VERSION_RETRIEVAL
+-> ISOLATED_POSTGRESQL_16_RESTORE
+-> VERIFIED_SECRET_CONTAINER_VOLUME_SESSION_AND_RUNTIME_CLEANUP
+-> PRODUCTION_ZERO_DRIFT
+-> FRESH_P0
+```
+
+P0R and P0 remain blocked until every current-sequence item has matching
+real-target evidence.
