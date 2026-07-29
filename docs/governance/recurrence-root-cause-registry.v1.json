@@ -389,9 +389,9 @@
       "faultClass": "browser_and_orcaterm.secret_response_transport_context_ambiguity",
       "affectedChannel": "tencent_api_explorer_to_p0r_secret_exception",
       "status": "REMEDIATION_IN_PROGRESS",
-      "recurrenceCount": 6,
+      "recurrenceCount": 7,
       "firstObservedDate": "2026-07-28",
-      "lastObservedDate": "2026-07-29",
+      "lastObservedDate": "2026-07-30",
       "affectedOperations": [
         "p0r_single_session_secret_receiver",
         "p0r_unverified_orcaterm_receiver_paste",
@@ -401,7 +401,8 @@
         "p0r_ax_response_reconstruction",
         "p0r_compose_env_reinterpolation_for_runtime_identity",
         "p0r_browser_state_recovery_after_sts_response",
-        "p0r_orcaterm_secret_session_entry_after_api_response"
+        "p0r_orcaterm_secret_session_entry_after_api_response",
+        "p0r_default_ssh_port_22_transport"
       ],
       "prohibitedOperations": [
         "p0r_single_session_secret_receiver",
@@ -412,7 +413,8 @@
         "p0r_ax_response_reconstruction",
         "p0r_compose_env_reinterpolation_for_runtime_identity",
         "p0r_browser_state_recovery_after_sts_response",
-        "p0r_orcaterm_secret_session_entry_after_api_response"
+        "p0r_orcaterm_secret_session_entry_after_api_response",
+        "p0r_default_ssh_port_22_transport"
       ],
       "remediationOperations": [
         "p0r_dual_session_exact_receiver_qualification",
@@ -426,7 +428,8 @@
         "p0r_prearmed_local_tty_bridge",
         "p0r_native_copy_without_browser_read",
         "p0r_fixed_ssh_tty_keychain_handoff",
-        "p0r_zero_residue_after_exposed_response"
+        "p0r_zero_residue_after_exposed_response",
+        "p0r_proxy_compatible_fixed_8022_ssh_route"
       ],
       "fingerprint": {
         "signature": "A short-lived STS response exists in the browser, but post-response browser or terminal context recovery is not independently bound to the exact no-echo receiver and can disclose, misroute or delay the response.",
@@ -437,7 +440,8 @@
           "A new editor value is written immediately after the prior execution without an explicit clear, settle interval and exact visible-value comparison.",
           "A raw STS response is persisted and its compile is deferred across multiple manual UI commands despite a five-minute issuance gate.",
           "Current container identity is rediscovered by re-rendering Compose from an env file that does not contain every required interpolation value.",
-          "After the API response exists, browser state is queried or reconstructed before the secret is irreversibly handed to a pre-armed exact no-echo receiver."
+          "After the API response exists, browser state is queried or reconstructed before the secret is irreversibly handed to a pre-armed exact no-echo receiver.",
+          "The fixed bridge assumes default SSH port 22 even though the only available local network path is a SOCKS proxy whose egress policy rejects port 22 before an SSH banner."
         ],
         "observedEvidence": [
           "The pre-MFA receiver session disconnected and could not prove that its waiting process survived.",
@@ -449,12 +453,15 @@
           "The raw pathname was removed, yet PID 1175383 still held the unlinked target in a waiting tee process until it was independently identified and terminated.",
           "docker compose ps failed before any mutation because POSTGRES_USER was unavailable to interpolation even though the running PostgreSQL container retained its current identity.",
           "On 2026-07-29 a newly issued exact-plan STS was returned successfully, but a post-response browser state read emitted the full response into tool output before any server handoff.",
-          "The exposed 2026-07-29 STS was never copied to the server, never used for COS and never compiled; four independent production counts proved zero P0R files, processes, containers and volumes."
+          "The exposed 2026-07-29 STS was never copied to the server, never used for COS and never compiled; four independent production counts proved zero P0R files, processes, containers and volumes.",
+          "On 2026-07-30 the direct production route and the SOCKS path to port 22 timed out or closed before an SSH banner, while the same SOCKS path returned a valid SSH banner from ssh.github.com:443.",
+          "Controlled proxy probes admitted ports 8022, 2022, 8080 and 8443 but rejected 2222 and 10022; 8022 was selected only after the matrix and current proxy egress 157.254.154.223 were independently measured.",
+          "A 7200-second non-root-key-only sshd on production port 8022 plus one Tencent /32 rule for 157.254.154.223 completed strict known-host and public-key SSH as ubuntu; no STS was issued or transmitted during this route qualification."
         ]
       },
       "rootCause": {
-        "boundary": "external_browser_response_and_orcaterm_ui_split_from_prearmed_exact_tty_handoff",
-        "conclusion": "The secret path incorrectly depended on recovering browser and terminal UI context after credential issuance. Even after raw-file persistence and delayed compile were removed, a browser state read could still disclose the response before it reached the exact no-echo session. The permanent boundary must be established before issuance: one fixed local TTY bridge waits on an exact remote marker, consumes only native clipboard copy, clears it immediately, retrieves age identity internally and never reads browser state after response.",
+        "boundary": "external_browser_response_and_orcaterm_ui_split_from_prearmed_exact_tty_handoff_and_unqualified_default_ssh_route",
+        "conclusion": "The secret path incorrectly depended on recovering browser and terminal UI context after credential issuance and later assumed that the pre-armed bridge could use default SSH port 22 through the available proxy. Even after raw-file persistence and delayed compile were removed, a browser state read could disclose the response, while a blocked transport could prevent the bridge from ever becoming READY. The permanent boundary must be established and network-qualified before issuance: one fixed local TTY bridge uses the measured proxy-compatible port, preserves strict host-key identity through HostKeyAlias, waits on an exact remote marker, consumes only native clipboard copy, clears it immediately, retrieves age identity internally and never reads browser state after response.",
         "confidence": "DIRECT",
         "evidence": [
           "Independent production verification found no matching tee process and no P0R raw credential file.",
@@ -466,7 +473,9 @@
           "Production read-only checks proved one exact Web container under project and service labels, while Compose interpolation failed before container discovery.",
           "Post-failure inspection proved zero P0R files only after the exact residual tee PID was terminated; a file-only check would have been a false cleanup claim.",
           "The third exposed response was disclosed by browser state recovery even though the production no-echo session implementation and staged runtime were otherwise qualified.",
-          "A fixed direct SSH read-only probe returned PASS after containment, proving that the local bridge can pre-arm an exact TTY without relying on OrcaTerm or post-response browser inspection."
+          "A fixed direct SSH read-only probe returned PASS after containment, proving that the local bridge can pre-arm an exact TTY without relying on OrcaTerm or post-response browser inspection.",
+          "The later network A/B proved that SSH protocol was allowed through BoostNet on an admitted destination port but production port 22 was not; therefore retrying the old default port could not repair the route.",
+          "The exact production identity succeeded through port 8022 with StrictHostKeyChecking, the existing known_hosts file and HostKeyAlias=43.161.202.227, proving that proxy compatibility does not require weakening host verification."
         ]
       },
       "permanentFix": {
@@ -491,6 +500,8 @@
           "Fresh read-only rebind schema v2 keeps the frozen three-file transport-v1 supersession comparison separate from the complete seven-file transport-v2 runtime digest set, including the Runner and atomic session helper.",
           "The Runner creates one high-entropy mode-700 private /dev/shm directory, exclusively creates every internal plaintext or recovered canary as a mode-600 non-symlink file, forbids internal tee writes and verifies removal of the entire private directory before success.",
           "The replacement local Expect bridge fixes the SSH host, identity, known-hosts policy, proxy, Node v22.23.1, run-derived staging path and two remote commands; arbitrary host, runtime or command input is impossible in execute mode.",
+          "Bridge schema v2 fixes SSH port 8022 and HostKeyAlias 43.161.202.227, carries the same complete SSH argument set through pseudo-TTY tests and forbids fallback to default port 22.",
+          "The bootstrap listener is a separate 7200-second systemd transient sshd that permits only ubuntu public-key authentication with forwarding disabled; the Tencent rule permits only the measured proxy egress /32 and must be removed after success or failure.",
           "The bridge is armed before issuance, accepts only a structurally exact native-copied Tencent response after the remote echo-disabled marker, clears the clipboard before handoff, retrieves the age identity directly from the fixed Keychain item and suppresses all child output.",
           "API response screenshots, OCR, accessibility reads, full browser-state reads and OrcaTerm secret entry are permanently forbidden after issuance."
         ]
@@ -507,7 +518,8 @@
           "The rebind regression proves that the current seven-file runtime set exactly matches the transport-v2 source set while the historical verifier remains limited to files that existed in transport v1.",
           "Runner regression locks the private mode-700 /dev/shm directory, exclusive mode-600 internal file creation, exact age identity grammar, prohibition of internal tee and verified directory cleanup.",
           "Local pseudo-TTY regression proves exact primary and secondary commands, exact ready markers, native clipboard validation, internal Keychain retrieval, secret-free stdout/stderr, final clipboard clearing, and fail-closed behavior for malformed clipboard, marker mismatch and SSH failure.",
-          "The current replacement passes pseudo-TTY 10/10, P0R 87/87, recurrence 10/10, production dispatch 24/24 and exact Node/npm ci:production without reducing any gate.",
+          "The pseudo-TTY regression now observes the complete SSH invocation, requires -p 8022 and HostKeyAlias=43.161.202.227 on both sessions, and rejects any -p 22 fallback.",
+          "The current replacement passes pseudo-TTY 6/6, P0R 88/88, recurrence 11/11, production dispatch 24/24 and exact Node/npm ci:production without reducing any gate.",
           "Closure still requires the new helper to pass clean commit, remote gates, fresh read-only rebind and real-target recovery acceptance."
         ]
       },
@@ -519,7 +531,8 @@
           "Local UTC 2026-07-28T20:57:48Z and Tencent STS HTTPS Date 2026-07-28T20:57:56Z independently proved the second exact STS expired after 2026-07-28T20:57:29Z; it is permanently forbidden from reuse.",
           "The 2026-07-29 exposed STS expired at 2026-07-29T06:09:17Z; local UTC 2026-07-29T10:32:53Z and Tencent STS HTTPS Date 2026-07-29T10:35:42Z independently proved expiry. It is permanently forbidden and was never sent to production or used for COS.",
           "Post-incident production read-only verification returned zero P0R files, session/provisioning processes, containers and volumes; application, database, Redis, repository, env and authority remained unchanged.",
-          "No COS, database, backup, retrieval, restore, application, repository, env, migration or authority mutation occurred."
+          "No COS, database, backup, retrieval, restore, application, repository, env, migration or authority mutation occurred.",
+          "The proxy-compatible 8022 route passed strict public-key and host-key identity checks as ubuntu@VM-0-9-ubuntu before any STS issuance; the temporary listener and exact /32 firewall rule are the only current production changes."
         ]
       },
       "realTargetAcceptance": {
@@ -529,20 +542,22 @@
           "The local TTY bridge and echo-before-ready correction must first become a new clean exact commit, pass all GitHub gates and pass a fresh production read-only rebind.",
           "The fresh rebind result must bind the canonical seven-file current P0R runtime set digest and separately retain the frozen three-file historical supersession proof.",
           "The 2026-07-29 STS exact expiry prerequisite is complete and the credential remains forbidden forever; a new exact-plan STS may be requested only after a new clean source, all GitHub gates, fresh read-only rebind and new run/plan/bundle pass.",
-          "The P0R Runner must still complete backup, exact retrieval, isolated restore, cleanup and zero-drift verification."
+          "The P0R Runner must still complete backup, exact retrieval, isolated restore, cleanup and zero-drift verification.",
+          "Bridge schema v2 must still become a clean exact commit, pass all four GitHub gates, pass a fresh read-only rebind and generate a new run/plan/bundle before this already-qualified route may carry a new STS."
         ]
       },
       "workaroundAccounting": {
-        "attemptCount": 6,
+        "attemptCount": 7,
         "postTriggerEmergencyWorkaroundCount": 0,
         "durationMeasurement": "MEASURED",
-        "durationSeconds": 3903,
+        "durationSeconds": 4483,
         "unknownReason": null
       },
       "remainingRisks": [
         "Future Tencent STS credentials still have no verified per-token revocation control, so any future compromise must fail closed, forbid reuse and wait for independently proven exact expiry.",
         "Tencent API Explorer still requires user MFA and a native Copy action; the response page must not be inspected by automation after issuance and must be closed after the bridge confirms credential compile.",
-        "The local bridge depends on the existing loopback SOCKS route and direct SSH; failure before the ready marker is safe and must stop issuance rather than fall back to OrcaTerm.",
+        "The local bridge depends on the existing loopback SOCKS route and the temporary 8022 production listener; failure before the ready marker is safe and must stop issuance rather than fall back to port 22 or OrcaTerm.",
+        "The 8022 Tencent /32 rule and transient sshd must be removed and their absence verified after P0R success, failure or timeout; the timer alone does not remove the cloud firewall rule.",
         "The local bridge and atomic session are not production evidence until a new exact source passes remote gates, read-only rebind and the complete P0R recovery."
       ]
     }

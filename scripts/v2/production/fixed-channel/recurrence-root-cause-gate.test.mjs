@@ -188,7 +188,7 @@ test("the real registry exposes the open P0R receiver remediation and retires un
     [{
       id: "REC-2026-07-28-P0R-SECRET-RECEIVER-FOCUS",
       status: "REMEDIATION_IN_PROGRESS",
-      recurrenceCount: 6,
+      recurrenceCount: 7,
     }],
   );
   assert.deepEqual(evaluateRecurrenceOperations(registry, ["fixed_dispatch_bootstrap_install"]), []);
@@ -220,6 +220,7 @@ test("the real registry exposes the open P0R receiver remediation and retires un
     "p0r_native_copy_without_browser_read",
     "p0r_fixed_ssh_tty_keychain_handoff",
     "p0r_zero_residue_after_exposed_response",
+    "p0r_proxy_compatible_fixed_8022_ssh_route",
   ]) {
     assert.deepEqual(evaluateRecurrenceOperations(registry, [operation]), []);
   }
@@ -227,6 +228,12 @@ test("the real registry exposes the open P0R receiver remediation and retires un
     evaluateRecurrenceOperations(registry, ["p0r_unverified_orcaterm_receiver_paste"]),
     [
       "recurrence_operation_retired:REC-2026-07-28-P0R-SECRET-RECEIVER-FOCUS:p0r_unverified_orcaterm_receiver_paste",
+    ],
+  );
+  assert.deepEqual(
+    evaluateRecurrenceOperations(registry, ["p0r_default_ssh_port_22_transport"]),
+    [
+      "recurrence_operation_retired:REC-2026-07-28-P0R-SECRET-RECEIVER-FOCUS:p0r_default_ssh_port_22_transport",
     ],
   );
   assert.deepEqual(
@@ -304,6 +311,15 @@ test("the real registry exposes the open P0R receiver remediation and retires un
     ),
   );
   assert.ok(
+    openIncident.permanentFix.evidence.some(
+      (item) =>
+        item.includes("Bridge schema v2") &&
+        item.includes("port 8022") &&
+        item.includes("HostKeyAlias") &&
+        item.includes("port 22"),
+    ),
+  );
+  assert.ok(
     openIncident.runtimeGate.evidence.some(
       (item) =>
         item.includes("zero P0R files") &&
@@ -331,6 +347,12 @@ test("the P0R runbook retires post-response browser recovery and OrcaTerm secret
   assert.match(runbook, /bridge 返回 READY 前禁止请求 STS/u);
   assert.match(runbook, /先清空 clipboard/u);
   assert.match(runbook, /Keychain 项内部读取 age identity/u);
+  assert.match(runbook, /固定 SSH port 8022/u);
+  assert.match(runbook, /HostKeyAlias=43\.161\.202\.227/u);
+  assert.match(runbook, /默认 SSH port 22.*永久禁止/u);
+  assert.match(runbook, /bridge 6\/6、P0R 88\/88、recurrence 11\/11/u);
+  assert.match(runbook, /TCP 8022.*当前 SOCKS 出口 \/32/u);
+  assert.match(runbook, /systemd 自动超时不能代替云防火墙清理/u);
   assert.match(
     runbook,
     /request schema 必须为 `market-radar-v2-m1-p0r-rebind-request\.v3`/u,
@@ -358,4 +380,29 @@ test("the P0R runbook retires post-response browser recovery and OrcaTerm secret
     /m1-production-storage-p0r-local-tty-bridge\.exp execute --plan <plan>/u,
   );
   assert.doesNotMatch(runbook, /以下两条是唯一允许的 secret session 入口/u);
+});
+
+test("all active authority surfaces identify the proxy-compatible B6 bridge", async () => {
+  const expectedEntry = "V2-M1.6-P0R-B6-PROXY-COMPATIBLE-8022-TTY-BRIDGE";
+  const [matrix, context, index, sequence, blueprint] = await Promise.all([
+    readFile(new URL(
+      "../../../../docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json",
+      import.meta.url,
+    ), "utf8").then(JSON.parse),
+    readFile(new URL("../../../../PROJECT_CONTEXT_FOR_CHATGPT.md", import.meta.url), "utf8"),
+    readFile(new URL("../../../../docs/blueprints/README.md", import.meta.url), "utf8"),
+    readFile(new URL("../../../../market-radar-v2-build-sequence.md", import.meta.url), "utf8"),
+    readFile(new URL(
+      "../../../../docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md",
+      import.meta.url,
+    ), "utf8"),
+  ]);
+
+  assert.equal(matrix.currentImplementationEntry.id, expectedEntry);
+  assert.equal(matrix.currentP0RLocalTtyBridgeRemediation.id, expectedEntry);
+  assert.equal(matrix.currentP0RLocalTtyBridgeRemediation.currentRecurrenceTestsPassed, 11);
+  assert.match(context, new RegExp(`## 18[\\s\\S]*${expectedEntry}`, "u"));
+  assert.match(index, new RegExp(`## 6[\\s\\S]*${expectedEntry}`, "u"));
+  assert.match(sequence, new RegExp(`Current execution entry: ${expectedEntry}`, "u"));
+  assert.ok(blueprint.includes(`**当前执行入口**：\`${expectedEntry}\``));
 });

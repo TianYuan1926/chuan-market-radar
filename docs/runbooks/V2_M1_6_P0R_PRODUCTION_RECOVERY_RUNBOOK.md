@@ -85,7 +85,7 @@ npm run v2:m1:p0r:bundle -- \
 
 验收输出必须为 `PASS_P0R_PRODUCTION_TRANSPORT_BUNDLE`，新原子会话 Bundle 的 schema 必须为 `v2-m1-production-storage-p0r-transport.v2`、归档成员必须恰好 14 个、manifest 必须恰好绑定除自身外的 13 个文件，并独立记录 source commit、bundle SHA-256、manifest digest 和 size。历史 transport v1 只允许由历史证据 verifier 读取，不得冒充当前执行包。`6a81e865e61569f7d2d7c3bb3be1d78db72a9eab` 与 `bed938...` 均只保留为历史来源证据，不再拥有执行权。历史 `bed938...` staging 的 run、plan 和 transport bundle 已完整保留并校验，但其源码早于三项生产安全修复：backup/credential/recovery evidence 读取尚未统一使用单一 `O_NOFOLLOW` 句柄，部分输出尚未使用独占创建；其本地 bundle builder 也早于确定性 Node USTAR 替换。因此该 staging 的权威状态改为 `REJECTED_SUPERSEDED_SECURITY_SOURCE`，禁止执行、复制成新包或签发绑定它的 STS。
 
-`m1-production-storage-p0r-local-tty-bridge.exp` 是可信 Mac 上的 operator-side 控制面，不进入生产 transport bundle，也不扩大生产运行成员分母。它必须与 plan 的 exact source commit 同属一个 clean worktree，通过本地测试和 GitHub 四门，并在执行时重新校验 plan、clean HEAD、本机私钥、known_hosts、固定目标、固定代理和两个不可注入的远端命令。bridge 未通过自身 plan/test/source gate 时，不得签发 STS。
+`m1-production-storage-p0r-local-tty-bridge.exp` 是可信 Mac 上的 operator-side 控制面，不进入生产 transport bundle，也不扩大生产运行成员分母。它必须与 plan 的 exact source commit 同属一个 clean worktree，通过本地测试和 GitHub 四门，并在执行时重新校验 plan、clean HEAD、本机私钥、known_hosts、固定目标、固定代理、固定 SSH port 8022、`HostKeyAlias=43.161.202.227` 和两个不可注入的远端命令。bridge 未通过自身 plan/test/source gate 时，不得签发 STS。默认 SSH port 22 已由真实网络 A/B 证明无法通过当前 BoostNet SOCKS 路径，永久禁止作为 P0R fallback。
 
 历史重绑定实现 source parts `408803e0bdc21051124a + 79e307db8e9eb39c793c` 和 source `94118...` 的 PASS 均保留为前序证据。Region 与第四门触发根因修复 source `bd20bd5b73ef0beb41c331aa43c58051ef01d37a` 也已通过 GitHub Full Quality `30273183761`、Signed Dispatch `30273183650`、Independent Security `30273183504` 与 A0 Qualification `30273183454`；fresh read-only dispatch `p0r-rebind-preflight-20260728t110438z-b2815255` 返回 `PASS_P0R_READ_ONLY_REBIND_PREFLIGHT` 且生产零漂移。这些均是真实历史证据，但 `bd20...` 的 bundle 不含当前固定 atomic session helper，旧 secret 路线又被第二次真实 STS 失败证伪，因此它已失去执行权。后续 plan、bundle、STS 和 recovery 必须绑定 replacement clean exact source；不得退回 `bd20...` 或更早 source。
 
@@ -151,7 +151,7 @@ source `e3626387ee8d57ef8e4f9c11c2e098b781ac6fbe` 曾完整通过本地 CI、Git
 
 - 从 mode-600、当前用户拥有、非 symlink 的 exact plan 读取 run-id/source commit，并要求本地 Git HEAD 完全一致且 worktree clean；
 - 固定并验证 `/Users/chuan/.nvm/versions/node/v22.23.1/bin/node`，拒绝 PATH 或 Node 版本漂移；
-- 固定目标 IP、ubuntu 用户、SSH identity、known_hosts、ed25519 host key、loopback SOCKS proxy、BatchMode 和两个由 run-id 派生的远端命令；execute 模式不接受任意 host、remote command、secret 或 Keychain 名称；
+- 固定目标 IP、ubuntu 用户、SSH port 8022、`HostKeyAlias=43.161.202.227`、SSH identity、known_hosts、ed25519 host key、loopback SOCKS proxy、BatchMode 和两个由 run-id 派生的远端命令；execute 模式不接受任意 host、port、host alias、remote command、secret 或 Keychain 名称；
 - 在 API 请求前建立第一条 SSH TTY，只有收到 `READY_P0R_STS_RESPONSE_INPUT_NO_ECHO` 后才开放 native-copy 窗口；
 - 把 clipboard 先设为 run-bound sentinel，只接受结构精确、大小有界的腾讯响应 JSON；在远端 handoff 前立即覆盖 clipboard；
 - response 出现后不调用 screenshot、OCR、AX、browser state、computer-use 或 OrcaTerm；
@@ -159,20 +159,29 @@ source `e3626387ee8d57ef8e4f9c11c2e098b781ac6fbe` 曾完整通过本地 CI、Git
 - 全程抑制 child output，只输出 bridge 自己的无 secret 状态；任一 marker、SSH、clipboard、JSON、Keychain、remote exit 或 timeout 异常都断开 TTY、触发远端 cleanup 并失败关闭；
 - 无论成功或失败都再次覆盖 clipboard；只有远端 `PASS_P0R_RECOVERY_DRILL`、两个 SSH clean exit 和最终 clipboard clear 同时成立，bridge 才返回 PASS。
 
+bridge schema v2 的 8022 路由在签发 STS 前还必须独立满足以下 bootstrap gate：
+
+- 重新测量当前 loopback SOCKS 出口 IPv4；禁止复用过期的来源地址。当前已验证窗口的出口是 `157.254.154.223/32`；
+- 在动作时确认后，仅启动一个 `RuntimeMaxSec=7200` 的独立 transient sshd：`PermitRootLogin=no`、`PasswordAuthentication=no`、`KbdInteractiveAuthentication=no`、`PubkeyAuthentication=yes`、`AuthenticationMethods=publickey`、`AllowUsers=ubuntu`、`DisableForwarding=yes`；
+- 先证明 transient unit 为 active 且 8022 仅由该独立 sshd 监听，再在腾讯轻量云添加唯一 `TCP 8022 / ALLOW / 当前 SOCKS 出口 /32` 规则；不得放通 `0.0.0.0/0`；
+- 使用 `StrictHostKeyChecking=yes`、原 mode-600 known_hosts、ed25519 host key 和 `HostKeyAlias=43.161.202.227` 完成真实 `ubuntu` 身份握手；握手失败必须立即停止 transient unit、删除精确云防火墙规则并验证二者均不存在；
+- 只有 bootstrap gate、clean exact source、GitHub 四门、fresh read-only rebind 和全新 run/plan/bundle 同时通过，bridge 才可以启动并等待 READY；
+- P0R 成功、失败、取消或超时后，都必须停止 transient unit、删除精确 8022 云防火墙规则，并分别验证 listener、unit 和规则均不存在。systemd 自动超时不能代替云防火墙清理。
+
 ### 5.2 下一次 exact 执行顺序
 
 固定顺序如下：
 
 1. `COMPLETED_EXPIRY_PREREQUISITE`：第三枚 STS exact expiry=`2026-07-29T06:09:17Z`；本机 UTC `2026-07-29T10:32:53Z` 与腾讯 HTTPS Date `2026-07-29T10:35:42Z` 已独立证明超过到期点。它现为 `EXPIRED_FORBIDDEN_REUSE`，且永不恢复旧 run 的执行权。
-2. `NEXT_EXACT_SOURCE`：local TTY bridge、echo-before-ready 和防复发门禁已通过伪 TTY 10/10、P0R 87/87、recurrence 10/10、dispatch 24/24 与精确 Node/npm 完整 `ci:production`；现在形成新的 clean exact commit，再通过 GitHub 四门和 fresh 生产只读重绑定。`e362...` run/plan/bundle/staging 永久失去执行权。
+2. `NEXT_EXACT_SOURCE`：proxy-compatible local TTY bridge、echo-before-ready 和防复发门禁已通过 bridge 6/6、P0R 88/88、recurrence 11/11、dispatch 24/24 与精确 Node/npm 完整 `ci:production`；现在形成新的 clean exact commit，再通过 GitHub 四门和 fresh 生产只读重绑定。`44e518...` package 与 `e362...` run/plan/bundle/staging 永久失去执行权。
 3. 由新 source 生成全新 run-id、object key、plan 和 bundle，并在全新生产 staging 完成成员、checksum、plan-mode、零 secret 与零漂移验证；禁止复用旧 run 的任何 execution identity。
-4. 在签发前先验证 direct SSH read-only channel，并从可信 Mac 启动 bridge。只有 bridge 已建立 exact remote TTY、远端 echo 已关闭且本机出现 `READY_P0R_API_NATIVE_COPY_TO_LOCAL_TTY_BRIDGE`，才允许进入 API Explorer 动作。
+4. 在签发前按 bootstrap gate 启动 7200 秒受限 8022 sshd、添加当前 SOCKS 出口 `/32` 云防火墙规则，并用 `HostKeyAlias=43.161.202.227` 完成 strict known-host read-only SSH；禁止退回 port 22。随后从可信 Mac 启动 bridge。只有 bridge 已建立 exact remote TTY、远端 echo 已关闭且本机出现 `READY_P0R_API_NATIVE_COPY_TO_LOCAL_TTY_BRIDGE`，才允许进入 API Explorer 动作。
 5. Microsoft Edge 中只执行新 plan 的 exact `GetFederationToken`，由用户完成本人 MFA，并点击 API Explorer 的页面原生 Copy。response 出现后任何自动化都不得读取页面状态、截图、OCR、AX tree 或切换到 OrcaTerm；native Copy 无法完成时立即停止。
 6. bridge 只接受结构精确且有界的 clipboard JSON，语义无损紧凑化后先清空 clipboard，再经已握手的 no-echo TTY 发送 newline + EOT。helper 必须在签发后 5 分钟内返回 compile PASS；否则自动清理并停止。
 7. bridge 在 compile PASS 后自动建立第二条固定 TTY，从固定 Keychain 项内部读取 age identity 并完成 no-echo handoff；identity 不进入 shell 参数、clipboard、日志或工具输出。credential compile 已确认后，用户关闭 API response 页。
 8. 第一 helper 自动接管 identity、启动 Runner 并执行 COS preflight、只读加密 backup、exact version retrieval、隔离 PG16 restore、证据封存、容器/volume/runtime/secret 清理和零漂移复核。
 9. bridge 只有在 `PASS_P0R_RECOVERY_DRILL`、secondary/primary SSH clean exit 和最终 clipboard clear 同时成立时才返回 `PASS_P0R_LOCAL_TTY_BRIDGE`。
-10. 无论成功或失败，独立只读验证仍须再次证明 P0R `/dev/shm` 文件、session/provisioning 进程、临时 container/volume 和 runtime 为零；只有完整证据同时存在才可关闭。
+10. 无论成功或失败，独立只读验证仍须再次证明 P0R `/dev/shm` 文件、session/provisioning 进程、临时 container/volume 和 runtime 为零；同时停止 transient sshd、删除唯一 8022 `/32` 云防火墙规则，并证明 listener、unit 和规则均不存在。只有完整证据同时存在才可关闭。
 
 唯一允许的本机 secret orchestration 入口如下；`<plan>` 是新 run 的 restricted mode-600 exact plan。命令本身不含 secret：
 

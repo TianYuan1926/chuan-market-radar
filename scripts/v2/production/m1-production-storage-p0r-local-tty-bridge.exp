@@ -1,11 +1,14 @@
 #!/usr/bin/expect -f
 
-set BRIDGE_SCHEMA_VERSION "v2-m1-production-storage-p0r-local-tty-bridge.v1"
+set BRIDGE_SCHEMA_VERSION "v2-m1-production-storage-p0r-local-tty-bridge.v2"
 set CLIPBOARD_CLEAR_VALUE "MARKET_RADAR_P0R_CLIPBOARD_CLEAR"
 set KEYCHAIN_ACCOUNT "market-radar-v2-p0r-recovery"
 set KEYCHAIN_SERVICE "com.chuan.market-radar.v2.p0r.age"
 set LOCKED_NODE_BINARY "/Users/chuan/.nvm/versions/node/v22.23.1/bin/node"
 set LOCKED_NODE_VERSION "v22.23.1"
+set LOCKED_SSH_HOST_ALIAS "43.161.202.227"
+set LOCKED_SSH_PORT 8022
+set LOCKED_SSH_TARGET "ubuntu@43.161.202.227"
 set MAXIMUM_STS_BYTES 65536
 set MAXIMUM_AGE_IDENTITY_BYTES 8192
 set RUN_ID_PATTERN {^p0r-[0-9]{8}t[0-9]{6}z-[0-9a-f]{32}$}
@@ -32,7 +35,6 @@ set timeout 30
 match_max 131072
 log_user 0
 set spawn_ids {}
-set test_mode false
 set clipboard_wait_seconds 540
 set recovery_wait_seconds 5400
 set remote_marker_wait_seconds 30
@@ -98,7 +100,9 @@ proc configure_production_runtime {plan_path} {
   set ::node_binary $::LOCKED_NODE_BINARY
   set ::ssh_identity "/Users/chuan/.ssh/chuan_radar_tencent_ed25519"
   set ::ssh_known_hosts "/Users/chuan/.ssh/known_hosts"
-  set ::ssh_target "ubuntu@43.161.202.227"
+  set ::ssh_host_alias $::LOCKED_SSH_HOST_ALIAS
+  set ::ssh_port $::LOCKED_SSH_PORT
+  set ::ssh_target $::LOCKED_SSH_TARGET
   set ::repository_root [file normalize [file join [file dirname [info script]] ".." ".." ".."]]
   set ::provisioning_tool [file join \
     $::repository_root \
@@ -164,12 +168,16 @@ proc configure_test_runtime {fixture_root} {
   if {![file isdirectory $fixture_root]} {
     bridge_fail "fixture_root_invalid"
   }
-  set ::test_mode true
   set ::pbcopy_binary [file join $fixture_root "pbcopy"]
   set ::pbpaste_binary [file join $fixture_root "pbpaste"]
   set ::jq_binary "/usr/bin/jq"
   set ::security_binary [file join $fixture_root "security"]
   set ::ssh_binary [file join $fixture_root "ssh"]
+  set ::ssh_host_alias $::LOCKED_SSH_HOST_ALIAS
+  set ::ssh_identity "/test/chuan_radar_tencent_ed25519"
+  set ::ssh_known_hosts "/test/known_hosts"
+  set ::ssh_port $::LOCKED_SSH_PORT
+  set ::ssh_target $::LOCKED_SSH_TARGET
   set ::env(P0R_BRIDGE_FIXTURE_ROOT) $fixture_root
   set ::run_id "p0r-20990101t000000z-0123456789abcdef0123456789abcdef"
   set ::remote_source "/test/staging/$::run_id"
@@ -184,30 +192,28 @@ proc spawn_remote_session {mode} {
   }
   set remote_command \
     "cd $::remote_source && exec ./m1-production-storage-p0r-session.sh $mode"
-  if {$::test_mode} {
-    set command [list $::ssh_binary $remote_command]
-  } else {
-    set command [list \
-      $::ssh_binary \
-      -F /dev/null \
-      -i $::ssh_identity \
-      -o BatchMode=yes \
-      -o ClearAllForwardings=yes \
-      -o ConnectTimeout=12 \
-      -o ConnectionAttempts=2 \
-      -o ExitOnForwardFailure=yes \
-      -o HostKeyAlgorithms=ssh-ed25519 \
-      -o IdentitiesOnly=yes \
-      -o LogLevel=ERROR \
-      -o "ProxyCommand=/usr/bin/nc -x 127.0.0.1:7892 -X 5 %h %p" \
-      -o RequestTTY=force \
-      -o ServerAliveCountMax=2 \
-      -o ServerAliveInterval=15 \
-      -o StrictHostKeyChecking=yes \
-      -o UserKnownHostsFile=$::ssh_known_hosts \
-      $::ssh_target \
-      $remote_command]
-  }
+  set command [list \
+    $::ssh_binary \
+    -F /dev/null \
+    -p $::ssh_port \
+    -i $::ssh_identity \
+    -o BatchMode=yes \
+    -o ClearAllForwardings=yes \
+    -o ConnectTimeout=12 \
+    -o ConnectionAttempts=2 \
+    -o ExitOnForwardFailure=yes \
+    -o HostKeyAlias=$::ssh_host_alias \
+    -o HostKeyAlgorithms=ssh-ed25519 \
+    -o IdentitiesOnly=yes \
+    -o LogLevel=ERROR \
+    -o "ProxyCommand=/usr/bin/nc -x 127.0.0.1:7892 -X 5 %h %p" \
+    -o RequestTTY=force \
+    -o ServerAliveCountMax=2 \
+    -o ServerAliveInterval=15 \
+    -o StrictHostKeyChecking=yes \
+    -o UserKnownHostsFile=$::ssh_known_hosts \
+    $::ssh_target \
+    $remote_command]
   eval [linsert $command 0 spawn -noecho]
   set id $spawn_id
   lappend ::spawn_ids $id
@@ -371,7 +377,7 @@ proc run_bridge {} {
 
 proc parse_mode {} {
   if {$::argc == 1 && [lindex $::argv 0] eq "plan"} {
-    puts stdout "{\"ageIdentityFromKeychainOnly\":true,\"browserAccessibilityReadAfterResponseAllowed\":false,\"browserOcrAfterResponseAllowed\":false,\"browserScreenshotAfterResponseAllowed\":false,\"clipboardClearedBeforeAndAfterHandoff\":true,\"containsSecret\":false,\"exactRemoteCommandsOnly\":true,\"nativeApiResponseCopyOnly\":true,\"remoteReadyMarkerRequired\":true,\"schemaVersion\":\"$::BRIDGE_SCHEMA_VERSION\",\"secretOutputAllowed\":false,\"status\":\"PASS_P0R_LOCAL_TTY_BRIDGE_PLAN\"}"
+    puts stdout "{\"ageIdentityFromKeychainOnly\":true,\"browserAccessibilityReadAfterResponseAllowed\":false,\"browserOcrAfterResponseAllowed\":false,\"browserScreenshotAfterResponseAllowed\":false,\"clipboardClearedBeforeAndAfterHandoff\":true,\"containsSecret\":false,\"exactRemoteCommandsOnly\":true,\"fixedSshHostAlias\":\"$::LOCKED_SSH_HOST_ALIAS\",\"fixedSshPort\":$::LOCKED_SSH_PORT,\"nativeApiResponseCopyOnly\":true,\"remoteReadyMarkerRequired\":true,\"schemaVersion\":\"$::BRIDGE_SCHEMA_VERSION\",\"secretOutputAllowed\":false,\"status\":\"PASS_P0R_LOCAL_TTY_BRIDGE_PLAN\"}"
     exit 0
   }
   if {$::argc == 3 \

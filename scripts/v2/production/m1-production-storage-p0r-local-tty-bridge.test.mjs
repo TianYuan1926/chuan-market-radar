@@ -125,8 +125,10 @@ test("bridge plan fixes the browser-free post-response and no-output secret boun
   ));
   assert.equal(
     plan.schemaVersion,
-    "v2-m1-production-storage-p0r-local-tty-bridge.v1",
+    "v2-m1-production-storage-p0r-local-tty-bridge.v2",
   );
+  assert.equal(plan.fixedSshHostAlias, "43.161.202.227");
+  assert.equal(plan.fixedSshPort, 8022);
   assert.equal(plan.nativeApiResponseCopyOnly, true);
   assert.equal(plan.remoteReadyMarkerRequired, true);
   assert.equal(plan.ageIdentityFromKeychainOnly, true);
@@ -158,12 +160,24 @@ test("bridge transfers fake secrets through exact TTY sessions without output or
     ]) assert.doesNotMatch(combined, new RegExp(secret, "u"));
 
     assert.equal(await readFile(join(root, "clipboard.txt"), "utf8"), CLIPBOARD_CLEAR);
-    assert.deepEqual(
-      (await readFile(join(root, "ssh-args.txt"), "utf8")).trim().split("\n"),
-      [
-        "cd /test/staging/p0r-20990101t000000z-0123456789abcdef0123456789abcdef && exec ./m1-production-storage-p0r-session.sh receive-credentials-and-run",
-        "cd /test/staging/p0r-20990101t000000z-0123456789abcdef0123456789abcdef && exec ./m1-production-storage-p0r-session.sh receive-age-identity",
-      ],
+    const sshInvocations =
+      (await readFile(join(root, "ssh-args.txt"), "utf8")).trim().split("\n");
+    assert.equal(sshInvocations.length, 2);
+    for (const invocation of sshInvocations) {
+      assert.match(invocation, /-F \/dev\/null -p 8022/u);
+      assert.match(invocation, /-o HostKeyAlias=43\.161\.202\.227/u);
+      assert.match(invocation, /-o HostKeyAlgorithms=ssh-ed25519/u);
+      assert.match(invocation, /-o StrictHostKeyChecking=yes/u);
+      assert.match(invocation, /ubuntu@43\.161\.202\.227/u);
+      assert.doesNotMatch(invocation, /(?:^| )-p 22(?: |$)/u);
+    }
+    assert.match(
+      sshInvocations[0],
+      /receive-credentials-and-run$/u,
+    );
+    assert.match(
+      sshInvocations[1],
+      /receive-age-identity$/u,
     );
     assert.deepEqual(
       (await readFile(join(root, "security-args.txt"), "utf8")).trim().split("\n"),
@@ -211,8 +225,10 @@ test("bridge source pins the SSH and browser-independent secret boundary", async
   const source = await readFile(BRIDGE, "utf8");
   for (const required of [
     "-F /dev/null",
+    "-p $::ssh_port",
     "-o BatchMode=yes",
     "-o ClearAllForwardings=yes",
+    "-o HostKeyAlias=$::ssh_host_alias",
     "-o HostKeyAlgorithms=ssh-ed25519",
     "-o StrictHostKeyChecking=yes",
     "-o UserKnownHostsFile=$::ssh_known_hosts",
@@ -224,6 +240,8 @@ test("bridge source pins the SSH and browser-independent secret boundary", async
     "clipboard_clear_before_handoff_failed",
     "/Users/chuan/.nvm/versions/node/v22.23.1/bin/node",
     'set LOCKED_NODE_VERSION "v22.23.1"',
+    'set LOCKED_SSH_HOST_ALIAS "43.161.202.227"',
+    "set LOCKED_SSH_PORT 8022",
     "locked_node_version_invalid",
   ]) assert.ok(source.includes(required), `missing bridge invariant: ${required}`);
 
@@ -236,6 +254,7 @@ test("bridge source pins the SSH and browser-independent secret boundary", async
     "SecretId=",
     "SecretKey=",
     "Token=",
+    "-p 22",
     'set ::node_binary "/usr/bin/env"',
   ]) assert.equal(source.includes(forbidden), false, `forbidden bridge path: ${forbidden}`);
 });
