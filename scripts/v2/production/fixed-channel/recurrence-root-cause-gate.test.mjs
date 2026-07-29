@@ -317,6 +317,10 @@ test("the P0R runbook retires post-response browser recovery and OrcaTerm secret
     "../../../../docs/runbooks/V2_M1_6_P0R_PRODUCTION_RECOVERY_RUNBOOK.md",
     import.meta.url,
   ), "utf8");
+  const dispatchRunbook = await readFile(new URL(
+    "../../../../docs/runbooks/PRODUCTION_FIXED_DISPATCH_CHANNEL_V1.md",
+    import.meta.url,
+  ), "utf8");
 
   assert.match(runbook, /原始 STS response 不落盘/u);
   assert.match(runbook, /裸 `tee` receiver/u);
@@ -337,6 +341,18 @@ test("the P0R runbook retires post-response browser recovery and OrcaTerm secret
   );
   assert.match(runbook, /`dispatchRuntimeMaxSeconds=90`/u);
   assert.match(runbook, /`v2:m1:p0r:rebind-release`/u);
+  assert.match(
+    dispatchRunbook,
+    /P0R 只读重绑定明确禁止使用本节的通用 prepare 命令/u,
+  );
+  assert.match(
+    dispatchRunbook,
+    /由 canonical request v3 自动派生并强制 `dispatchRuntimeMaxSeconds=90`/u,
+  );
+  assert.match(
+    dispatchRunbook,
+    /任何 P0R 外层 5400 秒配置都必须在 outbox 创建前失败/u,
+  );
   assert.match(
     runbook,
     /m1-production-storage-p0r-local-tty-bridge\.exp execute --plan <plan>/u,
