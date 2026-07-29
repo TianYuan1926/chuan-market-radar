@@ -374,6 +374,12 @@ function requestValueMatches(request, keys, expected, reason) {
   ensure(present.every((key) => request[key] === expected), reason);
 }
 
+function optionalRequestValueMatches(request, keys, expected, reason) {
+  const present = keys.filter((key) => request[key] !== undefined);
+  if (present.length === 0) return;
+  ensure(present.every((key) => request[key] === expected), reason);
+}
+
 async function inspectExtractedDispatch(root, envelope, entries) {
   const entrypoint = resolve(root, envelope.entrypointPath);
   const requestPath = resolve(root, envelope.approvalRequestPath);
@@ -398,6 +404,56 @@ async function inspectExtractedDispatch(root, envelope, entries) {
     "dispatch_approval_request_bundle_mismatch");
   ensure(request.transportMethod === envelope.transportMethod,
     "dispatch_approval_request_transport_mismatch");
+  optionalRequestValueMatches(request, ["sourceRef"], envelope.sourceRef,
+    "dispatch_approval_request_source_ref_mismatch");
+  optionalRequestValueMatches(
+    request,
+    ["approvalIssuedAt", "issuedAt"],
+    envelope.issuedAt,
+    "dispatch_approval_request_issued_at_mismatch",
+  );
+  optionalRequestValueMatches(
+    request,
+    ["approvalExpiresAt", "expiresAt"],
+    envelope.expiresAt,
+    "dispatch_approval_request_expires_at_mismatch",
+  );
+  optionalRequestValueMatches(
+    request,
+    ["launchSuccessMarker"],
+    envelope.launchSuccessMarker,
+    "dispatch_approval_request_success_marker_mismatch",
+  );
+  optionalRequestValueMatches(
+    request,
+    ["dispatchRuntimeMaxSeconds"],
+    envelope.runtimeMaxSeconds,
+    "dispatch_approval_request_runtime_mismatch",
+  );
+  optionalRequestValueMatches(
+    request,
+    ["revocationEpoch"],
+    envelope.revocationEpoch,
+    "dispatch_approval_request_revocation_epoch_mismatch",
+  );
+  optionalRequestValueMatches(
+    request,
+    ["maxExecutions"],
+    envelope.maxExecutions,
+    "dispatch_approval_request_execution_count_mismatch",
+  );
+  optionalRequestValueMatches(
+    request,
+    ["sessionIndependentExecutionRequired"],
+    envelope.sessionIndependentExecutionRequired,
+    "dispatch_approval_request_session_independence_mismatch",
+  );
+  optionalRequestValueMatches(
+    request,
+    ["automaticRollbackRequired"],
+    envelope.automaticRollbackRequired,
+    "dispatch_approval_request_rollback_mismatch",
+  );
   if (request.autonomyAuthorization !== undefined) {
     ensure(request.autonomyAuthorization?.packageId === envelope.packageId,
       "dispatch_autonomy_package_mismatch");

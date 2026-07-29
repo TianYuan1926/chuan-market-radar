@@ -2,7 +2,7 @@
 
 Date: 2026-07-29
 
-Status: `E362_EXACT_SOURCE_GATES_REBIND_AND_STAGING_HISTORICAL_PASS_RUN_INVALIDATED / THIRD_STS_POST_RESPONSE_DISCLOSED_NEVER_USED_EXPIRED_FORBIDDEN_REUSE_DUAL_CLOCK_PROOF_PASS / PROD_P0R_FILES_PROCESSES_CONTAINERS_VOLUMES_ZERO / LOCAL_PREARMED_FIXED_TTY_BRIDGE_FULL_QUALIFICATION_PASS / NEW_EXACT_SOURCE_REMOTE_QUALIFICATION_REBIND_EXECUTION_IDENTITY_AND_REAL_RECOVERY_PENDING`
+Status: `E362_EXACT_SOURCE_GATES_REBIND_AND_STAGING_HISTORICAL_PASS_RUN_INVALIDATED / THIRD_STS_POST_RESPONSE_DISCLOSED_NEVER_USED_EXPIRED_FORBIDDEN_REUSE_DUAL_CLOCK_PROOF_PASS / SOURCE_0E035_REMOTE_FOUR_GATES_PASS / REBIND_C85EC1A4_BLOCKED_PACKAGE_BINDING_BEFORE_MUTATION_STAGING_CLEANED / PROD_HEAD_WORKTREE_11_CONTAINERS_AND_P0R_FILES_CONTAINERS_VOLUMES_ZERO_DRIFT / REQUEST_V3_CROSS_LAYER_BINDING_ROOT_FIX_FULL_LOCAL_CI_PASS_NEW_EXACT_SOURCE_PENDING / REAL_RECOVERY_PENDING`
 
 ## 1. Why This Package Exists
 
@@ -414,3 +414,60 @@ NEW_CLEAN_EXACT_SOURCE
 
 P0R and P0 remain blocked until every current-sequence item has matching
 real-target evidence.
+
+## 10. Current Cross-Layer Dispatch Binding Root Remediation
+
+Expect runtime remediation source
+`0e035784988261926eb9656d25050180c87b0d1e` passed all four required
+GitHub gates:
+
+- Full Quality `30457497061`;
+- A0 Release Qualification `30457497065`;
+- Signed Production Dispatch Quality `30457497032`;
+- Independent Security `30457497311`.
+
+Fresh signed dispatch
+`p0r-rebind-preflight-20260729t150004z-c85ec1a4`, commit
+`a0dac15d3cc85cf846566eed8a64cd7fd6e35112`, reached Tencent but the
+package runner rejected it during `PACKAGE_BINDING`. The generic dispatch
+envelope allowed `runtimeMaxSeconds=5400`, while this bounded read-only package
+allows exactly 90 seconds. The rejection occurred before any production
+mutation attempt. The exact staging directory was automatically removed.
+
+A subsequent fresh read-only probe confirmed production HEAD
+`cec0b6572bb09ae91ff9e013f8bb160f73c045e2`, a clean worktree, all 11
+container identities and zero P0R files, containers and volumes. This attempt
+is `BLOCKED`, not a successful rebind.
+
+The root cause was a missing cross-layer authority field. Request schema v2
+did not bind the package runtime limit, so a generic envelope could be signed
+locally and only fail at the package runner. Request schema v3 now includes
+`dispatchRuntimeMaxSeconds=90`. The fixed channel compares the request and
+envelope before signing, during outbox validation and again in the production
+agent; the package runner independently enforces the same value.
+`m1-p0r-rebind-dispatch-release.mjs` is the only high-level P0R dispatch
+release entry and derives all duplicated envelope fields from the canonical
+request. Operators no longer provide a runtime value or repeat source,
+window, runner, staging and success-marker bindings.
+
+Targeted request, bundle, fixed-channel, runner, CLI and red-case tests pass
+29/29. The 5400-second red case and every operator-supplied duplicate binding
+option fail before an outbox exists. Complete P0R passes 88/88. A macOS
+regression also isolates the install test from an accidentally available `xz`
+binary while proving that the shim is never executed. Complete `ci:production` passes with
+explicit Node `22.23.1`, npm `10.9.8`, the real local Go `1.26.3` and
+`GOTOOLCHAIN=local`: production dispatch 24/24, V2 Foundation 631 PASS / 6
+explicit skips, V2 Ops 209/209, Go helper, Next production build, Golden 16/16
+and security all pass. A new clean exact source, all four remote gates and a
+new fresh read-only rebind remain required before any run, plan, bundle or
+credential may be generated.
+
+```text
+REQUEST_V3_AND_BOUND_RELEASE_ENTRY
+-> NEW_CLEAN_EXACT_SOURCE
+-> FOUR_GITHUB_GATES
+-> NEW_FRESH_PRODUCTION_READ_ONLY_REBIND
+-> NEW_RUN_OBJECT_KEY_PLAN_AND_14_MEMBER_BUNDLE
+-> PREARM_FIXED_LOCAL_TTY_BRIDGE
+-> NEW_STS_AND_REAL_RECOVERY
+```

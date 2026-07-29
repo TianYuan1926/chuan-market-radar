@@ -23,7 +23,7 @@ const execFileAsync = promisify(execFile);
 export const P0R_REBIND_PACKAGE_ID =
   "V2-M1-6-P0R-READ-ONLY-REBIND-PREFLIGHT";
 export const P0R_REBIND_REQUEST_SCHEMA =
-  "market-radar-v2-m1-p0r-rebind-request.v2";
+  "market-radar-v2-m1-p0r-rebind-request.v3";
 export const P0R_REBIND_RESULT_SCHEMA =
   "market-radar-v2-m1-p0r-rebind-result.v2";
 export const P0R_REBIND_FAILURE_RESULT_SCHEMA =
@@ -38,6 +38,7 @@ export const P0R_REBIND_RUNNER =
   "scripts/v2/production/m1-p0r-rebind-preflight.mjs";
 export const P0R_REBIND_SUCCESS_MARKER =
   "PASS_V2_M1_6_P0R_READ_ONLY_REBIND_PREFLIGHT";
+export const P0R_REBIND_DISPATCH_RUNTIME_MAX_SECONDS = 90;
 export const P0R_REBIND_METADATA_ENDPOINT =
   "http://metadata.tencentyun.com/latest/meta-data/public-ipv4";
 
@@ -79,6 +80,7 @@ const REQUEST_KEYS = Object.freeze([
   "currentP0RRuntimeFileDigests",
   "databaseMutationAllowed",
   "dispatchId",
+  "dispatchRuntimeMaxSeconds",
   "dispatchStateRoot",
   "expectedContainerCount",
   "expectedContainerIds",
@@ -344,6 +346,11 @@ export function validateP0RRebindRequest(
     "p0r_rebind_execution_boundary_invalid",
   );
   ensure(
+    request.dispatchRuntimeMaxSeconds ===
+      P0R_REBIND_DISPATCH_RUNTIME_MAX_SECONDS,
+    "p0r_rebind_dispatch_runtime_limit_invalid",
+  );
+  ensure(
     Number.isSafeInteger(request.revocationEpoch) &&
       request.revocationEpoch >= 0,
     "p0r_rebind_revocation_epoch_invalid",
@@ -530,23 +537,12 @@ export async function validateP0RRebindManifest(stagingDirectory, request) {
   return manifest;
 }
 
-export async function validateP0RRebindDispatchBinding(
-  stagingDirectory,
+export function validateP0RRebindDispatchEnvelope({
+  envelope,
+  marker,
   request,
   requestRaw,
-  bundleMarkerPath,
-) {
-  const { value: envelope } = await readCanonicalJson(
-    join(stagingDirectory, ".dispatch.json"),
-    "p0r_rebind_dispatch_invalid",
-    512 * 1024,
-  );
-  const { bytes: markerBytes } = await readRegularFile(
-    bundleMarkerPath,
-    "p0r_rebind_bundle_marker_unsafe",
-    256,
-  );
-  const marker = markerBytes.toString("utf8").trim();
+}) {
   ensure(
     marker === request.transportBundleSha256 &&
       envelope.bundleSha256 === request.transportBundleSha256,
@@ -576,9 +572,7 @@ export async function validateP0RRebindDispatchBinding(
       envelope.maxExecutions === 1 &&
       envelope.sessionIndependentExecutionRequired === true &&
       envelope.automaticRollbackRequired === true &&
-      Number.isSafeInteger(envelope.runtimeMaxSeconds) &&
-      envelope.runtimeMaxSeconds >= 30 &&
-      envelope.runtimeMaxSeconds <= 120,
+      envelope.runtimeMaxSeconds === request.dispatchRuntimeMaxSeconds,
     "p0r_rebind_dispatch_safety_binding_invalid",
   );
   ensure(
@@ -588,6 +582,30 @@ export async function validateP0RRebindDispatchBinding(
     "p0r_rebind_dispatch_authorization_mismatch",
   );
   return envelope;
+}
+
+export async function validateP0RRebindDispatchBinding(
+  stagingDirectory,
+  request,
+  requestRaw,
+  bundleMarkerPath,
+) {
+  const { value: envelope } = await readCanonicalJson(
+    join(stagingDirectory, ".dispatch.json"),
+    "p0r_rebind_dispatch_invalid",
+    512 * 1024,
+  );
+  const { bytes: markerBytes } = await readRegularFile(
+    bundleMarkerPath,
+    "p0r_rebind_bundle_marker_unsafe",
+    256,
+  );
+  return validateP0RRebindDispatchEnvelope({
+    envelope,
+    marker: markerBytes.toString("utf8").trim(),
+    request,
+    requestRaw,
+  });
 }
 
 const COMMAND_PATHS = Object.freeze({

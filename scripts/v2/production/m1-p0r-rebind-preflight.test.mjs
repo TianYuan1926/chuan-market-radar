@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import {
+  access,
   chmod,
   copyFile,
   mkdir,
@@ -28,10 +29,16 @@ import {
   parseP0RRebindBundleArguments,
 } from "./m1-p0r-rebind-preflight-bundle.mjs";
 import {
+  deriveP0RRebindDispatch,
+  parseP0RRebindReleaseArguments,
+  prepareP0RRebindDispatchRelease,
+} from "./m1-p0r-rebind-dispatch-release.mjs";
+import {
   P0R_TRANSPORT_SOURCES,
 } from "./m1-production-storage-p0r-bundle.mjs";
 import {
   P0R_REBIND_CURRENT_RUNTIME_FILES,
+  P0R_REBIND_DISPATCH_RUNTIME_MAX_SECONDS,
   P0R_REBIND_ENTRYPOINT,
   P0R_REBIND_LEGACY_SUPERSESSION_FILES,
   P0R_REBIND_MANIFEST,
@@ -221,6 +228,8 @@ function fixtureRequest(policy, legacy) {
     currentP0RRuntimeFileDigests: currentP0RRuntimeFileDigests(),
     databaseMutationAllowed: false,
     dispatchId: DISPATCH_ID,
+    dispatchRuntimeMaxSeconds:
+      P0R_REBIND_DISPATCH_RUNTIME_MAX_SECONDS,
     dispatchStateRoot: policy.dispatchStateRoot,
     expectedContainerCount: CONTAINER_IDS.length,
     expectedContainerIds: CONTAINER_IDS,
@@ -283,6 +292,7 @@ test("request freezes no-secret read-only rebinding boundaries", async () => {
     for (const tampered of [
       { ...request, applicationMutationAllowed: true },
       { ...request, databaseMutationAllowed: true },
+      { ...request, dispatchRuntimeMaxSeconds: 5_400 },
       { ...request, transportContainsSecrets: true },
       { ...request, metadataEndpoint: "https://example.invalid/ip" },
       { ...request, sourceCommit: request.expectedLegacySourceCommit },
@@ -318,6 +328,38 @@ test("request freezes no-secret read-only rebinding boundaries", async () => {
     }
   } finally {
     await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("high-level release CLI rejects every operator-supplied binding field", () => {
+  for (const option of [
+    "--runtime-max-seconds",
+    "--source-ref",
+    "--target-commit",
+    "--issued-at",
+    "--expires-at",
+    "--runner-unit-name",
+    "--staging-directory",
+    "--launch-success-marker",
+  ]) {
+    assert.throws(
+      () => parseP0RRebindReleaseArguments([
+        "prepare",
+        "--approval-request",
+        "/tmp/request.json",
+        "--bundle",
+        "/tmp/bundle.tar.gz",
+        "--outbox",
+        "/tmp/outbox",
+        "--private-key",
+        "/tmp/private.pem",
+        "--public-key",
+        "/tmp/public.pem",
+        option,
+        "operator-value",
+      ]),
+      /p0r_rebind_release_arguments_invalid/u,
+    );
   }
 });
 
@@ -553,32 +595,57 @@ test("bundle is deterministic, redacted and accepted by fixed dispatch", async (
       publicKeyPath: publicKey,
     });
     const outbox = join(root, "outbox");
-    const prepared = await prepareDispatch({
+    const derivedDispatch = deriveP0RRebindDispatch(first.request, {
+      now: new Date(ISSUED_AT),
+    });
+    assert.equal(
+      derivedDispatch.runtimeMaxSeconds,
+      P0R_REBIND_DISPATCH_RUNTIME_MAX_SECONDS,
+    );
+    const prepared = await prepareP0RRebindDispatchRelease({
       approvalRequestPath: join(root, "first/approval-request.json"),
       bundlePath: join(root, "first/bundle.tar.gz"),
-      dispatch: {
-        dispatchId: DISPATCH_ID,
-        entrypointPath: P0R_REBIND_ENTRYPOINT,
-        expiresAt: EXPIRES_AT,
-        issuedAt: ISSUED_AT,
-        launchSuccessMarker: P0R_REBIND_SUCCESS_MARKER,
-        packageId: P0R_REBIND_PACKAGE_ID,
-        revocationEpoch: 1,
-        runnerUnitName: RUNNER_UNIT,
-        runtimeMaxSeconds: 90,
-        sourceRef: SOURCE_REF,
-        stagingDirectory: first.request.stagingDirectory,
-        targetCommit: SOURCE_COMMIT,
-      },
       outbox,
       privateKeyPath: privateKey,
+      publicKeyPath: publicKey,
       now: new Date(ISSUED_AT),
     });
     const validated = await validateOutbox(outbox, publicKey, {
       now: new Date(ISSUED_AT),
     });
-    assert.equal(prepared.status, "PASS_SIGNED_DISPATCH_PREPARED");
+    assert.equal(
+      prepared.status,
+      "PASS_P0R_REBIND_BOUND_DISPATCH_RELEASE_PREPARED",
+    );
     assert.equal(validated.status, "PASS_SIGNED_DISPATCH_OUTBOX");
+    await assert.rejects(
+      prepareDispatch({
+        approvalRequestPath: join(root, "first/approval-request.json"),
+        bundlePath: join(root, "first/bundle.tar.gz"),
+        dispatch: {
+          dispatchId: DISPATCH_ID,
+          entrypointPath: P0R_REBIND_ENTRYPOINT,
+          expiresAt: EXPIRES_AT,
+          issuedAt: ISSUED_AT,
+          launchSuccessMarker: P0R_REBIND_SUCCESS_MARKER,
+          packageId: P0R_REBIND_PACKAGE_ID,
+          revocationEpoch: 1,
+          runnerUnitName: RUNNER_UNIT,
+          runtimeMaxSeconds: 5_400,
+          sourceRef: SOURCE_REF,
+          stagingDirectory: first.request.stagingDirectory,
+          targetCommit: SOURCE_COMMIT,
+        },
+        outbox: join(root, "unsafe-outbox"),
+        privateKeyPath: privateKey,
+        now: new Date(ISSUED_AT),
+      }),
+      /dispatch_approval_request_runtime_mismatch/u,
+    );
+    await assert.rejects(
+      access(join(root, "unsafe-outbox")),
+      /ENOENT/u,
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -666,7 +733,7 @@ test("runner produces sanitized zero-drift evidence end to end", async () => {
       productionWipLimit: 1,
       revocationEpoch: request.revocationEpoch,
       runnerUnitName: request.runnerUnitName,
-      runtimeMaxSeconds: 90,
+      runtimeMaxSeconds: request.dispatchRuntimeMaxSeconds,
       sessionIndependentExecutionRequired: true,
       sourceRef: request.sourceRef,
       stagingDirectory: request.stagingDirectory,

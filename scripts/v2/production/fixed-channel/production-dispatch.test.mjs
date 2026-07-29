@@ -828,6 +828,7 @@ test("short installer launcher verifies exact package facts and rejects tamperin
       const shimRoot = join(root, "bin");
       const statShim = join(shimRoot, "stat");
       const systemctlShim = join(shimRoot, "systemctl");
+      const xzShim = join(shimRoot, "xz");
       await mkdir(shimRoot);
       await writeFile(statShim, `#!/bin/sh
 if [ "$1" = "-c" ] && [ "$2" = "%a" ]; then
@@ -839,8 +840,10 @@ fi
 exec /usr/bin/stat "$@"
 `);
       await writeFile(systemctlShim, "#!/bin/sh\nexit 1\n");
+      await writeFile(xzShim, "#!/bin/sh\nprintf 'test xz shim must not execute\\n' >&2\nexit 99\n");
       await execFileAsync("chmod", ["755", statShim]);
       await execFileAsync("chmod", ["755", systemctlShim]);
+      await execFileAsync("chmod", ["755", xzShim]);
       installEnvironment = { ...process.env, PATH: `${shimRoot}:${process.env.PATH}` };
     }
     await assert.rejects(
@@ -1011,11 +1014,11 @@ test("governance contract matches the executable transport and truth boundary", 
   assert.equal(contract.recurrenceRootCauseGate.allowedBootstrapOperation,
     "fixed_dispatch_bootstrap_install");
   assert.equal(contract.recurrenceRootCauseGate.nextRequiredOperation,
-    "p0r_atomic_credential_age_runner_session");
+    "p0r_rebind_dispatch_cross_layer_root_remediation");
   assert.equal(contract.recurrenceRootCauseGate.p0rReceiverCanaryStatus,
     "PASS_REAL_TARGET_NO_SECRET_DUAL_SESSION_BOUNDED_SHORT_COMMAND");
   assert.equal(contract.recurrenceRootCauseGate.p0rAtomicSessionStatus,
-    "LOCAL_TEST_PASS_REMOTE_SOURCE_QUALIFICATION_AND_REAL_TARGET_PENDING");
+    "ZERO_ECHO_BRIDGE_SOURCE_REMOTE_FOUR_GATES_PASS_REBIND_REJECTED_PRE_MUTATION_CROSS_LAYER_ROOT_FIX_FULL_LOCAL_CI_PASS_NEW_SOURCE_PENDING");
   assert.equal(contract.recurrenceRootCauseGate.p0rRawStsResponsePersistenceAllowed, false);
   assert.equal(
     contract.recurrenceRootCauseGate.p0rComposeEnvReinterpolationForRuntimeIdentityAllowed,
@@ -1058,7 +1061,35 @@ test("governance contract matches the executable transport and truth boundary", 
   );
   assert.equal(
     contract.recurrenceRootCauseGate.p0rFreshRebindRequestSchema,
-    "market-radar-v2-m1-p0r-rebind-request.v2",
+    "market-radar-v2-m1-p0r-rebind-request.v3",
+  );
+  assert.equal(
+    contract.recurrenceRootCauseGate
+      .p0rFreshRebindDispatchRuntimeMaxSeconds,
+    90,
+  );
+  assert.equal(
+    contract.recurrenceRootCauseGate
+      .p0rFreshRebindDispatchRuntimeBoundInRequest,
+    true,
+  );
+  assert.equal(
+    contract.recurrenceRootCauseGate
+      .p0rFixedChannelCrossLayerApprovalBindingRequired,
+    true,
+  );
+  assert.equal(
+    contract.recurrenceRootCauseGate.p0rInvalidOuterRuntimeRejectedBeforeOutbox,
+    true,
+  );
+  assert.equal(
+    contract.recurrenceRootCauseGate.p0rSingleHighLevelReleaseEntrypoint,
+    "scripts/v2/production/m1-p0r-rebind-dispatch-release.mjs",
+  );
+  assert.equal(
+    contract.recurrenceRootCauseGate
+      .p0rOperatorSuppliedDispatchRuntimeAllowed,
+    false,
   );
   assert.equal(
     contract.recurrenceRootCauseGate.p0rFreshRebindCurrentRuntimeFileCount,

@@ -13,6 +13,13 @@ This directory contains the pull-only production dispatch channel.
 - The agent defers while the repository-external production lease is active or its state is uncertain.
 - The single-use claim is synchronized to disk before launch. A structurally invalid single dispatch is quarantined and consumed without execution so it cannot deadlock all later work.
 - Existing package runners retain responsibility for lease/fencing checks, mutation checkpoints, rollback, evidence, and cleanup.
+- When an approval request declares package-specific dispatch fields, the channel binds them to the envelope during preparation, outbox validation and production-agent validation. A mismatch never reaches the package entrypoint.
+
+P0R rebind releases must use
+`scripts/v2/production/m1-p0r-rebind-dispatch-release.mjs`. That entrypoint
+derives source, ref, approval window, runner, staging, success marker and the
+90-second runtime limit from the canonical request. Operators do not repeat or
+override those fields.
 
 ## Runtime
 

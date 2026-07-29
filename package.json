@@ -149,6 +149,7 @@
     "v2:m1:p0r:cos-plan": "node scripts/v2/production/m1-production-storage-p0r-cos-provisioning.mjs create-plan",
     "v2:m1:p0r:bundle": "node scripts/v2/production/m1-production-storage-p0r-bundle.mjs",
     "v2:m1:p0r:rebind-bundle": "node scripts/v2/production/m1-p0r-rebind-preflight-bundle.mjs",
+    "v2:m1:p0r:rebind-release": "node scripts/v2/production/m1-p0r-rebind-dispatch-release.mjs",
     "v2:m1:p0r:plan": "bash scripts/v2/production/m1-production-storage-p0r-runner.sh plan",
     "v2:m1:collector:pg16-rehearsal": "bash scripts/v2/rehearsal/m1-collector-postgres16.sh",
     "v2:m1:collector-checkpoint:pg16-rehearsal": "bash scripts/v2/rehearsal/m1-collector-checkpoint-postgres16.sh",

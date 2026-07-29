@@ -24,6 +24,7 @@ import {
 import {
   DEFAULT_P0R_REBIND_POLICY,
   P0R_REBIND_CURRENT_RUNTIME_FILES,
+  P0R_REBIND_DISPATCH_RUNTIME_MAX_SECONDS,
   P0R_REBIND_ENTRYPOINT,
   P0R_REBIND_LEGACY_SUPERSESSION_FILES,
   P0R_REBIND_MANIFEST,
@@ -342,6 +343,8 @@ export async function buildP0RRebindBundle({
       currentP0RRuntimeFileDigests,
       databaseMutationAllowed: false,
       dispatchId: approval.dispatchId,
+      dispatchRuntimeMaxSeconds:
+        P0R_REBIND_DISPATCH_RUNTIME_MAX_SECONDS,
       dispatchStateRoot: DEFAULT_P0R_REBIND_POLICY.dispatchStateRoot,
       expectedContainerCount: approval.expectedContainerIds.length,
       expectedContainerIds: [...approval.expectedContainerIds].sort(),

@@ -19,17 +19,18 @@
 - 远端 session 已改为先执行 `stty -echo` 再输出 READY，移除 ready/echo 竞态，接收窗口扩至 600 秒但仍由编译器强制签发后 5 分钟即时编译。
 - 本地伪 TTY 红绿测试 10/10 PASS：覆盖完整双 session、secret 不进入 stdout/stderr、固定命令、固定 Keychain 参数、malformed clipboard、错误 marker、SSH failure 和无论成败 clipboard 清理。
 - bridge 的计划校验运行时已固定为本机受控 Node `v22.23.1`，并 fail closed 拒绝版本漂移；完整 P0R `87/87`、Go helper、recurrence gate `10/10`、production dispatch `24/24`、精确 Node/npm 的完整 `ci:production`、Next production build、Golden `16/16` 与 security check 均已 PASS。新 clean commit、GitHub 四门、fresh rebind、新 execution identity 和真实生产恢复仍待完成，不能用本地全绿冒充生产 PASS。
-- replacement source `38b49f43e0dc15514d1da9c1169d2fed233d8f5a` 已推送且 clean：A0 `30448235005`、Signed Dispatch `30448234840`、Independent Security `30448234534` PASS；Full Quality `30448234790` FAIL。因此它只有 3/4 门通过，明确禁止 fresh rebind、STS 和生产执行。
-- Full Quality 的 5 个失败均来自 Ubuntu 24.04 缺少 `/usr/bin/expect` 的同一 `ENOENT`，不是 5 个独立桥逻辑缺陷。根治没有 skip 测试：工作流精确安装 Ubuntu Noble `expect=5.45.4-3` 与 `tcl-expect=5.45.4-3`，A0 材料门禁锁定版本、`dpkg-query` 身份和可执行路径，并新增防回退测试。
-- 根治工作树的材料门禁、18 项定向测试和精确 Node/npm 完整 `ci:production` 已 PASS；新的 clean exact source 和远端四门复验仍待完成。生产、凭证、数据库、COS、backup、restore 和 authority 未改变。
+- replacement source `38b49f43e0dc15514d1da9c1169d2fed233d8f5a` 的 Full Quality 缺 `/usr/bin/expect` 后，已通过精确安装 Ubuntu Noble `expect=5.45.4-3` 与 `tcl-expect=5.45.4-3` 根治；新 source `0e035784988261926eb9656d25050180c87b0d1e` 的 A0 `30457497065`、Signed Dispatch `30457497032`、Full Quality `30457497061` 和 Independent Security `30457497311` 四门全部 PASS。
+- fresh rebind `p0r-rebind-preflight-20260729t150004z-c85ec1a4` 经 signed dispatch commit `a0dac15d3cc85cf846566eed8a64cd7fd6e35112` 到达生产，但在 `PACKAGE_BINDING` 阶段正确阻断：通用 envelope 的 `runtimeMaxSeconds=5400` 超过只读包允许的 90 秒。没有 production mutation attempt，staging 自动清理。
+- 事后 fresh read-only 复核确认 production HEAD `cec0b6572bb09ae91ff9e013f8bb160f73c045e2`、clean worktree、11 个容器和 P0R files/containers/volumes 均保持零漂移。根因是 approval request 未把包级运行上限写入跨层合同，而非生产环境故障。
+- request schema 已升级为 v3 并显式绑定 `dispatchRuntimeMaxSeconds=90`；固定通道在签名前、outbox 验证和生产代理阶段比对 request/envelope，包内 runner 再独立比对。唯一高层 release 入口从 canonical request 派生全部重复字段并拒绝 operator-supplied binding 选项，5400 秒红例必须在 outbox 创建前失败。当前定向 29/29、P0R 88/88、最小 PATH dispatch 回归、V2 Foundation 631 PASS / 6 explicit skips、V2 Ops 209/209、Go helper、Next build、Golden 16/16 和 security 的完整本地 CI 均 PASS；新 exact commit、四门重验和 fresh rebind 尚未完成。
 
 ### 当前真值
 
-P0R 仍是 `PRODUCTION_RECOVERY_NOT_EXECUTED / P0_BLOCKED`。现在没有可用 credential；第三枚已取得双时钟过期证明并永久禁用。新 local bridge 已完成本地全资格，但不是生产 PASS。旧 browser/OrcaTerm secret 路线已经永久退役。
+P0R 仍是 `PRODUCTION_RECOVERY_NOT_EXECUTED / P0_BLOCKED`。现在没有可用 credential；第三枚已取得双时钟过期证明并永久禁用。local bridge 的 source `0e035...` 已完成四门，但本轮 rebind 没有 PASS；跨层 runtime 合同根治已完成本地完整 CI，尚无新 commit、远端资格或生产 rebind。旧 browser/OrcaTerm secret 路线已经永久退役。
 
 ### 下一步
 
-形成包含 Expect 运行时根治的新 clean exact commit 并重新取得 GitHub 四门；随后执行 fresh read-only rebind，生成全新 run/object key/plan/bundle/staging。所有新 source 资格成立后，先启动 bridge 并看到 READY，再由用户完成 MFA 和 API Explorer 原生 Copy。只有真实 backup、exact retrieval、独立 PostgreSQL 16 restore、证据封存、secret/container/volume/runtime 清理与生产零漂移全部 PASS，P0R 才能关闭。
+形成新的 clean exact commit 并重新取得 GitHub 四门；随后只通过新的高层 release 入口执行 fresh read-only rebind，再生成全新 run/object key/plan/bundle/staging。所有新 source 资格成立后，先启动 bridge 并看到 READY，再由用户完成 MFA 和 API Explorer 原生 Copy。只有真实 backup、exact retrieval、独立 PostgreSQL 16 restore、证据封存、secret/container/volume/runtime 清理与生产零漂移全部 PASS，P0R 才能关闭。
 
 ## 2026-07-29 / P0R Atomic Secret Session Root Remediation
 
