@@ -1093,10 +1093,14 @@ test("governance contract matches the executable transport and truth boundary", 
   );
   assert.equal(
     contract.recurrenceRootCauseGate.p0rFreshRebindCurrentRuntimeFileCount,
-    7,
+    8,
   );
   assert.equal(
     contract.recurrenceRootCauseGate.p0rFreshRebindCurrentRuntimeIncludesAtomicSession,
+    true,
+  );
+  assert.equal(
+    contract.recurrenceRootCauseGate.p0rFreshRebindCurrentRuntimeIncludesRuntimeCapsuleHelper,
     true,
   );
   assert.equal(

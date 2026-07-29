@@ -1,6 +1,6 @@
 #!/usr/bin/expect -f
 
-set BRIDGE_SCHEMA_VERSION "v2-m1-production-storage-p0r-local-tty-bridge.v2"
+set BRIDGE_SCHEMA_VERSION "v2-m1-production-storage-p0r-local-tty-bridge.v3"
 set CLIPBOARD_CLEAR_VALUE "MARKET_RADAR_P0R_CLIPBOARD_CLEAR"
 set KEYCHAIN_ACCOUNT "market-radar-v2-p0r-recovery"
 set KEYCHAIN_SERVICE "com.chuan.market-radar.v2.p0r.age"
@@ -226,7 +226,10 @@ proc wait_for_marker {id marker wait_seconds failure_code} {
   set outcome ""
   expect -i $id \
     -exact $marker {set outcome "pass"} \
-    -exact "\"status\":\"BLOCKED\"" {set outcome "blocked"} \
+    -re {\{"reasonCode":"(p0r_(session|runner)_line_[1-9][0-9]{0,4})","status":"BLOCKED"\}} {
+      set outcome "blocked_[set expect_out(1,string)]"
+    } \
+    -exact "\"status\":\"BLOCKED\"" {set outcome "blocked_unclassified"} \
     eof {set outcome "eof"} \
     timeout {set outcome "timeout"}
   set ::timeout $previous_timeout

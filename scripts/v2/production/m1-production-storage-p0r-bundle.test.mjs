@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -15,6 +15,9 @@ import {
   P0R_BUNDLE_SCHEMA_VERSION,
 } from "./m1-production-storage-p0r-bundle.mjs";
 import { buildP0RCosProvisioningPlan } from "./m1-production-storage-p0r-cos-provisioning.mjs";
+import {
+  buildP0RNodeRuntimeFixtureCapsule,
+} from "./m1-production-storage-p0r-runtime-capsule.test-helper.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -26,6 +29,9 @@ function fakeELF(fill) {
 }
 
 async function build(directory, name) {
+  const runtimeRoot = join(directory, `${name}.runtime`);
+  await mkdir(runtimeRoot, { mode: 0o700 });
+  const runtime = await buildP0RNodeRuntimeFixtureCapsule(runtimeRoot);
   return buildP0RTransportBundle({
     ageBinary: fakeELF(1),
     ageLicense: Buffer.from("BSD 3-Clause test fixture\n"),
@@ -38,6 +44,7 @@ async function build(directory, name) {
     approvalEligible: false,
     cosArchiveBinary: fakeELF(2),
     cosProvisioningPlan: null,
+    nodeRuntimeCapsule: await readFile(runtime.output),
     output: join(directory, name),
     root: process.cwd(),
     sourceCommit: null,
@@ -52,7 +59,7 @@ test("builds a byte-reproducible, secret-free local template", async () => {
     assert.equal(first.bundleSha256, second.bundleSha256);
     assert.deepEqual(await readFile(first.output), await readFile(second.output));
     assert.equal(first.schemaVersion, P0R_BUNDLE_SCHEMA_VERSION);
-    assert.equal(P0R_BUNDLE_SCHEMA_VERSION, "v2-m1-production-storage-p0r-transport.v2");
+    assert.equal(P0R_BUNDLE_SCHEMA_VERSION, "v2-m1-production-storage-p0r-transport.v3");
     assert.equal(first.approvalEligible, false);
     assert.equal(first.containsSecrets, false);
     const { stdout } = await execFileAsync("tar", ["-tzf", first.output], { encoding: "utf8" });
@@ -61,10 +68,12 @@ test("builds a byte-reproducible, secret-free local template", async () => {
       "AGE-LICENSE",
       "age-recipient.txt",
       "p0r-cos-archive",
+      "p0r-node-runtime.tar",
       "p0r-bindings.env",
       "transport-manifest.json",
       "m1-production-storage-p0r-cos-provisioning.mjs",
       "m1-production-storage-p0r-runner.sh",
+      "m1-production-storage-p0r-runtime-capsule.mjs",
       "m1-production-storage-p0r-session.sh",
     ]) assert.ok(stdout.split("\n").includes(expected), `missing ${expected}`);
     assert.doesNotMatch(stdout, /identity|credentials|\.env\.production|private-key/iu);
@@ -75,23 +84,30 @@ test("builds a byte-reproducible, secret-free local template", async () => {
 
 test("approval package requires exact official age provenance", async () => {
   const directory = await mkdtemp(join(tmpdir(), "p0r-bundle-approval-"));
-  await assert.rejects(() => buildP0RTransportBundle({
-    ageBinary: fakeELF(1),
-    ageLicense: Buffer.from("license"),
-    ageProvenance: {
-      archiveDigest: "wrong",
-      sourceUrl: P0R_AGE_LINUX_AMD64_ARCHIVE_URL,
-      version: "v1.3.1",
-    },
-    ageRecipient: `age1${"q".repeat(58)}\n`,
-    approvalEligible: true,
-    cosArchiveBinary: fakeELF(2),
-    cosProvisioningPlan: null,
-    output: join(directory, "invalid.tar.gz"),
-    root: process.cwd(),
-    sourceCommit: "a".repeat(40),
-  }), /official age archive/u);
-  assert.match(P0R_AGE_LINUX_AMD64_ARCHIVE_SHA256, /^[0-9a-f]{64}$/u);
+  try {
+    const runtime = await buildP0RNodeRuntimeFixtureCapsule(directory);
+    const runtimeBytes = await readFile(runtime.output);
+    await assert.rejects(() => buildP0RTransportBundle({
+      ageBinary: fakeELF(1),
+      ageLicense: Buffer.from("license"),
+      ageProvenance: {
+        archiveDigest: "wrong",
+        sourceUrl: P0R_AGE_LINUX_AMD64_ARCHIVE_URL,
+        version: "v1.3.1",
+      },
+      ageRecipient: `age1${"q".repeat(58)}\n`,
+      approvalEligible: true,
+      cosArchiveBinary: fakeELF(2),
+      cosProvisioningPlan: null,
+      nodeRuntimeCapsule: runtimeBytes,
+      output: join(directory, "invalid.tar.gz"),
+      root: process.cwd(),
+      sourceCommit: "a".repeat(40),
+    }), /official age archive/u);
+    assert.match(P0R_AGE_LINUX_AMD64_ARCHIVE_SHA256, /^[0-9a-f]{64}$/u);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test("approval package embeds and checksum-binds the exact COS provisioning plan", async () => {
@@ -107,6 +123,9 @@ test("approval package embeds and checksum-binds the exact COS provisioning plan
     sourceIpCidr: "203.0.113.24/32",
   });
   try {
+    const runtimeRoot = join(directory, "runtime-fixture");
+    await mkdir(runtimeRoot, { mode: 0o700 });
+    const runtime = await buildP0RNodeRuntimeFixtureCapsule(runtimeRoot);
     const result = await buildP0RTransportBundle({
       ageBinary: fakeELF(1),
       ageLicense: Buffer.from("license"),
@@ -119,6 +138,7 @@ test("approval package embeds and checksum-binds the exact COS provisioning plan
       approvalEligible: true,
       cosArchiveBinary: fakeELF(2),
       cosProvisioningPlan,
+      nodeRuntimeCapsule: await readFile(runtime.output),
       output: join(directory, "approved.tar.gz"),
       root: process.cwd(),
       sourceCommit,
@@ -130,15 +150,21 @@ test("approval package embeds and checksum-binds the exact COS provisioning plan
       { encoding: "utf8" },
     );
     const archiveMembers = archiveListing.trim().split("\n");
-    assert.equal(archiveMembers.length, 14);
-    assert.equal(new Set(archiveMembers).size, 14);
+    assert.equal(archiveMembers.length, 16);
+    assert.equal(new Set(archiveMembers).size, 16);
     const { stdout: manifestText } = await execFileAsync(
       "tar",
       ["-xOzf", result.output, "transport-manifest.json"],
       { encoding: "utf8" },
     );
     const manifest = JSON.parse(manifestText);
-    assert.equal(manifest.files.length, 13);
+    assert.equal(manifest.files.length, 15);
+    assert.equal(
+      manifest.nodeRuntime.runtimeDependencyBoundary,
+      "EXACT_SOURCE_BOUND_P0R_NODE_RUNTIME_CAPSULE",
+    );
+    assert.equal(manifest.nodeRuntime.productionNodeModulesRequired, false);
+    assert.deepEqual(manifest.nodeRuntime.packageVersions, { pg: "8.16.3" });
     assert.ok(
       manifest.files.some(({ name }) => name === "m1-production-storage-p0r-session.sh"),
       "transport manifest must bind the atomic P0R session helper",
@@ -156,6 +182,8 @@ test("approval package embeds and checksum-binds the exact COS provisioning plan
     );
     assert.match(bindings, /P0R_COS_PROVISIONING_PLAN_SHA256=[0-9a-f]{64}/u);
     assert.match(bindings, /P0R_COS_PROVISIONING_TOOL_SHA256=[0-9a-f]{64}/u);
+    assert.match(bindings, /P0R_NODE_RUNTIME_SHA256=[0-9a-f]{64}/u);
+    assert.match(bindings, /P0R_RUNTIME_CAPSULE_TOOL_SHA256=[0-9a-f]{64}/u);
     assert.match(bindings, /P0R_SESSION_SHA256=[0-9a-f]{64}/u);
   } finally {
     await rm(directory, { recursive: true, force: true });

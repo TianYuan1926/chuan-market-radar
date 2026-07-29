@@ -275,7 +275,7 @@ test("the real registry exposes the open P0R receiver remediation and retires un
   assert.ok(
     openIncident.permanentFix.evidence.some(
       (item) =>
-        item.includes("seven-file transport-v2 runtime digest set") &&
+        item.includes("eight-file transport-v3 runtime digest set") &&
         item.includes("three-file transport-v1 supersession comparison"),
     ),
   );
@@ -298,7 +298,7 @@ test("the real registry exposes the open P0R receiver remediation and retires un
   assert.ok(
     openIncident.realTargetAcceptance.evidence.some(
       (item) =>
-        item.includes("seven-file current P0R runtime set digest") &&
+        item.includes("eight-file current P0R runtime set digest") &&
         item.includes("three-file historical supersession proof"),
     ),
   );
@@ -313,10 +313,11 @@ test("the real registry exposes the open P0R receiver remediation and retires un
   assert.ok(
     openIncident.permanentFix.evidence.some(
       (item) =>
-        item.includes("Bridge schema v2") &&
+        item.includes("Bridge schema v3") &&
         item.includes("port 8022") &&
         item.includes("HostKeyAlias") &&
-        item.includes("port 22"),
+        item.includes("port 22") &&
+        item.includes("reason codes"),
     ),
   );
   assert.ok(
@@ -350,7 +351,7 @@ test("the P0R runbook retires post-response browser recovery and OrcaTerm secret
   assert.match(runbook, /固定 SSH port 8022/u);
   assert.match(runbook, /HostKeyAlias=43\.161\.202\.227/u);
   assert.match(runbook, /默认 SSH port 22.*永久禁止/u);
-  assert.match(runbook, /bridge 6\/6、P0R 88\/88、recurrence 11\/11/u);
+  assert.match(runbook, /P0R 100\/100/u);
   assert.match(runbook, /TCP 8022.*当前 SOCKS 出口 \/32/u);
   assert.match(runbook, /systemd 自动超时不能代替云防火墙清理/u);
   assert.match(
@@ -382,8 +383,8 @@ test("the P0R runbook retires post-response browser recovery and OrcaTerm secret
   assert.doesNotMatch(runbook, /以下两条是唯一允许的 secret session 入口/u);
 });
 
-test("all active authority surfaces identify the proxy-compatible B6 bridge", async () => {
-  const expectedEntry = "V2-M1.6-P0R-B6-PROXY-COMPATIBLE-8022-TTY-BRIDGE";
+test("all active authority surfaces identify the B7 source-bound runtime capsule remediation", async () => {
+  const expectedEntry = "V2-M1.6-P0R-B7-SOURCE-BOUND-NODE-RUNTIME-CAPSULE-ROOT-REMEDIATION";
   const [matrix, context, index, sequence, blueprint] = await Promise.all([
     readFile(new URL(
       "../../../../docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json",
@@ -399,7 +400,7 @@ test("all active authority surfaces identify the proxy-compatible B6 bridge", as
   ]);
 
   assert.equal(matrix.currentImplementationEntry.id, expectedEntry);
-  assert.equal(matrix.currentP0RLocalTtyBridgeRemediation.id, expectedEntry);
+  assert.equal(matrix.currentP0RRuntimeNamespaceRemediation.id, expectedEntry);
   assert.equal(matrix.currentP0RLocalTtyBridgeRemediation.currentRecurrenceTestsPassed, 11);
   assert.match(context, new RegExp(`## 18[\\s\\S]*${expectedEntry}`, "u"));
   assert.match(index, new RegExp(`## 6[\\s\\S]*${expectedEntry}`, "u"));

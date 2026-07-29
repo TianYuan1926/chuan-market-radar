@@ -21,6 +21,14 @@ import { writeDeterministicUstar } from "../lib/deterministic-ustar.mjs";
 import {
   validateP0RCosProvisioningPlan,
 } from "./m1-production-storage-p0r-cos-provisioning.mjs";
+import {
+  buildP0RNodeRuntimeCapsule,
+  inspectP0RNodeRuntimeCapsuleBytes,
+  P0R_NODE_RUNTIME_CAPSULE_SCHEMA_VERSION,
+  P0R_NODE_RUNTIME_VERSION,
+  P0R_NPM_RUNTIME_VERSION,
+  P0R_PG_RUNTIME_VERSION,
+} from "./m1-production-storage-p0r-runtime-capsule.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -30,7 +38,7 @@ export const P0R_AGE_LINUX_AMD64_ARCHIVE_URL =
 export const P0R_AGE_LINUX_AMD64_ARCHIVE_SHA256 =
   "bdc69c09cbdd6cf8b1f333d372a1f58247b3a33146406333e30c0f26e8f51377";
 export const P0R_BUNDLE_SCHEMA_VERSION =
-  "v2-m1-production-storage-p0r-transport.v2";
+  "v2-m1-production-storage-p0r-transport.v3";
 
 const SOURCE_DATE_EPOCH = 946_684_800;
 const FIXED_TIME = new Date(SOURCE_DATE_EPOCH * 1000);
@@ -43,6 +51,7 @@ export const P0R_TRANSPORT_SOURCES = Object.freeze([
   "scripts/v2/production/m1-production-storage-database-fingerprint.mjs",
   "scripts/v2/production/m1-production-storage-p0r-cos-provisioning.mjs",
   "scripts/v2/production/m1-production-storage-p0r-runner.sh",
+  "scripts/v2/production/m1-production-storage-p0r-runtime-capsule.mjs",
   "scripts/v2/production/m1-production-storage-p0r-session.sh",
   "scripts/v2/production/m1-production-storage-read-only-preflight.mjs",
   "scripts/v2/production/m1-production-storage-recovery-evidence.mjs",
@@ -178,6 +187,8 @@ function bindings(sourceCommit, files) {
     `P0R_FINGERPRINT_SHA256=${byName["m1-production-storage-database-fingerprint.mjs"]}`,
     `P0R_PREFLIGHT_LIBRARY_SHA256=${byName["m1-production-storage-read-only-preflight.mjs"]}`,
     `P0R_RECOVERY_EVIDENCE_SHA256=${byName["m1-production-storage-recovery-evidence.mjs"]}`,
+    `P0R_NODE_RUNTIME_SHA256=${byName["p0r-node-runtime.tar"]}`,
+    `P0R_RUNTIME_CAPSULE_TOOL_SHA256=${byName["m1-production-storage-p0r-runtime-capsule.mjs"]}`,
     `P0R_RUNNER_SHA256=${byName["m1-production-storage-p0r-runner.sh"]}`,
     `P0R_SESSION_SHA256=${byName["m1-production-storage-p0r-session.sh"]}`,
     "",
@@ -213,6 +224,13 @@ export async function buildP0RTransportBundle(input) {
   }
   assertLinuxAMD64ELF(input.ageBinary, "age binary");
   assertLinuxAMD64ELF(input.cosArchiveBinary, "COS archive binary");
+  assert.ok(
+    Buffer.isBuffer(input.nodeRuntimeCapsule),
+    "P0R Node runtime capsule must be bytes",
+  );
+  const nodeRuntime = inspectP0RNodeRuntimeCapsuleBytes(
+    input.nodeRuntimeCapsule,
+  );
   assert.ok(Buffer.isBuffer(input.ageLicense) && input.ageLicense.length > 0, "age license is absent");
   assert.match(input.ageRecipient.trim(), AGE_RECIPIENT_PATTERN, "age recipient is invalid");
   assert.equal(input.ageRecipient.trim().split(/\s+/u).length, 1, "age recipient must be singular");
@@ -235,6 +253,12 @@ export async function buildP0RTransportBundle(input) {
       { bytes: Buffer.from(input.ageRecipient), mode: 0o400, name: "age-recipient.txt", sourcePath: null },
       { bytes: input.ageLicense, mode: 0o400, name: "AGE-LICENSE", sourcePath: null },
       { bytes: input.cosArchiveBinary, mode: 0o700, name: "p0r-cos-archive", sourcePath: "scripts/v2/production/p0r-cos-archive" },
+      {
+        bytes: input.nodeRuntimeCapsule,
+        mode: 0o400,
+        name: "p0r-node-runtime.tar",
+        sourcePath: "scripts/v2/production/p0r-node-runtime",
+      },
     );
     if (input.cosProvisioningPlan) {
       fileBytes.push({
@@ -285,6 +309,22 @@ export async function buildP0RTransportBundle(input) {
       } : null,
       files: fileManifest,
       migrationAllowed: false,
+      nodeRuntime: {
+        capsuleSchemaVersion: P0R_NODE_RUNTIME_CAPSULE_SCHEMA_VERSION,
+        capsuleSha256: nodeRuntime.archiveSha256,
+        entryCount: nodeRuntime.entryCount,
+        nodeVersion: P0R_NODE_RUNTIME_VERSION,
+        npmVersion: P0R_NPM_RUNTIME_VERSION,
+        packageLockSha256: nodeRuntime.packageLockSha256,
+        packageManifestSha256: nodeRuntime.packageManifestSha256,
+        packageVersions: {
+          pg: P0R_PG_RUNTIME_VERSION,
+        },
+        productionNodeModulesRequired: false,
+        runtimeDependencyBoundary:
+          "EXACT_SOURCE_BOUND_P0R_NODE_RUNTIME_CAPSULE",
+        unpackedBytes: nodeRuntime.unpackedBytes,
+      },
       productionDatabaseMutationAllowed: false,
       productionRepositoryMutationAllowed: false,
       productionServiceMutationAllowed: false,
@@ -365,7 +405,21 @@ async function main() {
   const temporary = await mkdtemp(join(tmpdir(), "market-radar-v2-p0r-cos-build-"));
   try {
     const cosPath = join(temporary, "p0r-cos-archive");
+    const nodeRuntimePath = join(temporary, "p0r-node-runtime.tar");
     const cosArchiveBinary = await buildCosArchiveBinary(root, cosPath);
+    await buildP0RNodeRuntimeCapsule({
+      nodeBinary: resolve(options["node-binary"] ?? process.execPath),
+      npmBinary: resolve(
+        options["npm-binary"] ??
+          join(dirname(process.execPath), "npm"),
+      ),
+      output: nodeRuntimePath,
+      sourceDirectory: resolve(
+        root,
+        "scripts/v2/production/p0r-node-runtime",
+      ),
+    });
+    const nodeRuntimeCapsule = await readFile(nodeRuntimePath);
     const sourceCommit = clean ? head : null;
     const cosProvisioningPlan = clean
       ? validateP0RCosProvisioningPlan(await (async () => {
@@ -391,6 +445,7 @@ async function main() {
       approvalEligible: clean,
       cosArchiveBinary,
       cosProvisioningPlan,
+      nodeRuntimeCapsule,
       output,
       root,
       sourceCommit,

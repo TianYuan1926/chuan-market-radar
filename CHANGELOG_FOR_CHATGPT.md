@@ -2,6 +2,26 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-30 / P0R Runtime Namespace Root Remediation
+
+### 本轮目标
+
+根据 exact source `e83c1f238b19a3495d17f791d0ca5b65a9447734` 的首次真实 P0R Runner 阻断，根治“宿主机必须能看见生产 Web 容器 `/app/node_modules`”这一错误运行依赖假设，并把远端失败诊断收紧为不含路径、参数或 secret 的有界源码位置。
+
+### 当前证据
+
+- run `p0r-20260729t193336z-0ec1106cf1a2ee7402b0309cddfa34b0` 的 STS 与 age identity 原子交接均通过，随后 Runner 在第一份 backup evidence 产生前返回 BLOCKED；没有读取或改变生产业务数据，没有创建 backup、COS 对象、retrieval、restore、临时恢复容器或 volume。
+- 现场只读检查证明 Web/PostgreSQL 容器各恰好一个且均运行，生产 Node 和 PostgreSQL socket 可用；Web 容器内部 `pg@8.16.3` 可解析，但宿主 `/proc/<web-pid>/root/app/node_modules` 不存在。这是 mount namespace 可见性差异，不是 Web 依赖缺失、数据库故障或用户权限问题。
+- 失败后已关闭 credential 页面，删除 exact staging/evidence，停止临时 8022 sshd，删除唯一 `/32 -> TCP 8022` 腾讯规则，并复核 listener、unit、`/dev/shm`、P0R process/container/volume 全部为 0；生产数据库、服务、仓库、env、migration、Feature Flag 和 authority 未改变。
+- Runner、session 和 bridge 的失败输出现只允许 `p0r_runner_line_N` 或 `p0r_session_line_N`，不传播自由文本。malformed 或 secret-shaped 远端诊断统一降为 unclassified BLOCKED。
+- 新 transport v3 内置 checksum-bound P0R Node runtime capsule：精确 Node `22.23.1`、npm `10.9.8`、`pg 8.16.3`，不依赖生产 `node_modules`。胶囊只允许 lockfile 中的普通文件，拒绝符号链接、native module、`.bin`、额外包、路径逃逸、权限漂移、摘要不符和版本漂移。
+- 两次相互独立的真实隔离 `npm ci` 已构建并复检同一个 143 文件、457099 unpacked bytes 的胶囊，字节级摘要均为 `cc0ce88091cc0b32850197c98c222df8b3b1406d2afb36fa6aed69021e76a7b9`；构建时提前清理临时安装目录的异步竞态也被测试捕获并永久修复。
+- 当前 P0R 定向回归 `100/100`、Go helper、recurrence `11/11`、dispatch `24/24` 和精确 Node `22.23.1` / npm `10.9.8` / Go `1.26.3` 下的完整 `ci:production` 均 PASS；完整 CI 包含 V2 Foundation `631 PASS / 6 explicit skips`、V2 Ops `222/222`、Next build、Golden `16/16` 和 security。clean commit、GitHub 四门、fresh rebind、transport-v3 exact package 和新生产恢复仍待完成，因此 M1/P0R 不能减数。
+
+### 当前真值与下一步
+
+状态是 `LOCAL_ROOT_REMEDIATION_P0R_100_OF_100_AND_FULL_CI_PASS / PRODUCTION_RECOVERY_BLOCKED_PRE_BACKUP / PRODUCTION_ZERO_DRIFT / TEMPORARY_ROUTE_AND_SECRET_RESIDUE_CLEAN / CLEAN_COMMIT_REMOTE_GATES_REBIND_AND_NEW_EXECUTION_PENDING`。当前不需要用户生成 STS、开放端口或操作 COS。下一步形成 clean commit、四门、fresh read-only rebind 和全新 run/plan/object key/transport-v3；只有这些全部通过后，才允许在动作时重新建立临时 8022 路线并请求新的 STS。
+
 ## 2026-07-30 / P0R Fixed Local TTY Bridge and Proxy-Compatible 8022 Route
 
 ### 本轮目标
@@ -110,58 +130,3 @@ P0R 当前是“本地根因修复通过专项门禁，完整资格和真实生�
 ### 风险与下一步
 
 本轮仍不是 P0R 恢复完成。旧 v2 plan/bundle 已失去执行权；只有新 clean commit 通过完整 CI、远端四门和 fresh rebind 后，才能重建 v3 plan/bundle 并重新请求 7200 秒 STS，再执行 backup、exact retrieval、isolated PG16 restore、cleanup 与 fresh P0。
-
-## 2026-07-27 / Fixed Dispatch Timeout Lock Root-Cause Recovery
-
-### 本轮目标
-
-读取旧 P0R 派发的真实目标 receipt，根治固定派发代理在 systemd 超时后遗留空锁、持续拒绝后续包的问题，并恢复低延迟的生产派发通道。
-
-### 修改范围
-
-- 生产 journal 证明 2026-07-26 14:09:36 +08:00 的 Git fetch 在 180 秒后被 systemd `SIGTERM`；空 `agent.lock` 无任何 live owner，随后累计 4,526 次 `dispatch_agent_already_running`。
-- agent 的 Git child 改为不可由调用方取消的 90 秒硬上限；SSH 增加连接次数、连接超时和 keepalive 失败边界。
-- lock 新增 boot ID、PID、Linux process-start token、acquiredAt 和随机 token；live owner fail closed，dead owner 隔离恢复，空旧锁只在四分钟后恢复。
-- governance contract、24 项固定通道回归、复发注册表、运行手册、权威蓝图和生产验收报告同步更新。
-
-### 验收结果
-
-- `npm run test:production-dispatch` 24/24、recurrence gate 9/9 和完整本地 `ci:production` PASS。
-- 腾讯隔离 Linux smoke 返回 `PASS_LINUX_AGENT_LOCK_SELF_RECOVERY_AND_EXCLUSION`。
-- 生产只替换 agent、Git SSH wrapper 和 README 三文件；旧件和游标保留为可回滚证据。
-- 旧 dispatch 被记录为 `FAIL_DISPATCH_NOT_REUSABLE / dispatch_not_current`，无 claim、解包或业务 Runner；随后手动和 timer 轮询均为 `IDLE_NO_NEW_DISPATCH`。
-- 生产应用 HEAD/clean worktree、11 容器、Web/PostgreSQL/Redis、六 Worker 和 health 全部零漂移；远端 staging 已精确删除。
-
-### 风险与下一步
-
-本次完成的是生产派发控制面的根因关闭，不是 P0R 完成。旧派发已确认过期、未领取、未执行且禁止复用；下一动作是生成并执行 fresh exact signed read-only rebind，然后才能进入 current-source plan/bundle、fresh `/dev/shm` STS/age、加密 backup、exact retrieval、独立 PG16 restore、cleanup 与 fresh P0。
-
-## 2026-07-27 / V2 M1.4D + M1.5C/M1.5D Local Runtime and Exact Package
-
-### 本轮目标
-
-在 A0/P0R 仍关闭生产 live 执行的前提下，补齐 Scope V2 四 Venue 多资产 Base Fact、M1.5C/M1.5D 两类 31 周期 Shadow runtime、独立证据验证器和同一 exact release 的无密钥腾讯派发包。
-
-### 修改范围
-
-- M1.4D 建立四 Venue catalog/listing watch、identity v2/snapshot v3、T0 lifecycle、T1 wide-market 和 point-in-time Base Fact Snapshot。
-- Provider URL、HTTP/WebSocket transport 全部收进 Adapter；Core 仅持 URL hash、分页、超时和字节边界，架构门禁新增 Bitget host。
-- M1.5C 固定 31 周期、60 秒 cadence 和四责任轴逐周期分母；M1.5D 固定同 cadence 的 trades/book/mark-index 前向采集及确定性 research/control 选择。
-- 新增两套独立 verifier、隔离 PostgreSQL 16 store、combined runtime entrypoint、deterministic Bundle、strict request/envelope、Runner 和 entrypoint。
-- Runner 禁止目标 build、source sync、dependency install 及生产 DB/Redis/应用/env/Feature Flag/migration 写入；只有 topology 精确恢复时才允许声明 `productionChanged=false`。
-- Binance JSON subscribe endpoint 按 routed stream 语义修正为 `/public/stream` 与 `/market/stream`，并由回归锁定。
-
-### 验收结果
-
-- Base Fact 23/23、Expanded Shadow 70/70 PASS。
-- Exact live package 12/12 PASS。
-- V2 Ops 192/192、P0R Go package、全 V2 编译测试、typecheck、ESLint、Biome 715 files、forbidden-files 和 secret-pattern 全部 PASS。
-- 完整 `ci:production` PASS：V2 Foundation 637 total / 631 pass / 6 explicit skip、V2 Ops 192/192、M0、Next production build、Golden 16/16 与 security 全部通过。
-
-### 是否部署
-
-未部署。M1.5C live cycle=0，M1.5D live cycle=0；腾讯生产服务、数据库、Redis、Worker、Caddy、env、Feature Flag、migration、COS、生产仓库和业务 authority 均未改变。
-
-### 风险与下一步
-
-本地工程 PASS 不代表四 Venue coverage、微观结构 SLO 或容量 PASS。当前生产 Bundle 必须 fail closed，因为 A0/P0R 尚未关闭，且旧 M1.4B/source-conformance evidence 与当前源码不是 same-commit upstream。正确顺序是先完成 P0R 和 fresh P0，再在同一 clean commit 刷新 upstream，执行 M1.5C/M1.5D 两包并分别验收，最后进入 M1.6-D1。

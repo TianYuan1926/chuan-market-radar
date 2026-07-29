@@ -1,5 +1,5 @@
 # Market Radar 项目当前上下文
-更新日期：2026-07-29
+更新日期：2026-07-30
 用途：让 Codex、ChatGPT 和外部审计员在几分钟内获得当前真实状态、唯一蓝图、风险和下一入口。本文件只保存当前事实，不保存施工流水账，不包含 secret。
 ## 1. 项目一句话定义
 Market Radar 是以加密合约为首要核心、并扩展到股票永续的多资产人工决策雷达：持续覆盖目标 CEX 的合格合约和上市生命周期，尽可能提前发现主升/主跌前兆，同时识别其他高赔率结构机会，经过深度验证后给出严格计划，并用真实结果持续改进。
@@ -51,8 +51,8 @@ Runtime / Security / Release Control 贯穿全链。
 ## 4. 当前权威
 当前唯一设计权威：
 
-- `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`，内容版本 v1.68。
-- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.74。
+- `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`，内容版本 v1.71。
+- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.75。
 - `docs/blueprints/README.md`，权威解析入口。
 - `market-radar-v2-build-sequence.md`，当前正确施工依赖与减数规则。
 
@@ -77,7 +77,7 @@ M1.5B1B3_EARLY_SHADOW_BUSINESS_GATE_PASS
 M1.5B1_COMPLETE
 M1.6_PARTITIONED_FACT_STORAGE_LOCAL_POSTGRES16_PASS
 M1.6P0_PRODUCTION_STORAGE_READ_ONLY_PREFLIGHT_EXECUTED_BLOCKED
-M1.6P0R_E362_REMOTE_GATES_REBIND_AND_STAGING_HISTORICAL_PASS_RUN_INVALIDATED / THIRD_STS_POST_RESPONSE_DISCLOSED_NEVER_USED_EXPIRED_FORBIDDEN_REUSE_DUAL_CLOCK_PROOF_PASS / SOURCE_0E035_REMOTE_FOUR_GATES_PASS / REBIND_C85EC1A4_BLOCKED_PACKAGE_BINDING_BEFORE_MUTATION_STAGING_CLEANED / PROD_HEAD_WORKTREE_11_CONTAINERS_AND_P0R_FILES_CONTAINERS_VOLUMES_ZERO_DRIFT / REQUEST_V3_CROSS_LAYER_RUNTIME_BINDING_ROOT_FIX_FULL_LOCAL_CI_PASS_NEW_EXACT_SOURCE_PENDING / LEGACY_BED938_STAGING_REJECTED
+M1.6P0R_E83_EXACT_ATTEMPT_STS_AND_AGE_HANDOFF_PASS_RUNNER_BLOCKED_PRE_BACKUP / HOST_NAMESPACE_PRODUCTION_NODE_MODULES_ASSUMPTION_INVALID / PRODUCTION_ZERO_DRIFT_AND_TEMPORARY_ROUTE_SECRET_STAGING_EVIDENCE_RESIDUE_ZERO / TRANSPORT_V3_SOURCE_BOUND_NODE_RUNTIME_CAPSULE_LOCAL_P0R_100_OF_100_AND_FULL_CI_PASS / CLEAN_COMMIT_REMOTE_GATES_FRESH_REBIND_NEW_EXECUTION_AND_REAL_RECOVERY_PENDING / LEGACY_RUNS_AND_PACKAGES_REJECTED
 M1.6_FRESH_P0_CAPACITY_ADMISSION_LOCAL_ENGINEERING_PASS_PRODUCTION_EVIDENCE_PENDING
 M2.0_DISCOVERY_CONTRACTS_LOCAL_PASS
 M2.1_DRAFT_REPLAY_KERNELS_LOCAL_PASS
@@ -138,8 +138,8 @@ automaticTradingAllowed=false
 - M1.5C/M1.5D 已完成本地 31 周期/60 秒 runtime、point-in-time 确定性 research/control 选择、独立 evidence verifier、隔离 PostgreSQL 16 与同一 exact release 的无 secret Bundle/Runner；Base Fact 23/23、Expanded Shadow 70/70、生产包 12/12、V2 Ops 192/192、typecheck、lint、forbidden-files 和 secret-pattern 均 PASS。Binance JSON subscribe 已修正为 routed `/public/stream` 与 `/market/stream`。失败结果只有在 container/network/volume/staging 和 topology 精确恢复时才允许声明 `productionChanged=false`。真实 M1.5C 与 M1.5D live cycle 均为 0；A0/P0R 和 fresh same-commit M1.4B/conformance upstream 未满足，不能生成当前生产 Bundle，股票 tradable Fact、持续 Fact/Candidate/Strategy/READY authority 全部仍为 false。
 - M1.5-A 已建立独立 additive checkpoint migration、artifact 引用与 digest 防线、精确 release/config/sequence/schedule 恢复、固定节拍 skip-missed Worker、优雅停止、强制 telemetry sink、分离 reader/writer 身份的 NO_AUTHORITY 进程入口和三态 SLO evaluator。隔离 PG16 已证明关闭连接后的精确增量恢复、append-only、幂等、越权拒绝和 checkpoint 不领先 artifact。
 - M1.5-B0 已补齐显式 reader/writer role assumption 与会话身份核验、两个 secret-file database URL、完整 strict observation JSONL、固定 30 分钟/24 小时有限 Shadow profile，以及无 Legacy secret、非 root、只读 filesystem、无端口的专用容器边界。定向 41/41、全 V2 136 pass / 0 fail / 4 explicit external-dependency skips、三项隔离 PG16 回归与完整 `ci:production` 均通过；B1-A 已随后补齐 exact image build、三 Venue egress 与隔离 Docker Runner 证明。
-- M1.6 v1 日分区迁移 checksum 保持不可变；additive v2 六小时分区、无扩容 59%/67% 模型、Object Lock `COMPLIANCE` 31 天、Keychain age 身份、atomic remote session、private `/dev/shm` runner boundary 和 fresh rebind request v3 七文件合同均已形成。exact source `44e51823f11ad81cbabc632256f0402ef2d00c29` 已取得 Signed Dispatch `30474274621`、A0 `30474274716`、Full Quality `30474274718`、Independent Security `30474274719` 四门 PASS，并由 rebind `p0r-rebind-preflight-20260729t172500z-a32c3e9b` 证明 production HEAD `cec0b6572bb09ae91ff9e013f8bb160f73c045e2`、clean worktree、11 containers、P0R files/containers/volumes=0 和 health/timer 零漂移。该 source 的 run `p0r-20260729t174950z-83b68bfeebff953f49873bccf12cdacf`、plan digest `sha256:6c9909788fd0e19abffe5b206f7383412cfdc3e546f97d65f90a23d4d2406fdb`、bundle `8d8f80f8583b2608031f0883627e01ad6f5a411b4dd7843d42abb8dceb6954d5` 和独立本地 package acceptance 均 PASS，但 fixed bridge 仍默认 port 22；真实网络 A/B 随后证明当前 BoostNet SOCKS 在 SSH banner 前阻断 22。该 package 因 bridge schema v2 根治而失去执行权，未签发 STS、未触碰 COS 或数据库。当前已用 7200 秒、ubuntu public-key-only、禁止 forwarding 的独立 sshd 和唯一 `157.254.154.223/32 -> TCP 8022` 腾讯规则完成 strict known-host `ubuntu@VM-0-9-ubuntu` 预秘密握手；业务服务、数据库、Redis、仓库、env、migration 和 authority 未改变。bridge v2 固定 `8022` 与 `HostKeyAlias=43.161.202.227`；bridge 6/6、P0R 88/88、recurrence 11/11、dispatch 24/24、V2 Foundation 631 PASS / 6 explicit skips、V2 Ops 210/210、Next build、Golden 16/16 和 security 的完整本地生产 CI 均 PASS。新 clean exact commit、四门、fresh rebind、新 run/plan/bundle 和真实 recovery 仍待完成。临时 listener 与云规则必须在成功、失败或超时后显式删除并验证。
-- fresh rebind request v3/result v2 已把历史 transport v1 三文件替代比较与当前 transport v2 七文件运行资格分离；七文件集包含 runner 和 atomic session helper，缺任一摘要 fail closed。该合同在 source `44e518...` 已取得远端四门与生产 rebind 历史证明，但当前 bridge v2 新 source 必须重新取得同等级资格。
+- M1.6 v1 日分区迁移 checksum 保持不可变；additive v2 六小时分区、无扩容 59%/67% 模型、Object Lock `COMPLIANCE` 31 天、Keychain age 身份、atomic remote session 和 private `/dev/shm` runner boundary 均已形成。source `e83c1f238b19a3495d17f791d0ca5b65a9447734` 的 exact run `p0r-20260729t193336z-0ec1106cf1a2ee7402b0309cddfa34b0` 已真实完成 STS 与 age handoff，但在第一份 backup evidence 前 BLOCKED：Web 容器内 `pg@8.16.3` 正常，宿主 `/proc/<web-pid>/root/app/node_modules` 不可见，证明旧 Runner 错误跨越 mount namespace。该 run 没有读取生产业务行、没有 backup/COS object/retrieval/restore 或业务 mutation；staging/evidence、`/dev/shm`、P0R process/container/volume、8022 listener 和腾讯 `/32` 规则均已清理为 0。transport v3 现携带 source-bound Node `22.23.1` / npm `10.9.8` / pg `8.16.3` runtime capsule，Runner plan v6、session v4、P0R 100/100 与完整 `ci:production` 已本地通过；两次独立真实 `npm ci` 构建的胶囊摘要一致。clean commit、GitHub 四门、fresh rebind、全新 16-member package 和真实恢复仍待完成。
+- fresh rebind request v3/result v2 已把历史 transport v1 三文件替代比较与当前 transport v3 八文件运行资格分离；八文件集包含 runner、atomic session helper 和 runtime capsule helper，缺任一摘要 fail closed。旧七文件/transport-v2 合同只保留历史证据；当前本地修复尚无远端或生产执行权。
 - M2.0 已冻结六个机会族、十四种模式、family-specific direction、Detector event/knowledge 双 cutoff、Candidate/Episode/Thesis strict v2 schema、Detector emission authority、UTC Episode 去重、生命周期、三层运行漏斗和 19 个 test-only point-in-time fixture；fixture 递归拒绝 Outcome/MFE/MAE 等未来材料。该结论只证明本地合同，不证明 Detector、Deep Validation、真实市场发现率或生产能力。
 - M2.1 已建立三个 Pre-Move 与两个 Breakout/Retest 独立 DRAFT 纯回放内核。M2.1A 又建立八族各自 LONG/SHORT/UNKNOWN 共 24 个 DRAFT/UNCALIBRATED 假设、三 Outcome、point-in-time 板块传播、逐 family-direction 的 Venue/regime/liquidity 分层，以及 matched control、消融、sealed holdout、forward Shadow、rights 和独立审计 Gate；定向 13/13 PASS。它只能返回 research blocker 或进入 replay validation 的无发射状态，Candidate emission=false；没有真实 cohort、真实指标或生命周期升级证据。
 - M2.2-A 已建立真实历史数据接纳、完整 Candidate 背景窗口、candidate/event/matched-non-event 三业务分母、固定 Detector 分母、purge/embargo、holdout group isolation 与独立 custody、target-blind 首次发现、Wilson CI/lead-time 秩区间和四态 lifecycle proposal Gate。独立 custody 下 research Bundle 物理禁止 inline holdout，Gate 只打开 commitment 匹配的 sealed artifact；lead time 使用数据实际可知的 knowledge cutoff。当前仓库 accepted real cohort=0，Top20 ranking、threshold sensitivity 和真实 untouched holdout 均缺失，因此 Gate=`INSUFFICIENT`；五个 Detector 保持 DRAFT、Candidate 禁发。
@@ -292,11 +292,11 @@ npm run security:check
 系统等级：R1
 工程描述：可运行但不完整
 实战描述：不能支撑实战
-V2：M0.5 已把 Market Mechanics、Microstructure、双向前兆、板块传播、补充来源、缓存和 Evidence Overlay 融入权威设计；M1.4C、M1.4D、M1.5C/M1.5D 本地包与 M2.1A 均通过各自本地出口，但真实 live、cohort/holdout、校准和 authority 仍未完成。P0R source `44e518...` 已取得本地资格、GitHub 四门、fresh rebind 和新 exact package；随后真实网络 A/B 证明 fixed bridge 的默认 port 22 无法通过当前 BoostNet SOCKS，故该 package 未签发 STS并被 bridge v2 新 source 取代。受限 8022 listener、当前代理出口 `/32` 腾讯规则与 strict host-key/public-key `ubuntu` 握手已 PASS；bridge 6/6、P0R 88/88、recurrence 11/11、dispatch 24/24 和完整本地生产 CI 已 PASS，但新 commit、四门、rebind、新 execution identity、真实恢复和临时网络清理仍待完成。M1 未完成，Detector=DRAFT、Candidate 禁发，无 Signal Grade/Strategy/Feasibility/持续 runtime/READY authority
+V2：M0.5 已把 Market Mechanics、Microstructure、双向前兆、板块传播、补充来源、缓存和 Evidence Overlay 融入权威设计；M1.4C、M1.4D、M1.5C/M1.5D 本地包与 M2.1A 均通过各自本地出口，但真实 live、cohort/holdout、校准和 authority 仍未完成。P0R source `e83c1f...` 的真实运行完成 STS/age handoff后，在 backup 前暴露宿主读取容器 `node_modules` 的错误假设并 fail closed；生产业务数据、服务和 authority 零变更，临时 8022 路线、staging、evidence、secret、process/container/volume 全部清理为 0。transport v3 自包含 runtime capsule、P0R 100/100 与完整本地生产 CI 已 PASS；clean commit、GitHub 四门、fresh rebind、新 execution identity、16-member package 和真实 backup/retrieval/restore 仍待完成。M1 未完成，Detector=DRAFT、Candidate 禁发，无 Signal Grade/Strategy/Feasibility/持续 runtime/READY authority
 A0：精确版本、零高危依赖、许可证、SBOM、固定 CI/Action/runner/base-image、双重 lint、Next build、原生材料烟测与 exact Node 22.23.1/npm 10.9.8 本地/远程完整 CI 已 PASS。host tar 方言、浅 Git 历史、Gitleaks 重复误报和既有 CodeQL 治理均已根因收口。最新 source parts `9ef63b85d1a76f3ad7ac + 815e081506c5dbc074a5` 的 A0 `30217335595` 已取得双独立 RootFS、确定性应用胶囊、精确镜像配置、fail-closed runtime smoke、三个隔离回滚场景和冻结 1,440 instrument 性能资源基线 PASS；event-loop p99=`64.750 ms`，固定门槛=`200 ms`。同源 Full Quality `30217335543` 与 Security `30217335622` 全部 PASS：Gitleaks finding=0、CodeQL untriaged=0、Trivy HIGH/CRITICAL=0。RootFS ownership/路径、证据 TOCTOU 和 event-loop 阻塞均已根因治理，没有减少样本、分母、工作量或门槛。A0 现在只缺 P0R 真实加密备份、精确版本取回和独立 PostgreSQL 16 恢复，因此总门禁仍未完成；允许无 authority 本地工程，不允许 M1.5C/M1.5D 真实 live 启动
 本轮 fixed dispatch 仅更新生产控制面 agent、Git SSH wrapper 与 README；业务服务、数据库、Redis、Worker、env、migration 与业务 authority 变更为 0。旧 P0R dispatch 已确认为 `FAIL_DISPATCH_NOT_REUSABLE / dispatch_not_current`，无 claim、解包或 Runner；Runtime Control timer enabled/active，轮询 IDLE；COS Object Lock COMPLIANCE 31 天保持启用
-当前生产存储门禁：P0_BLOCKED_CAPACITY_AND_RECOVERY；P0R_OBJECT_LOCK_31D_AGE_VAULT_PASS_SOURCE_44E_FOUR_GATES_REBIND_PACKAGE_HISTORICAL_PASS_SUPERSEDED_BY_BRIDGE_V2_8022_ROUTE_PRESECRET_ACCEPTANCE_PASS_NEW_EXACT_SOURCE_AND_REAL_RECOVERY_PENDING；没有可用 STS、backup、restore 或 fresh P0
-固定生产执行通道：PRODUCTION_FIXED_DISPATCH_TIMEOUT_LOCK_RECOVERY_PASS；机器复发门禁 4 项 CLOSED、1 项 P0R secret transport REMEDIATION_IN_PROGRESS，旧 raw/tee/manual-compile、browser-state recovery、OrcaTerm secret entry、default SSH port 22、approved_orcaterm_bundle_upload 和超长复合命令均禁止复用
+当前生产存储门禁：P0_BLOCKED_CAPACITY_AND_RECOVERY；P0R_E83_STS_AGE_HANDOFF_PASS_RUNNER_BLOCKED_PRE_BACKUP_HOST_NAMESPACE_ASSUMPTION_INVALID_PRODUCTION_ZERO_DRIFT_ROUTE_AND_SECRET_RESIDUE_ZERO_TRANSPORT_V3_LOCAL_REMEDIATION_PASS_REMOTE_AND_REAL_RECOVERY_PENDING；没有可用 STS、backup、restore 或 fresh P0
+固定生产执行通道：PRODUCTION_FIXED_DISPATCH_TIMEOUT_LOCK_RECOVERY_PASS；旧 raw/tee/manual-compile、browser-state recovery、OrcaTerm secret entry、default SSH port 22、宿主读取容器 node_modules、approved_orcaterm_bundle_upload 和超长复合命令均禁止复用
 ```
 
 2026-07-21 P0 通过只读事务取得数据库/容量事实，Docker/Git before/after 一致，证据 `sha256:344ae4e05ec78e74ca97c92728fc06576f744e795bf4919d6eb3b76ee145769e`。它只判定存储准入，不包含 `/api/health`、Redis 或业务 ready，因此不得扩写为全站健康或全站失败。
@@ -317,6 +317,11 @@ Cycle final
 
 ## 14. 最近三次关键事件
 
+### 2026-07-30 / P0R Runtime Namespace Root Remediation
+- source `e83c1f...` 的 exact run 完成 STS 与 age identity 交接后，在 backup 前 fail closed；现场 A/B 证明容器内 `pg@8.16.3` 存在，而宿主跨 mount namespace 路径不可见。该 run 没有 backup、COS object、retrieval、restore 或业务 mutation。
+- 临时 staging/evidence、secret、P0R process/container/volume、8022 listener 和腾讯 `/32` 规则均已清理并验证为 0；生产数据库、服务、仓库、env、migration 和 authority 未变。
+- transport v3 现内置 checksum-bound Node/npm/pg runtime capsule并把 current-source rebind 扩为八文件；Runner plan v6、session v4、P0R 100/100、两次独立字节一致的真实隔离 npm 构建和完整 `ci:production` PASS。clean commit、GitHub 四门、fresh rebind、新 package 与真实恢复仍待完成。
+
 ### 2026-07-29 / P0R Fixed Local TTY Bridge After Post-Response Disclosure
 - `e362...` 的本地 CI、GitHub 四门、fresh rebind 和新 staging 曾真实 PASS，但第三枚 STS response 在 browser-state recovery 中进入工具输出；credential 与该 run/plan/object key/bundle/staging 永久作废。
 - credential 未进入服务器或 COS；生产 P0R files/processes/containers/volumes 均复核为 0，业务服务与 authority 零漂移。exact expiry=`2026-07-29T06:09:17Z`，必须独立证明到期且永不复用。
@@ -329,16 +334,11 @@ Cycle final
 - 裸 `tee`、raw response 落盘、manual compile、caller-supplied clock override、AX response reconstruction 与 Compose env 重插值永久退役；本地 no-echo atomic session 已通过 P0R 81/81、Go helper、recurrence 10/10 和 dispatch 24/24，fresh rebind request v3 另行绑定当前七文件运行集。
 - 当前完整本地 CI 已 PASS；仍缺新 clean commit、GitHub 四门、fresh production read-only rebind、新 plan/bundle、真实 target acceptance 和 recovery；旧 `bd20...` 只保留历史证据。
 
-### 2026-07-27 / Fixed Dispatch Timeout Lock Recovery
-- 目标 receipt 已证明旧 P0R dispatch 未 claim、未解包、未启动，过期后以 `dispatch_not_current` 消费；原 `UNKNOWN` 状态正式失效。
-- 旧代理的无界 Git child 在 systemd 超时后遗留空锁并触发 4,526 次重复阻断；90 秒 Git 硬上限、owner identity 与 stale-lock recovery 已通过 24/24、本地完整 CI、腾讯 Linux smoke 和生产验收。
-- 生产应用 HEAD/clean worktree、11 容器、数据库、Redis、六 Worker 与 health 零漂移；下一动作是生成并执行 fresh signed read-only P0R rebind。
-
 ## 15. 当前风险
 
 ### P0
 
-- M1.6-P0 存储准入仍为 BLOCKED；Object Lock、age 和本地 atomic session 不是恢复 PASS，仍缺 replacement exact source 资格、fresh rebind、new plan/bundle、usable STS、加密备份、exact retrieval、独立 PG16 restore、cleanup、fresh topology 和 exact-release calibration，P1 严禁启动。
+- M1.6-P0 存储准入仍为 BLOCKED；Object Lock、age、atomic session、transport-v3 runtime capsule 和完整本地 CI 都不是恢复 PASS，仍缺 replacement clean exact source 资格、远端四门、fresh rebind、new 16-member plan/bundle、usable STS、加密备份、exact retrieval、独立 PG16 restore、cleanup、fresh topology 和 exact-release calibration，P1 严禁启动。
 - 固定通道首单已通过，但它不运输 P0R secret，也不替代任何业务包自身生产验收；禁止把运输 PASS 扩写成 G0、M1 或实战能力 PASS。
 - 一旦发现 mock/fallback 冒充真值、WAIT 冒充 READY、future leak、secret、数据库损坏或错误交易计划，立即停止其他开发。
 
@@ -389,9 +389,9 @@ Cycle final
 
 ## 18. 当前执行入口与关键外部门
 ```text
-V2-M1.6-P0R-B6-PROXY-COMPATIBLE-8022-TTY-BRIDGE
+V2-M1.6-P0R-B7-SOURCE-BOUND-NODE-RUNTIME-CAPSULE-ROOT-REMEDIATION
 ```
-B1-B3 已关闭 V1 M1.5-B1；P0 已执行并因容量与 recovery evidence BLOCKED。Object Lock 31 天和 age Keychain 身份仍有效。`44e518...` 的四门、fresh rebind 和 exact package 是可信历史资格，但默认 port 22 被当前 BoostNet SOCKS 真实阻断，故 package 未收取 STS并由 bridge v2 根治取代。当前 8022 transient sshd、当前代理出口 `/32` 云规则、strict known-host/public-key `ubuntu` 握手已 PASS；bridge 6/6、P0R 88/88、recurrence 11/11、dispatch 24/24 和完整本地生产 CI 已 PASS，下一步是 clean exact commit、GitHub 四门、fresh rebind 和全新 execution identity。只有新 source 下的 bridge 在签发前取得 echo-disabled READY，用户才可完成 MFA 和 API Explorer 原生 Copy；之后 bridge 自动完成即时编译、Keychain age handoff和 Runner。response 后禁止 browser state/AX/OCR/screenshot/computer-use/OrcaTerm secret entry。无论结果如何都必须删除 8022 listener 与云规则并验证不存在。只有 backup、exact retrieval、isolated PG16 restore、cleanup、零漂移、fresh topology、校准和 fresh P0 全部 PASS 才能继续 P1。禁止修改 exact policy、Region、duration、source IP、resource 或 action，禁止签名通道运输 P0R secret。Scope V2 的 C1、M1.4B/M1.4C、M2.1A 和 A0 子门证据仍有效但无 runtime authority；A0 总门禁唯一剩余控制仍是 P0R 真实恢复。外部门 B0.2-B 未解决前 historical bulk、Detector lifecycle 和 runtime 一律关闭。
+B1-B3 已关闭 V1 M1.5-B1；P0 已执行并因容量与 recovery evidence BLOCKED。Object Lock 31 天和 age Keychain 身份仍有效。source `e83c1f...` 的真实 P0R 运行已证明 secret handoff 可达，但旧 Runner 在 backup 前错误依赖宿主可见的容器 `node_modules`；该 run、plan、object key 和 package 均禁止复用。当前生产临时 8022 listener、云规则、staging、evidence、secret 和 P0R runtime 残留均为 0。transport v3 八文件 source-bound runtime capsule、Runner plan v6、session v4、P0R 100/100 和完整本地生产 CI 已 PASS；下一步是 clean exact commit、GitHub 四门、fresh rebind 和全新 16-member execution package。只有新 source 下的 bridge 在重新建立受限 8022 bootstrap gate 后取得 echo-disabled READY，用户才需完成 MFA 和 API Explorer 原生 Copy；当前无需用户操作。response 后禁止 browser state/AX/OCR/screenshot/computer-use/OrcaTerm secret entry。只有 backup、exact retrieval、isolated PG16 restore、cleanup、零漂移、临时路线清理、fresh topology、校准和 fresh P0 全部 PASS 才能继续 P1。禁止修改 exact policy、Region、duration、source IP、resource 或 action，禁止签名通道运输 P0R secret。Scope V2 的 C1、M1.4B/M1.4C、M2.1A 和 A0 子门证据仍有效但无 runtime authority；A0 总门禁唯一剩余控制仍是 P0R 真实恢复。外部门 B0.2-B 未解决前 historical bulk、Detector lifecycle 和 runtime 一律关闭。
 ## 19. 活跃记忆维护规则
 - 本文件最多 400 行，只保留当前事实。
 - 易变生产事实没有 fresh evidence 就写 UNKNOWN，不沿用旧状态。

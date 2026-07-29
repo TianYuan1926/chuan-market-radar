@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
@@ -7,7 +7,7 @@ const SESSION_SCRIPT = "scripts/v2/production/m1-production-storage-p0r-session.
 
 test("session plan fixes the no-echo in-memory ingress and exact runtime identity boundary", () => {
   const plan = JSON.parse(execFileSync("bash", [SESSION_SCRIPT, "plan"], { encoding: "utf8" }));
-  assert.equal(plan.schemaVersion, "v2-m1-production-storage-p0r-session.v2");
+  assert.equal(plan.schemaVersion, "v2-m1-production-storage-p0r-session.v4");
   assert.equal(plan.rawStsResponsePersisted, false);
   assert.equal(plan.terminalEchoDisabledDuringSecretInput, true);
   assert.equal(plan.readyMarkerAfterEchoDisabled, true);
@@ -23,8 +23,11 @@ test("session plan fixes the no-echo in-memory ingress and exact runtime identit
   assert.equal(plan.credentialAndIdentityOwnerUid, 0);
   assert.equal(plan.containerSelection, "EXACT_COMPOSE_PROJECT_AND_SERVICE_LABELS");
   assert.equal(plan.composeInterpolationRequired, false);
+  assert.equal(plan.runtimeCapsuleChecksumBound, true);
+  assert.equal(plan.productionNodeModulesRequired, false);
   assert.equal(plan.sessionPidStartTokenAndSourceBound, true);
   assert.equal(plan.runnerStartsAutomaticallyAfterBothSecrets, true);
+  assert.equal(plan.sanitizedFailureSiteOnly, true);
   assert.equal(plan.abandonedSessionCleansSecrets, true);
   assert.equal(plan.secondaryFailureCleansAllSessionSecrets, true);
   assert.equal(plan.cancelledReadyAbortsPrimaryWait, true);
@@ -46,6 +49,8 @@ test("session source retires tee and Compose interpolation while preserving exac
     "P0R_SESSION_SHA256",
     "P0R_COS_PROVISIONING_PLAN_SHA256",
     "P0R_COS_PROVISIONING_TOOL_SHA256",
+    "P0R_NODE_RUNTIME_SHA256",
+    "P0R_RUNTIME_CAPSULE_TOOL_SHA256",
     "P0R_RUNNER_SHA256",
     "EXPECTED_BINDING_KEYS",
     "P0R binding set is not exact",
@@ -83,6 +88,19 @@ test("session source retires tee and Compose interpolation while preserving exac
       source.lastIndexOf("NEWLINE_THEN_EOT_FROM_PREARMED_LOCAL_TTY_BRIDGE"),
     "the READY contract must be emitted only after terminal echo is disabled",
   );
+});
+
+test("session failures expose only a bounded source site", () => {
+  const result = spawnSync("bash", [SESSION_SCRIPT, "invalid-mode"], {
+    encoding: "utf8",
+  });
+  assert.equal(result.status, 1);
+  assert.equal(result.stdout, "");
+  const diagnostic = JSON.parse(result.stderr.trim());
+  assert.deepEqual(Object.keys(diagnostic).sort(), ["reasonCode", "status"]);
+  assert.match(diagnostic.reasonCode, /^p0r_session_line_[1-9][0-9]{0,4}$/u);
+  assert.equal(diagnostic.status, "BLOCKED");
+  assert.doesNotMatch(result.stderr, /mode must be/u);
 });
 
 test("the two exact bridge-controlled remote entry commands remain bounded", () => {

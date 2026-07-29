@@ -484,7 +484,9 @@
           "docs/runbooks/V2_M1_6_P0R_PRODUCTION_RECOVERY_RUNBOOK.md",
           "docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json",
           "scripts/v2/production/m1-production-storage-p0r-local-tty-bridge.exp",
-          "scripts/v2/production/m1-production-storage-p0r-local-tty-bridge.test.mjs"
+          "scripts/v2/production/m1-production-storage-p0r-local-tty-bridge.test.mjs",
+          "scripts/v2/production/m1-production-storage-p0r-runtime-capsule.mjs",
+          "scripts/v2/production/m1-production-storage-p0r-runtime-capsule.test.mjs"
         ],
         "workaroundDisposition": "RETIRED_AFTER_BOOTSTRAP",
         "evidence": [
@@ -497,10 +499,11 @@
           "The same session validates exact binding keys and source checksums, locates current Web and PostgreSQL containers by exact Compose labels, and rejects caller-supplied clock overrides.",
           "The second session binds the first by PID, Linux process-start token and source commit before age identity handoff, then starts the checksum-bound Runner automatically.",
           "Any timeout, disconnect, invalid secret, secondary-session failure or Runner exit immediately cleans credential, age identity and session-ready paths; a successful Runner exit must synchronously delete and verify absence of all three paths before the session can report success.",
-          "Fresh read-only rebind schema v2 keeps the frozen three-file transport-v1 supersession comparison separate from the complete seven-file transport-v2 runtime digest set, including the Runner and atomic session helper.",
+          "Fresh read-only rebind request v3 keeps the frozen three-file transport-v1 supersession comparison separate from the complete eight-file transport-v3 runtime digest set, including the Runner, atomic session helper and runtime capsule helper.",
           "The Runner creates one high-entropy mode-700 private /dev/shm directory, exclusively creates every internal plaintext or recovered canary as a mode-600 non-symlink file, forbids internal tee writes and verifies removal of the entire private directory before success.",
           "The replacement local Expect bridge fixes the SSH host, identity, known-hosts policy, proxy, Node v22.23.1, run-derived staging path and two remote commands; arbitrary host, runtime or command input is impossible in execute mode.",
-          "Bridge schema v2 fixes SSH port 8022 and HostKeyAlias 43.161.202.227, carries the same complete SSH argument set through pseudo-TTY tests and forbids fallback to default port 22.",
+          "Bridge schema v3 preserves fixed SSH port 8022 and HostKeyAlias 43.161.202.227, carries the same complete SSH argument set through pseudo-TTY tests, forbids fallback to default port 22 and propagates only bounded session or runner source-site reason codes.",
+          "Transport schema v3 embeds a checksum-bound Node 22.23.1, npm 10.9.8 and pg 8.16.3 runtime capsule, so the Runner no longer assumes that a production container node_modules tree is host-visible across mount namespaces.",
           "The bootstrap listener is a separate 7200-second systemd transient sshd that permits only ubuntu public-key authentication with forwarding disabled; the Tencent rule permits only the measured proxy egress /32 and must be removed after success or failure.",
           "The bridge is armed before issuance, accepts only a structurally exact native-copied Tencent response after the remote echo-disabled marker, clears the clipboard before handoff, retrieves the age identity directly from the fixed Keychain item and suppresses all child output.",
           "API response screenshots, OCR, accessibility reads, full browser-state reads and OrcaTerm secret entry are permanently forbidden after issuance."
@@ -515,12 +518,12 @@
           "The registry also retires overlength P0R OrcaTerm composite commands and allows only bounded segmented remediation.",
           "The registry retires unsettled rapid editor writes and requires clear, settle and exact visible preview before every execution.",
           "P0R tests prove bounded in-memory stdin ingress, no raw-response file, exclusive mode-600 credential and age outputs, rejection of clock overrides, exact binding parsing, Compose-label identity, PID/start-token/source session binding, automatic Runner handoff and abandoned-session cleanup.",
-          "The rebind regression proves that the current seven-file runtime set exactly matches the transport-v2 source set while the historical verifier remains limited to files that existed in transport v1.",
+          "The rebind regression proves that the current eight-file runtime set exactly matches the transport-v3 source set while the historical verifier remains limited to files that existed in transport v1.",
           "Runner regression locks the private mode-700 /dev/shm directory, exclusive mode-600 internal file creation, exact age identity grammar, prohibition of internal tee and verified directory cleanup.",
           "Local pseudo-TTY regression proves exact primary and secondary commands, exact ready markers, native clipboard validation, internal Keychain retrieval, secret-free stdout/stderr, final clipboard clearing, and fail-closed behavior for malformed clipboard, marker mismatch and SSH failure.",
           "The pseudo-TTY regression now observes the complete SSH invocation, requires -p 8022 and HostKeyAlias=43.161.202.227 on both sessions, and rejects any -p 22 fallback.",
-          "The current replacement passes pseudo-TTY 6/6, P0R 88/88, recurrence 11/11, production dispatch 24/24 and exact Node/npm ci:production without reducing any gate.",
-          "Closure still requires the new helper to pass clean commit, remote gates, fresh read-only rebind and real-target recovery acceptance."
+          "The current replacement passes pseudo-TTY 6/6, P0R 100/100 and full production CI, including deterministic capsule construction, two independent byte-identical real npm builds, checksum-bound extraction, nested dependency, symlink, extra-package and noncanonical USTAR rejection, permission tamper rejection and the temporary-install cleanup race regression.",
+          "Closure still requires a clean exact commit, remote gates, fresh read-only rebind and real-target recovery acceptance."
         ]
       },
       "runtimeGate": {
@@ -532,18 +535,19 @@
           "The 2026-07-29 exposed STS expired at 2026-07-29T06:09:17Z; local UTC 2026-07-29T10:32:53Z and Tencent STS HTTPS Date 2026-07-29T10:35:42Z independently proved expiry. It is permanently forbidden and was never sent to production or used for COS.",
           "Post-incident production read-only verification returned zero P0R files, session/provisioning processes, containers and volumes; application, database, Redis, repository, env and authority remained unchanged.",
           "No COS, database, backup, retrieval, restore, application, repository, env, migration or authority mutation occurred.",
-          "The proxy-compatible 8022 route passed strict public-key and host-key identity checks as ubuntu@VM-0-9-ubuntu before any STS issuance; the temporary listener and exact /32 firewall rule are the only current production changes."
+          "The proxy-compatible 8022 route passed strict public-key and host-key identity checks as ubuntu@VM-0-9-ubuntu before STS issuance; after the e83 exact attempt, the temporary listener and exact /32 firewall rule were removed and listener, unit and rule absence were verified.",
+          "The e83 exact run completed STS and age handoff but failed closed before backup because the host could not see the Web container node_modules mount; no backup, COS object, retrieval, restore, temporary recovery container or production business mutation occurred."
         ]
       },
       "realTargetAcceptance": {
         "status": "PENDING",
         "evidence": [
           "The e3626387 source, its run p0r-20260728t222552z-299113ff2921579d305df1e295e51914 and its staged transport are invalidated by the post-response exposure and must never receive a replacement credential.",
-          "The local TTY bridge and echo-before-ready correction must first become a new clean exact commit, pass all GitHub gates and pass a fresh production read-only rebind.",
-          "The fresh rebind result must bind the canonical seven-file current P0R runtime set digest and separately retain the frozen three-file historical supersession proof.",
+          "The B7 transport-v3 runtime capsule, local TTY bridge and echo-before-ready correction must first become one new clean exact commit, pass all GitHub gates and pass a fresh production read-only rebind.",
+          "The fresh rebind result must bind the canonical eight-file current P0R runtime set digest and separately retain the frozen three-file historical supersession proof.",
           "The 2026-07-29 STS exact expiry prerequisite is complete and the credential remains forbidden forever; a new exact-plan STS may be requested only after a new clean source, all GitHub gates, fresh read-only rebind and new run/plan/bundle pass.",
           "The P0R Runner must still complete backup, exact retrieval, isolated restore, cleanup and zero-drift verification.",
-          "Bridge schema v2 must still become a clean exact commit, pass all four GitHub gates, pass a fresh read-only rebind and generate a new run/plan/bundle before this already-qualified route may carry a new STS."
+          "Bridge schema v3 and transport schema v3 must still become one clean exact commit, pass all four GitHub gates, pass a fresh read-only rebind and generate a new run/plan/bundle before a newly qualified route may carry a new STS."
         ]
       },
       "workaroundAccounting": {
@@ -556,9 +560,9 @@
       "remainingRisks": [
         "Future Tencent STS credentials still have no verified per-token revocation control, so any future compromise must fail closed, forbid reuse and wait for independently proven exact expiry.",
         "Tencent API Explorer still requires user MFA and a native Copy action; the response page must not be inspected by automation after issuance and must be closed after the bridge confirms credential compile.",
-        "The local bridge depends on the existing loopback SOCKS route and the temporary 8022 production listener; failure before the ready marker is safe and must stop issuance rather than fall back to port 22 or OrcaTerm.",
-        "The 8022 Tencent /32 rule and transient sshd must be removed and their absence verified after P0R success, failure or timeout; the timer alone does not remove the cloud firewall rule.",
-        "The local bridge and atomic session are not production evidence until a new exact source passes remote gates, read-only rebind and the complete P0R recovery."
+        "The local bridge depends on the existing loopback SOCKS route and a future temporary 8022 production listener; failure before the ready marker is safe and must stop issuance rather than fall back to port 22 or OrcaTerm.",
+        "Any future 8022 Tencent /32 rule and transient sshd must be removed and their absence verified after P0R success, failure or timeout; the timer alone does not remove the cloud firewall rule.",
+        "The local bridge, atomic session and runtime capsule have passed full local CI but are not production recovery evidence until the exact source is clean committed, passes remote gates and read-only rebind, and completes the full P0R recovery."
       ]
     }
   ]

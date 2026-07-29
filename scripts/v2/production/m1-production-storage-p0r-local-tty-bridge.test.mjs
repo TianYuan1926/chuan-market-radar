@@ -86,10 +86,24 @@ if [[ "$remote_command" == *"receive-credentials-and-run" ]]; then
     [[ -e "\${P0R_BRIDGE_FIXTURE_ROOT}/age-done" ]] && break
     sleep 0.1
   done
-  [[ -e "\${P0R_BRIDGE_FIXTURE_ROOT}/age-done" ]]
-  printf '{"status":"PASS_P0R_RECOVERY_DRILL"}\\n'
-  exit 0
-fi
+	  [[ -e "\${P0R_BRIDGE_FIXTURE_ROOT}/age-done" ]]
+	  case "$test_case" in
+	    remote-blocked-safe)
+	      printf '{"reasonCode":"p0r_runner_line_341","status":"BLOCKED"}\\n'
+	      exit 45
+	      ;;
+	    remote-blocked-malformed)
+	      printf '{"reasonCode":"p0r_runner_line_341-extra","status":"BLOCKED"}\\n'
+	      exit 46
+	      ;;
+	    remote-blocked-secret)
+	      printf '{"reasonCode":"FAKE_TMP_SECRET_ID_123456789","status":"BLOCKED"}\\n'
+	      exit 47
+	      ;;
+	  esac
+	  printf '{"status":"PASS_P0R_RECOVERY_DRILL"}\\n'
+	  exit 0
+	fi
 if [[ "$remote_command" == *"receive-age-identity" ]]; then
   [[ -e "\${P0R_BRIDGE_FIXTURE_ROOT}/primary-waiting" ]]
   printf '{"status":"READY_P0R_AGE_IDENTITY_INPUT_NO_ECHO"}\\n'
@@ -125,7 +139,7 @@ test("bridge plan fixes the browser-free post-response and no-output secret boun
   ));
   assert.equal(
     plan.schemaVersion,
-    "v2-m1-production-storage-p0r-local-tty-bridge.v2",
+    "v2-m1-production-storage-p0r-local-tty-bridge.v3",
   );
   assert.equal(plan.fixedSshHostAlias, "43.161.202.227");
   assert.equal(plan.fixedSshPort, 8022);
@@ -221,6 +235,56 @@ for (const [testCase, reason] of [
   });
 }
 
+test("bridge returns only an exact sanitized remote failure site", async () => {
+  const root = await fixture("remote-blocked-safe");
+  try {
+    const result = runSelfTest(root);
+    assert.notEqual(result.status, 0);
+    assert.match(
+      result.stderr,
+      /recovery_drill_failed_blocked_p0r_runner_line_341/u,
+    );
+    assert.doesNotMatch(result.stderr, /"reasonCode"/u);
+    const combined = `${result.stdout}\n${result.stderr}`;
+    for (const secret of [
+      FAKE_STS_RESPONSE.Response.Credentials.TmpSecretId,
+      FAKE_STS_RESPONSE.Response.Credentials.TmpSecretKey,
+      FAKE_STS_RESPONSE.Response.Credentials.Token,
+      FAKE_AGE_IDENTITY,
+    ]) assert.doesNotMatch(combined, new RegExp(secret, "u"));
+    assert.equal(await readFile(join(root, "clipboard.txt"), "utf8"), CLIPBOARD_CLEAR);
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+for (const testCase of [
+  "remote-blocked-malformed",
+  "remote-blocked-secret",
+]) {
+  test(`bridge does not propagate untrusted remote diagnostics for ${testCase}`, async () => {
+    const root = await fixture(testCase);
+    try {
+      const result = runSelfTest(root);
+      assert.notEqual(result.status, 0);
+      assert.match(
+        result.stderr,
+        /recovery_drill_failed_blocked_unclassified/u,
+      );
+      const combined = `${result.stdout}\n${result.stderr}`;
+      for (const secret of [
+        FAKE_STS_RESPONSE.Response.Credentials.TmpSecretId,
+        FAKE_STS_RESPONSE.Response.Credentials.TmpSecretKey,
+        FAKE_STS_RESPONSE.Response.Credentials.Token,
+        FAKE_AGE_IDENTITY,
+      ]) assert.doesNotMatch(combined, new RegExp(secret, "u"));
+      assert.equal(await readFile(join(root, "clipboard.txt"), "utf8"), CLIPBOARD_CLEAR);
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  });
+}
+
 test("bridge source pins the SSH and browser-independent secret boundary", async () => {
   const source = await readFile(BRIDGE, "utf8");
   for (const required of [
@@ -243,6 +307,8 @@ test("bridge source pins the SSH and browser-independent secret boundary", async
     'set LOCKED_SSH_HOST_ALIAS "43.161.202.227"',
     "set LOCKED_SSH_PORT 8022",
     "locked_node_version_invalid",
+    "blocked_unclassified",
+    "p0r_(session|runner)_line_",
   ]) assert.ok(source.includes(required), `missing bridge invariant: ${required}`);
 
   for (const forbidden of [

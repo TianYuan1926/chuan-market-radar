@@ -7,13 +7,16 @@ PRODUCTION_ENV_FILE="${P0R_PRODUCTION_ENV_FILE:-${PRODUCTION_WORKTREE}/.env.prod
 WAIT_FOR_AGE_SECONDS=600
 
 fail() {
-  printf '{"reason":%s,"status":"BLOCKED"}\n' "$(jq -Rn --arg value "$1" '$value')" >&2
+  local caller_line="${BASH_LINENO[0]:-0}"
+  [[ "${caller_line}" =~ ^[1-9][0-9]{0,4}$ ]] || caller_line=0
+  printf '{"reasonCode":"p0r_session_line_%s","status":"BLOCKED"}\n' \
+    "${caller_line}" >&2
   exit 1
 }
 
 if [[ "${MODE}" == "plan" ]]; then
   cat <<'JSON'
-{"schemaVersion":"v2-m1-production-storage-p0r-session.v2","rawStsResponsePersisted":false,"terminalEchoDisabledDuringSecretInput":true,"readyMarkerAfterEchoDisabled":true,"boundedSecretInput":true,"inputCompletion":"NEWLINE_THEN_EOT_FROM_PREARMED_LOCAL_TTY_BRIDGE","localTtyBridgeRequired":true,"browserStateReadAfterResponseAllowed":false,"credentialCompileImmediate":true,"callerClockOverrideAllowed":false,"credentialOutputExclusive":true,"ageIdentityOutputExclusive":true,"credentialAndIdentityOnlyInDevShm":true,"credentialAndIdentityOwnerUid":0,"containerSelection":"EXACT_COMPOSE_PROJECT_AND_SERVICE_LABELS","composeInterpolationRequired":false,"sessionPidStartTokenAndSourceBound":true,"runnerStartsAutomaticallyAfterBothSecrets":true,"abandonedSessionCleansSecrets":true,"secondaryFailureCleansAllSessionSecrets":true,"cancelledReadyAbortsPrimaryWait":true,"successRequiresVerifiedSecretCleanup":true,"productionDatabaseMutation":false,"productionServiceMutation":false,"productionRepositoryMutation":false}
+{"schemaVersion":"v2-m1-production-storage-p0r-session.v4","rawStsResponsePersisted":false,"terminalEchoDisabledDuringSecretInput":true,"readyMarkerAfterEchoDisabled":true,"boundedSecretInput":true,"inputCompletion":"NEWLINE_THEN_EOT_FROM_PREARMED_LOCAL_TTY_BRIDGE","localTtyBridgeRequired":true,"browserStateReadAfterResponseAllowed":false,"credentialCompileImmediate":true,"callerClockOverrideAllowed":false,"credentialOutputExclusive":true,"ageIdentityOutputExclusive":true,"credentialAndIdentityOnlyInDevShm":true,"credentialAndIdentityOwnerUid":0,"containerSelection":"EXACT_COMPOSE_PROJECT_AND_SERVICE_LABELS","composeInterpolationRequired":false,"runtimeCapsuleChecksumBound":true,"productionNodeModulesRequired":false,"sessionPidStartTokenAndSourceBound":true,"runnerStartsAutomaticallyAfterBothSecrets":true,"sanitizedFailureSiteOnly":true,"abandonedSessionCleansSecrets":true,"secondaryFailureCleansAllSessionSecrets":true,"cancelledReadyAbortsPrimaryWait":true,"successRequiresVerifiedSecretCleanup":true,"productionDatabaseMutation":false,"productionServiceMutation":false,"productionRepositoryMutation":false}
 JSON
   exit 0
 fi
@@ -32,6 +35,8 @@ SOURCE_DIRECTORY="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 BINDINGS_FILE="${SOURCE_DIRECTORY}/p0r-bindings.env"
 PLAN_FILE="${SOURCE_DIRECTORY}/cos-provisioning-plan.json"
 PROVISIONING_TOOL="${SOURCE_DIRECTORY}/m1-production-storage-p0r-cos-provisioning.mjs"
+RUNTIME_CAPSULE_TOOL="${SOURCE_DIRECTORY}/m1-production-storage-p0r-runtime-capsule.mjs"
+NODE_RUNTIME_CAPSULE="${SOURCE_DIRECTORY}/p0r-node-runtime.tar"
 RUNNER="${SOURCE_DIRECTORY}/m1-production-storage-p0r-runner.sh"
 SESSION_SCRIPT="${SOURCE_DIRECTORY}/m1-production-storage-p0r-session.sh"
 
@@ -55,6 +60,8 @@ EXPECTED_BINDING_KEYS=(
   P0R_FINGERPRINT_SHA256
   P0R_PREFLIGHT_LIBRARY_SHA256
   P0R_RECOVERY_EVIDENCE_SHA256
+  P0R_NODE_RUNTIME_SHA256
+  P0R_RUNTIME_CAPSULE_TOOL_SHA256
   P0R_RUNNER_SHA256
   P0R_SESSION_SHA256
 )
@@ -80,6 +87,11 @@ verify_source() {
 }
 verify_source "${PLAN_FILE}" "${P0R_COS_PROVISIONING_PLAN_SHA256:-}" "COS provisioning plan"
 verify_source "${PROVISIONING_TOOL}" "${P0R_COS_PROVISIONING_TOOL_SHA256:-}" "COS provisioning tool"
+verify_source "${NODE_RUNTIME_CAPSULE}" "${P0R_NODE_RUNTIME_SHA256:-}" "P0R Node runtime capsule"
+verify_source \
+  "${RUNTIME_CAPSULE_TOOL}" \
+  "${P0R_RUNTIME_CAPSULE_TOOL_SHA256:-}" \
+  "P0R runtime capsule tool"
 verify_source "${RUNNER}" "${P0R_RUNNER_SHA256:-}" "P0R runner"
 verify_source "${SESSION_SCRIPT}" "${P0R_SESSION_SHA256:-}" "P0R session"
 

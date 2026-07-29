@@ -1,6 +1,6 @@
 # V2 M1.6-P0R 生产恢复运行手册
 
-状态：`OBJECT_LOCK_31D_ENABLED_AND_VERIFIED / AGE_IDENTITY_KEYCHAIN_PASS / LEGACY_BED938_STAGING_REJECTED_SUPERSEDED_SECURITY_SOURCE / E362_REMOTE_GATES_AND_READ_ONLY_REBIND_HISTORICAL_PASS / E362_RUN_PLAN_BUNDLE_INVALIDATED_BY_POST_RESPONSE_DISCLOSURE / FIRST_SECOND_AND_THIRD_STS_EXPIRED_FORBIDDEN_REUSE / THIRD_STS_DUAL_CLOCK_EXPIRY_PROOF_PASS / PROD_P0R_FILES_PROCESSES_CONTAINERS_VOLUMES_ZERO_VERIFIED / LOCAL_FIXED_TTY_BRIDGE_FULL_QUALIFICATION_PASS / NEW_EXACT_COMMIT_REMOTE_REBIND_AND_PRODUCTION_RECOVERY_PENDING / NO_USABLE_CREDENTIAL / PRODUCTION_RECOVERY_NOT_EXECUTED / P0_BLOCKED`
+状态：`OBJECT_LOCK_31D_ENABLED_AND_VERIFIED / AGE_IDENTITY_KEYCHAIN_PASS / E83_EXACT_ATTEMPT_STS_AND_AGE_HANDOFF_PASS_RUNNER_BLOCKED_PRE_BACKUP / HOST_NAMESPACE_PRODUCTION_NODE_MODULES_ASSUMPTION_INVALID / PRODUCTION_ZERO_DRIFT / STAGING_EVIDENCE_SECRET_8022_LISTENER_AND_FIREWALL_RESIDUE_ZERO / TRANSPORT_V3_SOURCE_BOUND_NODE_RUNTIME_CAPSULE_LOCAL_P0R_100_OF_100_AND_FULL_CI_PASS / CLEAN_COMMIT_REMOTE_GATES_FRESH_REBIND_NEW_EXECUTION_AND_REAL_RECOVERY_PENDING / NO_USABLE_CREDENTIAL / P0_BLOCKED`
 
 ## 1. 唯一目标
 
@@ -80,10 +80,14 @@ npm run v2:m1:p0r:bundle -- \
   --age-archive /absolute/path/age-v1.3.1-linux-amd64.tar.gz \
   --age-recipient /absolute/path/age-recipient.txt \
   --cos-provisioning-plan /absolute/restricted/path/cos-provisioning-plan.json \
+  --node-binary /absolute/path/to/node-v22.23.1 \
+  --npm-binary /absolute/path/to/npm-v10.9.8 \
   --output /absolute/path/p0r-transport.tar.gz
 ```
 
-验收输出必须为 `PASS_P0R_PRODUCTION_TRANSPORT_BUNDLE`，新原子会话 Bundle 的 schema 必须为 `v2-m1-production-storage-p0r-transport.v2`、归档成员必须恰好 14 个、manifest 必须恰好绑定除自身外的 13 个文件，并独立记录 source commit、bundle SHA-256、manifest digest 和 size。历史 transport v1 只允许由历史证据 verifier 读取，不得冒充当前执行包。`6a81e865e61569f7d2d7c3bb3be1d78db72a9eab` 与 `bed938...` 均只保留为历史来源证据，不再拥有执行权。历史 `bed938...` staging 的 run、plan 和 transport bundle 已完整保留并校验，但其源码早于三项生产安全修复：backup/credential/recovery evidence 读取尚未统一使用单一 `O_NOFOLLOW` 句柄，部分输出尚未使用独占创建；其本地 bundle builder 也早于确定性 Node USTAR 替换。因此该 staging 的权威状态改为 `REJECTED_SUPERSEDED_SECURITY_SOURCE`，禁止执行、复制成新包或签发绑定它的 STS。
+验收输出必须为 `PASS_P0R_PRODUCTION_TRANSPORT_BUNDLE`。当前执行 Bundle 的 schema 必须为 `v2-m1-production-storage-p0r-transport.v3`、归档成员必须恰好 16 个、manifest 必须恰好绑定除自身外的 15 个文件，并独立记录 source commit、bundle SHA-256、manifest digest 和 size。新增成员必须包括 `m1-production-storage-p0r-runtime-capsule.mjs` 与 `p0r-node-runtime.tar`；bindings 必须同时锁定两者 SHA-256。胶囊 schema 固定为 `v2-m1-production-storage-p0r-node-runtime.v1`，只允许 Node `22.23.1`、npm `10.9.8`、`pg 8.16.3` 的 lockfile 闭包，生产 `node_modules` 不再是前置。历史 transport v1/v2 只允许作为历史证据读取，不得冒充当前执行包。`6a81e865e61569f7d2d7c3bb3be1d78db72a9eab`、`bed938...` 和 source `e83c1f...` 的失败 run 均不再拥有执行权。
+
+source `e83c1f238b19a3495d17f791d0ca5b65a9447734` 的 run `p0r-20260729t193336z-0ec1106cf1a2ee7402b0309cddfa34b0` 已真实完成 STS 与 age identity handoff，但在第一份 backup evidence 产生前 BLOCKED。现场证明容器内 `pg@8.16.3` 存在，而宿主 `/proc/<web-pid>/root/app/node_modules` 不可见；这是 mount namespace 边界，不是依赖缺失。该 run 未读取生产业务行、未产生 backup/COS object/retrieval/restore，staging/evidence、`/dev/shm`、P0R process/container/volume、8022 listener 和腾讯 `/32` 规则均已清理并复核为 0。任何后续执行都必须使用 transport v3 自包含胶囊，不得恢复宿主机 node_modules 检查、`docker cp` 临时拼依赖或复用该 run。
 
 `m1-production-storage-p0r-local-tty-bridge.exp` 是可信 Mac 上的 operator-side 控制面，不进入生产 transport bundle，也不扩大生产运行成员分母。它必须与 plan 的 exact source commit 同属一个 clean worktree，通过本地测试和 GitHub 四门，并在执行时重新校验 plan、clean HEAD、本机私钥、known_hosts、固定目标、固定代理、固定 SSH port 8022、`HostKeyAlias=43.161.202.227` 和两个不可注入的远端命令。bridge 未通过自身 plan/test/source gate 时，不得签发 STS。默认 SSH port 22 已由真实网络 A/B 证明无法通过当前 BoostNet SOCKS 路径，永久禁止作为 P0R fallback。
 
@@ -91,16 +95,16 @@ npm run v2:m1:p0r:bundle -- \
 
 ### 4.1 只读现场重绑定
 
-只读重绑定必须通过 `v2:m1:p0r:rebind-bundle` 从 clean、已推送的 exact commit 构建，并且只允许由 `v2:m1:p0r:rebind-release` 通过固定 Ed25519 signed dispatch 通道发布。当前 request schema 必须为 `market-radar-v2-m1-p0r-rebind-request.v3`，result schema 必须为 `market-radar-v2-m1-p0r-rebind-result.v2`；request 必须显式绑定 `dispatchRuntimeMaxSeconds=90`，release 入口必须从 canonical request 派生 source、ref、approval window、runner、staging、success marker 和 runtime，禁止操作员重复填写或覆盖。历史 transport v1 的替代比较集固定为当时已经存在的三个安全文件，当前 source 资格集则必须完整绑定 transport v2 的七个运行文件，尤其包括 runner 与 `m1-production-storage-p0r-session.sh`；两者不得混为同一分母。它只能：
+只读重绑定必须通过 `v2:m1:p0r:rebind-bundle` 从 clean、已推送的 exact commit 构建，并且只允许由 `v2:m1:p0r:rebind-release` 通过固定 Ed25519 signed dispatch 通道发布。当前 request schema 必须为 `market-radar-v2-m1-p0r-rebind-request.v3`，result schema 必须为 `market-radar-v2-m1-p0r-rebind-result.v2`；request 必须显式绑定 `dispatchRuntimeMaxSeconds=90`，release 入口必须从 canonical request 派生 source、ref、approval window、runner、staging、success marker 和 runtime，禁止操作员重复填写或覆盖。历史 transport v1 的替代比较集固定为当时已经存在的三个安全文件，当前 source 资格集则必须完整绑定 transport v3 的八个运行源码文件，尤其包括 runner、atomic session helper 与 runtime capsule helper；两者不得混为同一分母。它只能：
 
 - 核对生产 HEAD、clean worktree、完整容器身份、timer、listener 和 health；
 - 证明 `/dev/shm` 无 P0R 临时 secret，且无 P0R container/volume；
 - 从腾讯实例 metadata 在内存读取公网 IPv4，只保留 `<IP>/32` 摘要并与历史 plan 绑定值比较；
 - 校验历史 staging 的每个成员、manifest、plan、bindings 和摘要；
-- 证明历史三个安全文件已被当前源码替代，同时保存当前七文件 P0R 运行集的精确摘要；
+- 证明历史三个安全文件已被当前源码替代，同时保存当前八文件 P0R 运行集的精确摘要；
 - 在 fixed dispatch evidence 根写入不可覆盖的脱敏结果，并清理自身精确 staging。
 
-它不得读取或输出 raw credential、bucket、object key、env、数据库业务行，也不得修改应用、数据库、Redis、Worker、生产仓库、COS 或历史 staging。任何七文件当前运行摘要缺失、历史三文件比较摘要缺失或两组 key 漂移都必须失败关闭。唯一成功状态是 `PASS_P0R_READ_ONLY_REBIND_PREFLIGHT`；历史 staging 仍必须同时记录为 `REJECTED_SUPERSEDED_SECURITY_SOURCE`。
+它不得读取或输出 raw credential、bucket、object key、env、数据库业务行，也不得修改应用、数据库、Redis、Worker、生产仓库、COS 或历史 staging。任何八文件当前运行摘要缺失、历史三文件比较摘要缺失或两组 key 漂移都必须失败关闭。唯一成功状态是 `PASS_P0R_READ_ONLY_REBIND_PREFLIGHT`；历史 staging 仍必须同时记录为 `REJECTED_SUPERSEDED_SECURITY_SOURCE`。
 
 首次 signed rebind dispatch 已在目标机被确认从未执行。生产固定派发代理曾因 Git child 超过 systemd 180 秒时限被终止，并遗留无 owner 的空锁；后续 4,526 次轮询均被旧锁拒绝。source parts `2b4fccc9f3affe613d4f + 0da0f97295d97b0c6452` 已将 Git child 固定为 90 秒硬上限，并加入 owner-aware、四分钟 stale 下限的锁恢复。腾讯生产验收通过后，旧 dispatch 被记录为 `FAIL_DISPATCH_NOT_REUSABLE / dispatch_not_current`，没有 claim、解包或业务 Runner，应用与 11 容器零漂移。该旧 dispatch 已消费且禁止复用；其“必须 fresh redispatch”结论已由 `p0r-rebind-preflight-20260728t110438z-b2815255` 的 current-source PASS 正式关闭。
 
@@ -145,7 +149,7 @@ source `e3626387ee8d57ef8e4f9c11c2e098b781ac6fbe` 曾完整通过本地 CI、Git
 - 任一会话超时、断线、验证失败或 Runner 退出都立即清除整组 exact credential、identity 与 session-ready 文件；
 - Runner 成功后必须同步删除 credential、identity 与 session-ready，并逐项证明路径和断裂符号链接均不存在，清理未证明时不得成功退出。
 
-`p0r-bindings.env` 不得再由 Shell `source`。session helper 必须把它当普通数据逐项解析，只接受 12 个精确白名单键、一个 40 位 source commit 和 11 个 64 位 SHA-256；重复、缺失、额外、非法值或任一 source checksum 不一致均失败关闭。credential ingress CLI 不接受 caller-supplied `--now`，即时编译门禁只能使用进程真实时钟。
+`p0r-bindings.env` 不得再由 Shell `source`。session helper 必须把它当普通数据逐项解析，只接受 14 个精确白名单键、一个 40 位 source commit 和 13 个 64 位 SHA-256；其中 runtime capsule 与 capsule helper 必须分别绑定摘要。重复、缺失、额外、非法值或任一 source checksum 不一致均失败关闭。credential ingress CLI 不接受 caller-supplied `--now`，即时编译门禁只能使用进程真实时钟。
 
 可信 Mac 上必须先运行 `m1-production-storage-p0r-local-tty-bridge.exp`。它只允许：
 
@@ -159,7 +163,7 @@ source `e3626387ee8d57ef8e4f9c11c2e098b781ac6fbe` 曾完整通过本地 CI、Git
 - 全程抑制 child output，只输出 bridge 自己的无 secret 状态；任一 marker、SSH、clipboard、JSON、Keychain、remote exit 或 timeout 异常都断开 TTY、触发远端 cleanup 并失败关闭；
 - 无论成功或失败都再次覆盖 clipboard；只有远端 `PASS_P0R_RECOVERY_DRILL`、两个 SSH clean exit 和最终 clipboard clear 同时成立，bridge 才返回 PASS。
 
-bridge schema v2 的 8022 路由在签发 STS 前还必须独立满足以下 bootstrap gate：
+bridge schema v3 的 8022 路由在签发 STS 前还必须独立满足以下 bootstrap gate；v3 继承 v2 的固定端口和严格主机身份，并只允许有界 `p0r_session_line_N` / `p0r_runner_line_N` 失败位置离开远端：
 
 - 重新测量当前 loopback SOCKS 出口 IPv4；禁止复用过期的来源地址。当前已验证窗口的出口是 `157.254.154.223/32`；
 - 在动作时确认后，仅启动一个 `RuntimeMaxSec=7200` 的独立 transient sshd：`PermitRootLogin=no`、`PasswordAuthentication=no`、`KbdInteractiveAuthentication=no`、`PubkeyAuthentication=yes`、`AuthenticationMethods=publickey`、`AllowUsers=ubuntu`、`DisableForwarding=yes`；
@@ -173,7 +177,7 @@ bridge schema v2 的 8022 路由在签发 STS 前还必须独立满足以下 boo
 固定顺序如下：
 
 1. `COMPLETED_EXPIRY_PREREQUISITE`：第三枚 STS exact expiry=`2026-07-29T06:09:17Z`；本机 UTC `2026-07-29T10:32:53Z` 与腾讯 HTTPS Date `2026-07-29T10:35:42Z` 已独立证明超过到期点。它现为 `EXPIRED_FORBIDDEN_REUSE`，且永不恢复旧 run 的执行权。
-2. `NEXT_EXACT_SOURCE`：proxy-compatible local TTY bridge、echo-before-ready 和防复发门禁已通过 bridge 6/6、P0R 88/88、recurrence 11/11、dispatch 24/24 与精确 Node/npm 完整 `ci:production`；现在形成新的 clean exact commit，再通过 GitHub 四门和 fresh 生产只读重绑定。`44e518...` package 与 `e362...` run/plan/bundle/staging 永久失去执行权。
+2. `NEXT_EXACT_SOURCE`：source-bound runtime capsule、Runner plan v6、session v4、transport v3、P0R 100/100 和精确 Node/npm/Go 下的完整 `ci:production` 已通过本地门禁；下一步形成 clean exact commit，通过 GitHub 四门和 fresh 生产只读重绑定。`e83c1f...`、`44e518...` 和 `e362...` 的旧 run/plan/object key/package/staging 永久失去执行权。
 3. 由新 source 生成全新 run-id、object key、plan 和 bundle，并在全新生产 staging 完成成员、checksum、plan-mode、零 secret 与零漂移验证；禁止复用旧 run 的任何 execution identity。
 4. 在签发前按 bootstrap gate 启动 7200 秒受限 8022 sshd、添加当前 SOCKS 出口 `/32` 云防火墙规则，并用 `HostKeyAlias=43.161.202.227` 完成 strict known-host read-only SSH；禁止退回 port 22。随后从可信 Mac 启动 bridge。只有 bridge 已建立 exact remote TTY、远端 echo 已关闭且本机出现 `READY_P0R_API_NATIVE_COPY_TO_LOCAL_TTY_BRIDGE`，才允许进入 API Explorer 动作。
 5. Microsoft Edge 中只执行新 plan 的 exact `GetFederationToken`，由用户完成本人 MFA，并点击 API Explorer 的页面原生 Copy。response 出现后任何自动化都不得读取页面状态、截图、OCR、AX tree 或切换到 OrcaTerm；native Copy 无法完成时立即停止。

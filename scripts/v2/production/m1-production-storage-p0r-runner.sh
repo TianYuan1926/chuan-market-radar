@@ -24,17 +24,22 @@ BACKUP_CAPTURE_SHA256="${P0R_BACKUP_CAPTURE_SHA256:-}"
 FINGERPRINT_SHA256="${P0R_FINGERPRINT_SHA256:-}"
 PREFLIGHT_LIBRARY_SHA256="${P0R_PREFLIGHT_LIBRARY_SHA256:-}"
 RECOVERY_EVIDENCE_SHA256="${P0R_RECOVERY_EVIDENCE_SHA256:-}"
+NODE_RUNTIME_SHA256="${P0R_NODE_RUNTIME_SHA256:-}"
+RUNTIME_CAPSULE_TOOL_SHA256="${P0R_RUNTIME_CAPSULE_TOOL_SHA256:-}"
 RUNNER_SHA256="${P0R_RUNNER_SHA256:-}"
 SESSION_SHA256="${P0R_SESSION_SHA256:-}"
 
 fail() {
-  printf '{"reason":%s,"status":"BLOCKED"}\n' "$(jq -Rn --arg value "$1" '$value')" >&2
+  local caller_line="${BASH_LINENO[0]:-0}"
+  [[ "${caller_line}" =~ ^[1-9][0-9]{0,4}$ ]] || caller_line=0
+  printf '{"reasonCode":"p0r_runner_line_%s","status":"BLOCKED"}\n' \
+    "${caller_line}" >&2
   exit 1
 }
 
 print_plan() {
   cat <<'JSON'
-{"schemaVersion":"v2-m1-production-storage-p0r-runner-plan.v4","mode":"plan","sourceTransaction":"REPEATABLE_READ_READ_ONLY","plaintextDumpCreated":false,"encryption":"AGE_X25519","offHostProvider":"TENCENT_COS","offHostAvailabilityZoneType":"SINGLE_AZ_REQUIRED","offHostVersioning":"ENABLED","offHostRetention":"COMPLIANCE_30D_MINIMUM","offHostObjectKey":"HIGH_ENTROPY_RUN_BOUND","offHostReadOnlyPreflightBeforeDatabaseCapture":true,"preUploadAbsenceRequired":true,"stsPolicyPlanBound":true,"containerSelection":"EXACT_COMPOSE_PROJECT_AND_SERVICE_LABELS","composeInterpolationRequired":false,"evidenceOutputDirectoryCreation":"ATOMIC_MODE_700","privateEphemeralRunnerDirectory":true,"ephemeralFileCreation":"EXCLUSIVE_MODE_600","restorePostgresMajor":16,"restoreNetworkMode":"none","restoreCpuNano":1500000000,"restoreMemoryBytes":2147483648,"restoreMemorySwapBytes":3221225472,"restorePidsLimit":256,"hostPortsPublished":false,"productionNetworksAttached":false,"productionVolumesMounted":false,"productionCredentialsMounted":false,"productionDatabaseMutation":false,"productionServiceMutation":false,"productionRepositoryMutation":false,"migrationAllowed":false,"capacityMutationAllowed":false,"automaticTradingAllowed":false}
+{"schemaVersion":"v2-m1-production-storage-p0r-runner-plan.v6","mode":"plan","sourceTransaction":"REPEATABLE_READ_READ_ONLY","plaintextDumpCreated":false,"encryption":"AGE_X25519","offHostProvider":"TENCENT_COS","offHostAvailabilityZoneType":"SINGLE_AZ_REQUIRED","offHostVersioning":"ENABLED","offHostRetention":"COMPLIANCE_30D_MINIMUM","offHostObjectKey":"HIGH_ENTROPY_RUN_BOUND","offHostReadOnlyPreflightBeforeDatabaseCapture":true,"preUploadAbsenceRequired":true,"stsPolicyPlanBound":true,"containerSelection":"EXACT_COMPOSE_PROJECT_AND_SERVICE_LABELS","composeInterpolationRequired":false,"runtimeDependencyBoundary":"EXACT_SOURCE_BOUND_P0R_NODE_RUNTIME_CAPSULE","runtimeNodeVersion":"22.23.1","runtimePackageVersions":{"pg":"8.16.3"},"productionNodeRuntimeRequired":true,"productionNodeModulesRequired":false,"sanitizedFailureSiteOnly":true,"evidenceOutputDirectoryCreation":"ATOMIC_MODE_700","privateEphemeralRunnerDirectory":true,"ephemeralFileCreation":"EXCLUSIVE_MODE_600","restorePostgresMajor":16,"restoreNetworkMode":"none","restoreCpuNano":1500000000,"restoreMemoryBytes":2147483648,"restoreMemorySwapBytes":3221225472,"restorePidsLimit":256,"hostPortsPublished":false,"productionNetworksAttached":false,"productionVolumesMounted":false,"productionCredentialsMounted":false,"productionDatabaseMutation":false,"productionServiceMutation":false,"productionRepositoryMutation":false,"migrationAllowed":false,"capacityMutationAllowed":false,"automaticTradingAllowed":false}
 JSON
 }
 
@@ -110,6 +115,8 @@ BACKUP_CAPTURE_SOURCE="${SOURCE_DIRECTORY}/m1-production-storage-backup-capture.
 FINGERPRINT_SOURCE="${SOURCE_DIRECTORY}/m1-production-storage-database-fingerprint.mjs"
 PREFLIGHT_LIBRARY_SOURCE="${SOURCE_DIRECTORY}/m1-production-storage-read-only-preflight.mjs"
 RECOVERY_EVIDENCE_SOURCE="${SOURCE_DIRECTORY}/m1-production-storage-recovery-evidence.mjs"
+NODE_RUNTIME_SOURCE="${SOURCE_DIRECTORY}/p0r-node-runtime.tar"
+RUNTIME_CAPSULE_TOOL_SOURCE="${SOURCE_DIRECTORY}/m1-production-storage-p0r-runtime-capsule.mjs"
 RUNNER_SOURCE="${SOURCE_DIRECTORY}/m1-production-storage-p0r-runner.sh"
 SESSION_SOURCE="${SOURCE_DIRECTORY}/m1-production-storage-p0r-session.sh"
 AGE_BINARY_SOURCE="${SOURCE_DIRECTORY}/age"
@@ -129,6 +136,11 @@ verify_source "${BACKUP_CAPTURE_SOURCE}" "${BACKUP_CAPTURE_SHA256}" "backup capt
 verify_source "${FINGERPRINT_SOURCE}" "${FINGERPRINT_SHA256}" "database fingerprint"
 verify_source "${PREFLIGHT_LIBRARY_SOURCE}" "${PREFLIGHT_LIBRARY_SHA256}" "preflight library"
 verify_source "${RECOVERY_EVIDENCE_SOURCE}" "${RECOVERY_EVIDENCE_SHA256}" "recovery evidence"
+verify_source "${NODE_RUNTIME_SOURCE}" "${NODE_RUNTIME_SHA256}" "P0R Node runtime capsule"
+verify_source \
+  "${RUNTIME_CAPSULE_TOOL_SOURCE}" \
+  "${RUNTIME_CAPSULE_TOOL_SHA256}" \
+  "P0R runtime capsule tool"
 verify_source "${RUNNER_SOURCE}" "${RUNNER_SHA256}" "P0R runner"
 verify_source "${SESSION_SOURCE}" "${SESSION_SHA256}" "P0R session"
 verify_source "${AGE_BINARY_SOURCE}" "${AGE_SHA256}" "age binary"
@@ -149,7 +161,7 @@ mkdir --mode=700 -- "${OUTPUT_DIRECTORY}"
   || fail "P0R evidence output directory is invalid"
 RUNTIME_DIRECTORY="${OUTPUT_DIRECTORY}/.runtime"
 HOST_RUNTIME_DIRECTORY="${RUNTIME_DIRECTORY}/node"
-install -d -m 700 "${RUNTIME_DIRECTORY}" "${HOST_RUNTIME_DIRECTORY}"
+install -d -m 700 "${RUNTIME_DIRECTORY}"
 
 RESTORE_CONTAINER="mr-v2-p0r-${RUN_ID}"
 RESTORE_VOLUME="mr-v2-p0r-${RUN_ID}"
@@ -335,12 +347,24 @@ POSTGRES_PID="$(sudo -n docker inspect -f '{{.State.Pid}}' "${POSTGRES_CONTAINER
 [[ "${WEB_PID}" =~ ^[1-9][0-9]*$ && "${POSTGRES_PID}" =~ ^[1-9][0-9]*$ ]] \
   || fail "production container PID is invalid"
 HOST_NODE_BINARY="/proc/${WEB_PID}/root/usr/local/bin/node"
-HOST_NODE_MODULES="/proc/${WEB_PID}/root/app/node_modules"
 POSTGRES_SOCKET_SOURCE="/proc/${POSTGRES_PID}/root/var/run/postgresql"
 sudo -n test -x "${HOST_NODE_BINARY}" || fail "production Node runtime is unavailable"
-sudo -n test -d "${HOST_NODE_MODULES}" || fail "production Node modules are unavailable"
+[[ "$(sudo -n "${HOST_NODE_BINARY}" --version)" == "v22.23.1" ]] \
+  || fail "production Node runtime version is invalid"
 sudo -n test -S "${POSTGRES_SOCKET_SOURCE}/.s.PGSQL.5432" \
   || fail "production PostgreSQL local socket is unavailable"
+
+sudo -n "${HOST_NODE_BINARY}" \
+  "${RUNTIME_CAPSULE_TOOL_SOURCE}" extract \
+    --archive "${NODE_RUNTIME_SOURCE}" \
+    --destination "${HOST_RUNTIME_DIRECTORY}" \
+    --expected-sha256 "${NODE_RUNTIME_SHA256}" >/dev/null 2>&1 \
+  || fail "P0R Node runtime capsule extraction failed"
+[[ -d "${HOST_RUNTIME_DIRECTORY}" \
+  && ! -L "${HOST_RUNTIME_DIRECTORY}" \
+  && "$(stat -c '%u' "${HOST_RUNTIME_DIRECTORY}")" == "0" \
+  && "$(stat -c '%a' "${HOST_RUNTIME_DIRECTORY}")" == "700" ]] \
+  || fail "P0R Node runtime capsule directory is invalid"
 
 for source in \
   "${BACKUP_CAPTURE_SOURCE}" \
@@ -348,13 +372,14 @@ for source in \
   "${FINGERPRINT_SOURCE}" \
   "${PREFLIGHT_LIBRARY_SOURCE}" \
   "${RECOVERY_EVIDENCE_SOURCE}"; do
-  install -m 500 "${source}" "${HOST_RUNTIME_DIRECTORY}/$(basename "${source}")"
+  sudo -n install -m 500 \
+    "${source}" \
+    "${HOST_RUNTIME_DIRECTORY}/$(basename "${source}")"
 done
 install -m 500 "${AGE_BINARY_SOURCE}" "${RUNTIME_DIRECTORY}/age"
 install -m 500 "${COS_ARCHIVE_SOURCE}" "${RUNTIME_DIRECTORY}/p0r-cos-archive"
 install -m 400 "${AGE_RECIPIENT_SOURCE}" "${RUNTIME_DIRECTORY}/age-recipient.txt"
 install -m 400 "${COS_PROVISIONING_PLAN_SOURCE}" "${RUNTIME_DIRECTORY}/cos-provisioning-plan.json"
-ln -s "${HOST_NODE_MODULES}" "${HOST_RUNTIME_DIRECTORY}/node_modules"
 
 sudo -n "${HOST_NODE_BINARY}" --preserve-symlinks \
   "${HOST_RUNTIME_DIRECTORY}/m1-production-storage-p0r-cos-provisioning.mjs" verify-plan \
