@@ -37,6 +37,18 @@ jobs:
           test "$(node --version)" = "v22.23.1"
           test "$(npm --version)" = "10.9.8"
 
+      - name: Install exact Expect runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            expect=5.45.4-3 \
+            tcl-expect=5.45.4-3
+          test "$(dpkg-query -W -f='${Version}' expect)" = "5.45.4-3"
+          test "$(dpkg-query -W -f='${Version}' tcl-expect)" = "5.45.4-3"
+          test -x /usr/bin/expect
+
       - name: Install exact lockfile
         run: npm ci
 

@@ -346,6 +346,33 @@ export function validateFullCiWorkflowPolicy(path, source) {
       "M0 ancestry proof requires checkout fetch-depth 0",
     ));
   }
+  for (const [required, pattern] of [
+    [
+      "expect=5.45.4-3",
+      /(?:^|\s)expect=5\.45\.4-3(?:\s|\\|$)/mu,
+    ],
+    [
+      "tcl-expect=5.45.4-3",
+      /(?:^|\s)tcl-expect=5\.45\.4-3(?:\s|\\|$)/mu,
+    ],
+    [
+      "dpkg-query -W -f='${Version}' expect",
+      /dpkg-query -W -f='\$\{Version\}' expect/u,
+    ],
+    [
+      "dpkg-query -W -f='${Version}' tcl-expect",
+      /dpkg-query -W -f='\$\{Version\}' tcl-expect/u,
+    ],
+    ["test -x /usr/bin/expect", /test -x \/usr\/bin\/expect/u],
+  ]) {
+    if (!pattern.test(source)) {
+      issues.push(issue(
+        "V2_FULL_CI_EXPECT_RUNTIME_UNPINNED",
+        path,
+        `missing exact Expect runtime invariant: ${required}`,
+      ));
+    }
+  }
   return issues;
 }
 
@@ -1432,6 +1459,7 @@ export function validateRepository(repositoryRoot) {
       securitySourceCommitIdentitySegmented: true,
       independentSecurityWorkflow: true,
       independentReleaseQualificationWorkflow: true,
+      fullCiExpectRuntimeExact: true,
       githubRuntimeExact: true,
       licenseMetadataAndDenylist: true,
       nextMinimumSecurityPatch: MINIMUM_SAFE_NEXT_VERSION,

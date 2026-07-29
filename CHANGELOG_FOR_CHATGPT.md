@@ -19,6 +19,9 @@
 - 远端 session 已改为先执行 `stty -echo` 再输出 READY，移除 ready/echo 竞态，接收窗口扩至 600 秒但仍由编译器强制签发后 5 分钟即时编译。
 - 本地伪 TTY 红绿测试 10/10 PASS：覆盖完整双 session、secret 不进入 stdout/stderr、固定命令、固定 Keychain 参数、malformed clipboard、错误 marker、SSH failure 和无论成败 clipboard 清理。
 - bridge 的计划校验运行时已固定为本机受控 Node `v22.23.1`，并 fail closed 拒绝版本漂移；完整 P0R `87/87`、Go helper、recurrence gate `10/10`、production dispatch `24/24`、精确 Node/npm 的完整 `ci:production`、Next production build、Golden `16/16` 与 security check 均已 PASS。新 clean commit、GitHub 四门、fresh rebind、新 execution identity 和真实生产恢复仍待完成，不能用本地全绿冒充生产 PASS。
+- replacement source `38b49f43e0dc15514d1da9c1169d2fed233d8f5a` 已推送且 clean：A0 `30448235005`、Signed Dispatch `30448234840`、Independent Security `30448234534` PASS；Full Quality `30448234790` FAIL。因此它只有 3/4 门通过，明确禁止 fresh rebind、STS 和生产执行。
+- Full Quality 的 5 个失败均来自 Ubuntu 24.04 缺少 `/usr/bin/expect` 的同一 `ENOENT`，不是 5 个独立桥逻辑缺陷。根治没有 skip 测试：工作流精确安装 Ubuntu Noble `expect=5.45.4-3` 与 `tcl-expect=5.45.4-3`，A0 材料门禁锁定版本、`dpkg-query` 身份和可执行路径，并新增防回退测试。
+- 根治工作树的材料门禁、18 项定向测试和精确 Node/npm 完整 `ci:production` 已 PASS；新的 clean exact source 和远端四门复验仍待完成。生产、凭证、数据库、COS、backup、restore 和 authority 未改变。
 
 ### 当前真值
 
@@ -26,7 +29,7 @@ P0R 仍是 `PRODUCTION_RECOVERY_NOT_EXECUTED / P0_BLOCKED`。现在没有可用 
 
 ### 下一步
 
-形成新 clean exact commit 并取得 GitHub 四门；随后执行 fresh read-only rebind，生成全新 run/object key/plan/bundle/staging。所有新 source 资格成立后，先启动 bridge 并看到 READY，再由用户完成 MFA 和 API Explorer 原生 Copy。只有真实 backup、exact retrieval、独立 PostgreSQL 16 restore、证据封存、secret/container/volume/runtime 清理与生产零漂移全部 PASS，P0R 才能关闭。
+形成包含 Expect 运行时根治的新 clean exact commit 并重新取得 GitHub 四门；随后执行 fresh read-only rebind，生成全新 run/object key/plan/bundle/staging。所有新 source 资格成立后，先启动 bridge 并看到 READY，再由用户完成 MFA 和 API Explorer 原生 Copy。只有真实 backup、exact retrieval、独立 PostgreSQL 16 restore、证据封存、secret/container/volume/runtime 清理与生产零漂移全部 PASS，P0R 才能关闭。
 
 ## 2026-07-29 / P0R Atomic Secret Session Root Remediation
 

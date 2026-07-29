@@ -177,6 +177,12 @@ test("full quality workflow retains the Git ancestry required by M0", () => {
     "        with:",
     "          fetch-depth: 0",
     "          persist-credentials: false",
+    "      - name: Install exact Expect runtime",
+    "        run: |",
+    "          sudo apt-get install --yes --no-install-recommends expect=5.45.4-3 tcl-expect=5.45.4-3",
+    "          test \"$(dpkg-query -W -f='${Version}' expect)\" = \"5.45.4-3\"",
+    "          test \"$(dpkg-query -W -f='${Version}' tcl-expect)\" = \"5.45.4-3\"",
+    "          test -x /usr/bin/expect",
     "      - name: Run complete production CI",
     "        run: npm run ci:production",
   ].join("\n");
@@ -194,6 +200,16 @@ test("full quality workflow retains the Git ancestry required by M0", () => {
   );
   assert.ok(
     issues.some((item) => item.code === "V2_FULL_CI_GIT_HISTORY_SHALLOW"),
+  );
+
+  const expectIssues = validateFullCiWorkflowPolicy(
+    ".github/workflows/v2-full-quality.yml",
+    workflow.replace("expect=5.45.4-3", "expect"),
+  );
+  assert.ok(
+    expectIssues.some(
+      (item) => item.code === "V2_FULL_CI_EXPECT_RUNTIME_UNPINNED",
+    ),
   );
 });
 
