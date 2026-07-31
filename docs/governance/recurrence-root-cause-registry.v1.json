@@ -108,21 +108,24 @@
       "id": "REC-2026-07-23-ORCATERM-ZERO-BYTE-UPLOAD",
       "faultClass": "orcaterm.file_upload.stale_session_zero_byte",
       "affectedChannel": "tencent_orcaterm_browser_file_manager",
-      "status": "CLOSED_VERIFIED",
-      "recurrenceCount": 2,
+      "status": "REMEDIATION_IN_PROGRESS",
+      "recurrenceCount": 5,
       "firstObservedDate": "2026-07-23",
-      "lastObservedDate": "2026-07-23",
+      "lastObservedDate": "2026-07-30",
       "affectedOperations": [
         "ordinary_orcaterm_bundle_transport",
-        "orcaterm_repeated_bundle_upload"
+        "orcaterm_repeated_bundle_upload",
+        "p0r_orcaterm_recovery_bundle_transport"
       ],
       "prohibitedOperations": [
         "ordinary_orcaterm_bundle_transport",
-        "orcaterm_repeated_bundle_upload"
+        "orcaterm_repeated_bundle_upload",
+        "p0r_orcaterm_recovery_bundle_transport"
       ],
       "remediationOperations": [
         "fixed_dispatch_bootstrap_install",
-        "fixed_dispatch_first_signed_acceptance"
+        "fixed_dispatch_first_signed_acceptance",
+        "p0r_fixed_dispatch_transport_stage_delivery"
       ],
       "fingerprint": {
         "signature": "The OrcaTerm file manager immediately reports 0B of the expected size and the destination file is absent on the server.",
@@ -133,70 +136,88 @@
         "observedEvidence": [
           "Two uploads reported 0B of 18.7KB.",
           "Server sha256sum returned ENOENT after both failed uploads.",
-          "The host had 66GB free, ruling out target disk exhaustion."
+          "The host had 66GB free, ruling out target disk exhaustion.",
+          "On 2026-07-30 the exact 9176819-byte P0R transport with SHA-256 44f5e34fdd2bbdbf94dbc642a3a45b39b6271f9d14e6dc5cb7173d7bddf2aa9b disconnected during the first upload and remained at 0B of 8.8MB on the retry.",
+          "A controlled copy of the same bytes and SHA-256 under the short visible Downloads path also failed, while the server-side stat proved the destination and exact run staging were absent."
         ]
       },
       "rootCause": {
         "boundary": "external_orcaterm_browser_upload_session",
-        "conclusion": "The browser file-upload session was stale independently of the still-connected terminal session.",
+        "conclusion": "The OrcaTerm browser file-upload channel has no durable, independently attestable delivery guarantee. Reloading once repaired a small historical upload but did not prevent the same failure from recurring for a larger exact P0R package while the terminal remained connected, so browser upload is permanently unsuitable for production package transport.",
         "confidence": "STRONG_BOUNDARY_INFERENCE",
         "evidence": [
           "Changing source path length, visibility and extended attributes did not change the 0B failure.",
           "Reloading the OrcaTerm site and reconnecting transferred the exact same 19156 bytes in one second.",
-          "The server-side SHA-256 matched 80e0932a64feb0347dd41a7e4361cc90d0e64497a526cc16ad58148317479cdd."
+          "The server-side SHA-256 matched 80e0932a64feb0347dd41a7e4361cc90d0e64497a526cc16ad58148317479cdd.",
+          "The later 9176819-byte exact package failed from both its hidden cache path and an independently verified short visible path with identical SHA-256.",
+          "Production read-only stat and staging checks proved no partial or completed server file, excluding a false UI-only failure report."
         ]
       },
       "permanentFix": {
-        "status": "PASS",
+        "status": "PARTIAL",
         "authorityPaths": [
           "scripts/v2/production/fixed-channel/production-dispatch.mjs",
           "scripts/v2/production/fixed-channel/install-production-dispatch.sh",
-          "scripts/v2/production/fixed-channel/install-production-dispatch-launcher.sh"
+          "scripts/v2/production/fixed-channel/install-production-dispatch-launcher.sh",
+          "scripts/v2/production/m1-p0r-transport-staging.mjs",
+          "scripts/v2/production/m1-p0r-transport-staging-entrypoint.sh",
+          "scripts/v2/production/m1-p0r-transport-staging-bundle.mjs",
+          "scripts/v2/production/m1-p0r-transport-staging-release.mjs",
+          "docs/runbooks/V2_M1_6_P0R_PRODUCTION_RECOVERY_RUNBOOK.md"
         ],
         "workaroundDisposition": "RETIRED_AFTER_BOOTSTRAP",
         "evidence": [
           "Routine non-secret packages move to an Ed25519 signed pull-only Git channel.",
           "The production host polls without browser upload sessions or inbound ports.",
-          "Dispatch g0-first-signed-exact-20260722t211117z completed publish, pull, signature verification, independent launch and package acceptance without using the OrcaTerm file manager."
+          "Dispatch g0-first-signed-exact-20260722t211117z completed publish, pull, signature verification, independent launch and package acceptance without using the OrcaTerm file manager.",
+          "The P0R replacement wraps the already qualified secret-free 16-member transport as exact bytes inside a signed fixed-dispatch package whose only allowed effect is atomic extraction into one run-bound staging directory.",
+          "The staging implementation rejects source, run, plan, destination, expiry, archive member, mode, owner, symlink and before-versus-after file identity drift; it cannot request or transport a credential, access the database or launch recovery."
         ]
       },
       "regression": {
-        "status": "PASS",
+        "status": "PARTIAL",
         "redCase": "A connected terminal can coexist with a stale upload session that transfers zero bytes.",
-        "greenCommand": "npm run test:recurrence-gate && npm run test:production-dispatch",
+        "greenCommand": "npm run test:recurrence-gate && npm run test:production-dispatch && node --test scripts/v2/production/m1-p0r-transport-staging.test.mjs",
         "evidence": [
           "The recurrence gate retires repeated OrcaTerm bundle transport.",
-          "The fixed channel validates signed exact bundles and rejects tampering."
+          "The fixed channel validates signed exact bundles and rejects tampering.",
+          "Ten local transport-staging tests cover deterministic construction, exact extraction, destination and approval drift, extra members, symlink input and unsafe existing delivery permissions.",
+          "Regression remains PARTIAL until the exact signed dispatch is accepted on the production target and its staging cleanup is independently verified."
         ]
       },
       "runtimeGate": {
-        "status": "PASS",
+        "status": "PARTIAL",
         "evidence": [
           "The exact bootstrap archive uploaded only after session reload and reconnect.",
           "The server-side package verify returned PASS_EXACT_INSTALL_PACKAGE_VERIFIED_NO_MUTATION.",
           "The fixed pull-only timer is enabled and active.",
-          "Dispatch commit 467ce8e2156aabe399ca61211b232c9d81294c4e was pulled and returned PASS_SESSION_INDEPENDENT_RUNNER_LAUNCHED."
+          "Dispatch commit 467ce8e2156aabe399ca61211b232c9d81294c4e was pulled and returned PASS_SESSION_INDEPENDENT_RUNNER_LAUNCHED.",
+          "The recurring P0R upload attempts created no destination file or run staging, and no credential, database, COS, repository, service, container, Redis, migration, env or feature-flag mutation occurred.",
+          "The replacement package passes its local runtime simulation but has not yet completed production target staging acceptance."
         ]
       },
       "realTargetAcceptance": {
-        "status": "PASS",
+        "status": "PENDING",
         "evidence": [
           "Persistent channel installation and zero-business-change post-install verification passed.",
           "The first real signed dispatch returned PASS_FIXED_DISPATCH_FIRST_SIGNED_ACCEPTANCE on the Tencent production host.",
           "Production HEAD cec0b6572bb09ae91ff9e013f8bb160f73c045e2, clean worktree, 11-container identity, ready/fresh health, Redis PONG and enabled/active timer remained unchanged; no application, database, Redis or worker mutation was attempted.",
-          "The exact acceptance staging directory was absent after execution and all failed claims remain retained as audit evidence."
+          "The historical exact acceptance staging directory was absent after execution and all failed claims remain retained as audit evidence.",
+          "Closure now requires the new source-bound P0R staging package to pass all local and remote gates, be delivered by one signed fixed dispatch, reproduce the exact 16-member target with required modes and ownership, clean its outer dispatch staging and leave all non-target production identities unchanged."
         ]
       },
       "workaroundAccounting": {
-        "attemptCount": 2,
-        "postTriggerEmergencyWorkaroundCount": 1,
-        "durationMeasurement": "HISTORICAL_NOT_INSTRUMENTED",
-        "durationSeconds": null,
-        "unknownReason": "Elapsed-time instrumentation was introduced after the two controlled upload failures."
+        "attemptCount": 5,
+        "postTriggerEmergencyWorkaroundCount": 2,
+        "durationMeasurement": "MEASURED",
+        "durationSeconds": 805,
+        "unknownReason": null
       },
       "remainingRisks": [
         "Tencent does not expose the internal upload-session token state.",
-        "OrcaTerm remains an explicit exception for cloud MFA, secret rotation and emergency recovery; the signed Git channel must never transport credentials.",
+        "OrcaTerm remains an explicit exception for cloud MFA and tightly bounded emergency console work, but its browser file manager is permanently retired for every production package including P0R.",
+        "The signed Git channel must never transport credentials; P0R credential handoff remains a separate pre-armed no-echo local TTY bridge after staging acceptance.",
+        "The new fixed-dispatch staging operation is not production evidence until exact target members, modes, owner, hashes, cleanup and zero non-target drift all pass.",
         "Visual transcription of long runtime identities is prohibited; identity-bound acceptance must use machine-generated sorted facts and an exact diff or digest before signing."
       ]
     },

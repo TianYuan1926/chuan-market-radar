@@ -1,6 +1,6 @@
 # V2 M1.6-P0R 生产恢复运行手册
 
-状态：`OBJECT_LOCK_31D_ENABLED_AND_VERIFIED / AGE_IDENTITY_KEYCHAIN_PASS / E83_EXACT_ATTEMPT_STS_AND_AGE_HANDOFF_PASS_RUNNER_BLOCKED_PRE_BACKUP / HOST_NAMESPACE_PRODUCTION_NODE_MODULES_ASSUMPTION_INVALID / PRODUCTION_ZERO_DRIFT / STAGING_EVIDENCE_SECRET_8022_LISTENER_AND_FIREWALL_RESIDUE_ZERO / TRANSPORT_V3_SOURCE_BOUND_NODE_RUNTIME_CAPSULE_LOCAL_P0R_100_OF_100_AND_FULL_CI_PASS / CLEAN_COMMIT_REMOTE_GATES_FRESH_REBIND_NEW_EXECUTION_AND_REAL_RECOVERY_PENDING / NO_USABLE_CREDENTIAL / P0_BLOCKED`
+状态：`OBJECT_LOCK_31D_ENABLED_AND_VERIFIED / AGE_IDENTITY_KEYCHAIN_PASS / BE87_EXACT_SOURCE_FOUR_REMOTE_GATES_FRESH_REBIND_AND_16_MEMBER_TRANSPORT_V3_PASS / ORCATERM_THREE_ATTEMPT_DELIVERY_RECURRENCE_TARGET_FILE_AND_RUN_STAGING_ABSENT_PRODUCTION_ZERO_DRIFT / FIXED_DISPATCH_TRANSPORT_STAGING_LOCAL_10_OF_10_P0R_110_OF_110_AND_FULL_CI_PASS / CLEAN_B8_SOURCE_REMOTE_GATES_SIGNED_TARGET_ACCEPTANCE_AND_REAL_RECOVERY_PENDING / NO_USABLE_CREDENTIAL / P0_BLOCKED`
 
 ## 1. 唯一目标
 
@@ -13,7 +13,8 @@
 -> 隔离并拒绝执行 superseded 历史 staging
 -> 用 signed dispatch 执行 current-source 只读现场重绑定
 -> 从 exact pushed current source 重建 plan 与 checksum-bound transport bundle
--> 上传无 secret、含受限目标元数据的 bundle
+-> 只通过 signed fixed dispatch 原子投递无 secret、含受限目标元数据的 exact bundle 到 run-bound staging
+-> 验证 exact 16 members、mode、owner、hash、外层 staging 清理和生产零漂移
 -> 预先启动固定本机 TTY bridge，在 exact remote no-echo marker 后把 native-copied fresh STS 在内存即时编译到 /dev/shm，并从 Keychain 内部注入临时 age identity
 -> 执行真实 backup / retrieval / isolated restore
 -> 封存脱敏 evidence，确认临时 secret 与容器/volume 已清理
@@ -88,6 +89,10 @@ npm run v2:m1:p0r:bundle -- \
 验收输出必须为 `PASS_P0R_PRODUCTION_TRANSPORT_BUNDLE`。当前执行 Bundle 的 schema 必须为 `v2-m1-production-storage-p0r-transport.v3`、归档成员必须恰好 16 个、manifest 必须恰好绑定除自身外的 15 个文件，并独立记录 source commit、bundle SHA-256、manifest digest 和 size。新增成员必须包括 `m1-production-storage-p0r-runtime-capsule.mjs` 与 `p0r-node-runtime.tar`；bindings 必须同时锁定两者 SHA-256。胶囊 schema 固定为 `v2-m1-production-storage-p0r-node-runtime.v1`，只允许 Node `22.23.1`、npm `10.9.8`、`pg 8.16.3` 的 lockfile 闭包，生产 `node_modules` 不再是前置。历史 transport v1/v2 只允许作为历史证据读取，不得冒充当前执行包。`6a81e865e61569f7d2d7c3bb3be1d78db72a9eab`、`bed938...` 和 source `e83c1f...` 的失败 run 均不再拥有执行权。
 
 source `e83c1f238b19a3495d17f791d0ca5b65a9447734` 的 run `p0r-20260729t193336z-0ec1106cf1a2ee7402b0309cddfa34b0` 已真实完成 STS 与 age identity handoff，但在第一份 backup evidence 产生前 BLOCKED。现场证明容器内 `pg@8.16.3` 存在，而宿主 `/proc/<web-pid>/root/app/node_modules` 不可见；这是 mount namespace 边界，不是依赖缺失。该 run 未读取生产业务行、未产生 backup/COS object/retrieval/restore，staging/evidence、`/dev/shm`、P0R process/container/volume、8022 listener 和腾讯 `/32` 规则均已清理并复核为 0。任何后续执行都必须使用 transport v3 自包含胶囊，不得恢复宿主机 node_modules 检查、`docker cp` 临时拼依赖或复用该 run。
+
+replacement source `be87cf040472559979f4b6a602350970d9bf2c32` 已取得 Signed Production Dispatch Quality `30494580534`、A0 Release Qualification `30494580517`、Independent Security Quality `30494580551` 和 Full Quality and Materials Gate `30494580577` 四门 PASS；fresh read-only rebind `p0r-rebind-preflight-20260729t220958z-0bc442e3` 也已在生产零漂移边界内 PASS。该 source 生成 run `p0r-20260729t221859z-48eee3208ed0c519e49c2519f05e665e` 的 exact 16-member transport v3，archive SHA-256=`44f5e34fdd2bbdbf94dbc642a3a45b39b6271f9d14e6dc5cb7173d7bddf2aa9b`、size=`9176819`、manifest digest=`sha256:8d6abdbc6ab91d35c2b9bd43269fe37993351094886eb56d194186968812d39b`、plan digest=`sha256:b595256b84ea2db11aba941ff22423e09b315baa8d76e006ff5e3b9ca9b3fd00`，且不含 secret。
+
+该 exact archive 经 OrcaTerm 文件管理器三次受控送达均失败：原路径上传中断、重试保持 `0B/8.8MB`、短可见 Downloads 路径的同 SHA 对照仍失败。805 秒窗口结束后，目标文件和 run-bound staging 均不存在；没有 STS、credential、数据库、COS、session、Runner、recovery 或业务 mutation。`p0r_orcaterm_recovery_bundle_transport` 因而永久退役，重新加载、重试或改名上传都不是允许的修复。B8 只允许使用 `m1-p0r-transport-staging-release.mjs` 经 Ed25519 signed fixed dispatch 发布五成员外包，原子创建 exact 16-member staging；它不得请求或运输 credential、访问数据库/COS、启动 session/Runner/recovery。当前 transport staging 10/10、完整 P0R 110/110、Go helper 和完整 B8 `ci:production` PASS；clean source、新四门和真实 target acceptance 尚待完成。
 
 `m1-production-storage-p0r-local-tty-bridge.exp` 是可信 Mac 上的 operator-side 控制面，不进入生产 transport bundle，也不扩大生产运行成员分母。它必须与 plan 的 exact source commit 同属一个 clean worktree，通过本地测试和 GitHub 四门，并在执行时重新校验 plan、clean HEAD、本机私钥、known_hosts、固定目标、固定代理、固定 SSH port 8022、`HostKeyAlias=43.161.202.227` 和两个不可注入的远端命令。bridge 未通过自身 plan/test/source gate 时，不得签发 STS。默认 SSH port 22 已由真实网络 A/B 证明无法通过当前 BoostNet SOCKS 路径，永久禁止作为 P0R fallback。
 
@@ -177,8 +182,8 @@ bridge schema v3 的 8022 路由在签发 STS 前还必须独立满足以下 boo
 固定顺序如下：
 
 1. `COMPLETED_EXPIRY_PREREQUISITE`：第三枚 STS exact expiry=`2026-07-29T06:09:17Z`；本机 UTC `2026-07-29T10:32:53Z` 与腾讯 HTTPS Date `2026-07-29T10:35:42Z` 已独立证明超过到期点。它现为 `EXPIRED_FORBIDDEN_REUSE`，且永不恢复旧 run 的执行权。
-2. `NEXT_EXACT_SOURCE`：source-bound runtime capsule、Runner plan v6、session v4、transport v3、P0R 100/100 和精确 Node/npm/Go 下的完整 `ci:production` 已通过本地门禁；下一步形成 clean exact commit，通过 GitHub 四门和 fresh 生产只读重绑定。`e83c1f...`、`44e518...` 和 `e362...` 的旧 run/plan/object key/package/staging 永久失去执行权。
-3. 由新 source 生成全新 run-id、object key、plan 和 bundle，并在全新生产 staging 完成成员、checksum、plan-mode、零 secret 与零漂移验证；禁止复用旧 run 的任何 execution identity。
+2. `CURRENT_INNER_TRANSPORT_QUALIFIED`：source `be87cf...` 的四条 GitHub 门、fresh rebind、全新 run-id/object key/plan 和 exact 16-member transport v3 已 PASS；`e83c1f...`、`44e518...` 和 `e362...` 的旧 run/plan/object key/package/staging 永久失去执行权。OrcaTerm 文件管理器三次送达失败且目标文件/run staging 均未产生，该运输操作永久退役。
+3. `B8_FIXED_DISPATCH_TARGET_STAGING`：B8 完整 `ci:production` 已 PASS；形成 clean exact commit 并取得四条新远端门后，只由 `m1-p0r-transport-staging-release.mjs` 发布 signed delivery-only 外包。目标必须原子形成同一 run 的 exact 16 members，验证 checksum、mode、owner、plan/source identity、零 secret、外层 staging 清理和生产零漂移；target acceptance 未 PASS 前禁止 8022、STS 和 recovery。
 4. 在签发前按 bootstrap gate 启动 7200 秒受限 8022 sshd、添加当前 SOCKS 出口 `/32` 云防火墙规则，并用 `HostKeyAlias=43.161.202.227` 完成 strict known-host read-only SSH；禁止退回 port 22。随后从可信 Mac 启动 bridge。只有 bridge 已建立 exact remote TTY、远端 echo 已关闭且本机出现 `READY_P0R_API_NATIVE_COPY_TO_LOCAL_TTY_BRIDGE`，才允许进入 API Explorer 动作。
 5. Microsoft Edge 中只执行新 plan 的 exact `GetFederationToken`，由用户完成本人 MFA，并点击 API Explorer 的页面原生 Copy。response 出现后任何自动化都不得读取页面状态、截图、OCR、AX tree 或切换到 OrcaTerm；native Copy 无法完成时立即停止。
 6. bridge 只接受结构精确且有界的 clipboard JSON，语义无损紧凑化后先清空 clipboard，再经已握手的 no-echo TTY 发送 newline + EOT。helper 必须在签发后 5 分钟内返回 compile PASS；否则自动清理并停止。
@@ -250,7 +255,7 @@ COS credential: /dev/shm/market-radar-v2-p0r-<run-id>.cos-credentials.json
 age identity: /dev/shm/market-radar-v2-p0r-<run-id>.age-identity.txt
 ```
 
-staging/evidence 根目录和 source 目录必须是实际目录，不得是 symlink。解包后必须核验 transport bundle SHA-256、manifest、所有 file checksum 和 source commit。只上传 checksum-bound、无 secret 的 bundle；credential response 与 age identity 只可经固定 TTY bridge 进入远端 session 的 stdin，并由 session 独占写入 exact `/dev/shm`。不得把两项 secret 当文件上传，不得同步源码仓库或生产 env。bundle 无 secret，但含受限 COS 目标元数据，执行后 staging 必须清理。
+staging/evidence 根目录和 source 目录必须是实际目录，不得是 symlink。解包后必须核验 transport bundle SHA-256、manifest、所有 file checksum 和 source commit。P0R package transport 只允许由 `m1-p0r-transport-staging-release.mjs` 通过 signed fixed dispatch 完成；OrcaTerm 文件管理器、浏览器上传、改名重试和人工复制均永久禁止。外包必须恰好五个成员，并在 run-bound `.incoming-*` 内验证 exact 16 members 后 no-clobber 原子 rename；最终必须复核 mode、owner、bytes、hash、外层 staging 清理和生产零漂移。credential response 与 age identity 只可经固定 TTY bridge 进入远端 session 的 stdin，并由 session 独占写入 exact `/dev/shm`。不得把两项 secret 当文件上传，不得同步源码仓库或生产 env。bundle 无 secret，但含受限 COS 目标元数据；目标 staging 只有通过独立 acceptance 后才可供后续 session 使用。
 
 2026-07-23 只读 inventory 最初发现两个 staging run；较早副本已在动作时确认后精确删除。剩余 `bed938...` staging 的成员和摘要仍作为历史审计材料保留，但不再是执行入口。只读重绑定通过前不得删除它；重绑定 PASS 后也只能在新的 current-source plan、bundle 和回滚证据全部绑定后，以独立精确清理动作删除，不能覆盖、修改或复用。
 

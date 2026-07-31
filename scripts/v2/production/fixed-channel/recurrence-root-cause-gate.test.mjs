@@ -141,7 +141,7 @@ test("verified closure unblocks dependent work but never revives a retired worka
   );
 });
 
-test("future historical-duration exceptions and excess emergency workarounds are rejected", () => {
+test("future historical-duration exceptions fail while excess workarounds remain truthful", () => {
   const violations = validateRecurrenceRegistry(registryFixture(
     incidentFixture({ lastObservedDate: "2026-07-24" }),
   ));
@@ -156,9 +156,21 @@ test("future historical-duration exceptions and excess emergency workarounds are
       postTriggerEmergencyWorkaroundCount: 2,
     },
   }));
-  assert.ok(validateRecurrenceRegistry(excessWorkaround).includes(
-    "incident_workaround_accounting_invalid:REC-2026-07-23-TEST",
-  ));
+  assert.deepEqual(validateRecurrenceRegistry(excessWorkaround), []);
+  const summary = summarizeRecurrenceRegistry(
+    excessWorkaround,
+    ["install_fixed_transport"],
+  );
+  assert.equal(summary.incidents[0].workaroundLimitBreached, true);
+  assert.deepEqual(
+    evaluateRecurrenceOperations(
+      excessWorkaround,
+      ["repeat_old_transport"],
+    ),
+    [
+      "recurrence_operation_retired:REC-2026-07-23-TEST:repeat_old_transport",
+    ],
+  );
 });
 
 test("duplicate open fault classes and duplicate operations are rejected", () => {
@@ -173,7 +185,7 @@ test("duplicate open fault classes and duplicate operations are rejected", () =>
   ));
 });
 
-test("the real registry exposes the open P0R receiver remediation and retires unsafe operations", async () => {
+test("the real registry exposes both open P0R remediations and retires unsafe operations", async () => {
   const [state, registry] = await Promise.all([
     readFile(new URL("../../../../AUTONOMOUS_ENGINEERING_STATE.json", import.meta.url), "utf8")
       .then(JSON.parse),
@@ -182,19 +194,32 @@ test("the real registry exposes the open P0R receiver remediation and retires un
   ]);
   assert.deepEqual(validateActiveStateDeclaration(state, registry), []);
   const summary = summarizeRecurrenceRegistry(registry, ["fixed_dispatch_first_signed_acceptance"]);
-  assert.equal(summary.openIncidentCount, 1);
+  assert.equal(summary.openIncidentCount, 2);
   assert.deepEqual(
     summary.incidents.filter((incident) => incident.status !== "CLOSED_VERIFIED"),
-    [{
-      id: "REC-2026-07-28-P0R-SECRET-RECEIVER-FOCUS",
-      status: "REMEDIATION_IN_PROGRESS",
-      recurrenceCount: 7,
-    }],
+    [
+      {
+        id: "REC-2026-07-23-ORCATERM-ZERO-BYTE-UPLOAD",
+        recurrenceCount: 5,
+        status: "REMEDIATION_IN_PROGRESS",
+        workaroundLimitBreached: true,
+      },
+      {
+        id: "REC-2026-07-28-P0R-SECRET-RECEIVER-FOCUS",
+        recurrenceCount: 7,
+        status: "REMEDIATION_IN_PROGRESS",
+        workaroundLimitBreached: false,
+      },
+    ],
   );
   assert.deepEqual(evaluateRecurrenceOperations(registry, ["fixed_dispatch_bootstrap_install"]), []);
   assert.deepEqual(evaluateRecurrenceOperations(
     registry,
     ["fixed_dispatch_first_signed_acceptance"],
+  ), []);
+  assert.deepEqual(evaluateRecurrenceOperations(
+    registry,
+    ["p0r_fixed_dispatch_transport_stage_delivery"],
   ), []);
   assert.deepEqual(evaluateRecurrenceOperations(
     registry,
@@ -266,6 +291,12 @@ test("the real registry exposes the open P0R receiver remediation and retires un
     evaluateRecurrenceOperations(registry, ["ordinary_orcaterm_bundle_transport"]),
     [
       "recurrence_operation_retired:REC-2026-07-23-ORCATERM-ZERO-BYTE-UPLOAD:ordinary_orcaterm_bundle_transport",
+    ],
+  );
+  assert.deepEqual(
+    evaluateRecurrenceOperations(registry, ["p0r_orcaterm_recovery_bundle_transport"]),
+    [
+      "recurrence_operation_retired:REC-2026-07-23-ORCATERM-ZERO-BYTE-UPLOAD:p0r_orcaterm_recovery_bundle_transport",
     ],
   );
   const openIncident = registry.incidents.find(
@@ -351,7 +382,9 @@ test("the P0R runbook retires post-response browser recovery and OrcaTerm secret
   assert.match(runbook, /固定 SSH port 8022/u);
   assert.match(runbook, /HostKeyAlias=43\.161\.202\.227/u);
   assert.match(runbook, /默认 SSH port 22.*永久禁止/u);
-  assert.match(runbook, /P0R 100\/100/u);
+  assert.match(runbook, /P0R 110\/110/u);
+  assert.match(runbook, /m1-p0r-transport-staging-release\.mjs/u);
+  assert.match(runbook, /OrcaTerm 文件管理器.*永久禁止/u);
   assert.match(runbook, /TCP 8022.*当前 SOCKS 出口 \/32/u);
   assert.match(runbook, /systemd 自动超时不能代替云防火墙清理/u);
   assert.match(
@@ -383,8 +416,10 @@ test("the P0R runbook retires post-response browser recovery and OrcaTerm secret
   assert.doesNotMatch(runbook, /以下两条是唯一允许的 secret session 入口/u);
 });
 
-test("all active authority surfaces identify the B7 source-bound runtime capsule remediation", async () => {
-  const expectedEntry = "V2-M1.6-P0R-B7-SOURCE-BOUND-NODE-RUNTIME-CAPSULE-ROOT-REMEDIATION";
+test("all active authority surfaces identify the B8 fixed-dispatch transport staging remediation", async () => {
+  const expectedEntry = "V2-M1.6-P0R-B8-FIXED-DISPATCH-TRANSPORT-STAGING-ROOT-REMEDIATION";
+  const runtimeNamespaceEntry =
+    "V2-M1.6-P0R-B7-SOURCE-BOUND-NODE-RUNTIME-CAPSULE-ROOT-REMEDIATION";
   const [matrix, context, index, sequence, blueprint] = await Promise.all([
     readFile(new URL(
       "../../../../docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json",
@@ -400,7 +435,10 @@ test("all active authority surfaces identify the B7 source-bound runtime capsule
   ]);
 
   assert.equal(matrix.currentImplementationEntry.id, expectedEntry);
-  assert.equal(matrix.currentP0RRuntimeNamespaceRemediation.id, expectedEntry);
+  assert.equal(matrix.currentP0RTransportStagingRemediation.id, expectedEntry);
+  assert.equal(matrix.currentP0RRuntimeNamespaceRemediation.id, runtimeNamespaceEntry);
+  assert.equal(matrix.currentP0RTransportStagingRemediation.targetProductionStagingTestsPassed, 10);
+  assert.equal(matrix.currentP0RTransportStagingRemediation.p0rTestsPassed, 110);
   assert.equal(matrix.currentP0RLocalTtyBridgeRemediation.currentRecurrenceTestsPassed, 11);
   assert.match(context, new RegExp(`## 18[\\s\\S]*${expectedEntry}`, "u"));
   assert.match(index, new RegExp(`## 6[\\s\\S]*${expectedEntry}`, "u"));

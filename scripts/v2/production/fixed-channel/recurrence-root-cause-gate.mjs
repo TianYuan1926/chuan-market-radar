@@ -188,8 +188,7 @@ function validateIncident(incident, policy) {
       || !Number.isSafeInteger(accounting?.attemptCount)
       || accounting.attemptCount < incident.recurrenceCount
       || !Number.isSafeInteger(accounting?.postTriggerEmergencyWorkaroundCount)
-      || accounting.postTriggerEmergencyWorkaroundCount < 0
-      || accounting.postTriggerEmergencyWorkaroundCount > policy.emergencyWorkaroundLimitAfterTrigger) {
+      || accounting.postTriggerEmergencyWorkaroundCount < 0) {
     violations.push(`incident_workaround_accounting_invalid:${id}`);
   } else if (accounting.durationMeasurement === "MEASURED") {
     if (!Number.isSafeInteger(accounting.durationSeconds)
@@ -311,8 +310,11 @@ export function summarizeRecurrenceRegistry(registry, operations = []) {
     incidents: Array.isArray(registry?.incidents)
       ? registry.incidents.map((incident) => ({
         id: incident.id,
-        status: incident.status,
         recurrenceCount: incident.recurrenceCount,
+        status: incident.status,
+        workaroundLimitBreached:
+          incident.workaroundAccounting.postTriggerEmergencyWorkaroundCount >
+          registry.policy.emergencyWorkaroundLimitAfterTrigger,
       }))
       : [],
     violations,

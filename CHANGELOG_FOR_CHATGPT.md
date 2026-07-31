@@ -2,6 +2,25 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-07-31 / P0R Fixed Dispatch Transport Staging Root Remediation
+
+### 本轮目标
+
+根据同一 exact P0R transport v3 在 OrcaTerm 文件管理器连续三次无法送达的真实证据，永久退役该浏览器上传路径，改用现有 Ed25519 signed pull-only 固定生产通道完成无 secret、delivery-only 的原子 staging。
+
+### 当前证据
+
+- replacement source `be87cf040472559979f4b6a602350970d9bf2c32` 已通过 Signed Dispatch `30494580534`、A0 `30494580517`、Independent Security `30494580551`、Full Quality `30494580577` 和 fresh rebind `p0r-rebind-preflight-20260729t220958z-0bc442e3`。
+- run `p0r-20260729t221859z-48eee3208ed0c519e49c2519f05e665e` 的 exact 16-member inner transport SHA-256=`44f5e34fdd2bbdbf94dbc642a3a45b39b6271f9d14e6dc5cb7173d7bddf2aa9b`，大小 9,176,819 bytes，不含 secret。三次 OrcaTerm 上传包含短路径同 SHA 对照，805 秒后服务器目标文件和 run staging 均不存在。
+- 失败窗口没有 STS、credential、`/dev/shm`、8022、数据库、COS、session、Runner、recovery、应用、Redis、Worker、env、migration、Feature Flag 或 authority 变更；生产保持零漂移。
+- `REC-2026-07-23-ORCATERM-ZERO-BYTE-UPLOAD` 已按真实复发重新打开，`p0r_orcaterm_recovery_bundle_transport` 永久退役。重新加载或继续重试 OrcaTerm 文件上传不再是允许的修复。
+- B8 外包恰好五个成员，由 canonical request 绑定 source/ref、run、plan、inner SHA、目标路径、90 秒 runtime、成员 mode/hash 和 no-secret/no-recovery 权限。目标 Runner 只在 `.incoming-*` 验证 exact 16 members 后原子 rename，不覆盖既有 staging，不请求 credential、不读数据库、不启动 P0R。
+- transport staging 10/10、recurrence+staging 21/21、完整 P0R 110/110 和 Go helper 已 PASS。精确 Node `22.23.1`、npm `10.9.8`、Go `1.26.3` 下的完整 `ci:production` 也已 PASS，包含 recurrence 11/11、dispatch 24/24、Market 965 PASS / 4 explicit skips、Workers 23/23、historical smoke 4/4、V2 Ops 232/232、Next build、Golden 16/16 与 security。受管 sandbox 中七个 `clipboard_arm_failed` 已被最小 A/B 证明为 Tcl/Expect 内部 `exec` 的 `EPERM` 环境限制；同一 bridge suite 在真实主机权限边界 9/9 PASS，没有弱化生产 bridge。
+
+### 当前真值与下一步
+
+状态是 `LOCAL_B8_IMPLEMENTATION_P0R_GATE_AND_FULL_CI_PASS / CLEAN_B8_COMMIT_REMOTE_GATES_AND_PRODUCTION_TARGET_STAGING_PENDING / REAL_RECOVERY_NOT_STARTED / PRODUCTION_BUSINESS_MUTATION_NONE`。下一步形成 clean B8 commit、取得四条新远端门并执行 signed target acceptance；只有 exact 16-member staging、mode/owner/hash、外层清理与生产零漂移全部 PASS，才允许进入独立 8022/STS/recovery 顺序。当前不需要用户生成 STS 或操作 COS。
+
 ## 2026-07-30 / P0R Runtime Namespace Root Remediation
 
 ### 本轮目标
@@ -104,29 +123,3 @@ P0R 当前是“本地根因修复通过专项门禁，完整资格和真实生�
 ### 下一步
 
 先继续关闭当前独立第一关键路径 P0R；随后按 `schema -> Strategy builder -> Final Decision -> DecisionSnapshot/Alert -> Outcome -> frontend -> replay/holdout/Shadow` 实施 M3.3E，并与真实 M3.1A-M3.3D 分域策略共同验收。
-
-## 2026-07-27 / P0R STS Required Region Contract Root Remediation
-
-### 本轮目标
-
-根据腾讯 API Explorer 的真实拒绝结果，根治 P0R provisioning plan 未把必填 Region 写入 STS request 的合同缺口，禁止手工补参数绕过 exact-plan digest。
-
-### 修改范围
-
-- plan schema 从 `v2-m1-production-storage-cos-provisioning-plan.v2` 升级为 `.v3`，`stsRequest.region=ap-hongkong` 进入 plan digest 与 credential request digest。
-- Go COS helper 同步要求 request Region 与 grant Region 精确一致，缺失或非香港一律 fail closed。
-- JavaScript 与 Go 回归覆盖 Region 缺失和错配；运行合同、生产手册、蓝图、追踪矩阵和上下文同步当前真值。
-- 历史 v2 staging/bundle 验证器仍只用于读取旧证据，不被机械改写为新可执行合同。
-- Signed Production Dispatch Quality 的 push/PR 路径从 `fixed-channel` 子目录扩大到全部 `scripts/v2/production/**`，并增加回归，防止 P0R 生产脚本变化再次漏掉第四门。
-
-### 验收结果
-
-- source `94118d3b8270b6ac58c449380911ea77b8abeace` 的前序 GitHub 四门和腾讯 fresh read-only rebind 均 PASS，生产身份零漂移。
-- 随后的 v2 STS 请求真实返回 `MissingParameter.Region`；没有 credential、数据库读取、backup 或 COS 对象，失效 remote staging 已精确清理。
-- 新合同定向 P0R `72/72 PASS`、Go helper PASS、V2 Ops `194/194 PASS`。
-- Region 修复 source `b33661...` 的 A0、Full Quality 和 Independent Security 已 PASS；旧路径过滤没有触发 Signed Production Dispatch Quality，因此不能标记四门通过。
-- 完整本地 `ci:production` 已 PASS；包含路径修复的新提交四条 exact-source GitHub 门禁和 fresh production read-only rebind 尚待执行。
-
-### 风险与下一步
-
-本轮仍不是 P0R 恢复完成。旧 v2 plan/bundle 已失去执行权；只有新 clean commit 通过完整 CI、远端四门和 fresh rebind 后，才能重建 v3 plan/bundle 并重新请求 7200 秒 STS，再执行 backup、exact retrieval、isolated PG16 restore、cleanup 与 fresh P0。

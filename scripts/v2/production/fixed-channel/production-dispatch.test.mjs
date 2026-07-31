@@ -1010,15 +1010,15 @@ test("governance contract matches the executable transport and truth boundary", 
   assert.equal(contract.timeoutLockRecoveryEvidence.businessRuntimeMutation, false);
   assert.equal(contract.timeoutLockRecoveryEvidence.stagingCleaned, true);
   assert.equal(contract.recurrenceRootCauseGate.requiredForEveryActivePackage, true);
-  assert.equal(contract.recurrenceRootCauseGate.currentOpenIncidentCount, 1);
+  assert.equal(contract.recurrenceRootCauseGate.currentOpenIncidentCount, 2);
   assert.equal(contract.recurrenceRootCauseGate.allowedBootstrapOperation,
     "fixed_dispatch_bootstrap_install");
   assert.equal(contract.recurrenceRootCauseGate.nextRequiredOperation,
-    "p0r_rebind_dispatch_cross_layer_root_remediation");
+    "p0r_fixed_dispatch_transport_stage_delivery");
   assert.equal(contract.recurrenceRootCauseGate.p0rReceiverCanaryStatus,
     "PASS_REAL_TARGET_NO_SECRET_DUAL_SESSION_BOUNDED_SHORT_COMMAND");
   assert.equal(contract.recurrenceRootCauseGate.p0rAtomicSessionStatus,
-    "ZERO_ECHO_BRIDGE_SOURCE_REMOTE_FOUR_GATES_PASS_REBIND_REJECTED_PRE_MUTATION_CROSS_LAYER_ROOT_FIX_FULL_LOCAL_CI_PASS_NEW_SOURCE_PENDING");
+    "BE87_SOURCE_REMOTE_FOUR_GATES_AND_FRESH_REBIND_PASS_EXACT_TRANSPORT_V3_QUALIFIED_ORCATERM_DELIVERY_FAILED_ZERO_TARGET_ZERO_PRODUCTION_DRIFT_FIXED_DISPATCH_STAGE_LOCAL_PASS_NEW_SOURCE_AND_TARGET_ACCEPTANCE_PENDING");
   assert.equal(contract.recurrenceRootCauseGate.p0rRawStsResponsePersistenceAllowed, false);
   assert.equal(
     contract.recurrenceRootCauseGate.p0rComposeEnvReinterpolationForRuntimeIdentityAllowed,
@@ -1121,6 +1121,48 @@ test("governance contract matches the executable transport and truth boundary", 
   assert.equal(contract.recurrenceRootCauseGate.p0rOrcaTermEditorClearBeforeEveryCommand, true);
   assert.equal(contract.recurrenceRootCauseGate.p0rOrcaTermEditorMinimumSettleMilliseconds, 1000);
   assert.equal(contract.recurrenceRootCauseGate.p0rOrcaTermExactVisiblePreviewBeforeEveryExecution, true);
+  assert.equal(
+    contract.recurrenceRootCauseGate.p0rOrcaTermFileManagerPackageTransportAllowed,
+    false,
+  );
+  assert.equal(
+    contract.recurrenceRootCauseGate.p0rTransportStageRequestSchema,
+    "market-radar-v2-m1-p0r-transport-stage-request.v1",
+  );
+  assert.equal(
+    contract.recurrenceRootCauseGate.p0rTransportStageManifestSchema,
+    "market-radar-v2-m1-p0r-transport-stage-manifest.v1",
+  );
+  assert.equal(
+    contract.recurrenceRootCauseGate.p0rTransportStageTransportSchema,
+    "v2-m1-production-storage-p0r-transport.v3",
+  );
+  assert.equal(
+    contract.recurrenceRootCauseGate.p0rTransportStageSingleHighLevelReleaseEntrypoint,
+    "scripts/v2/production/m1-p0r-transport-staging-release.mjs",
+  );
+  assert.equal(contract.recurrenceRootCauseGate.p0rTransportStageRuntimeMaxSeconds, 90);
+  assert.equal(contract.recurrenceRootCauseGate.p0rTransportStageOuterMemberCount, 5);
+  assert.equal(contract.recurrenceRootCauseGate.p0rTransportStageInnerMemberCount, 16);
+  assert.equal(contract.recurrenceRootCauseGate.p0rTransportStageContainsSecrets, false);
+  assert.equal(
+    contract.recurrenceRootCauseGate.p0rTransportStageCredentialRequestAllowed,
+    false,
+  );
+  assert.equal(contract.recurrenceRootCauseGate.p0rTransportStageDatabaseAccessAllowed, false);
+  assert.equal(contract.recurrenceRootCauseGate.p0rTransportStageRecoveryLaunchAllowed, false);
+  assert.equal(
+    contract.recurrenceRootCauseGate.p0rTransportStageDeliveryRoot,
+    "/home/ubuntu/.cache/market-radar-v2/p0r/staging",
+  );
+  assert.equal(
+    contract.recurrenceRootCauseGate.p0rTransportStageAtomicNoClobberDeliveryRequired,
+    true,
+  );
+  assert.equal(
+    contract.recurrenceRootCauseGate.p0rTransportStageExactModesOwnerHashesAndCleanupRequired,
+    true,
+  );
   assert.ok(contract.recurrenceRootCauseGate.retiredOperations.includes(
     "p0r_orcaterm_overlength_composite_command"));
   assert.ok(contract.recurrenceRootCauseGate.retiredOperations.includes(
@@ -1129,6 +1171,7 @@ test("governance contract matches the executable transport and truth boundary", 
     "p0r_persisted_raw_sts_and_manual_compile_sequence",
     "p0r_ax_response_reconstruction",
     "p0r_compose_env_reinterpolation_for_runtime_identity",
+    "p0r_orcaterm_recovery_bundle_transport",
   ]) assert.ok(contract.recurrenceRootCauseGate.retiredOperations.includes(operation));
   assert.equal(contract.exceptions[0].mayBypassCloudMfa, false);
   assert.equal(contract.exceptions[1].mayMisreportTransport, false);

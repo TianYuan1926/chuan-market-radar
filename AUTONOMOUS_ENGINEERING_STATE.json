@@ -1,6 +1,6 @@
 {
   "schemaVersion": "market-radar-autonomous-engineering-state.v1",
-  "updatedAt": "2026-07-16T19:10:44+08:00",
+  "updatedAt": "2026-07-31T18:17:28+08:00",
   "mode": "active_fail_closed",
   "systemTruth": {
     "readinessLevel": "R1",
@@ -315,7 +315,8 @@
     "recurrenceRootCauseGate": {
       "registryPath": "docs/governance/recurrence-root-cause-registry.v1.json",
       "operations": [
-        "shadow_capture_activation"
+        "shadow_capture_activation",
+        "p0r_fixed_dispatch_transport_stage_delivery"
       ]
     },
     "gate": "G0",
