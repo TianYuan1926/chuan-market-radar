@@ -244,6 +244,76 @@ func TestArchiveSchemasRemainExplicit(t *testing.T) {
 	}
 }
 
+func TestRequiredActionsUseTencentObjectLockCAMAction(t *testing.T) {
+	actions := strings.Join(requiredActions, "\n")
+	if !strings.Contains(actions, "cos:GetBucketObjectLock") {
+		t.Fatal("Tencent COS Object Lock read action is missing")
+	}
+	if strings.Contains(actions, "cos:GetBucketObjectLockConfiguration") {
+		t.Fatal("REST operation name must not be used as a Tencent CAM action")
+	}
+}
+
+func TestBlockedDiagnosticExposesOnlyAllowlistedStage(t *testing.T) {
+	secret := "AKID-sensitive-provider-diagnostic"
+	err := withDiagnostic(
+		"p0r_cos_get_bucket_object_lock_failed",
+		fmt.Errorf("provider denied object-lock request for %s", secret),
+	)
+	got := blockedDiagnosticJSON(err)
+	want := `{"reasonCode":"p0r_cos_get_bucket_object_lock_failed","status":"BLOCKED"}`
+	if got != want {
+		t.Fatalf("sanitized diagnostic mismatch: %s", got)
+	}
+	if strings.Contains(got, secret) || strings.Contains(got, "provider denied") {
+		t.Fatal("sanitized diagnostic exposed provider or credential material")
+	}
+	if generic := blockedDiagnosticJSON(fmt.Errorf("unknown %s", secret)); generic !=
+		`{"reasonCode":"p0r_cos_unclassified_failure","status":"BLOCKED"}` {
+		t.Fatalf("unclassified diagnostic did not fail closed: %s", generic)
+	}
+}
+
+func TestObjectLockAccessDeniedMapsToFixedSanitizedStage(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		query := request.URL.Query()
+		switch {
+		case request.Method == http.MethodHead && request.URL.Path == "/":
+			writer.Header().Set("x-cos-bucket-region", "ap-hongkong")
+		case request.Method == http.MethodGet && request.URL.Path == "/" && query.Has("acl"):
+			fmt.Fprint(writer, `<AccessControlPolicy><Owner><ID>owner</ID></Owner><AccessControlList><Grant><Grantee><ID>owner</ID></Grantee><Permission>FULL_CONTROL</Permission></Grant></AccessControlList></AccessControlPolicy>`)
+		case request.Method == http.MethodGet && request.URL.Path == "/" && query.Has("policy"):
+			writer.WriteHeader(http.StatusNotFound)
+			fmt.Fprint(writer, `<Error><Code>NoSuchBucketPolicy</Code></Error>`)
+		case request.Method == http.MethodGet && request.URL.Path == "/" && query.Has("versioning"):
+			fmt.Fprint(writer, `<VersioningConfiguration><Status>Enabled</Status></VersioningConfiguration>`)
+		case request.Method == http.MethodGet && request.URL.Path == "/" && query.Has("object-lock"):
+			writer.WriteHeader(http.StatusForbidden)
+			fmt.Fprint(writer, `<Error><Code>AccessDenied</Code><Message>sensitive provider detail</Message></Error>`)
+		default:
+			t.Errorf("unexpected request: %s %s", request.Method, request.URL.String())
+			writer.WriteHeader(http.StatusBadRequest)
+		}
+	}))
+	defer server.Close()
+
+	now := time.Date(2026, 7, 21, 12, 0, 0, 0, time.UTC)
+	credentials := validCredentials(now)
+	endpoint, _ := url.Parse(server.URL)
+	client := &cosClient{credentials: credentials, endpoint: endpoint, http: server.Client()}
+	_, err := verifyBucket(context.Background(), client, credentials, validPlan(now))
+	if err == nil {
+		t.Fatal("Object Lock AccessDenied unexpectedly passed")
+	}
+	if got := failureReasonCode(err); got != "p0r_cos_get_bucket_object_lock_failed" {
+		t.Fatalf("unexpected failure stage: %s", got)
+	}
+	diagnostic := blockedDiagnosticJSON(err)
+	if strings.Contains(diagnostic, "AccessDenied") || strings.Contains(diagnostic, "sensitive") {
+		t.Fatalf("diagnostic exposed provider response: %s", diagnostic)
+	}
+}
+
 func TestProductionClientDisablesProxyAndRequiresTLS12(t *testing.T) {
 	client, err := newClient(validCredentials(time.Now().UTC()))
 	if err != nil {

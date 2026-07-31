@@ -8,14 +8,14 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 export const P0R_COS_PROVISIONING_PLAN_SCHEMA_VERSION =
-  "v2-m1-production-storage-cos-provisioning-plan.v3";
+  "v2-m1-production-storage-cos-provisioning-plan.v4";
 export const P0R_COS_CREDENTIAL_SCHEMA_VERSION =
-  "v2-m1-production-storage-cos-temporary-credentials.v2";
+  "v2-m1-production-storage-cos-temporary-credentials.v3";
 export const P0R_STS_DURATION_SECONDS = 7_200;
 
 export const P0R_COS_GRANT_ACTIONS = Object.freeze([
   "cos:GetBucketACL",
-  "cos:GetBucketObjectLockConfiguration",
+  "cos:GetBucketObjectLock",
   "cos:GetBucketPolicy",
   "cos:GetBucketVersioning",
   "cos:GetObject",
@@ -97,7 +97,7 @@ function buildStsPolicy({ appId, bucket, objectKey, region, sourceIpCidr }) {
       {
         action: [
           "name/cos:GetBucketACL",
-          "name/cos:GetBucketObjectLockConfiguration",
+          "name/cos:GetBucketObjectLock",
           "name/cos:GetBucketPolicy",
           "name/cos:GetBucketVersioning",
           "name/cos:HeadBucket",

@@ -77,7 +77,7 @@ async function createInnerBundle(root) {
         credentialGrant: { runId: RUN_ID },
         planDigest: PLAN_DIGEST,
         schemaVersion:
-          "v2-m1-production-storage-cos-provisioning-plan.v3",
+          "v2-m1-production-storage-cos-provisioning-plan.v4",
         sourceCommit: INNER_SOURCE_COMMIT,
       }, null, 2)}\n`);
     }

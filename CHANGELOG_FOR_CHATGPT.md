@@ -2,25 +2,27 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
-## 2026-08-01 / P0R B9 Pre-secret Bootstrap, Native Copy Timeout, and Verified Cleanup
+## 2026-08-01 / P0R B9 COS Object Lock CAM Root Remediation
 
 ### 本轮目标
 
-在 B8 accepted target 上执行 B9 的 pre-secret bootstrap：复核 exact staging、建立仅限当前 SOCKS 出口 `/32` 的临时 8022 路线、启动 fixed local TTY bridge，并在用户 MFA/API Explorer 原生 Copy 后自动进入只读恢复演练。
+在 B8 accepted target 上执行 B9，并在真实 Runner 阻断后完成根因定位、生产清理和本地永久整改：纠正 COS Object Lock 的 CAM action，废止旧执行 authority，并把未分类自由文本升级为固定脱敏阶段诊断。
 
 ### 当前证据
 
-- local exact source `be87cf040472559979f4b6a602350970d9bf2c32`、plan、Keychain age identity、mode-600 SSH identity/known_hosts 和四条 GitHub 门保持合格；当前实现分支 HEAD `6a2b05a322e928a9f98bf4ae559f8e8284a65031` 干净且已同步。
-- B8 target 再次通过三个祖先目录 `ubuntu:ubuntu 0700`、16 个普通文件、零 symlink、manifest SHA-256=`c9e85a91bf09a5fbeafb119517be93805a1f25ad09466c6c9a9a15a58295a318`、plan SHA-256=`71d05e2db2ae2f09fdc1332e8e05dde090bd3fe7c40a650b1b905fd86aca5cc8`、bindings SHA-256=`fd62c920191397ae7a708e5f81dab54222875db04ac32a3f9afa1b1dee428f92` 和全包聚合 SHA-256=`7a91cd89199269363cc642834000f3de33b1ddc9cbd8fcba8751763f77d894ca`；超时清理后同一 16-member 聚合摘要仍一致。
-- 两个公网端点同时测得当前 BoostCore SOCKS 出口 `156.248.15.38`。生产只启动 `RuntimeMaxSec=2h`、ubuntu public-key-only、root/password/keyboard-interactive/forwarding 全禁用的独立 8022 sshd，并只添加 `156.248.15.38/32 -> TCP 8022` 腾讯规则。
-- 本机使用固定 ed25519 identity、mode-600 known_hosts、`StrictHostKeyChecking=yes`、`HostKeyAlias=43.161.202.227` 和固定 SOCKS 完成真实握手，返回 `ubuntu / VM-0-9-ubuntu / active`。bridge v3 随后取得远端 echo-disabled `READY_P0R_API_NATIVE_COPY_TO_LOCAL_TTY_BRIDGE`。
-- READY 后 540 秒内没有收到结构有效的 API Explorer 原生 Copy，bridge 以 `clipboard_response_timeout` 安全失败关闭；没有 credential 被 bridge 接收或编译，没有 secret 进入生产 `/dev/shm`，Runner 未启动，数据库未读取，COS、backup、retrieval、restore 和 recovery evidence 均未发生。腾讯侧是否曾在浏览器中签发无法由该证据证明，因此该超时窗口任何可能存在的 response 一律禁止复用，下一次只允许 fresh STS。
-- 自动清理已停止 transient sshd 并验证 unit=`inactive`、listener=`0`；唯一腾讯 `/32` 规则删除成功且 source/8022/remark 全部不存在；`/dev/shm` P0R 文件、P0R process、container 和 volume 均为 `0`。
-- 生产保持 HEAD `cec0b6572bb09ae91ff9e013f8bb160f73c045e2`、clean worktree、11 个运行容器及原 full-ID/name/image identity；Web/PostgreSQL/Redis 均 healthy，`pg_isready` 接受连接，Redis 返回 `PONG`。env、migration、Feature Flag、Worker、流量和 authority 未改变。
+- 旧执行 source `be87cf040472559979f4b6a602350970d9bf2c32`、run `p0r-20260729t221859z-48eee3208ed0c519e49c2519f05e665e` 和 B8 target 在执行前通过 exact plan、16 files、零 symlink、mode/owner/hash 与 source identity 复核。
+- fixed local TTY bridge 真实完成 API Explorer 原生 Copy、STS 即时编译和 Keychain age identity handoff，Runner 随后启动。它在读取生产数据库前的 COS control-plane preflight 返回 `recovery_drill_failed_blocked_unclassified`；evidence 目录为空，没有 backup、COS object、exact retrieval、isolated restore 或临时恢复 container/volume。
+- remote exact-plan verify PASS，生产出网由两个独立公网端点一致证明为 plan 绑定的 `43.161.202.227/32`，因此来源 IP 和 plan digest 不是根因。
+- 腾讯官方合同区分 REST 操作 `GET Bucket ObjectLockConfiguration` 和 CAM action `cos:GetBucketObjectLock`。旧 plan/policy 错误使用 `cos:GetBucketObjectLockConfiguration`；该 STS 可以签发，但不能授权真实 Object Lock GET，这与失败阶段和空 evidence 精确一致。
+- 本地整改把 plan schema 升为 `v2-m1-production-storage-cos-provisioning-plan.v4`、credential schema 升为 `v2-m1-production-storage-cos-temporary-credentials.v3`、bridge 升为 v4；JS、Go helper 和 policy 统一使用官方 action。旧 v3 plan、v2 credential、run/object key/staging 自动拒绝，禁止手改或复用。
+- Go helper 现在只输出固定脱敏 `p0r_cos_*` reason code；bridge 只传播 allowlist 内阶段。Provider 自由文本、bucket、object key 或 credential material 不得进入错误输出；malformed/未知诊断继续 fail closed。
+- 定向 Node 计划/桥接/transport `32/32`、旧合同拒绝回归 `12/12`、完整 P0R `113/113` 和 Go helper 均 PASS。补全固定 PATH 中本机 `/sbin/sha256sum` 后，完整 `ci:production` 已从头 PASS：recurrence `11/11`、dispatch `25/25`、V2 Foundation `631 PASS / 6 explicit skips`、V2 Ops `235/235`、Next build、Golden `16/16` 和 security；第一次 PATH 漏项失败不计入通过。clean commit、GitHub 四门、fresh rebind、新 run/v4 plan/package/staging 和 corrected real-target recovery 尚未完成。
+- 临时 8022 sshd 已停止，listener=`0`；唯一 `156.248.15.38/32 -> TCP 8022` 腾讯规则已删除并确认不存在。`/dev/shm` P0R 文件、process、container 和 volume 均为 `0`。
+- 生产保持 HEAD `cec0b6572bb09ae91ff9e013f8bb160f73c045e2`、clean worktree、11 个运行容器及原 full-ID/name/image identity；Web/PostgreSQL/Redis 均 healthy，`pg_isready` 接受连接，Redis 返回 `PONG`。数据库、env、migration、Feature Flag、Worker、流量和 authority 未改变。
 
 ### 当前真值与下一步
 
-状态是 `B9_ACCEPTED_TARGET_RECHECK_PASS / PRE_SECRET_8022_BOOTSTRAP_PASS / STRICT_SSH_IDENTITY_PASS / BRIDGE_ECHO_DISABLED_READY_PASS / NATIVE_COPY_TIMEOUT / CREDENTIAL_NOT_RECEIVED_OR_COMPILED / RECOVERY_NOT_EXECUTED / FULL_TEMPORARY_ROUTE_AND_RUNTIME_CLEANUP_PASS / PRODUCTION_ZERO_DRIFT`。B9 仍未完成，P0 继续 BLOCKED。下一次必须先把本轮 exact API Explorer 请求页准备到只差用户 MFA、发起调用和原生 Copy 的状态，再测 fresh 出口、重建临时 8022/`/32` 和 bridge；不得在未准备页面或用户不在场时提前消耗 540 秒 secret window，也不得复用本轮可能存在的任何浏览器 response。
+状态是 `B9_STS_AND_AGE_HANDOFF_PASS / RUNNER_STARTED / COS_OBJECT_LOCK_AUTHORIZATION_BLOCKED_BEFORE_DATABASE_READ / RECOVERY_NOT_EXECUTED / LOCAL_ROOT_REMEDIATION_P0R_113_OF_113_AND_FULL_CI_PASS / CLEAN_EXACT_SOURCE_AND_REMOTE_QUALIFICATION_PENDING / FULL_TEMPORARY_ROUTE_SECRET_AND_RUNTIME_CLEANUP_PASS / PRODUCTION_ZERO_DRIFT`。B9 与 P0 仍未完成。下一步形成 clean exact commit，再完成 GitHub 四门、fresh production read-only rebind、新 run/v4 plan/transport/fixed-dispatch staging 和 target acceptance；只有这些全部通过后，才允许重新建立临时 8022 路线并签发 fresh STS。
 
 ## 2026-07-31 / P0R Fixed Dispatch Transport Staging Root Remediation
 

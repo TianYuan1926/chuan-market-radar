@@ -92,6 +92,10 @@ if [[ "$remote_command" == *"receive-credentials-and-run" ]]; then
 	      printf '{"reasonCode":"p0r_runner_line_341","status":"BLOCKED"}\\n'
 	      exit 45
 	      ;;
+	    remote-blocked-cos-safe)
+	      printf '{"reasonCode":"p0r_cos_get_bucket_object_lock_failed","status":"BLOCKED"}\\n'
+	      exit 48
+	      ;;
 	    remote-blocked-malformed)
 	      printf '{"reasonCode":"p0r_runner_line_341-extra","status":"BLOCKED"}\\n'
 	      exit 46
@@ -139,7 +143,7 @@ test("bridge plan fixes the browser-free post-response and no-output secret boun
   ));
   assert.equal(
     plan.schemaVersion,
-    "v2-m1-production-storage-p0r-local-tty-bridge.v3",
+    "v2-m1-production-storage-p0r-local-tty-bridge.v4",
   );
   assert.equal(plan.fixedSshHostAlias, "43.161.202.227");
   assert.equal(plan.fixedSshPort, 8022);
@@ -258,6 +262,29 @@ test("bridge returns only an exact sanitized remote failure site", async () => {
   }
 });
 
+test("bridge propagates only an allowlisted sanitized COS failure stage", async () => {
+  const root = await fixture("remote-blocked-cos-safe");
+  try {
+    const result = runSelfTest(root);
+    assert.notEqual(result.status, 0);
+    assert.match(
+      result.stderr,
+      /recovery_drill_failed_blocked_p0r_cos_get_bucket_object_lock_failed/u,
+    );
+    assert.doesNotMatch(result.stderr, /"reasonCode"/u);
+    const combined = `${result.stdout}\n${result.stderr}`;
+    for (const secret of [
+      FAKE_STS_RESPONSE.Response.Credentials.TmpSecretId,
+      FAKE_STS_RESPONSE.Response.Credentials.TmpSecretKey,
+      FAKE_STS_RESPONSE.Response.Credentials.Token,
+      FAKE_AGE_IDENTITY,
+    ]) assert.doesNotMatch(combined, new RegExp(secret, "u"));
+    assert.equal(await readFile(join(root, "clipboard.txt"), "utf8"), CLIPBOARD_CLEAR);
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
 for (const testCase of [
   "remote-blocked-malformed",
   "remote-blocked-secret",
@@ -309,6 +336,7 @@ test("bridge source pins the SSH and browser-independent secret boundary", async
     "locked_node_version_invalid",
     "blocked_unclassified",
     "p0r_(session|runner)_line_",
+    "p0r_cos_get_bucket_object_lock_failed",
   ]) assert.ok(source.includes(required), `missing bridge invariant: ${required}`);
 
   for (const forbidden of [

@@ -329,8 +329,8 @@ test("the real registry closes accepted package transport and keeps secret recov
   assert.ok(
     openIncident.realTargetAcceptance.evidence.some(
       (item) =>
-        item.includes("eight-file current P0R runtime set digest") &&
-        item.includes("three-file historical supersession proof"),
+        item.includes("canonical current P0R runtime set digest") &&
+        item.includes("frozen historical supersession proof"),
     ),
   );
   assert.ok(
@@ -344,7 +344,7 @@ test("the real registry closes accepted package transport and keeps secret recov
   assert.ok(
     openIncident.permanentFix.evidence.some(
       (item) =>
-        item.includes("Bridge schema v3") &&
+        item.includes("Bridge schema v4") &&
         item.includes("port 8022") &&
         item.includes("HostKeyAlias") &&
         item.includes("port 22") &&
@@ -421,8 +421,9 @@ test("the P0R runbook retires post-response browser recovery and OrcaTerm secret
   assert.doesNotMatch(runbook, /以下两条是唯一允许的 secret session 入口/u);
 });
 
-test("all active authority surfaces identify B9 after accepted B8 staging remediation", async () => {
-  const expectedEntry = "V2-M1.6-P0R-B9-EXACT-STAGED-RECOVERY-EXECUTION";
+test("all active authority surfaces identify B9 R1 after the COS authorization failure", async () => {
+  const expectedEntry =
+    "V2-M1.6-P0R-B9-R1-COS-OBJECT-LOCK-CAM-ACTION-AND-DIAGNOSTIC-REMEDIATION";
   const remediationEntry =
     "V2-M1.6-P0R-B8-FIXED-DISPATCH-TRANSPORT-STAGING-ROOT-REMEDIATION";
   const runtimeNamespaceEntry =
@@ -447,6 +448,34 @@ test("all active authority surfaces identify B9 after accepted B8 staging remedi
     remediationEntry,
   );
   assert.equal(matrix.currentP0RRuntimeNamespaceRemediation.id, runtimeNamespaceEntry);
+  assert.equal(matrix.currentP0RB9CosAuthorizationRemediation.id, expectedEntry);
+  assert.equal(
+    matrix.currentP0RB9CosAuthorizationRemediation.officialCamAction,
+    "cos:GetBucketObjectLock",
+  );
+  assert.equal(
+    matrix.currentP0RB9CosAuthorizationRemediation.failedRequestedCamAction,
+    "cos:GetBucketObjectLockConfiguration",
+  );
+  assert.equal(
+    matrix.currentP0RB9CosAuthorizationRemediation.replacementPlanSchema,
+    "v2-m1-production-storage-cos-provisioning-plan.v4",
+  );
+  assert.equal(
+    matrix.currentP0RB9CosAuthorizationRemediation.replacementCredentialSchema,
+    "v2-m1-production-storage-cos-temporary-credentials.v3",
+  );
+  assert.equal(
+    matrix.currentP0RB9CosAuthorizationRemediation.replacementBridgeSchema,
+    "v2-m1-production-storage-p0r-local-tty-bridge.v4",
+  );
+  assert.equal(matrix.currentP0RB9CosAuthorizationRemediation.fullLocalCiPassed, true);
+  assert.equal(matrix.currentP0RB9CosAuthorizationRemediation.fullLocalCiPending, false);
+  assert.equal(matrix.currentP0RB9CosAuthorizationRemediation.fullLocalCiV2OpsPassed, 235);
+  assert.equal(
+    matrix.currentP0RB9CosAuthorizationRemediation.productionZeroDriftPassed,
+    true,
+  );
   assert.equal(matrix.currentP0RTransportStagingRemediation.targetProductionStagingTestsPassed, 11);
   assert.equal(matrix.currentP0RTransportStagingRemediation.p0rTestsPassed, 111);
   assert.equal(

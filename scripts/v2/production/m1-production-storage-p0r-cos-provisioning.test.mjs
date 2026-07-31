@@ -101,11 +101,16 @@ test("builds a deterministic single-AZ immutable COS plan with exact object scop
   ]);
   assert.deepEqual(bucketStatement.action, [
     "name/cos:GetBucketACL",
-    "name/cos:GetBucketObjectLockConfiguration",
+    "name/cos:GetBucketObjectLock",
     "name/cos:GetBucketPolicy",
     "name/cos:GetBucketVersioning",
     "name/cos:HeadBucket",
   ]);
+  assert.ok(value.credentialGrant.actions.includes("cos:GetBucketObjectLock"));
+  assert.equal(
+    value.credentialGrant.actions.includes("cos:GetBucketObjectLockConfiguration"),
+    false,
+  );
 
   const objectResource = `${bucketRootResource}${value.credentialGrant.objectKey}`;
   for (const statement of value.stsRequest.policy.statement.slice(1)) {
@@ -163,6 +168,49 @@ test("fails closed when the required Tencent STS Region is missing or mismatched
       /contract drift/u,
     );
   }
+});
+
+test("rejects superseded Object Lock actions, plan schemas and credential schemas", () => {
+  const supersededPlan = structuredClone(plan());
+  supersededPlan.schemaVersion = "v2-m1-production-storage-cos-provisioning-plan.v3";
+  const unsignedPlan = structuredClone(supersededPlan);
+  delete unsignedPlan.planDigest;
+  supersededPlan.planDigest = stableSha256(unsignedPlan);
+  assert.throws(
+    () => validateP0RCosProvisioningPlan(supersededPlan),
+    /strictly equal/u,
+  );
+
+  const wrongActionPlan = structuredClone(plan());
+  wrongActionPlan.credentialGrant.actions = wrongActionPlan.credentialGrant.actions.map(
+    (action) => action === "cos:GetBucketObjectLock"
+      ? "cos:GetBucketObjectLockConfiguration"
+      : action,
+  );
+  wrongActionPlan.stsRequest.policy.statement[0].action =
+    wrongActionPlan.stsRequest.policy.statement[0].action.map(
+      (action) => action === "name/cos:GetBucketObjectLock"
+        ? "name/cos:GetBucketObjectLockConfiguration"
+        : action,
+    );
+  const unsignedWrongAction = structuredClone(wrongActionPlan);
+  delete unsignedWrongAction.planDigest;
+  wrongActionPlan.planDigest = stableSha256(unsignedWrongAction);
+  assert.throws(
+    () => validateP0RCosProvisioningPlan(wrongActionPlan),
+    /contract drift/u,
+  );
+
+  const supersededCredentials = compileP0RCosCredentials({
+    now: NOW,
+    plan: plan(),
+    stsResponse: response(),
+  });
+  assert.equal(supersededCredentials.schemaVersion, P0R_COS_CREDENTIAL_SCHEMA_VERSION);
+  assert.notEqual(
+    supersededCredentials.schemaVersion,
+    "v2-m1-production-storage-cos-temporary-credentials.v2",
+  );
 });
 
 test("compiles current Tencent STS response into a plan-bound credential envelope", () => {

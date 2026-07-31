@@ -112,6 +112,8 @@ B8 outer source `15d7cb3899b5f8c4763390fa0baba8e51aa29d56` 已通过 Signed Prod
 
 fresh dispatch `p0r-transport-stage-20260731t143942z-63b1e6f9` 由 signed commit `d5ea6e44797cd88239a474961bfa91cf4bf6ca6d` 成功启动。目标目录已按 exact realpath 验收为 `ubuntu:0700`，恰好 16 个普通文件、零 symlink；manifest SHA-256=`c9e85a91bf09a5fbeafb119517be93805a1f25ad09466c6c9a9a15a58295a318`，逐文件 size/hash/mode/owner 与 transport v3 合同一致，外层 dispatch staging 与 `.incoming-*` 均为零。生产 HEAD `cec0b6572bb09ae91ff9e013f8bb160f73c045e2`、clean worktree、11-container identity、Web/PostgreSQL/Redis、timer、P0R container/volume 和 `/dev/shm` 继续零漂移。B8 target staging 因而 `PASS`，但真实 backup、exact retrieval、isolated restore、STS 与 recovery 仍未执行；当前入口转为 B9，不得把 transport acceptance 扩写为 P0R PASS。
 
+B9 首次执行随后真实完成 STS 即时编译、Keychain age identity handoff 和 Runner 启动，但在读取生产数据库前的 COS Object Lock control-plane preflight 阻断；没有 backup、COS object、exact retrieval、isolated restore、临时恢复 container/volume 或业务 mutation。根因是旧 v3 plan 把 REST 操作 `GET Bucket ObjectLockConfiguration` 的名称误写成 CAM action `cos:GetBucketObjectLockConfiguration`；腾讯官方 [COS CAM action table](https://intl.cloud.tencent.com/document/product/598/57092?lang=en) 规定真实授权动作为 `cos:GetBucketObjectLock`，而 [REST API](https://cloud.tencent.com/document/product/436/55291) 保留 `GET Bucket ObjectLockConfiguration` 这一操作名。两者不得混用。plan schema 现升级 v4、credential schema 升级 v3、operator bridge 升级 v4；helper 只允许输出固定脱敏 `p0r_cos_*` 阶段码，bridge 只传播 allowlist 内阶段，禁止 Provider 自由文本。旧 `be87...` run、v3 plan、v2 credential、object key 和 B8 staging 只保留历史审计价值，全部失去执行权，不得原地修改或复用。
+
 post-acceptance guardrail 已新增“预存祖先目录 `0755`、delivery child 尚不存在”的独立红例，证明 Runner 在创建 child 前失败且不修改 ancestor。transport staging 现为 `11/11`，冻结 Node `22.23.1` 与本机 Go `1.26.3`、`GOTOOLCHAIN=local` 下完整 P0R 111/111 PASS；同一工具链下完整 `ci:production` 以退出码 0 通过，包含 recurrence `11/11`、production dispatch `25/25`、V2 Ops `233/233`、Next production build、Golden `16/16` 和 security。
 
 `m1-production-storage-p0r-local-tty-bridge.exp` 是可信 Mac 上的 operator-side 控制面，不进入生产 transport bundle，也不扩大生产运行成员分母。它必须与 plan 的 exact source commit 同属一个 clean worktree，通过本地测试和 GitHub 四门，并在执行时重新校验 plan、clean HEAD、本机私钥、known_hosts、固定目标、固定代理、固定 SSH port 8022、`HostKeyAlias=43.161.202.227` 和两个不可注入的远端命令。bridge 未通过自身 plan/test/source gate 时，不得签发 STS。默认 SSH port 22 已由真实网络 A/B 证明无法通过当前 BoostNet SOCKS 路径，永久禁止作为 P0R fallback。
@@ -188,7 +190,7 @@ source `e3626387ee8d57ef8e4f9c11c2e098b781ac6fbe` 曾完整通过本地 CI、Git
 - 全程抑制 child output，只输出 bridge 自己的无 secret 状态；任一 marker、SSH、clipboard、JSON、Keychain、remote exit 或 timeout 异常都断开 TTY、触发远端 cleanup 并失败关闭；
 - 无论成功或失败都再次覆盖 clipboard；只有远端 `PASS_P0R_RECOVERY_DRILL`、两个 SSH clean exit 和最终 clipboard clear 同时成立，bridge 才返回 PASS。
 
-bridge schema v3 的 8022 路由在签发 STS 前还必须独立满足以下 bootstrap gate；v3 继承 v2 的固定端口和严格主机身份，并只允许有界 `p0r_session_line_N` / `p0r_runner_line_N` 失败位置离开远端：
+bridge schema v4 的 8022 路由在签发 STS 前还必须独立满足以下 bootstrap gate；v4 继承固定端口和严格主机身份，并只允许有界 `p0r_session_line_N`、`p0r_runner_line_N` 或 allowlisted `p0r_cos_*` 失败阶段离开远端：
 
 - 在任何 listener 或云规则变更前，Microsoft Edge 必须已经打开本轮 exact plan 对应的 API Explorer，请求字段已逐项核对且停在未发起调用状态，用户本人明确在线并准备立即完成 MFA、发起调用和页面原生 Copy。未满足时停止，不得提前消耗 8022、`/32` 或 bridge clipboard window；准备页面不授权在 bridge READY 前签发 STS；
 - 重新测量当前 loopback SOCKS 出口 IPv4；禁止复用过期的来源地址。当前已验证窗口的出口是 `157.254.154.223/32`；
@@ -203,15 +205,16 @@ bridge schema v3 的 8022 路由在签发 STS 前还必须独立满足以下 boo
 固定顺序如下：
 
 1. `COMPLETED_EXPIRY_PREREQUISITE`：第三枚 STS exact expiry=`2026-07-29T06:09:17Z`；本机 UTC `2026-07-29T10:32:53Z` 与腾讯 HTTPS Date `2026-07-29T10:35:42Z` 已独立证明超过到期点。它现为 `EXPIRED_FORBIDDEN_REUSE`，且永不恢复旧 run 的执行权。
-2. `CURRENT_INNER_TRANSPORT_QUALIFIED`：source `be87cf...` 的四条 GitHub 门、fresh rebind、全新 run-id/object key/plan 和 exact 16-member transport v3 已 PASS；`e83c1f...`、`44e518...` 和 `e362...` 的旧 run/plan/object key/package/staging 永久失去执行权。OrcaTerm 文件管理器三次送达失败且目标文件/run staging 均未产生，该运输操作永久退役。
-3. `B8_FIXED_DISPATCH_TARGET_STAGING_ACCEPTED`：outer source `15d7cb...` 已取得四条远端门。首次 signed dispatch 在祖先目录 `0755` 上 fail closed 且零 mutation；独立授权将该目录收紧为 `0700` 后，fresh dispatch `p0r-transport-stage-20260731t143942z-63b1e6f9` / commit `d5ea6e...` 已原子形成同一 run 的 exact 16 members，并通过 checksum、mode、owner、plan/source identity、零 secret、外层 staging 清理和生产零漂移验收。此项现为历史 PASS，不得重复派发或覆盖 target。
-4. `B9_EXACT_STAGED_RECOVERY_EXECUTION`：在新的动作时确认后，先复核 B8 target 未漂移，并把 exact API Explorer 请求页准备到只差用户 MFA、发起调用和页面原生 Copy；用户未明确在线时不得继续。随后才按 bootstrap gate 启动 7200 秒受限 8022 sshd、添加当前 SOCKS 出口 `/32` 云防火墙规则，并用 `HostKeyAlias=43.161.202.227` 完成 strict known-host read-only SSH；禁止退回 port 22。随后从可信 Mac 启动 bridge。只有 bridge 已建立 exact remote TTY、远端 echo 已关闭且本机出现 `READY_P0R_API_NATIVE_COPY_TO_LOCAL_TTY_BRIDGE`，才允许发起 API 调用。
-5. Microsoft Edge 中只执行新 plan 的 exact `GetFederationToken`，由用户完成本人 MFA，并点击 API Explorer 的页面原生 Copy。response 出现后任何自动化都不得读取页面状态、截图、OCR、AX tree 或切换到 OrcaTerm；native Copy 无法完成时立即停止。
-6. bridge 只接受结构精确且有界的 clipboard JSON，语义无损紧凑化后先清空 clipboard，再经已握手的 no-echo TTY 发送 newline + EOT。helper 必须在签发后 5 分钟内返回 compile PASS；否则自动清理并停止。
-7. bridge 在 compile PASS 后自动建立第二条固定 TTY，从固定 Keychain 项内部读取 age identity 并完成 no-echo handoff；identity 不进入 shell 参数、clipboard、日志或工具输出。credential compile 已确认后，用户关闭 API response 页。
-8. 第一 helper 自动接管 identity、启动 Runner 并执行 COS preflight、只读加密 backup、exact version retrieval、隔离 PG16 restore、证据封存、容器/volume/runtime/secret 清理和零漂移复核。
-9. bridge 只有在 `PASS_P0R_RECOVERY_DRILL`、secondary/primary SSH clean exit 和最终 clipboard clear 同时成立时才返回 `PASS_P0R_LOCAL_TTY_BRIDGE`。
-10. 无论成功或失败，独立只读验证仍须再次证明 P0R `/dev/shm` 文件、session/provisioning 进程、临时 container/volume 和 runtime 为零；同时停止 transient sshd、删除唯一 8022 `/32` 云防火墙规则，并证明 listener、unit 和规则均不存在。只有完整证据同时存在才可关闭。
+2. `HISTORICAL_B8_TARGET_ACCEPTANCE_ONLY`：source `be87cf...` 的四条 GitHub 门、fresh rebind、16-member transport 和 B8 target acceptance 都是真实历史 PASS；但绑定 v3 plan 的 B9 执行已证明 Object Lock CAM action 错误，因此旧 run、plan、credential contract、object key 和 staging 没有当前执行权。OrcaTerm 文件管理器仍永久退役。
+3. `B9_R1_LOCAL_ROOT_REMEDIATION`：只允许在 plan v4、credential v3、bridge v4、官方 `cos:GetBucketObjectLock`、固定脱敏 COS reason code、旧合同拒绝和完整本地质量门全部 PASS 后形成 clean exact commit。禁止手改旧 plan、只替换 action 后重签旧 digest 或复用旧 object key。
+4. `NEW_EXACT_SOURCE_QUALIFICATION`：新提交必须重新取得 GitHub 四门，随后执行 fresh production read-only rebind，生成新 run/object key/v4 plan/transport，并用 fixed dispatch 创建新的 no-clobber staging 与独立 target acceptance。任何一项缺失都停止在 STS 之前。
+5. `CORRECTED_B9_EXACT_STAGED_RECOVERY_EXECUTION`：把新 exact API Explorer 请求页准备到只差用户 MFA、发起调用和页面原生 Copy；用户未明确在线时不得继续。随后才按 bootstrap gate 启动 7200 秒受限 8022 sshd、添加当前 SOCKS 出口 `/32` 云防火墙规则，并用 `HostKeyAlias=43.161.202.227` 完成 strict known-host read-only SSH；禁止退回 port 22。随后从可信 Mac 启动 bridge v4。只有 bridge 已建立 exact remote TTY、远端 echo 已关闭且本机出现 `READY_P0R_API_NATIVE_COPY_TO_LOCAL_TTY_BRIDGE`，才允许发起 API 调用。
+6. Microsoft Edge 中只执行新 v4 plan 的 exact `GetFederationToken`，由用户完成本人 MFA，并点击 API Explorer 的页面原生 Copy。response 出现后任何自动化都不得读取页面状态、截图、OCR、AX tree 或切换到 OrcaTerm；native Copy 无法完成时立即停止。
+7. bridge 只接受结构精确且有界的 clipboard JSON，语义无损紧凑化后先清空 clipboard，再经已握手的 no-echo TTY 发送 newline + EOT。helper 必须在签发后 5 分钟内返回 compile PASS；否则自动清理并停止。
+8. bridge 在 compile PASS 后自动建立第二条固定 TTY，从固定 Keychain 项内部读取 age identity 并完成 no-echo handoff；identity 不进入 shell 参数、clipboard、日志或工具输出。credential compile 已确认后，用户关闭 API response 页。
+9. 第一 helper 自动接管 identity、启动 Runner 并执行 COS preflight、只读加密 backup、exact version retrieval、隔离 PG16 restore、证据封存、容器/volume/runtime/secret 清理和零漂移复核。COS preflight 任一阶段失败时只能输出对应的固定 `p0r_cos_*` code 并停止在数据库读取之前。
+10. bridge 只有在 `PASS_P0R_RECOVERY_DRILL`、secondary/primary SSH clean exit 和最终 clipboard clear 同时成立时才返回 `PASS_P0R_LOCAL_TTY_BRIDGE`。
+11. 无论成功或失败，独立只读验证仍须再次证明 P0R `/dev/shm` 文件、session/provisioning 进程、临时 container/volume 和 runtime 为零；同时停止 transient sshd、删除唯一 8022 `/32` 云防火墙规则，并证明 listener、unit 和规则均不存在。只有完整证据同时存在才可关闭。
 
 唯一允许的本机 secret orchestration 入口如下；`<plan>` 是新 run 的 restricted mode-600 exact plan。命令本身不含 secret：
 
@@ -221,7 +224,7 @@ bridge schema v3 的 8022 路由在签发 STS 前还必须独立满足以下 boo
 
 bridge 返回 READY 前禁止请求 STS。bridge 返回 READY 后，只允许 API Explorer 原生 Copy 这一项浏览器动作。secret 可见期间禁止截图、屏幕录制、AX/OCR、browser state read、日志、回显或 OrcaTerm secret 输入。
 
-原始 STS response 不落盘。credential file 是 mode 600 的单一 JSON 对象，schema 为 v2，除临时三元组外还绑定运行计划与签发证据：
+原始 STS response 不落盘。credential file 是 mode 600 的单一 JSON 对象，schema 为 v3，除临时三元组外还绑定运行计划与签发证据：
 
 ```json
 {
@@ -229,7 +232,7 @@ bridge 返回 READY 前禁止请求 STS。bridge 返回 READY 后，只允许 AP
   "grant": {
     "actions": [
       "cos:GetBucketACL",
-      "cos:GetBucketObjectLockConfiguration",
+      "cos:GetBucketObjectLock",
       "cos:GetBucketPolicy",
       "cos:GetBucketVersioning",
       "cos:GetObject",
@@ -254,7 +257,7 @@ bridge 返回 READY 前禁止请求 STS。bridge 返回 READY 后，只允许 AP
     "requestId": "<tencent-request-uuid>"
   },
   "issuedAt": "YYYY-MM-DDTHH:mm:ss.000Z",
-  "schemaVersion": "v2-m1-production-storage-cos-temporary-credentials.v2",
+  "schemaVersion": "v2-m1-production-storage-cos-temporary-credentials.v3",
   "secretId": "<temporary-secret-id>",
   "secretKey": "<temporary-secret-key>",
   "sessionToken": "<temporary-session-token>"

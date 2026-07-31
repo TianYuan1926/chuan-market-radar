@@ -1,6 +1,6 @@
 # Market Radar 权威蓝图目录
 
-更新日期：2026-07-31
+更新日期：2026-08-01
 
 本目录只回答三件事：当前真实状态是什么、V2 应该怎样建设、哪些历史材料只能作参考。任何旧报告、旧周期身份或旧蓝图都不能绕过这里重新成为当前权威。
 
@@ -9,13 +9,13 @@
 ```text
 当前系统等级：R1 / 可运行但不完整 / 不能支撑实战
 V2 设计状态：ACTIVE_DESIGN_AUTHORITY
-V2 实现状态：M0_ENGINEERING_EXIT_LOCAL_PASS / M0.4_EXPANDED_SCOPE_DESIGN_PASS / M0.5_MARKET_MECHANICS_MICROSTRUCTURE_PRECURSOR_ATLAS_DESIGN_PASS / A0_ENGINEERING_SUBGATES_PASS_TOTAL_GATE_INCOMPLETE_P0R_PENDING / M1.1B0_R3_LIVE_15_OF_15_ALL_GATES_PASS / M1.4A_M1.4D_LOCAL_RUNTIME_CONTRACTS_PASS_NO_AUTHORITY / M1.5C_M1.5D_LOCAL_RUNTIME_EVIDENCE_AND_EXACT_PACKAGE_PASS_LIVE_ZERO_OF_31_EACH / M2.1A_LOCAL_RESEARCH_CONTRACT_PASS_REAL_COHORT_MISSING_NO_CANDIDATE_EMISSION / M1.5-B1_EARLY_SHADOW_BUSINESS_GATE_PASS_V1_ONLY / M1.6-P0_EXECUTED_BLOCKED_CAPACITY_AND_RECOVERY / M1.6-P0R_B8_BE87_INNER_TRANSPORT_PASS_OUTER_SOURCE_15D7_FOUR_REMOTE_GATES_UNSAFE_PARENT_FAIL_CLOSED_0700_REMEDIATED_FRESH_SIGNED_DISPATCH_D5EA_EXACT_TARGET_ACCEPTANCE_PASS_PRODUCTION_ZERO_DRIFT / M1.6-P0R_B9_EXACT_STAGED_RECOVERY_PENDING / M2.2-B0.2-C1_FORWARD_ONLY_READY_NO_AUTHORITY / M3.0-M3.3_LOCAL_CONTRACT_PASS_TEST_ONLY_UNCALIBRATED_NO_READY_AUTHORITY / M3.3E_STRATEGY_ARCHETYPE_LABELING_DESIGN_AUTHORITY_ONLY / M3.4-R0_SCOPE_REBASE_GOVERNANCE_PASS_R1_PARTIAL_TEST_ONLY_DRAFT / EXTERNAL_RIGHTS_AND_HISTORICAL_SOURCE_BLOCKED / GATE_INSUFFICIENT / DETECTORS_DRAFT / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED
+V2 实现状态：M0_ENGINEERING_EXIT_LOCAL_PASS / M0.4_EXPANDED_SCOPE_DESIGN_PASS / M0.5_MARKET_MECHANICS_MICROSTRUCTURE_PRECURSOR_ATLAS_DESIGN_PASS / A0_ENGINEERING_SUBGATES_PASS_TOTAL_GATE_INCOMPLETE_P0R_PENDING / M1.1B0_R3_LIVE_15_OF_15_ALL_GATES_PASS / M1.4A_M1.4D_LOCAL_RUNTIME_CONTRACTS_PASS_NO_AUTHORITY / M1.5C_M1.5D_LOCAL_RUNTIME_EVIDENCE_AND_EXACT_PACKAGE_PASS_LIVE_ZERO_OF_31_EACH / M2.1A_LOCAL_RESEARCH_CONTRACT_PASS_REAL_COHORT_MISSING_NO_CANDIDATE_EMISSION / M1.5-B1_EARLY_SHADOW_BUSINESS_GATE_PASS_V1_ONLY / M1.6-P0_EXECUTED_BLOCKED_CAPACITY_AND_RECOVERY / M1.6-P0R_B8_EXACT_TARGET_ACCEPTANCE_HISTORICAL_PASS / M1.6-P0R_B9_STS_AND_AGE_HANDOFF_PASS_COS_OBJECT_LOCK_AUTHORIZATION_BLOCKED_PRE_DATABASE / COS_CAM_ACTION_ROOT_REMEDIATION_LOCAL_113_OF_113_AND_FULL_CI_PASS_CLEAN_EXACT_SOURCE_PENDING / TEMPORARY_ROUTE_SECRET_AND_RUNTIME_CLEANUP_PASS_PRODUCTION_ZERO_DRIFT / M2.2-B0.2-C1_FORWARD_ONLY_READY_NO_AUTHORITY / M3.0-M3.3_LOCAL_CONTRACT_PASS_TEST_ONLY_UNCALIBRATED_NO_READY_AUTHORITY / M3.3E_STRATEGY_ARCHETYPE_LABELING_DESIGN_AUTHORITY_ONLY / M3.4-R0_SCOPE_REBASE_GOVERNANCE_PASS_R1_PARTIAL_TEST_ONLY_DRAFT / EXTERNAL_RIGHTS_AND_HISTORICAL_SOURCE_BLOCKED / GATE_INSUFFICIENT / DETECTORS_DRAFT / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED
 V2 生产权限：false
 自动交易：永久禁止
 最新生产存储门禁：P0_BLOCKED_CAPACITY_AND_RECOVERY / APPLICATION_HEALTH_NOT_EVALUATED
 ```
 
-2026-07-31 最新覆盖：replacement inner source `be87cf...` 已通过 GitHub 四门、fresh read-only rebind 和 exact 16-member transport v3 资格；OrcaTerm 文件管理器三次送达失败后永久退役。B8 outer source `15d7cb...` 又通过四门。首次 signed dispatch 在预存 `p0r` 父目录 `0755` 上 fail closed，未 chmod、未创建 target、生产零业务变更；精确授权收紧为 `0700` 后，fresh signed dispatch `d5ea6e...` 已通过 exact 16 members、mode、owner、hash、outer cleanup、服务健康与生产零漂移验收。祖先权限和短 branch 参数的 post-acceptance 防复发门已通过完整本地 `ci:production`。B8 只完成无 secret package transport，STS、COS 对象、backup/retrieval/restore 和 fresh P0 均未发生；当前入口推进为 B9 exact staged recovery。此刻无需生成 STS、开放端口或操作 COS。本段覆盖下方较早的当前执行描述，不改写历史事故事实。
+2026-08-01 最新覆盖：B8 exact target acceptance 仍是可信历史 PASS，但它绑定的旧 v3 plan 已在 B9 首次 Runner 执行中被真实证伪。该次执行完成 STS 即时编译和 age identity 交接，随后在生产数据库读取前的 COS Object Lock preflight 阻断；没有 backup、COS 对象、retrieval、restore 或业务 mutation。根因是旧 policy 使用 REST 操作名 `GetBucketObjectLockConfiguration`，而腾讯 CAM 的真实动作名是 `cos:GetBucketObjectLock`。本地整改已升级 plan v4、credential v3、bridge v4，旧 run/plan/credential/staging 均自动失去执行权，并新增固定脱敏阶段诊断；P0R `113/113`、Go helper 和完整 `ci:production` PASS。失败后的临时 8022 listener、腾讯 `/32` 规则、`/dev/shm`、process、container、volume 均已清零，生产 HEAD、11-container identity 与 Web/PostgreSQL/Redis 健康保持零漂移。下一入口不是复用 B8 target，而是形成 clean exact commit、通过 GitHub 四门、fresh read-only rebind、新 run/v4 plan/package/staging 后再执行 corrected B9。
 
 2026-07-21 M1.6-P0 已以 exact source 完成生产只读存储核验：PostgreSQL 16、V2 schema=`ABSENT_CLEAN`、旧/新 Fact=0、连接使用率 2%，数据库/服务/仓库 mutation 均为 0；但 120 GiB 系统盘按冻结模型预计使用率 90%，容量余量不足且 recovery evidence 缺失，因此准入结论是 `BLOCKED`。这不评价 `/api/health` 或生产业务 ready，不能扩写成全站健康或全站失败。
 
@@ -29,8 +29,8 @@ Legacy G0 的七个生产出口继续作为历史安全义务，但它们不是 
 
 | 优先级 | 文档 | 唯一职责 |
 | ---: | --- | --- |
-| 1 | [V2 受控替换工程与运行蓝图 v1.72](./MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md) | 当前唯一产品、领域、工程、研究、运行与切换设计权威 |
-| 2 | [V2 机器追踪矩阵 v1.77](./market-radar-v2-controlled-replacement-traceability.v1.json) | Scope Epoch、A0、18 个 Module、5 维状态、硬门槛和 M0-M7 的机器合同 |
+| 1 | [V2 受控替换工程与运行蓝图 v1.75](./MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md) | 当前唯一产品、领域、工程、研究、运行与切换设计权威 |
+| 2 | [V2 机器追踪矩阵 v1.80](./market-radar-v2-controlled-replacement-traceability.v1.json) | Scope Epoch、A0、18 个 Module、5 维状态、硬门槛和 M0-M7 的机器合同 |
 | 2P | [P0R 只读重绑定交付报告](./V2_M1_6_P0R_READ_ONLY_REBIND_PREFLIGHT_DELIVERY_REPORT.md) | 历史 staging 失效依据、当前源码重绑定边界、测试与生产零变更真值 |
 | 2P1 | [P0R fixed-dispatch transport staging 根因整改交付报告](./V2_M1_6_P0R_FIXED_DISPATCH_TRANSPORT_STAGING_REMEDIATION_DELIVERY_REPORT.md) | OrcaTerm 三次失败、运输退役、0755 fail-closed、0700 根治、B8 exact target acceptance 与 B9 边界 |
 | 2A | [M0.4 扩展市场范围与 Scope Epoch 合同](../architecture/v2/M0_4_EXPANDED_MARKET_SCOPE_AND_SCOPE_EPOCH_CONTRACT_V1.md) | Bitget、上新/新币 watch、股票合约、T0-T3 数据策略和跨范围证据隔离 |
@@ -131,7 +131,7 @@ Legacy G0 的七个生产出口继续作为历史安全义务，但它们不是 
 
 1. 与当前 release 身份对齐的新鲜生产只读证据。
 2. 永久安全、事实、交易、无 future leak 和无自动交易红线。
-3. V2 蓝图 v1.72 与机器追踪矩阵 v1.77。
+3. V2 蓝图 v1.75 与机器追踪矩阵 v1.80。
 4. `PROJECT_CONTEXT_FOR_CHATGPT.md` 中仍标为 current 的事实。
 5. Legacy 工程、运行和 readiness 文档中仍适用的安全与验收合同。
 6. 历史蓝图、旧请求、旧报告、旧 digest 和 Git history。
@@ -174,13 +174,13 @@ Runtime / Security / Release Control 贯穿全链。任何 Module 不得跳过�
 
 ## 6. 当前实施入口
 
-M0.0-M0.5、M1.1-M1.6、M2.0-M2.2 已列本地包、C1、M3.0-M3.3 已通过各自工程、业务、运行起点或合同出口。M1.4C、M1.4D、M1.5C/M1.5D 与 M2.1A 均只有各自本地或 research-only 出口；真实 live、cohort/holdout、校准和 authority 仍未完成。A0 唯一剩余控制是 P0R 真实恢复，总门禁保持 `INCOMPLETE_P0R_PENDING`。source `be87cf...` 的四条远端门、fresh rebind 和 exact 16-member transport v3 已通过；OrcaTerm 文件管理器三次失败后永久退出 package transport。B8 outer source `15d7cb...` 四门通过；首个 signed dispatch 在祖先目录 `0755` 上安全阻断，精确收紧为 `0700` 后 fresh dispatch `d5ea6e...` 已完成 exact target、outer cleanup 和生产零漂移验收。B8 transport remediation 现为 PASS，但真实 STS、backup、retrieval、restore 和 fresh P0 仍待完成。历史来源仍 `RESEARCH_ONLY`，Gate=INSUFFICIENT、Detector=DRAFT；M3.3E 只完成标签设计权威，M3.4-R1 草稿没有独立测试出口，仍无 Feasibility/runtime/READY authority。当前生产执行入口是：
+M0.0-M0.5、M1.1-M1.6、M2.0-M2.2 已列本地包、C1、M3.0-M3.3 已通过各自工程、业务、运行起点或合同出口。M1.4C、M1.4D、M1.5C/M1.5D 与 M2.1A 均只有各自本地或 research-only 出口；真实 live、cohort/holdout、校准和 authority 仍未完成。A0 唯一剩余控制是 P0R 真实恢复，总门禁保持 `INCOMPLETE_P0R_PENDING`。B8 exact target acceptance 只保留为历史无 secret 运输证据；B9 已真实完成 STS 与 age handoff并启动 Runner，但旧 policy 使用错误 COS Object Lock CAM action，因而在数据库读取前安全阻断。没有 backup、COS object、retrieval、restore 或业务 mutation，临时 8022、secret 与恢复 runtime 均已清零，生产零漂移。历史来源仍 `RESEARCH_ONLY`，Gate=INSUFFICIENT、Detector=DRAFT；M3.3E 只完成标签设计权威，M3.4-R1 草稿没有独立测试出口，仍无 Feasibility/runtime/READY authority。当前实施入口是：
 
 ```text
-V2-M1.6-P0R-B9-EXACT-STAGED-RECOVERY-EXECUTION
+V2-M1.6-P0R-B9-R1-COS-OBJECT-LOCK-CAM-ACTION-AND-DIAGNOSTIC-REMEDIATION
 ```
 
-B8 transport acceptance 已 PASS，accepted target 禁止覆盖或重复派发。祖先权限防复发测试、短 branch 参数硬门、事故闭环和权威真值已通过 post-acceptance 本地完整质量门；形成 clean checkpoint 后，B9 在新的动作时确认下复核 target 未漂移，再建立 8022 bootstrap gate。fixed local TTY bridge 在签发前取得 strict identity 和远端 echo-disabled READY 后，用户才完成 MFA 并点击 API Explorer 原生 Copy。bridge 自动即时编译 STS、从固定 Keychain 内部 handoff age identity并启动 helper。response 后禁止 browser state、截图、AX/OCR、computer-use 和 OrcaTerm secret entry。helper 必须完成真实加密离机备份、exact version retrieval、独立 PG16 restore parity、全量 cleanup 和零漂移复核；无论结果如何还必须停止 8022 listener、删除唯一 `/32` 云规则并证明不存在。随后刷新 production health/topology，在 exact clean release 重跑容量校准和 fresh P0；不得清缓存、缩短核心扫描分母或改阈值。只有新 P0 PASS 才能请求 P1，并严格按 `P1 schema -> P2 identities -> P3 partitions+dormant Worker -> P4 isolated-write Shadow -> M1.7 24h` 推进。固定通道只作为无 secret 包的运输层，不替代 P0R `/dev/shm` 凭证边界或任一业务包自身 Gate。外部门 `V2-M2.2-B0.2-B-EXACT-SOURCE-RIGHTS-AND-CAPABILITY-RESOLUTION` 仍需人工来源权利和合格历史身份；M1.7 前不得让 M2/M3 runtime 写 Candidate、接页面或生成真实等级/计划。
+本地根治已把 plan、credential、bridge 升为 v4/v3/v4，统一使用官方 `cos:GetBucketObjectLock`，旧 v3/v2 authority 自动拒绝，并以 allowlisted 脱敏阶段码替代 provider 自由文本。P0R `113/113`、Go helper 和完整 CI PASS；clean exact source、GitHub 四门、fresh read-only rebind、新 run/v4 plan/package/staging 和 corrected recovery 尚未完成。完成这些资格后，fixed local TTY bridge 才能在新动作窗口建立 8022，并由用户完成 MFA 和 API Explorer 原生 Copy。helper 必须完成真实加密离机备份、exact version retrieval、独立 PG16 restore parity、全量 cleanup 和零漂移复核；随后刷新 health/topology、容量校准和 fresh P0。只有新 P0 PASS 才能请求 P1，并严格按 `P1 schema -> P2 identities -> P3 partitions+dormant Worker -> P4 isolated-write Shadow -> M1.7 24h` 推进。固定通道只作为无 secret 包的运输层，不替代 P0R `/dev/shm` 凭证边界或任一业务包自身 Gate。外部门 `V2-M2.2-B0.2-B-EXACT-SOURCE-RIGHTS-AND-CAPABILITY-RESOLUTION` 仍需人工来源权利和合格历史身份；M1.7 前不得让 M2/M3 runtime 写 Candidate、接页面或生成真实等级/计划。
 
 ## 7. Legacy 参考材料
 

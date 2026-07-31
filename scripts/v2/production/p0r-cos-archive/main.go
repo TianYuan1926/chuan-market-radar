@@ -27,8 +27,8 @@ import (
 )
 
 const (
-	credentialSchema = "v2-m1-production-storage-cos-temporary-credentials.v2"
-	planSchema       = "v2-m1-production-storage-cos-provisioning-plan.v3"
+	credentialSchema = "v2-m1-production-storage-cos-temporary-credentials.v3"
+	planSchema       = "v2-m1-production-storage-cos-provisioning-plan.v4"
 	archiveSchema    = "v2-m1-production-storage-cos-archive-facts.v2"
 	maximumObject    = int64(5 * 1024 * 1024 * 1024)
 	minimumRemaining = 75 * time.Minute
@@ -47,7 +47,7 @@ var (
 	sourceIPPattern     = regexp.MustCompile(`^[0-9]{1,3}(\.[0-9]{1,3}){3}/32$`)
 	requiredActions     = []string{
 		"cos:GetBucketACL",
-		"cos:GetBucketObjectLockConfiguration",
+		"cos:GetBucketObjectLock",
 		"cos:GetBucketPolicy",
 		"cos:GetBucketVersioning",
 		"cos:GetObject",
@@ -57,6 +57,7 @@ var (
 		"cos:HeadObject",
 		"cos:PutObject",
 	}
+	diagnosticReasonPattern = regexp.MustCompile(`^p0r_cos_[a-z0-9_]{1,96}$`)
 )
 
 type credentialGrant struct {
@@ -230,6 +231,49 @@ type retentionDocument struct {
 type cosHTTPError struct {
 	Code       string
 	StatusCode int
+}
+
+type diagnosticError struct {
+	cause      error
+	reasonCode string
+}
+
+func (value *diagnosticError) Error() string {
+	return value.cause.Error()
+}
+
+func (value *diagnosticError) Unwrap() error {
+	return value.cause
+}
+
+func withDiagnostic(reasonCode string, cause error) error {
+	if !diagnosticReasonPattern.MatchString(reasonCode) {
+		reasonCode = "p0r_cos_unclassified_failure"
+	}
+	return &diagnosticError{cause: cause, reasonCode: reasonCode}
+}
+
+func failureReasonCode(err error) string {
+	var diagnostic *diagnosticError
+	if errors.As(err, &diagnostic) && diagnosticReasonPattern.MatchString(diagnostic.reasonCode) {
+		return diagnostic.reasonCode
+	}
+	return "p0r_cos_unclassified_failure"
+}
+
+func blockedDiagnosticJSON(err error) string {
+	payload := struct {
+		ReasonCode string `json:"reasonCode"`
+		Status     string `json:"status"`
+	}{
+		ReasonCode: failureReasonCode(err),
+		Status:     "BLOCKED",
+	}
+	encoded, marshalErr := json.Marshal(payload)
+	if marshalErr != nil {
+		return `{"reasonCode":"p0r_cos_unclassified_failure","status":"BLOCKED"}`
+	}
+	return string(encoded)
 }
 
 func (value *cosHTTPError) Error() string {
@@ -826,34 +870,55 @@ func verifyBucket(ctx context.Context, client *cosClient, credentials credential
 	var proof controlPlaneProof
 	headHeaders, err := client.headBucket(ctx)
 	if err != nil {
-		return proof, fmt.Errorf("head bucket: %w", err)
+		return proof, withDiagnostic(
+			"p0r_cos_head_bucket_failed",
+			fmt.Errorf("head bucket: %w", err),
+		)
 	}
 	proof.BucketRegion = strings.TrimSpace(headHeaders.Get("x-cos-bucket-region"))
 	if proof.BucketRegion != credentials.Grant.Region {
-		return proof, errors.New("COS bucket region does not match the provisioning plan")
+		return proof, withDiagnostic(
+			"p0r_cos_bucket_controls_invalid",
+			errors.New("COS bucket region does not match the provisioning plan"),
+		)
 	}
 	if strings.TrimSpace(headHeaders.Get("x-cos-bucket-az-type")) != "" {
-		return proof, errors.New("COS multi-AZ bucket is incompatible with immutable P0R storage")
+		return proof, withDiagnostic(
+			"p0r_cos_bucket_controls_invalid",
+			errors.New("COS multi-AZ bucket is incompatible with immutable P0R storage"),
+		)
 	}
 	proof.AvailabilityZoneType = "SINGLE_AZ"
 	var bucketACL aclDocument
 	if err := client.getXML(ctx, "/", url.Values{"acl": {""}}, &bucketACL); err != nil {
-		return proof, fmt.Errorf("get bucket ACL: %w", err)
+		return proof, withDiagnostic(
+			"p0r_cos_get_bucket_acl_failed",
+			fmt.Errorf("get bucket ACL: %w", err),
+		)
 	}
 	proof.BucketAclPrivate = aclIsPrivate(&bucketACL)
 	policy, err := client.getPolicy(ctx)
 	if err != nil && !isMissingPolicy(err) {
-		return proof, fmt.Errorf("get bucket policy: %w", err)
+		return proof, withDiagnostic(
+			"p0r_cos_get_bucket_policy_failed",
+			fmt.Errorf("get bucket policy: %w", err),
+		)
 	}
 	proof.BucketPolicyPublic = err == nil && policyAllowsPublic(policy)
 	var versioning versioningDocument
 	if err := client.getXML(ctx, "/", url.Values{"versioning": {""}}, &versioning); err != nil {
-		return proof, fmt.Errorf("get bucket versioning: %w", err)
+		return proof, withDiagnostic(
+			"p0r_cos_get_bucket_versioning_failed",
+			fmt.Errorf("get bucket versioning: %w", err),
+		)
 	}
 	proof.VersioningStatus = strings.ToUpper(versioning.Status)
 	var objectLock objectLockDocument
 	if err := client.getXML(ctx, "/", url.Values{"object-lock": {""}}, &objectLock); err != nil {
-		return proof, fmt.Errorf("get bucket object lock: %w", err)
+		return proof, withDiagnostic(
+			"p0r_cos_get_bucket_object_lock_failed",
+			fmt.Errorf("get bucket object lock: %w", err),
+		)
 	}
 	proof.ObjectLockEnabled = strings.EqualFold(objectLock.Enabled, "Enabled")
 	proof.DefaultRetentionDays = objectLock.Days
@@ -876,7 +941,10 @@ func verifyBucket(ctx context.Context, client *cosClient, credentials credential
 	if proof.AvailabilityZoneType != plan.BucketConfiguration.AvailabilityZoneType ||
 		!proof.BucketAclPrivate || proof.BucketPolicyPublic || proof.VersioningStatus != "ENABLED" ||
 		!objectLockMeetsPolicy(objectLock) {
-		return proof, errors.New("COS destination does not satisfy private versioned COMPLIANCE retention policy")
+		return proof, withDiagnostic(
+			"p0r_cos_bucket_controls_invalid",
+			errors.New("COS destination does not satisfy private versioned COMPLIANCE retention policy"),
+		)
 	}
 	return proof, nil
 }
@@ -895,9 +963,15 @@ func archivePreflightWithClient(ctx context.Context, client *cosClient, credenti
 		return proof, err
 	}
 	if _, err := client.head(ctx, credentials.Grant.ObjectKey, ""); err == nil {
-		return proof, errors.New("COS object key already exists before upload")
+		return proof, withDiagnostic(
+			"p0r_cos_target_object_preexists",
+			errors.New("COS object key already exists before upload"),
+		)
 	} else if !isMissingObject(err) {
-		return proof, fmt.Errorf("verify COS object absence: %w", err)
+		return proof, withDiagnostic(
+			"p0r_cos_target_object_lookup_failed",
+			fmt.Errorf("verify COS object absence: %w", err),
+		)
 	}
 	proof.PreUploadObjectAbsent = true
 	return proof, nil
@@ -923,13 +997,19 @@ func archiveWithClient(ctx context.Context, client *cosClient, credentials crede
 	}
 	inputDigest, inputBytes, err := digestFile(encryptedPath)
 	if err != nil {
-		return evidence, err
+		return evidence, withDiagnostic("p0r_cos_encrypted_backup_invalid", err)
 	}
 	if inputBytes <= 0 || inputBytes > maximumObject {
-		return evidence, errors.New("encrypted backup size is outside the single-object P0R bound")
+		return evidence, withDiagnostic(
+			"p0r_cos_encrypted_backup_invalid",
+			errors.New("encrypted backup size is outside the single-object P0R bound"),
+		)
 	}
 	if _, err := os.Lstat(retrievedPath); !errors.Is(err, os.ErrNotExist) {
-		return evidence, errors.New("retrieved backup path must not already exist")
+		return evidence, withDiagnostic(
+			"p0r_cos_retrieved_path_conflict",
+			errors.New("retrieved backup path must not already exist"),
+		)
 	}
 	uploadStarted := time.Now().UTC()
 	retentionUntil := uploadStarted.Add(retentionPeriod).Format("2006-01-02T15:04:05.000Z")
@@ -942,12 +1022,18 @@ func archiveWithClient(ctx context.Context, client *cosClient, credentials crede
 	extraHeaders.Set("x-cos-server-side-encryption", "AES256")
 	putHeaders, err := client.putFile(ctx, credentials.Grant.ObjectKey, encryptedPath, extraHeaders, inputBytes)
 	if err != nil {
-		return evidence, fmt.Errorf("upload encrypted backup: %w", err)
+		return evidence, withDiagnostic(
+			"p0r_cos_upload_failed",
+			fmt.Errorf("upload encrypted backup: %w", err),
+		)
 	}
 	uploadedAt := time.Now().UTC()
 	versionID := putHeaders.Get("x-cos-version-id")
 	if strings.TrimSpace(versionID) == "" {
-		return evidence, errors.New("COS upload did not return an object version")
+		return evidence, withDiagnostic(
+			"p0r_cos_upload_version_missing",
+			errors.New("COS upload did not return an object version"),
+		)
 	}
 	var objectACL aclDocument
 	if err := client.getXML(
@@ -956,11 +1042,17 @@ func archiveWithClient(ctx context.Context, client *cosClient, credentials crede
 		url.Values{"acl": {""}, "versionId": {versionID}},
 		&objectACL,
 	); err != nil {
-		return evidence, fmt.Errorf("get object ACL: %w", err)
+		return evidence, withDiagnostic(
+			"p0r_cos_get_object_acl_failed",
+			fmt.Errorf("get object ACL: %w", err),
+		)
 	}
 	proof.ObjectAclPrivate = aclIsPrivate(&objectACL)
 	if !proof.ObjectAclPrivate {
-		return evidence, errors.New("uploaded COS object ACL is not private")
+		return evidence, withDiagnostic(
+			"p0r_cos_object_acl_invalid",
+			errors.New("uploaded COS object ACL is not private"),
+		)
 	}
 	var retention retentionDocument
 	if err := client.getXML(
@@ -969,29 +1061,50 @@ func archiveWithClient(ctx context.Context, client *cosClient, credentials crede
 		url.Values{"retention": {""}, "versionId": {versionID}},
 		&retention,
 	); err != nil {
-		return evidence, fmt.Errorf("get object retention: %w", err)
+		return evidence, withDiagnostic(
+			"p0r_cos_get_object_retention_failed",
+			fmt.Errorf("get object retention: %w", err),
+		)
 	}
 	retainedUntil, err := time.Parse(time.RFC3339Nano, retention.RetainUntil)
 	if err != nil {
-		return evidence, errors.New("object retention time is invalid")
+		return evidence, withDiagnostic(
+			"p0r_cos_object_retention_invalid",
+			errors.New("object retention time is invalid"),
+		)
 	}
 	retainedUntil = retainedUntil.UTC()
 	if retention.Mode != "COMPLIANCE" || retainedUntil.Sub(uploadedAt) < 30*24*time.Hour {
-		return evidence, errors.New("uploaded COS object retention is below 30-day COMPLIANCE")
+		return evidence, withDiagnostic(
+			"p0r_cos_object_retention_invalid",
+			errors.New("uploaded COS object retention is below 30-day COMPLIANCE"),
+		)
 	}
 	headHeaders, err := client.head(ctx, credentials.Grant.ObjectKey, versionID)
 	if err != nil {
-		return evidence, fmt.Errorf("head uploaded object version: %w", err)
+		return evidence, withDiagnostic(
+			"p0r_cos_head_uploaded_object_failed",
+			fmt.Errorf("head uploaded object version: %w", err),
+		)
 	}
 	if headHeaders.Get("x-cos-server-side-encryption") != "AES256" {
-		return evidence, errors.New("uploaded COS object is missing AES256 server-side encryption")
+		return evidence, withDiagnostic(
+			"p0r_cos_object_encryption_invalid",
+			errors.New("uploaded COS object is missing AES256 server-side encryption"),
+		)
 	}
 	contentLength, err := strconv.ParseInt(headHeaders.Get("Content-Length"), 10, 64)
 	if err != nil || contentLength != inputBytes {
-		return evidence, errors.New("uploaded COS object length does not match encrypted backup")
+		return evidence, withDiagnostic(
+			"p0r_cos_object_length_invalid",
+			errors.New("uploaded COS object length does not match encrypted backup"),
+		)
 	}
 	if err := client.download(ctx, credentials.Grant.ObjectKey, versionID, retrievedPath); err != nil {
-		return evidence, fmt.Errorf("retrieve exact object version: %w", err)
+		return evidence, withDiagnostic(
+			"p0r_cos_retrieve_object_failed",
+			fmt.Errorf("retrieve exact object version: %w", err),
+		)
 	}
 	if err := os.Chmod(retrievedPath, 0o600); err != nil {
 		return evidence, err
@@ -1002,7 +1115,10 @@ func archiveWithClient(ctx context.Context, client *cosClient, credentials crede
 		return evidence, err
 	}
 	if inputDigest != retrievedDigest || inputBytes != retrievedBytes {
-		return evidence, errors.New("retrieved COS object does not match encrypted backup")
+		return evidence, withDiagnostic(
+			"p0r_cos_retrieved_object_mismatch",
+			errors.New("retrieved COS object does not match encrypted backup"),
+		)
 	}
 	controlDigest, err := digestJSON(proof)
 	if err != nil {
@@ -1219,8 +1335,7 @@ func run() error {
 
 func main() {
 	if err := run(); err != nil {
-		message := strings.NewReplacer("\n", " ", "\r", " ").Replace(err.Error())
-		fmt.Fprintf(os.Stderr, "{\"reason\":%q,\"status\":\"BLOCKED\"}\n", message)
+		fmt.Fprintln(os.Stderr, blockedDiagnosticJSON(err))
 		os.Exit(1)
 	}
 }

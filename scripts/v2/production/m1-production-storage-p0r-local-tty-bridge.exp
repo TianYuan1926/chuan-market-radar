@@ -1,6 +1,6 @@
 #!/usr/bin/expect -f
 
-set BRIDGE_SCHEMA_VERSION "v2-m1-production-storage-p0r-local-tty-bridge.v3"
+set BRIDGE_SCHEMA_VERSION "v2-m1-production-storage-p0r-local-tty-bridge.v4"
 set CLIPBOARD_CLEAR_VALUE "MARKET_RADAR_P0R_CLIPBOARD_CLEAR"
 set KEYCHAIN_ACCOUNT "market-radar-v2-p0r-recovery"
 set KEYCHAIN_SERVICE "com.chuan.market-radar.v2.p0r.age"
@@ -30,6 +30,29 @@ set STS_JQ_FILTER {
     and (.Response.RequestId | type == "string" and length > 0)
   ) then . else error("invalid") end
 }
+set P0R_COS_REASON_CODES [list \
+  p0r_cos_bucket_controls_invalid \
+  p0r_cos_encrypted_backup_invalid \
+  p0r_cos_get_bucket_acl_failed \
+  p0r_cos_get_bucket_object_lock_failed \
+  p0r_cos_get_bucket_policy_failed \
+  p0r_cos_get_bucket_versioning_failed \
+  p0r_cos_get_object_acl_failed \
+  p0r_cos_get_object_retention_failed \
+  p0r_cos_head_bucket_failed \
+  p0r_cos_head_uploaded_object_failed \
+  p0r_cos_object_acl_invalid \
+  p0r_cos_object_encryption_invalid \
+  p0r_cos_object_length_invalid \
+  p0r_cos_object_retention_invalid \
+  p0r_cos_retrieve_object_failed \
+  p0r_cos_retrieved_object_mismatch \
+  p0r_cos_retrieved_path_conflict \
+  p0r_cos_target_object_lookup_failed \
+  p0r_cos_target_object_preexists \
+  p0r_cos_unclassified_failure \
+  p0r_cos_upload_failed \
+  p0r_cos_upload_version_missing]
 
 set timeout 30
 match_max 131072
@@ -228,6 +251,14 @@ proc wait_for_marker {id marker wait_seconds failure_code} {
     -exact $marker {set outcome "pass"} \
     -re {\{"reasonCode":"(p0r_(session|runner)_line_[1-9][0-9]{0,4})","status":"BLOCKED"\}} {
       set outcome "blocked_[set expect_out(1,string)]"
+    } \
+    -re {\{"reasonCode":"(p0r_cos_[a-z0-9_]{1,96})","status":"BLOCKED"\}} {
+      set reason_code $expect_out(1,string)
+      if {[lsearch -exact $::P0R_COS_REASON_CODES $reason_code] >= 0} {
+        set outcome "blocked_$reason_code"
+      } else {
+        set outcome "blocked_unclassified"
+      }
     } \
     -exact "\"status\":\"BLOCKED\"" {set outcome "blocked_unclassified"} \
     eof {set outcome "eof"} \
