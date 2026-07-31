@@ -694,7 +694,8 @@ async function runFileWithInput(command, args, input) {
 
 function validateDispatchBranch(branch) {
   ensure(/^[a-z0-9][a-z0-9._/-]{2,180}$/u.test(branch), "dispatch_branch_invalid");
-  ensure(!branch.includes("..") && !branch.includes("//") && !branch.endsWith("/"),
+  ensure(!branch.startsWith("refs/") &&
+    !branch.includes("..") && !branch.includes("//") && !branch.endsWith("/"),
     "dispatch_branch_invalid");
   return branch;
 }

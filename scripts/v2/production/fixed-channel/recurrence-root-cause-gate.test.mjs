@@ -185,7 +185,7 @@ test("duplicate open fault classes and duplicate operations are rejected", () =>
   ));
 });
 
-test("the real registry exposes both open P0R remediations and retires unsafe operations", async () => {
+test("the real registry closes accepted package transport and keeps secret recovery open", async () => {
   const [state, registry] = await Promise.all([
     readFile(new URL("../../../../AUTONOMOUS_ENGINEERING_STATE.json", import.meta.url), "utf8")
       .then(JSON.parse),
@@ -194,16 +194,10 @@ test("the real registry exposes both open P0R remediations and retires unsafe op
   ]);
   assert.deepEqual(validateActiveStateDeclaration(state, registry), []);
   const summary = summarizeRecurrenceRegistry(registry, ["fixed_dispatch_first_signed_acceptance"]);
-  assert.equal(summary.openIncidentCount, 2);
+  assert.equal(summary.openIncidentCount, 1);
   assert.deepEqual(
     summary.incidents.filter((incident) => incident.status !== "CLOSED_VERIFIED"),
     [
-      {
-        id: "REC-2026-07-23-ORCATERM-ZERO-BYTE-UPLOAD",
-        recurrenceCount: 5,
-        status: "REMEDIATION_IN_PROGRESS",
-        workaroundLimitBreached: true,
-      },
       {
         id: "REC-2026-07-28-P0R-SECRET-RECEIVER-FOCUS",
         recurrenceCount: 7,
@@ -212,6 +206,12 @@ test("the real registry exposes both open P0R remediations and retires unsafe op
       },
     ],
   );
+  const closedTransportIncident = registry.incidents.find(
+    (incident) =>
+      incident.id === "REC-2026-07-23-ORCATERM-ZERO-BYTE-UPLOAD",
+  );
+  assert.equal(closedTransportIncident.status, "CLOSED_VERIFIED");
+  assert.equal(closedTransportIncident.realTargetAcceptance.status, "PASS");
   assert.deepEqual(evaluateRecurrenceOperations(registry, ["fixed_dispatch_bootstrap_install"]), []);
   assert.deepEqual(evaluateRecurrenceOperations(
     registry,
@@ -382,7 +382,7 @@ test("the P0R runbook retires post-response browser recovery and OrcaTerm secret
   assert.match(runbook, /固定 SSH port 8022/u);
   assert.match(runbook, /HostKeyAlias=43\.161\.202\.227/u);
   assert.match(runbook, /默认 SSH port 22.*永久禁止/u);
-  assert.match(runbook, /P0R 110\/110/u);
+  assert.match(runbook, /P0R 111\/111/u);
   assert.match(runbook, /m1-p0r-transport-staging-release\.mjs/u);
   assert.match(runbook, /OrcaTerm 文件管理器.*永久禁止/u);
   assert.match(runbook, /TCP 8022.*当前 SOCKS 出口 \/32/u);
@@ -416,8 +416,10 @@ test("the P0R runbook retires post-response browser recovery and OrcaTerm secret
   assert.doesNotMatch(runbook, /以下两条是唯一允许的 secret session 入口/u);
 });
 
-test("all active authority surfaces identify the B8 fixed-dispatch transport staging remediation", async () => {
-  const expectedEntry = "V2-M1.6-P0R-B8-FIXED-DISPATCH-TRANSPORT-STAGING-ROOT-REMEDIATION";
+test("all active authority surfaces identify B9 after accepted B8 staging remediation", async () => {
+  const expectedEntry = "V2-M1.6-P0R-B9-EXACT-STAGED-RECOVERY-EXECUTION";
+  const remediationEntry =
+    "V2-M1.6-P0R-B8-FIXED-DISPATCH-TRANSPORT-STAGING-ROOT-REMEDIATION";
   const runtimeNamespaceEntry =
     "V2-M1.6-P0R-B7-SOURCE-BOUND-NODE-RUNTIME-CAPSULE-ROOT-REMEDIATION";
   const [matrix, context, index, sequence, blueprint] = await Promise.all([
@@ -435,10 +437,69 @@ test("all active authority surfaces identify the B8 fixed-dispatch transport sta
   ]);
 
   assert.equal(matrix.currentImplementationEntry.id, expectedEntry);
-  assert.equal(matrix.currentP0RTransportStagingRemediation.id, expectedEntry);
+  assert.equal(
+    matrix.currentP0RTransportStagingRemediation.id,
+    remediationEntry,
+  );
   assert.equal(matrix.currentP0RRuntimeNamespaceRemediation.id, runtimeNamespaceEntry);
-  assert.equal(matrix.currentP0RTransportStagingRemediation.targetProductionStagingTestsPassed, 10);
-  assert.equal(matrix.currentP0RTransportStagingRemediation.p0rTestsPassed, 110);
+  assert.equal(matrix.currentP0RTransportStagingRemediation.targetProductionStagingTestsPassed, 11);
+  assert.equal(matrix.currentP0RTransportStagingRemediation.p0rTestsPassed, 111);
+  assert.equal(
+    matrix.currentP0RTransportStagingRemediation.qualifiedOuterSourceCommit,
+    "15d7cb3899b5f8c4763390fa0baba8e51aa29d56",
+  );
+  assert.equal(
+    matrix.currentP0RTransportStagingRemediation.initialUnsafeAncestorMode,
+    "0755",
+  );
+  assert.equal(
+    matrix.currentP0RTransportStagingRemediation.deliveryParentRemediatedMode,
+    "0700",
+  );
+  assert.equal(
+    matrix.currentP0RTransportStagingRemediation.freshAcceptedDispatchCommit,
+    "d5ea6e44797cd88239a474961bfa91cf4bf6ca6d",
+  );
+  assert.equal(
+    matrix.currentP0RTransportStagingRemediation.productionTargetRegularFileCount,
+    16,
+  );
+  assert.equal(
+    matrix.currentP0RTransportStagingRemediation.productionTargetStagingAccepted,
+    true,
+  );
+  assert.equal(
+    matrix.currentP0RTransportStagingRemediation.productionBusinessMutationPerformed,
+    false,
+  );
+  assert.equal(
+    matrix.currentP0RTransportStagingRemediation.postAcceptanceProductionDispatchTestsPassed,
+    25,
+  );
+  assert.equal(
+    matrix.currentP0RTransportStagingRemediation.fullLocalCiV2OpsPassed,
+    233,
+  );
+  assert.equal(
+    matrix.currentP0RTransportStagingRemediation.postAcceptanceGuardrailFullCiPassed,
+    true,
+  );
+  assert.equal(
+    matrix.currentP0RTransportStagingRemediation.postAcceptanceGuardrailFullCiPending,
+    false,
+  );
+  assert.equal(
+    matrix.currentP0RTransportStagingRemediation.postAcceptanceGuardrailNodeVersion,
+    "22.23.1",
+  );
+  assert.equal(
+    matrix.currentP0RTransportStagingRemediation.postAcceptanceGuardrailGoVersion,
+    "1.26.3",
+  );
+  assert.equal(
+    matrix.currentP0RTransportStagingRemediation.realRecoveryPending,
+    true,
+  );
   assert.equal(matrix.currentP0RLocalTtyBridgeRemediation.currentRecurrenceTestsPassed, 11);
   assert.match(context, new RegExp(`## 18[\\s\\S]*${expectedEntry}`, "u"));
   assert.match(index, new RegExp(`## 6[\\s\\S]*${expectedEntry}`, "u"));

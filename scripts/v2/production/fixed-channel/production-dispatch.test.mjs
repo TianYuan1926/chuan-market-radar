@@ -90,6 +90,18 @@ async function git(repo, args) {
   return stdout.trim();
 }
 
+test("publish accepts a short branch name and rejects a full Git ref before I/O", async () => {
+  await assert.rejects(
+    publishDispatch({
+      branch: "refs/heads/production-dispatch",
+      outbox: "/does/not/exist",
+      publicKeyPath: "/does/not/exist",
+      repo: "/does/not/exist",
+    }),
+    policyReason("dispatch_branch_invalid"),
+  );
+});
+
 test("dispatch envelope is exact, time bounded, single-use and command-free", () => {
   const now = new Date("2026-07-22T02:00:00.000Z");
   const envelope = envelopeFixture(now);

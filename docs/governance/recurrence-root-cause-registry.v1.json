@@ -108,7 +108,7 @@
       "id": "REC-2026-07-23-ORCATERM-ZERO-BYTE-UPLOAD",
       "faultClass": "orcaterm.file_upload.stale_session_zero_byte",
       "affectedChannel": "tencent_orcaterm_browser_file_manager",
-      "status": "REMEDIATION_IN_PROGRESS",
+      "status": "CLOSED_VERIFIED",
       "recurrenceCount": 5,
       "firstObservedDate": "2026-07-23",
       "lastObservedDate": "2026-07-30",
@@ -154,7 +154,7 @@
         ]
       },
       "permanentFix": {
-        "status": "PARTIAL",
+        "status": "PASS",
         "authorityPaths": [
           "scripts/v2/production/fixed-channel/production-dispatch.mjs",
           "scripts/v2/production/fixed-channel/install-production-dispatch.sh",
@@ -171,39 +171,43 @@
           "The production host polls without browser upload sessions or inbound ports.",
           "Dispatch g0-first-signed-exact-20260722t211117z completed publish, pull, signature verification, independent launch and package acceptance without using the OrcaTerm file manager.",
           "The P0R replacement wraps the already qualified secret-free 16-member transport as exact bytes inside a signed fixed-dispatch package whose only allowed effect is atomic extraction into one run-bound staging directory.",
-          "The staging implementation rejects source, run, plan, destination, expiry, archive member, mode, owner, symlink and before-versus-after file identity drift; it cannot request or transport a credential, access the database or launch recovery."
+          "The staging implementation rejects source, run, plan, destination, expiry, archive member, mode, owner, symlink and before-versus-after file identity drift; it cannot request or transport a credential, access the database or launch recovery.",
+          "The first exact P0R fixed dispatch failed closed before child creation when the pre-existing p0r ancestor was mode 0755; it did not chmod the directory, create the target or mutate production business state.",
+          "After exact authorization changed only the p0r ancestor to mode 0700, fresh signed dispatch d5ea6e44797cd88239a474961bfa91cf4bf6ca6d atomically delivered and independently verified the exact 16-member target."
         ]
       },
       "regression": {
-        "status": "PARTIAL",
+        "status": "PASS",
         "redCase": "A connected terminal can coexist with a stale upload session that transfers zero bytes.",
         "greenCommand": "npm run test:recurrence-gate && npm run test:production-dispatch && node --test scripts/v2/production/m1-p0r-transport-staging.test.mjs",
         "evidence": [
           "The recurrence gate retires repeated OrcaTerm bundle transport.",
           "The fixed channel validates signed exact bundles and rejects tampering.",
-          "Ten local transport-staging tests cover deterministic construction, exact extraction, destination and approval drift, extra members, symlink input and unsafe existing delivery permissions.",
-          "Regression remains PARTIAL until the exact signed dispatch is accepted on the production target and its staging cleanup is independently verified."
+          "Eleven local transport-staging tests cover deterministic construction, exact extraction, destination and approval drift, extra members, symlink input, unsafe existing delivery permissions and an unsafe pre-existing ancestor before child creation.",
+          "The exact signed dispatch passed production target acceptance and independently verified target identity, outer cleanup and zero non-target drift."
         ]
       },
       "runtimeGate": {
-        "status": "PARTIAL",
+        "status": "PASS",
         "evidence": [
           "The exact bootstrap archive uploaded only after session reload and reconnect.",
           "The server-side package verify returned PASS_EXACT_INSTALL_PACKAGE_VERIFIED_NO_MUTATION.",
           "The fixed pull-only timer is enabled and active.",
           "Dispatch commit 467ce8e2156aabe399ca61211b232c9d81294c4e was pulled and returned PASS_SESSION_INDEPENDENT_RUNNER_LAUNCHED.",
           "The recurring P0R upload attempts created no destination file or run staging, and no credential, database, COS, repository, service, container, Redis, migration, env or feature-flag mutation occurred.",
-          "The replacement package passes its local runtime simulation but has not yet completed production target staging acceptance."
+          "Dispatch p0r-transport-stage-20260731t131227z-81fcaa2f failed closed on the unsafe 0755 ancestor with no target or residue, proving the production runtime permission gate.",
+          "Fresh dispatch p0r-transport-stage-20260731t143942z-63b1e6f9 returned PASS_SESSION_INDEPENDENT_RUNNER_LAUNCHED after the exact 0700 remediation and passed target acceptance."
         ]
       },
       "realTargetAcceptance": {
-        "status": "PENDING",
+        "status": "PASS",
         "evidence": [
           "Persistent channel installation and zero-business-change post-install verification passed.",
           "The first real signed dispatch returned PASS_FIXED_DISPATCH_FIRST_SIGNED_ACCEPTANCE on the Tencent production host.",
           "Production HEAD cec0b6572bb09ae91ff9e013f8bb160f73c045e2, clean worktree, 11-container identity, ready/fresh health, Redis PONG and enabled/active timer remained unchanged; no application, database, Redis or worker mutation was attempted.",
           "The historical exact acceptance staging directory was absent after execution and all failed claims remain retained as audit evidence.",
-          "Closure now requires the new source-bound P0R staging package to pass all local and remote gates, be delivered by one signed fixed dispatch, reproduce the exact 16-member target with required modes and ownership, clean its outer dispatch staging and leave all non-target production identities unchanged."
+          "Outer source 15d7cb3899b5f8c4763390fa0baba8e51aa29d56 passed four remote gates before production dispatch.",
+          "Signed dispatch commit d5ea6e44797cd88239a474961bfa91cf4bf6ca6d reproduced the exact 16-member target with required modes, ubuntu ownership and member hashes, removed its outer staging and left all non-target production identities unchanged."
         ]
       },
       "workaroundAccounting": {
@@ -217,7 +221,7 @@
         "Tencent does not expose the internal upload-session token state.",
         "OrcaTerm remains an explicit exception for cloud MFA and tightly bounded emergency console work, but its browser file manager is permanently retired for every production package including P0R.",
         "The signed Git channel must never transport credentials; P0R credential handoff remains a separate pre-armed no-echo local TTY bridge after staging acceptance.",
-        "The new fixed-dispatch staging operation is not production evidence until exact target members, modes, owner, hashes, cleanup and zero non-target drift all pass.",
+        "Every future fixed-dispatch staging run must repeat the ancestor realpath, owner and exact 0700 preflight before build, signing and publish; the accepted target must never be overwritten or reused.",
         "Visual transcription of long runtime identities is prohibited; identity-bound acceptance must use machine-generated sorted facts and an exact diff or digest before signing."
       ]
     },

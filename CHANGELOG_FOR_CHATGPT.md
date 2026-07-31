@@ -16,10 +16,17 @@
 - `REC-2026-07-23-ORCATERM-ZERO-BYTE-UPLOAD` 已按真实复发重新打开，`p0r_orcaterm_recovery_bundle_transport` 永久退役。重新加载或继续重试 OrcaTerm 文件上传不再是允许的修复。
 - B8 外包恰好五个成员，由 canonical request 绑定 source/ref、run、plan、inner SHA、目标路径、90 秒 runtime、成员 mode/hash 和 no-secret/no-recovery 权限。目标 Runner 只在 `.incoming-*` 验证 exact 16 members 后原子 rename，不覆盖既有 staging，不请求 credential、不读数据库、不启动 P0R。
 - transport staging 10/10、recurrence+staging 21/21、完整 P0R 110/110 和 Go helper 已 PASS。精确 Node `22.23.1`、npm `10.9.8`、Go `1.26.3` 下的完整 `ci:production` 也已 PASS，包含 recurrence 11/11、dispatch 24/24、Market 965 PASS / 4 explicit skips、Workers 23/23、historical smoke 4/4、V2 Ops 232/232、Next build、Golden 16/16 与 security。受管 sandbox 中七个 `clipboard_arm_failed` 已被最小 A/B 证明为 Tcl/Expect 内部 `exec` 的 `EPERM` 环境限制；同一 bridge suite 在真实主机权限边界 9/9 PASS，没有弱化生产 bridge。
+- clean outer source `15d7cb3899b5f8c4763390fa0baba8e51aa29d56` 已通过 Signed Dispatch `30632789118`、Independent Security `30632789106`、A0 `30632788902` 和 Full Quality `30632788867` 四门。
+- 首次 signed dispatch `p0r-transport-stage-20260731t131227z-81fcaa2f` / commit `9fac599e...` 在预存 `p0r` 祖先目录 mode=`0755` 上返回 `p0r_transport_stage_directory_unsafe`。Runner 没有 chmod、没有创建 target、没有残留 `.incoming-*`，生产业务零变更。
+- 用户只授权将该祖先收紧为 `0700`；修复前后 owner、realpath、staging、production HEAD、clean worktree、11-container identity、Web/PostgreSQL/Redis、timer 与 P0R runtime 均通过零漂移复核。
+- fresh dispatch `p0r-transport-stage-20260731t143942z-63b1e6f9` / signed commit `d5ea6e...` 已通过 exact 16 个普通文件、零 symlink、manifest SHA-256=`c9e85a91...`、逐文件 size/hash/mode/owner、outer cleanup 和生产零漂移验收。OrcaTerm upload recurrence 因此关闭为 `CLOSED_VERIFIED`。
+- release CLI 首次误传完整 `refs/heads/production-dispatch`，GitHub 在远端 mutation 前拒绝嵌套 ref；signed outbox 未变，改用短名称 `production-dispatch` 后才成功发布。publisher 现会在任何文件、Git 或网络 I/O 前拒绝 `refs/...`，production dispatch `25/25` 与运行手册共同固定这一边界。
+- post-acceptance ancestor 红例已加入并通过，transport staging 升为 `11/11`；冻结 Node `22.23.1`、Go `1.26.3`、`GOTOOLCHAIN=local` 下完整 P0R `111/111` PASS。
+- post-acceptance 完整 `ci:production` 已以退出码 0 通过：recurrence `11/11`、production dispatch `25/25`、Market `965 PASS / 4 explicit skips`、Workers `23/23`、historical smoke `4/4`、V2 Foundation `631 PASS / 6 explicit skips`、V2 Ops `233/233`、M0 exit、Next production build、Golden `16/16` 与 security 全部 PASS。该证据只关闭防复发本地质量门，不冒充 B9 recovery 或 fresh P0。
 
 ### 当前真值与下一步
 
-状态是 `LOCAL_B8_IMPLEMENTATION_P0R_GATE_AND_FULL_CI_PASS / CLEAN_B8_COMMIT_REMOTE_GATES_AND_PRODUCTION_TARGET_STAGING_PENDING / REAL_RECOVERY_NOT_STARTED / PRODUCTION_BUSINESS_MUTATION_NONE`。下一步形成 clean B8 commit、取得四条新远端门并执行 signed target acceptance；只有 exact 16-member staging、mode/owner/hash、外层清理与生产零漂移全部 PASS，才允许进入独立 8022/STS/recovery 顺序。当前不需要用户生成 STS 或操作 COS。
+状态是 `B8_LOCAL_AND_REMOTE_QUALIFICATION_PASS / UNSAFE_PARENT_FAIL_CLOSED / P0R_PARENT_0700_REMEDIATION_PASS / FRESH_SIGNED_DISPATCH_EXACT_TARGET_ACCEPTANCE_PASS / POST_ACCEPTANCE_GUARDRAIL_FULL_CI_PASS / REAL_RECOVERY_NOT_STARTED / PRODUCTION_BUSINESS_MUTATION_NONE`。祖先目录权限、短 branch 参数、防复发测试、手册与权威真值已在本地完整质量门收口；执行入口是 `V2-M1.6-P0R-B9-EXACT-STAGED-RECOVERY-EXECUTION`。B9 才负责受限 8022、fresh STS、加密 backup、exact retrieval、独立 PG16 restore 与全量 cleanup；当前不需要用户生成 STS 或操作 COS。
 
 ## 2026-07-30 / P0R Runtime Namespace Root Remediation
 

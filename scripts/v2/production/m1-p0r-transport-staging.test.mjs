@@ -579,6 +579,53 @@ test("unsafe existing delivery permissions are rejected without chmod", async ()
   }
 });
 
+test("unsafe existing delivery ancestor is rejected before child creation", async () => {
+  const fixture = await prepareFixture();
+  try {
+    const deliveryParent = dirname(fixture.policy.deliveryRoot);
+    await mkdir(deliveryParent, {
+      mode: 0o755,
+      recursive: true,
+    });
+    await chmod(deliveryParent, 0o755);
+    await assert.rejects(
+      stageP0RTransport({
+        bundleMarkerPath: join(
+          fixture.sourceRoot,
+          ".transport-bundle.sha256",
+        ),
+        dispatchEnvelopePath: join(
+          fixture.sourceRoot,
+          ".dispatch.json",
+        ),
+        innerBundlePath: join(
+          fixture.sourceRoot,
+          P0R_TRANSPORT_STAGE_INNER_BUNDLE,
+        ),
+        manifestPath: join(
+          fixture.sourceRoot,
+          P0R_TRANSPORT_STAGE_MANIFEST,
+        ),
+        now: new Date(ISSUED_AT),
+        policy: fixture.policy,
+        request: fixture.built.request,
+        sourceRoot: fixture.sourceRoot,
+      }),
+      /p0r_transport_stage_directory_unsafe/u,
+    );
+    assert.equal(
+      (await lstat(deliveryParent)).mode & 0o777,
+      0o755,
+    );
+    await assert.rejects(
+      lstat(fixture.policy.deliveryRoot),
+      (error) => error?.code === "ENOENT",
+    );
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
 test("mutation authority and inner identity drift fail closed", async () => {
   const fixture = await prepareFixture();
   try {
