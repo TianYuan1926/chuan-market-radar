@@ -190,6 +190,7 @@ source `e3626387ee8d57ef8e4f9c11c2e098b781ac6fbe` 曾完整通过本地 CI、Git
 
 bridge schema v3 的 8022 路由在签发 STS 前还必须独立满足以下 bootstrap gate；v3 继承 v2 的固定端口和严格主机身份，并只允许有界 `p0r_session_line_N` / `p0r_runner_line_N` 失败位置离开远端：
 
+- 在任何 listener 或云规则变更前，Microsoft Edge 必须已经打开本轮 exact plan 对应的 API Explorer，请求字段已逐项核对且停在未发起调用状态，用户本人明确在线并准备立即完成 MFA、发起调用和页面原生 Copy。未满足时停止，不得提前消耗 8022、`/32` 或 bridge clipboard window；准备页面不授权在 bridge READY 前签发 STS；
 - 重新测量当前 loopback SOCKS 出口 IPv4；禁止复用过期的来源地址。当前已验证窗口的出口是 `157.254.154.223/32`；
 - 在动作时确认后，仅启动一个 `RuntimeMaxSec=7200` 的独立 transient sshd：`PermitRootLogin=no`、`PasswordAuthentication=no`、`KbdInteractiveAuthentication=no`、`PubkeyAuthentication=yes`、`AuthenticationMethods=publickey`、`AllowUsers=ubuntu`、`DisableForwarding=yes`；
 - 先证明 transient unit 为 active 且 8022 仅由该独立 sshd 监听，再在腾讯轻量云添加唯一 `TCP 8022 / ALLOW / 当前 SOCKS 出口 /32` 规则；不得放通 `0.0.0.0/0`；
@@ -204,7 +205,7 @@ bridge schema v3 的 8022 路由在签发 STS 前还必须独立满足以下 boo
 1. `COMPLETED_EXPIRY_PREREQUISITE`：第三枚 STS exact expiry=`2026-07-29T06:09:17Z`；本机 UTC `2026-07-29T10:32:53Z` 与腾讯 HTTPS Date `2026-07-29T10:35:42Z` 已独立证明超过到期点。它现为 `EXPIRED_FORBIDDEN_REUSE`，且永不恢复旧 run 的执行权。
 2. `CURRENT_INNER_TRANSPORT_QUALIFIED`：source `be87cf...` 的四条 GitHub 门、fresh rebind、全新 run-id/object key/plan 和 exact 16-member transport v3 已 PASS；`e83c1f...`、`44e518...` 和 `e362...` 的旧 run/plan/object key/package/staging 永久失去执行权。OrcaTerm 文件管理器三次送达失败且目标文件/run staging 均未产生，该运输操作永久退役。
 3. `B8_FIXED_DISPATCH_TARGET_STAGING_ACCEPTED`：outer source `15d7cb...` 已取得四条远端门。首次 signed dispatch 在祖先目录 `0755` 上 fail closed 且零 mutation；独立授权将该目录收紧为 `0700` 后，fresh dispatch `p0r-transport-stage-20260731t143942z-63b1e6f9` / commit `d5ea6e...` 已原子形成同一 run 的 exact 16 members，并通过 checksum、mode、owner、plan/source identity、零 secret、外层 staging 清理和生产零漂移验收。此项现为历史 PASS，不得重复派发或覆盖 target。
-4. `B9_EXACT_STAGED_RECOVERY_EXECUTION`：在新的动作时确认后，先复核 B8 target 未漂移，再按 bootstrap gate 启动 7200 秒受限 8022 sshd、添加当前 SOCKS 出口 `/32` 云防火墙规则，并用 `HostKeyAlias=43.161.202.227` 完成 strict known-host read-only SSH；禁止退回 port 22。随后从可信 Mac 启动 bridge。只有 bridge 已建立 exact remote TTY、远端 echo 已关闭且本机出现 `READY_P0R_API_NATIVE_COPY_TO_LOCAL_TTY_BRIDGE`，才允许进入 API Explorer 动作。
+4. `B9_EXACT_STAGED_RECOVERY_EXECUTION`：在新的动作时确认后，先复核 B8 target 未漂移，并把 exact API Explorer 请求页准备到只差用户 MFA、发起调用和页面原生 Copy；用户未明确在线时不得继续。随后才按 bootstrap gate 启动 7200 秒受限 8022 sshd、添加当前 SOCKS 出口 `/32` 云防火墙规则，并用 `HostKeyAlias=43.161.202.227` 完成 strict known-host read-only SSH；禁止退回 port 22。随后从可信 Mac 启动 bridge。只有 bridge 已建立 exact remote TTY、远端 echo 已关闭且本机出现 `READY_P0R_API_NATIVE_COPY_TO_LOCAL_TTY_BRIDGE`，才允许发起 API 调用。
 5. Microsoft Edge 中只执行新 plan 的 exact `GetFederationToken`，由用户完成本人 MFA，并点击 API Explorer 的页面原生 Copy。response 出现后任何自动化都不得读取页面状态、截图、OCR、AX tree 或切换到 OrcaTerm；native Copy 无法完成时立即停止。
 6. bridge 只接受结构精确且有界的 clipboard JSON，语义无损紧凑化后先清空 clipboard，再经已握手的 no-echo TTY 发送 newline + EOT。helper 必须在签发后 5 分钟内返回 compile PASS；否则自动清理并停止。
 7. bridge 在 compile PASS 后自动建立第二条固定 TTY，从固定 Keychain 项内部读取 age identity 并完成 no-echo handoff；identity 不进入 shell 参数、clipboard、日志或工具输出。credential compile 已确认后，用户关闭 API response 页。

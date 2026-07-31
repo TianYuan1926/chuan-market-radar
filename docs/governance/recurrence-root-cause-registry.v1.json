@@ -414,7 +414,7 @@
       "faultClass": "browser_and_orcaterm.secret_response_transport_context_ambiguity",
       "affectedChannel": "tencent_api_explorer_to_p0r_secret_exception",
       "status": "REMEDIATION_IN_PROGRESS",
-      "recurrenceCount": 7,
+      "recurrenceCount": 8,
       "firstObservedDate": "2026-07-28",
       "lastObservedDate": "2026-07-30",
       "affectedOperations": [
@@ -454,7 +454,8 @@
         "p0r_native_copy_without_browser_read",
         "p0r_fixed_ssh_tty_keychain_handoff",
         "p0r_zero_residue_after_exposed_response",
-        "p0r_proxy_compatible_fixed_8022_ssh_route"
+        "p0r_proxy_compatible_fixed_8022_ssh_route",
+        "p0r_prepared_api_explorer_before_route_window"
       ],
       "fingerprint": {
         "signature": "A short-lived STS response exists in the browser, but post-response browser or terminal context recovery is not independently bound to the exact no-echo receiver and can disclose, misroute or delay the response.",
@@ -466,7 +467,8 @@
           "A raw STS response is persisted and its compile is deferred across multiple manual UI commands despite a five-minute issuance gate.",
           "Current container identity is rediscovered by re-rendering Compose from an env file that does not contain every required interpolation value.",
           "After the API response exists, browser state is queried or reconstructed before the secret is irreversibly handed to a pre-armed exact no-echo receiver.",
-          "The fixed bridge assumes default SSH port 22 even though the only available local network path is a SOCKS proxy whose egress policy rejects port 22 before an SSH banner."
+          "The fixed bridge assumes default SSH port 22 even though the only available local network path is a SOCKS proxy whose egress policy rejects port 22 before an SSH banner.",
+          "The temporary route and clipboard window are opened before the exact API Explorer request page and the account owner are ready for the immediate MFA and native Copy handoff."
         ],
         "observedEvidence": [
           "The pre-MFA receiver session disconnected and could not prove that its waiting process survived.",
@@ -481,7 +483,8 @@
           "The exposed 2026-07-29 STS was never copied to the server, never used for COS and never compiled; four independent production counts proved zero P0R files, processes, containers and volumes.",
           "On 2026-07-30 the direct production route and the SOCKS path to port 22 timed out or closed before an SSH banner, while the same SOCKS path returned a valid SSH banner from ssh.github.com:443.",
           "Controlled proxy probes admitted ports 8022, 2022, 8080 and 8443 but rejected 2222 and 10022; 8022 was selected only after the matrix and current proxy egress 157.254.154.223 were independently measured.",
-          "A 7200-second non-root-key-only sshd on production port 8022 plus one Tencent /32 rule for 157.254.154.223 completed strict known-host and public-key SSH as ubuntu; no STS was issued or transmitted during this route qualification."
+          "A 7200-second non-root-key-only sshd on production port 8022 plus one Tencent /32 rule for 157.254.154.223 completed strict known-host and public-key SSH as ubuntu; no STS was issued or transmitted during this route qualification.",
+          "On 2026-08-01 the exact B8 target, fresh 156.248.15.38/32 route, strict SSH identity and echo-disabled bridge READY all passed, but no valid native Copy arrived within 540 seconds; the bridge timed out before credential compile and all temporary route, secret, process, container and volume state was verified absent."
         ]
       },
       "rootCause": {
@@ -531,6 +534,7 @@
           "Transport schema v3 embeds a checksum-bound Node 22.23.1, npm 10.9.8 and pg 8.16.3 runtime capsule, so the Runner no longer assumes that a production container node_modules tree is host-visible across mount namespaces.",
           "The bootstrap listener is a separate 7200-second systemd transient sshd that permits only ubuntu public-key authentication with forwarding disabled; the Tencent rule permits only the measured proxy egress /32 and must be removed after success or failure.",
           "The bridge is armed before issuance, accepts only a structurally exact native-copied Tencent response after the remote echo-disabled marker, clears the clipboard before handoff, retrieves the age identity directly from the fixed Keychain item and suppresses all child output.",
+          "Before opening the listener, cloud rule or clipboard window, the exact API Explorer request must be prepared in Microsoft Edge at the not-yet-invoked state and the account owner must be present for immediate MFA, invocation and native Copy; preparation never permits issuance before bridge READY.",
           "API response screenshots, OCR, accessibility reads, full browser-state reads and OrcaTerm secret entry are permanently forbidden after issuance."
         ]
       },
@@ -561,7 +565,8 @@
           "Post-incident production read-only verification returned zero P0R files, session/provisioning processes, containers and volumes; application, database, Redis, repository, env and authority remained unchanged.",
           "No COS, database, backup, retrieval, restore, application, repository, env, migration or authority mutation occurred.",
           "The proxy-compatible 8022 route passed strict public-key and host-key identity checks as ubuntu@VM-0-9-ubuntu before STS issuance; after the e83 exact attempt, the temporary listener and exact /32 firewall rule were removed and listener, unit and rule absence were verified.",
-          "The e83 exact run completed STS and age handoff but failed closed before backup because the host could not see the Web container node_modules mount; no backup, COS object, retrieval, restore, temporary recovery container or production business mutation occurred."
+          "The e83 exact run completed STS and age handoff but failed closed before backup because the host could not see the Web container node_modules mount; no backup, COS object, retrieval, restore, temporary recovery container or production business mutation occurred.",
+          "The 2026-08-01 B9 pre-secret attempt reached echo-disabled READY but timed out without a valid native Copy; no credential reached or was compiled on production, and the listener, cloud rule, /dev/shm files, processes, containers and volumes were all cleaned while production identity and health remained unchanged."
         ]
       },
       "realTargetAcceptance": {
@@ -572,19 +577,21 @@
           "The fresh rebind result must bind the canonical eight-file current P0R runtime set digest and separately retain the frozen three-file historical supersession proof.",
           "The 2026-07-29 STS exact expiry prerequisite is complete and the credential remains forbidden forever; a new exact-plan STS may be requested only after a new clean source, all GitHub gates, fresh read-only rebind and new run/plan/bundle pass.",
           "The P0R Runner must still complete backup, exact retrieval, isolated restore, cleanup and zero-drift verification.",
-          "Bridge schema v3 and transport schema v3 must still become one clean exact commit, pass all four GitHub gates, pass a fresh read-only rebind and generate a new run/plan/bundle before a newly qualified route may carry a new STS."
+          "Bridge schema v3 and transport schema v3 must still become one clean exact commit, pass all four GitHub gates, pass a fresh read-only rebind and generate a new run/plan/bundle before a newly qualified route may carry a new STS.",
+          "The next B9 attempt must prepare and verify the exact API Explorer request page and account-owner presence before recreating the temporary 8022 and /32 route; any response possibly issued during the timed-out 2026-08-01 window is forbidden from reuse."
         ]
       },
       "workaroundAccounting": {
-        "attemptCount": 7,
+        "attemptCount": 8,
         "postTriggerEmergencyWorkaroundCount": 0,
         "durationMeasurement": "MEASURED",
-        "durationSeconds": 4483,
+        "durationSeconds": 5023,
         "unknownReason": null
       },
       "remainingRisks": [
         "Future Tencent STS credentials still have no verified per-token revocation control, so any future compromise must fail closed, forbid reuse and wait for independently proven exact expiry.",
         "Tencent API Explorer still requires user MFA and a native Copy action; the response page must not be inspected by automation after issuance and must be closed after the bridge confirms credential compile.",
+        "If the exact API Explorer page or account owner is not ready before the temporary route starts, the bounded clipboard window can expire without recovery progress; the new pre-route readiness gate must stop before any network change in that condition.",
         "The local bridge depends on the existing loopback SOCKS route and a future temporary 8022 production listener; failure before the ready marker is safe and must stop issuance rather than fall back to port 22 or OrcaTerm.",
         "Any future 8022 Tencent /32 rule and transient sshd must be removed and their absence verified after P0R success, failure or timeout; the timer alone does not remove the cloud firewall rule.",
         "The local bridge, atomic session and runtime capsule have passed full local CI but are not production recovery evidence until the exact source is clean committed, passes remote gates and read-only rebind, and completes the full P0R recovery."

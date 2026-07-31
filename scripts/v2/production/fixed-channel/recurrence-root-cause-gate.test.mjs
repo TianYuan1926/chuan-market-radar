@@ -200,7 +200,7 @@ test("the real registry closes accepted package transport and keeps secret recov
     [
       {
         id: "REC-2026-07-28-P0R-SECRET-RECEIVER-FOCUS",
-        recurrenceCount: 7,
+        recurrenceCount: 8,
         status: "REMEDIATION_IN_PROGRESS",
         workaroundLimitBreached: false,
       },
@@ -387,6 +387,11 @@ test("the P0R runbook retires post-response browser recovery and OrcaTerm secret
   assert.match(runbook, /OrcaTerm 文件管理器.*永久禁止/u);
   assert.match(runbook, /TCP 8022.*当前 SOCKS 出口 \/32/u);
   assert.match(runbook, /systemd 自动超时不能代替云防火墙清理/u);
+  assert.match(
+    runbook,
+    /exact API Explorer 请求页准备到只差用户 MFA、发起调用和页面原生 Copy/u,
+  );
+  assert.match(runbook, /用户未明确在线时不得继续/u);
   assert.match(
     runbook,
     /request schema 必须为 `market-radar-v2-m1-p0r-rebind-request\.v3`/u,

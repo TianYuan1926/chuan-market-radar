@@ -2,6 +2,26 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-08-01 / P0R B9 Pre-secret Bootstrap, Native Copy Timeout, and Verified Cleanup
+
+### 本轮目标
+
+在 B8 accepted target 上执行 B9 的 pre-secret bootstrap：复核 exact staging、建立仅限当前 SOCKS 出口 `/32` 的临时 8022 路线、启动 fixed local TTY bridge，并在用户 MFA/API Explorer 原生 Copy 后自动进入只读恢复演练。
+
+### 当前证据
+
+- local exact source `be87cf040472559979f4b6a602350970d9bf2c32`、plan、Keychain age identity、mode-600 SSH identity/known_hosts 和四条 GitHub 门保持合格；当前实现分支 HEAD `6a2b05a322e928a9f98bf4ae559f8e8284a65031` 干净且已同步。
+- B8 target 再次通过三个祖先目录 `ubuntu:ubuntu 0700`、16 个普通文件、零 symlink、manifest SHA-256=`c9e85a91bf09a5fbeafb119517be93805a1f25ad09466c6c9a9a15a58295a318`、plan SHA-256=`71d05e2db2ae2f09fdc1332e8e05dde090bd3fe7c40a650b1b905fd86aca5cc8`、bindings SHA-256=`fd62c920191397ae7a708e5f81dab54222875db04ac32a3f9afa1b1dee428f92` 和全包聚合 SHA-256=`7a91cd89199269363cc642834000f3de33b1ddc9cbd8fcba8751763f77d894ca`；超时清理后同一 16-member 聚合摘要仍一致。
+- 两个公网端点同时测得当前 BoostCore SOCKS 出口 `156.248.15.38`。生产只启动 `RuntimeMaxSec=2h`、ubuntu public-key-only、root/password/keyboard-interactive/forwarding 全禁用的独立 8022 sshd，并只添加 `156.248.15.38/32 -> TCP 8022` 腾讯规则。
+- 本机使用固定 ed25519 identity、mode-600 known_hosts、`StrictHostKeyChecking=yes`、`HostKeyAlias=43.161.202.227` 和固定 SOCKS 完成真实握手，返回 `ubuntu / VM-0-9-ubuntu / active`。bridge v3 随后取得远端 echo-disabled `READY_P0R_API_NATIVE_COPY_TO_LOCAL_TTY_BRIDGE`。
+- READY 后 540 秒内没有收到结构有效的 API Explorer 原生 Copy，bridge 以 `clipboard_response_timeout` 安全失败关闭；没有 credential 被 bridge 接收或编译，没有 secret 进入生产 `/dev/shm`，Runner 未启动，数据库未读取，COS、backup、retrieval、restore 和 recovery evidence 均未发生。腾讯侧是否曾在浏览器中签发无法由该证据证明，因此该超时窗口任何可能存在的 response 一律禁止复用，下一次只允许 fresh STS。
+- 自动清理已停止 transient sshd 并验证 unit=`inactive`、listener=`0`；唯一腾讯 `/32` 规则删除成功且 source/8022/remark 全部不存在；`/dev/shm` P0R 文件、P0R process、container 和 volume 均为 `0`。
+- 生产保持 HEAD `cec0b6572bb09ae91ff9e013f8bb160f73c045e2`、clean worktree、11 个运行容器及原 full-ID/name/image identity；Web/PostgreSQL/Redis 均 healthy，`pg_isready` 接受连接，Redis 返回 `PONG`。env、migration、Feature Flag、Worker、流量和 authority 未改变。
+
+### 当前真值与下一步
+
+状态是 `B9_ACCEPTED_TARGET_RECHECK_PASS / PRE_SECRET_8022_BOOTSTRAP_PASS / STRICT_SSH_IDENTITY_PASS / BRIDGE_ECHO_DISABLED_READY_PASS / NATIVE_COPY_TIMEOUT / CREDENTIAL_NOT_RECEIVED_OR_COMPILED / RECOVERY_NOT_EXECUTED / FULL_TEMPORARY_ROUTE_AND_RUNTIME_CLEANUP_PASS / PRODUCTION_ZERO_DRIFT`。B9 仍未完成，P0 继续 BLOCKED。下一次必须先把本轮 exact API Explorer 请求页准备到只差用户 MFA、发起调用和原生 Copy 的状态，再测 fresh 出口、重建临时 8022/`/32` 和 bridge；不得在未准备页面或用户不在场时提前消耗 540 秒 secret window，也不得复用本轮可能存在的任何浏览器 response。
+
 ## 2026-07-31 / P0R Fixed Dispatch Transport Staging Root Remediation
 
 ### 本轮目标
@@ -108,25 +128,3 @@ P0R 当前是“本地根因修复通过专项门禁，完整资格和真实生�
 ### 下一步（已由上方固定 TTY bridge 路线覆盖）
 
 本条原定的两个 fresh OrcaTerm secret 会话已被第三枚 STS disclosure 证伪并永久退役。当前只执行上方 `P0R Post-Response Disclosure Containment and Fixed Local TTY Bridge` 的新顺序；本段保留为历史演进证据，不再具有执行权。
-
-## 2026-07-28 / Strategy Archetype Labeling Blueprint Integration
-
-### 本轮目标
-
-把“每笔策略必须说明属于哪一种交易逻辑”纳入 V2 权威链，并确保它是可版本化、可验证、可复盘的后端事实，而不是前端自由文案或事后解释。
-
-### 修改范围
-
-- 新增 `M3.3E Strategy Archetype Labeling and Outcome Attribution` 独立合同，区分 canonical 主标签、有界辅助标签和 Action State 派生状态标签。
-- 冻结突破回踩、跌破反抽、支撑反弹、压力受阻、趋势延续、假突破/假跌破反转、区间反转、压缩扩张、流动性扫单、相对强弱和衍生品资金流等初始双向词表。
-- Strategy Construction 是主标签唯一生成者；Candidate/Analysis 只能输出 `setupHypothesis`，Final Decision 只校验和冻结，前端只本地化、展示和筛选。
-- Decision Snapshot、Alert 和 Outcome 必须原样传播原标签；Outcome 按标签、方向、regime、Venue、流动性、资产域和生命周期分层评价。
-- 新标签必须通过真实 cohort、matched control、sealed holdout、前向 Shadow 和独立审计，禁止单币种、单日或少量成功案例过拟合。
-
-### 当前真值
-
-本轮只完成设计权威、追踪矩阵和施工顺序整合。schema、builder、strict decoder、Final Decision parity、Outcome 归因、前端消费、测试、真实 Shadow 和生产 authority 均尚未实现；不得将 `DESIGN_AUTHORITY_ADDED` 误写为策略标签能力完成。腾讯应用、数据库、Redis、Worker、COS、env、migration 和业务 authority 未由本包改变。
-
-### 下一步
-
-先继续关闭当前独立第一关键路径 P0R；随后按 `schema -> Strategy builder -> Final Decision -> DecisionSnapshot/Alert -> Outcome -> frontend -> replay/holdout/Shadow` 实施 M3.3E，并与真实 M3.1A-M3.3D 分域策略共同验收。
