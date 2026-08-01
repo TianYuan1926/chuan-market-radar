@@ -61,6 +61,11 @@ import {
   traceEnvelopeShape,
 } from "./primitives";
 import { RUNTIME_OBJECT_SCHEMA_VERSIONS } from "./schema-versions";
+import {
+  StrategyArchetypeLabelSchema,
+  StrategyContextTagsSchema,
+  StrategyStateLabelSchema,
+} from "./strategy-archetype-schemas";
 
 const DirectionSchema = z.enum(["LONG", "SHORT"]);
 const DirectionHypothesisSchema = z.enum([
@@ -1204,6 +1209,8 @@ export const StrategyDraftSchema = z.strictObject({
   episodeId: NonEmptyStringSchema,
   analysisId: NonEmptyStringSchema,
   qualificationId: NonEmptyStringSchema,
+  evidencePackageId: NonEmptyStringSchema,
+  scopeEpoch: NonEmptyStringSchema,
   opportunityFamily: z.enum(OPPORTUNITY_FAMILIES),
   strategyAuthority: z.enum([
     "TEST_ONLY_UNCALIBRATED",
@@ -1219,6 +1226,8 @@ export const StrategyDraftSchema = z.strictObject({
   costAssumptionSetId: NonEmptyStringSchema,
   costAssumptionVersion: NonEmptyStringSchema,
   direction: DirectionSchema,
+  strategyArchetype: StrategyArchetypeLabelSchema,
+  strategyContextTags: StrategyContextTagsSchema,
   referencePrice: PositiveDecimalStringSchema,
   referencePriceFactIds: z.array(NonEmptyStringSchema).min(1),
   whyNow: ReasonCodesSchema.min(1),
@@ -1249,6 +1258,45 @@ export const StrategyDraftSchema = z.strictObject({
 }).superRefine((draft, context) => {
   addPlanGeometryIssues(draft, context);
   validateTargetAllocation(draft.targets, context);
+  if (
+    draft.strategyArchetype.analysisSnapshotId !== draft.analysisId ||
+    draft.strategyArchetype.signalQualificationId !== draft.qualificationId ||
+    draft.strategyArchetype.evidencePackageId !== draft.evidencePackageId ||
+    draft.strategyArchetype.opportunityFamily !== draft.opportunityFamily ||
+    draft.strategyArchetype.direction !== draft.direction ||
+    draft.strategyArchetype.releaseIdentity !== draft.releaseId ||
+    draft.strategyArchetype.scopeEpoch !== draft.scopeEpoch ||
+    draft.strategyArchetype.generatedAt !== draft.generatedAt
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "strategy archetype must preserve exact draft lineage, family, direction, release, scope and time",
+      path: ["strategyArchetype"],
+    });
+  }
+  if (draft.strategyContextTags.scopeEpoch !== draft.scopeEpoch) {
+    context.addIssue({
+      code: "custom",
+      message: "strategy context tags must preserve the draft scope epoch",
+      path: ["strategyContextTags", "scopeEpoch"],
+    });
+  }
+  const referencedLevelIds = new Set([
+    ...draft.plannedEntryZone.sourceLevelIds,
+    ...draft.structuralStopSourceLevelIds,
+    ...draft.targets.flatMap((target) => target.sourceLevelIds),
+  ]);
+  if (
+    draft.strategyArchetype.structuralLevelIds.some(
+      (levelId) => !referencedLevelIds.has(levelId),
+    )
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "strategy archetype cannot cite a structural level outside the plan lineage",
+      path: ["strategyArchetype", "structuralLevelIds"],
+    });
+  }
   if (new Set(draft.referencePriceFactIds).size !== draft.referencePriceFactIds.length) {
     context.addIssue({
       code: "custom",
@@ -1565,6 +1613,9 @@ const StrategyDecisionBaseShape = {
   episodeId: NonEmptyStringSchema,
   draftId: NonEmptyStringSchema,
   feasibilityId: NonEmptyStringSchema,
+  strategyArchetype: StrategyArchetypeLabelSchema,
+  strategyContextTags: StrategyContextTagsSchema,
+  strategyStateLabel: StrategyStateLabelSchema,
   reasonCodes: ReasonCodesSchema,
   decidedAt: IsoDateTimeSchema,
 } as const;
@@ -1587,6 +1638,24 @@ export const StrategyDecisionSchema = z
     NonReadyStrategyDecisionSchema,
   ])
   .superRefine((decision, context) => {
+    if (decision.strategyStateLabel.actionState !== decision.actionState) {
+      context.addIssue({
+        code: "custom",
+        message: "strategy state label must be derived from the authoritative decision ActionState",
+        path: ["strategyStateLabel"],
+      });
+    }
+    if (
+      decision.strategyArchetype.releaseIdentity !== decision.releaseId ||
+      decision.strategyContextTags.scopeEpoch !==
+        decision.strategyArchetype.scopeEpoch
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "decision strategy labels must preserve release and scope lineage",
+        path: ["strategyArchetype"],
+      });
+    }
     if (Date.parse(decision.sourceCutoff) > Date.parse(decision.decidedAt)) {
       context.addIssue({
         code: "custom",
@@ -1660,6 +1729,9 @@ export const DecisionSnapshotSchema = z.strictObject({
   analysisId: NonEmptyStringSchema,
   qualificationId: NonEmptyStringSchema,
   decision: StrategyDecisionSchema,
+  strategyArchetype: StrategyArchetypeLabelSchema,
+  strategyContextTags: StrategyContextTagsSchema,
+  strategyStateLabel: StrategyStateLabelSchema,
   personalRiskViewId: NonEmptyStringSchema.nullable(),
   portfolioRiskViewId: NonEmptyStringSchema.nullable(),
   factVersion: NonEmptyStringSchema,
@@ -1675,6 +1747,22 @@ export const DecisionSnapshotSchema = z.strictObject({
       code: "custom",
       message: "read-model actionState must match the authoritative decision",
       path: ["actionState"],
+    });
+  }
+  if (
+    snapshot.strategyArchetype.contentHash !==
+      snapshot.decision.strategyArchetype.contentHash ||
+    snapshot.strategyContextTags.contentHash !==
+      snapshot.decision.strategyContextTags.contentHash ||
+    snapshot.strategyStateLabel.actionState !==
+      snapshot.decision.strategyStateLabel.actionState ||
+    snapshot.strategyStateLabel.localizationKey !==
+      snapshot.decision.strategyStateLabel.localizationKey
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "read model must propagate decision strategy labels without reclassification",
+      path: ["strategyArchetype"],
     });
   }
   if (

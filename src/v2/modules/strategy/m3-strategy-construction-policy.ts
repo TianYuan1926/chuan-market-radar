@@ -8,7 +8,7 @@ import {
 } from "../../domain/product-constitution";
 
 export const M3_STRATEGY_CONSTRUCTION_POLICY_VERSION =
-  "m3-strategy-construction-policy.v1-uncalibrated" as const;
+  "m3-strategy-construction-policy.v2-archetype-uncalibrated" as const;
 export const M3_STRATEGY_BUFFER_POLICY_VERSION =
   "m3-structural-buffer-policy.v1-uncalibrated" as const;
 export const M3_STRATEGY_COST_ASSUMPTION_SCHEMA_VERSION =

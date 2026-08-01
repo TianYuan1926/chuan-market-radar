@@ -4,8 +4,12 @@ import type {
   Direction,
   QualityAssessment,
 } from "../../domain/contracts";
-import type { OpportunityFamily } from "../../domain/product-constitution";
+import type {
+  OpportunityFamily,
+  OpportunityPattern,
+} from "../../domain/product-constitution";
 import { StrategyDraftSchema } from "../../runtime-schema/decision-schemas";
+import { M3_STRATEGY_TEST_SCOPE_EPOCH } from "../../domain/strategy-archetype";
 import { m3FamilyAnalyzerVersion } from "../analysis/m3-family-analysis-policy";
 import { M3_SIGNAL_QUALIFICATION_POLICY_VERSION } from "../qualification/m3-signal-qualification-policy";
 import {
@@ -95,10 +99,77 @@ function entryKind(
   if (family === "BREAKOUT_RETEST") {
     return direction === "LONG" ? "RESISTANCE" : "SUPPORT";
   }
-  if (family === "REVERSAL_RANGE" || family === "DERIVATIVES_FLOW") {
+  if (family === "REVERSAL_RANGE") {
     return "LIQUIDITY";
   }
   return direction === "LONG" ? "SUPPORT" : "RESISTANCE";
+}
+
+function fixturePattern(
+  family: OpportunityFamily,
+  direction: Direction,
+): OpportunityPattern {
+  if (family === "PRE_MOVE") return "PRE_MOVE_COMPRESSION";
+  if (family === "BREAKOUT_RETEST") return "ROLE_FLIP_RETEST";
+  if (family === "TREND_CONTINUATION") {
+    return "STRUCTURAL_PULLBACK_RESUMPTION";
+  }
+  if (family === "REVERSAL_RANGE") return "KEY_LEVEL_REVERSAL";
+  if (family === "RELATIVE_STRENGTH") {
+    return direction === "LONG" ? "RELATIVE_STRENGTH" : "RELATIVE_WEAKNESS";
+  }
+  return "PRICE_OI_DIVERGENCE";
+}
+
+function fixtureStructureState(family: OpportunityFamily): string {
+  if (family === "PRE_MOVE") return "COMPRESSION_WITH_DIRECTIONAL_PRESSURE";
+  if (family === "BREAKOUT_RETEST") return "ROLE_FLIP_RETEST_HOLD";
+  if (family === "TREND_CONTINUATION") return "STRUCTURAL_PULLBACK_HOLD";
+  if (family === "REVERSAL_RANGE") {
+    return "LIQUIDITY_SWEEP_RECLAIM_OR_REJECTION";
+  }
+  if (family === "RELATIVE_STRENGTH") {
+    return "BENCHMARK_ADJUSTED_DIVERGENCE";
+  }
+  return "PRICE_POSITIONING_DIVERGENCE";
+}
+
+function fixtureMarketStage(family: OpportunityFamily): string {
+  if (family === "BREAKOUT_RETEST") return "RETEST";
+  if (family === "TREND_CONTINUATION") return "RESUMPTION";
+  if (family === "REVERSAL_RANGE") return "EARLY_REVERSAL";
+  if (family === "RELATIVE_STRENGTH") return "EMERGING";
+  if (family === "DERIVATIVES_FLOW") return "EARLY_DIVERGENCE";
+  return "EARLY";
+}
+
+function expectedArchetype(
+  family: OpportunityFamily,
+  direction: Direction,
+): string {
+  if (family === "PRE_MOVE") {
+    return direction === "LONG"
+      ? "COMPRESSION_EXPANSION_LONG"
+      : "COMPRESSION_EXPANSION_SHORT";
+  }
+  if (family === "BREAKOUT_RETEST") {
+    return direction === "LONG"
+      ? "BREAKOUT_RETEST_LONG"
+      : "BREAKDOWN_RETEST_SHORT";
+  }
+  if (family === "TREND_CONTINUATION") {
+    return direction === "LONG"
+      ? "TREND_PULLBACK_CONTINUATION_LONG"
+      : "TREND_RALLY_CONTINUATION_SHORT";
+  }
+  if (family === "REVERSAL_RANGE") {
+    return direction === "LONG"
+      ? "LIQUIDITY_SWEEP_RECLAIM_LONG"
+      : "LIQUIDITY_SWEEP_REJECT_SHORT";
+  }
+  return direction === "LONG"
+    ? "SUPPORT_BOUNCE_LONG"
+    : "RESISTANCE_REJECTION_SHORT";
 }
 
 function fixture(
@@ -112,6 +183,8 @@ function fixture(
   const entryFactId = `fact:${slug}:entry`;
   const targetFactId = `fact:${slug}:target`;
   const regime = family === "REVERSAL_RANGE" ? "RANGE" : "TRANSITION";
+  const pattern = fixturePattern(family, direction);
+  const thesisId = `thesis:${slug}:${direction.toLowerCase()}`;
   return M3StrategyConstructionInputSchema.parse({
     schemaVersion: M3_STRATEGY_CONSTRUCTION_INPUT_VERSION,
     executionMode: M3_STRATEGY_CONSTRUCTION_MODE,
@@ -119,6 +192,41 @@ function fixture(
     releaseId: RELEASE,
     generatedAt: GENERATED_AT,
     sourceCutoff: CUTOFF,
+    thesis: {
+      schemaVersion: "opportunity-thesis.v2",
+      releaseId: RELEASE,
+      producerModule: "candidate_lifecycle_opportunity_thesis",
+      generatedAt: "2026-01-15T00:00:15.000Z",
+      sourceCutoff: CUTOFF,
+      contentHash: `sha256:thesis-${slug}-${direction}`,
+      thesisId,
+      episodeId,
+      thesisVersion: 1,
+      thesisAuthority: "VALIDATION_HYPOTHESIS_ONLY",
+      canonicalInstrumentId: `BINANCE_FUTURES:${slug.toUpperCase()}USDT:LINEAR_PERPETUAL:USDT`,
+      underlyingGroupId: `${slug.toUpperCase()}:USDT_LINEAR_PERPETUAL`,
+      opportunityFamily: family,
+      opportunityPatterns: [pattern],
+      directionHypothesis: direction,
+      detectorSources: [
+        {
+          candidateId: `candidate:${slug}:${direction.toLowerCase()}`,
+          detectorId: `detector:${slug}`,
+          detectorVersion: `detector:${slug}.v1`,
+          detectorLifecycle: "REPLAY_VALIDATED",
+          emissionScope: "REPLAY",
+          opportunityPattern: pattern,
+          firstDetectedAt: "2026-01-15T00:00:11.000Z",
+          candidateSourceCutoff: CUTOFF,
+        },
+      ],
+      firstDetectedAt: "2026-01-15T00:00:11.000Z",
+      updatedAt: "2026-01-15T00:00:15.000Z",
+      supportingReasons: ["fixture_thesis_hypothesis"],
+      conflictingReasons: [],
+      knownUnknowns: ["fixture_test_only_uncalibrated"],
+      uncertainty: uncertainty(),
+    },
     analysis: {
       schemaVersion: "analysis-snapshot.v3",
       releaseId: RELEASE,
@@ -128,7 +236,7 @@ function fixture(
       contentHash: `sha256:analysis-${slug}-${direction}`,
       analysisId,
       episodeId,
-      thesisId: `thesis:${slug}:${direction.toLowerCase()}`,
+      thesisId,
       evidencePackageId: `evidence:${slug}:${direction.toLowerCase()}`,
       evidenceItemIds: [`evidence-item:${slug}`],
       marketContextSnapshotId: `context:${slug}`,
@@ -136,8 +244,8 @@ function fixture(
       analysisAuthority: "TEST_ONLY_UNCALIBRATED",
       opportunityFamily: family,
       directionBias: direction,
-      structureState: "FIXTURE_VALID_STRUCTURE",
-      marketStage: "EARLY",
+      structureState: fixtureStructureState(family),
+      marketStage: fixtureMarketStage(family),
       locationQuality: "GOOD",
       spaceQuality: "GOOD",
       structuralLevels: [
@@ -174,7 +282,7 @@ function fixture(
       contentHash: `sha256:qualification-${slug}-${direction}`,
       qualificationId,
       episodeId,
-      thesisId: `thesis:${slug}:${direction.toLowerCase()}`,
+      thesisId,
       evidencePackageId: `evidence:${slug}:${direction.toLowerCase()}`,
       analysisId,
       marketContextSnapshotId: `context:${slug}`,
@@ -273,9 +381,13 @@ test("constructs six distinct LONG family templates without READY authority", ()
     const result = constructM3Strategy(fixture(family, "LONG"));
     assert.equal(result.status, "CONSTRUCTED_TEST_ONLY");
     assert.equal(result.authority, "TEST_ONLY_NO_READY_AUTHORITY");
-    assert.equal(result.draft?.schemaVersion, "strategy-draft.v2");
+    assert.equal(result.draft?.schemaVersion, "strategy-draft.v3");
     assert.equal(result.draft?.opportunityFamily, family);
     assert.equal(result.draft?.direction, "LONG");
+    assert.equal(
+      result.draft?.strategyArchetype.id,
+      expectedArchetype(family, "LONG"),
+    );
     assert.equal(result.draft?.strategyAuthority, "TEST_ONLY_UNCALIBRATED");
     assert.ok(result.draft?.blockers.includes(
       "strategy_authority_test_only_uncalibrated",
@@ -290,6 +402,10 @@ test("constructs six distinct SHORT family templates with adverse-side stops", (
     const result = constructM3Strategy(fixture(family, "SHORT"));
     assert.equal(result.status, "CONSTRUCTED_TEST_ONLY");
     assert.equal(result.draft?.direction, "SHORT");
+    assert.equal(
+      result.draft?.strategyArchetype.id,
+      expectedArchetype(family, "SHORT"),
+    );
     assert.ok(Number(result.draft!.structuralStop) >
       Number(result.draft!.structuralStopBase));
     assert.ok(result.draft!.targets.every(
@@ -387,6 +503,7 @@ test("abstains on invalid, unknown or unresolved setup truth", () => {
     assert.equal(result.draft, null);
   }
   const unresolved = mutableFixture();
+  unresolved.thesis.directionHypothesis = "UNKNOWN";
   unresolved.analysis.directionBias = "UNKNOWN";
   unresolved.qualification.direction = "UNKNOWN";
   unresolved.qualification.evidenceCalibration.segment.direction = "UNKNOWN";
@@ -519,7 +636,7 @@ test("retains the structural stop and blocks low RR instead of shrinking risk", 
   assert.ok(result.draft?.blockers.includes("estimated_net_rr_below_minimum"));
 });
 
-test("StrategyDraft v2 rejects authority laundering and invalid RR claims", () => {
+test("StrategyDraft v3 rejects authority laundering and invalid RR claims", () => {
   const draft = mutable(constructM3Strategy(fixture()).draft!);
   draft.blockers = [];
   assert.equal(StrategyDraftSchema.safeParse(draft).success, false);
@@ -544,6 +661,86 @@ test("StrategyDraft v2 rejects authority laundering and invalid RR claims", () =
   const unboundedCost = mutable(constructM3Strategy(fixture()).draft!);
   unboundedCost.feePerSideAssumptionBps = 10_001;
   assert.equal(StrategyDraftSchema.safeParse(unboundedCost).success, false);
+});
+
+test("requires exactly one hashed canonical archetype and explicit unbound context", () => {
+  const draft = constructM3Strategy(fixture()).draft!;
+  assert.equal(draft.strategyArchetype.id, "COMPRESSION_EXPANSION_LONG");
+  assert.equal(draft.strategyArchetype.scopeEpoch, M3_STRATEGY_TEST_SCOPE_EPOCH);
+  assert.equal(draft.strategyContextTags.scopeEpoch, M3_STRATEGY_TEST_SCOPE_EPOCH);
+  assert.deepEqual(draft.strategyContextTags.venueSet, []);
+  assert.equal(draft.strategyContextTags.assetDomain, "UNBOUND_TEST_ONLY");
+
+  const missing = structuredClone(draft) as Record<string, unknown>;
+  delete missing.strategyArchetype;
+  assert.equal(StrategyDraftSchema.safeParse(missing).success, false);
+
+  const multiple = {
+    ...structuredClone(draft),
+    strategyArchetype: [draft.strategyArchetype, draft.strategyArchetype],
+  };
+  assert.equal(StrategyDraftSchema.safeParse(multiple).success, false);
+});
+
+test("rejects tampered archetype hashes, versions and structural lineage", () => {
+  const draft = constructM3Strategy(fixture()).draft!;
+  for (const tampered of [
+    (() => {
+      const value = mutable(draft);
+      value.strategyArchetype.id = "COMPRESSION_EXPANSION_SHORT";
+      return value;
+    })(),
+    (() => {
+      const value = mutable(draft);
+      value.strategyArchetype.taxonomyVersion =
+        "strategy-archetype-taxonomy.v999" as typeof value.strategyArchetype.taxonomyVersion;
+      return value;
+    })(),
+    (() => {
+      const value = mutable(draft);
+      value.strategyArchetype.structuralLevelIds = ["invented-level"];
+      return value;
+    })(),
+    (() => {
+      const value = mutable(draft);
+      value.strategyContextTags.volatilityState = "EXPANDING";
+      return value;
+    })(),
+  ]) {
+    assert.equal(StrategyDraftSchema.safeParse(tampered).success, false);
+  }
+});
+
+test("abstains when a canonical archetype is not provable from the Thesis and structure", () => {
+  const input = mutableFixture();
+  input.thesis.opportunityPatterns = ["PRE_MOVE_FLOW_DIVERGENCE"];
+  input.thesis.detectorSources[0]!.opportunityPattern =
+    "PRE_MOVE_FLOW_DIVERGENCE";
+  const result = constructM3Strategy(input);
+  assert.equal(result.status, "ABSTAINED_NO_DRAFT");
+  assert.equal(result.draft, null);
+  assert.ok(result.reasonCodes.includes(
+    "strategy_archetype_not_provable_from_current_lineage",
+  ));
+});
+
+test("does not use symbol identity or Outcome to classify the strategy archetype", () => {
+  const firstInput = mutableFixture();
+  const secondInput = mutableFixture();
+  secondInput.thesis.canonicalInstrumentId =
+    "BINANCE_FUTURES:ANOTHERUSDT:LINEAR_PERPETUAL:USDT";
+  secondInput.thesis.underlyingGroupId =
+    "ANOTHER:USDT_LINEAR_PERPETUAL";
+  const first = constructM3Strategy(firstInput).draft!;
+  const second = constructM3Strategy(secondInput).draft!;
+  assert.equal(first.strategyArchetype.id, second.strategyArchetype.id);
+  assert.equal(
+    first.strategyArchetype.contentHash,
+    second.strategyArchetype.contentHash,
+  );
+  assert.equal(first.grossRewardRisk, second.grossRewardRisk);
+  assert.equal(first.estimatedNetRewardRisk, second.estimatedNetRewardRisk);
+  assert.deepEqual(first.blockers, second.blockers);
 });
 
 test("is deterministic and never changes the input artifact", () => {

@@ -9,6 +9,7 @@ import type {
 } from "../../domain/contracts";
 import {
   AnalysisSnapshotSchema,
+  OpportunityThesisSchema,
   SignalQualificationSchema,
   StrategyDraftSchema,
 } from "../../runtime-schema/decision-schemas";
@@ -45,6 +46,10 @@ import {
   m3StrategyTemplateVersion,
   m3TargetKinds,
 } from "./m3-strategy-construction-policy";
+import {
+  M3_STRATEGY_TEST_SCOPE_EPOCH,
+} from "../../domain/strategy-archetype";
+import { buildM3StrategyArchetype } from "./m3-strategy-archetype";
 
 export {
   M3_STRATEGY_BUFFER_POLICY_VERSION,
@@ -54,9 +59,9 @@ export {
 } from "./m3-strategy-construction-policy";
 
 export const M3_STRATEGY_CONSTRUCTION_INPUT_VERSION =
-  "m3-strategy-construction-input.v1" as const;
+  "m3-strategy-construction-input.v2" as const;
 export const M3_STRATEGY_CONSTRUCTION_RESULT_VERSION =
-  "m3-strategy-construction-result.v1" as const;
+  "m3-strategy-construction-result.v2" as const;
 export const M3_STRATEGY_CONSTRUCTION_MODE =
   "TEST_ONLY_UNCALIBRATED_NO_READY_AUTHORITY" as const;
 
@@ -106,6 +111,7 @@ export const M3StrategyConstructionInputSchema = z.strictObject({
   releaseId: NonEmptyStringSchema,
   generatedAt: IsoDateTimeSchema,
   sourceCutoff: IsoDateTimeSchema,
+  thesis: OpportunityThesisSchema,
   analysis: AnalysisSnapshotSchema,
   qualification: SignalQualificationSchema,
   referencePrice: M3StrategyPriceReferenceSchema,
@@ -156,7 +162,7 @@ function validateIntegrity(
   input: M3StrategyConstructionInput,
 ): M3StrategyConstructionIssue[] {
   const issues: M3StrategyConstructionIssue[] = [];
-  const { analysis, qualification, referencePrice } = input;
+  const { thesis, analysis, qualification, referencePrice } = input;
   if (Date.parse(input.sourceCutoff) > Date.parse(input.generatedAt)) {
     issue(
       issues,
@@ -166,6 +172,7 @@ function validateIntegrity(
     );
   }
   for (const [path, artifact] of [
+    ["thesis", thesis],
     ["analysis", analysis],
     ["qualification", qualification],
   ] as const) {
@@ -200,6 +207,10 @@ function validateIntegrity(
     );
   }
   if (
+    analysis.episodeId !== thesis.episodeId ||
+    analysis.thesisId !== thesis.thesisId ||
+    analysis.opportunityFamily !== thesis.opportunityFamily ||
+    analysis.directionBias !== thesis.directionHypothesis ||
     qualification.episodeId !== analysis.episodeId ||
     qualification.analysisId !== analysis.analysisId ||
     qualification.evidencePackageId !== analysis.evidencePackageId ||
@@ -528,7 +539,10 @@ function buildDraft(
   input: M3StrategyConstructionInput,
   direction: Direction,
   geometry: ConstructionGeometry,
-): StrategyDraft {
+): Readonly<{
+  draft: StrategyDraft | null;
+  reasonCodes: readonly string[];
+}> {
   const template = m3StrategyTemplate(input.analysis.opportunityFamily);
   const conservativeEntryPrice = direction === "LONG"
     ? geometry.plannedEntryZone.upper
@@ -549,12 +563,31 @@ function buildDraft(
     rewardRisk.estimatedNetRewardRisk,
     input,
   );
+  const archetype = buildM3StrategyArchetype({
+    thesis: input.thesis,
+    analysis: input.analysis,
+    qualification: input.qualification,
+    direction,
+    entryAnchor: geometry.entryAnchor,
+    releaseId: input.releaseId,
+    generatedAt: input.generatedAt,
+    policyVersion: M3_STRATEGY_CONSTRUCTION_POLICY_VERSION,
+    blockers,
+  });
+  if (
+    archetype.strategyArchetype === null ||
+    archetype.strategyContextTags === null
+  ) {
+    return { draft: null, reasonCodes: archetype.reasonCodes };
+  }
   const content = {
     releaseId: input.releaseId,
     sourceCutoff: input.sourceCutoff,
     episodeId: input.analysis.episodeId,
     analysisId: input.analysis.analysisId,
     qualificationId: input.qualification.qualificationId,
+    evidencePackageId: input.analysis.evidencePackageId,
+    scopeEpoch: M3_STRATEGY_TEST_SCOPE_EPOCH,
     opportunityFamily: input.analysis.opportunityFamily,
     strategyAuthority: "TEST_ONLY_UNCALIBRATED" as const,
     analyzerVersion: input.analysis.analyzerVersion,
@@ -568,6 +601,8 @@ function buildDraft(
     costAssumptionSetId: input.costAssumptions.assumptionSetId,
     costAssumptionVersion: input.costAssumptions.assumptionVersion,
     direction,
+    strategyArchetype: archetype.strategyArchetype,
+    strategyContextTags: archetype.strategyContextTags,
     referencePrice: input.referencePrice.price,
     referencePriceFactIds: [...input.referencePrice.sourceFactIds].sort(),
     whyNow: uniqueSorted([
@@ -611,14 +646,17 @@ function buildDraft(
     blockers,
   };
   const digest = stableSha256(content);
-  return deepFreezeArtifact(StrategyDraftSchema.parse({
-    schemaVersion: RUNTIME_OBJECT_SCHEMA_VERSIONS.StrategyDraft,
-    producerModule: "strategy_construction",
-    generatedAt: input.generatedAt,
-    contentHash: stableContentHash(content),
-    draftId: `strategy-draft:${digest.slice(0, 24)}`,
-    ...content,
-  }));
+  return {
+    draft: deepFreezeArtifact(StrategyDraftSchema.parse({
+      schemaVersion: RUNTIME_OBJECT_SCHEMA_VERSIONS.StrategyDraft,
+      producerModule: "strategy_construction",
+      generatedAt: input.generatedAt,
+      contentHash: stableContentHash(content),
+      draftId: `strategy-draft:${digest.slice(0, 24)}`,
+      ...content,
+    })),
+    reasonCodes: [],
+  };
 }
 
 function blockedResult(
@@ -680,7 +718,11 @@ export function constructM3Strategy(
   if (construction.geometry === null) {
     return abstainedResult(construction.reasonCodes);
   }
-  const draft = buildDraft(parsed.data, direction, construction.geometry);
+  const built = buildDraft(parsed.data, direction, construction.geometry);
+  if (built.draft === null) {
+    return abstainedResult(built.reasonCodes);
+  }
+  const draft = built.draft;
   const body = {
     schemaVersion: M3_STRATEGY_CONSTRUCTION_RESULT_VERSION,
     status: "CONSTRUCTED_TEST_ONLY" as const,

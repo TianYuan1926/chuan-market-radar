@@ -11,6 +11,11 @@ import {
   RUNTIME_OBJECT_SCHEMA_VERSIONS,
   type RuntimeObjectAuthorityOutputName,
 } from "./schema-versions";
+import { strategyStateLabelFor } from "./strategy-archetype-schemas";
+import {
+  strategyArchetypeFixture,
+  strategyContextTagsFixture,
+} from "../testing/strategy-archetype-fixture";
 
 const SOURCE_CUTOFF = "2026-01-15T00:00:00.000Z";
 const GENERATED_AT = "2026-01-15T00:01:00.000Z";
@@ -138,12 +143,19 @@ const executablePlan = {
   noChaseCondition: "Do not enter above the planned zone",
 } as const;
 
+const strategyArchetype = strategyArchetypeFixture();
+const strategyContextTags = strategyContextTagsFixture();
+const strategyStateLabel = strategyStateLabelFor("TRADE_PLAN_READY");
+
 const decision = {
   ...trace("StrategyDecision", "execution_feasibility_final_decision"),
   decisionId: "decision-fixture-1",
   episodeId: "episode-fixture-1",
   draftId: "draft-fixture-1",
   feasibilityId: "feasibility-fixture-1",
+  strategyArchetype,
+  strategyContextTags,
+  strategyStateLabel,
   reasonCodes: ["all_hard_gates_passed"],
   decidedAt: GENERATED_AT,
   actionState: "TRADE_PLAN_READY",
@@ -530,6 +542,8 @@ const fixtures: RuntimeArtifactByName = {
     episodeId: "episode-fixture-1",
     analysisId: "analysis-fixture-1",
     qualificationId: "qualification-fixture-1",
+    evidencePackageId: "evidence-package-fixture-1",
+    scopeEpoch: strategyArchetype.scopeEpoch,
     opportunityFamily: "PRE_MOVE",
     strategyAuthority: "TEST_ONLY_UNCALIBRATED",
     analyzerVersion: "pre-move-analysis.v1",
@@ -539,6 +553,8 @@ const fixtures: RuntimeArtifactByName = {
     costAssumptionSetId: "fixture-conservative-costs",
     costAssumptionVersion: "fixture-conservative-costs.v1",
     direction: "LONG",
+    strategyArchetype,
+    strategyContextTags,
     referencePrice: "100.5",
     referencePriceFactIds: ["fact-fixture-1"],
     whyNow: ["trigger_near"],
@@ -648,6 +664,9 @@ const fixtures: RuntimeArtifactByName = {
     analysisId: "analysis-fixture-1",
     qualificationId: "qualification-fixture-1",
     decision,
+    strategyArchetype,
+    strategyContextTags,
+    strategyStateLabel,
     personalRiskViewId: "personal-risk-fixture-1",
     portfolioRiskViewId: "portfolio-risk-fixture-1",
     factVersion: "fact.v1",
@@ -663,6 +682,9 @@ const fixtures: RuntimeArtifactByName = {
     alertId: "alert-fixture-1",
     episodeId: "episode-fixture-1",
     decisionSnapshotId: "decision-snapshot-fixture-1",
+    strategyArchetype,
+    strategyContextTags,
+    strategyStateLabel,
     alertType: "READY",
     dedupeKey: "ready:episode-fixture-1",
     expiresAt: EXPIRES_AT,
@@ -682,6 +704,9 @@ const fixtures: RuntimeArtifactByName = {
     outcomeId: "outcome-fixture-1",
     episodeId: "episode-fixture-1",
     decisionSnapshotId: "decision-snapshot-fixture-1",
+    strategyArchetype,
+    strategyContextTags,
+    strategyStateLabel,
     checkpoint: "4H",
     status: "TP_FIRST",
     maximumFavorableExcursion: 5,

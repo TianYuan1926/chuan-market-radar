@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { ReadyStrategyDecision, StrategyDecision } from "./contracts";
+import { strategyStateLabelFor } from "../runtime-schema/strategy-archetype-schemas";
+import {
+  strategyArchetypeFixture,
+  strategyContextTagsFixture,
+} from "../testing/strategy-archetype-fixture";
 import {
   assertValidStrategyDecision,
   validateStrategyDecision,
@@ -16,9 +21,12 @@ function baseDecision(): Omit<ReadyStrategyDecision, "actionState" | "executable
     feasibilityId: "feasibility-fixture-1",
     generatedAt: "2026-01-15T00:01:00.000Z",
     producerModule: "execution_feasibility_final_decision",
+    strategyArchetype: strategyArchetypeFixture(),
+    strategyContextTags: strategyContextTagsFixture(),
+    strategyStateLabel: strategyStateLabelFor("TRADE_PLAN_READY"),
     reasonCodes: ["all_hard_gates_passed"],
     releaseId: "release-fixture-1",
-    schemaVersion: "strategy-decision.v1",
+    schemaVersion: "strategy-decision.v2",
     sourceCutoff: "2026-01-15T00:00:59.000Z",
   };
 }
@@ -84,6 +92,7 @@ test("keeps every non-ready state planless", () => {
   for (const actionState of nonReadyStates) {
     const decision: StrategyDecision = {
       ...baseDecision(),
+      strategyStateLabel: strategyStateLabelFor(actionState),
       actionState,
       executablePlan: null,
     };

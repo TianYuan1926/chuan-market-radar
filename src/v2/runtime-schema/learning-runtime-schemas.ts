@@ -22,6 +22,11 @@ import {
   traceEnvelopeShape,
 } from "./primitives";
 import { RUNTIME_OBJECT_SCHEMA_VERSIONS } from "./schema-versions";
+import {
+  StrategyArchetypeLabelSchema,
+  StrategyContextTagsSchema,
+  StrategyStateLabelSchema,
+} from "./strategy-archetype-schemas";
 
 export const AlertEventSchema = z.strictObject({
   ...traceEnvelopeShape(
@@ -31,6 +36,9 @@ export const AlertEventSchema = z.strictObject({
   alertId: NonEmptyStringSchema,
   episodeId: NonEmptyStringSchema,
   decisionSnapshotId: NonEmptyStringSchema,
+  strategyArchetype: StrategyArchetypeLabelSchema,
+  strategyContextTags: StrategyContextTagsSchema,
+  strategyStateLabel: StrategyStateLabelSchema,
   alertType: z.enum([
     "EARLY_CANDIDATE",
     "EVIDENCE_READY",
@@ -43,6 +51,15 @@ export const AlertEventSchema = z.strictObject({
   dedupeKey: NonEmptyStringSchema,
   expiresAt: IsoDateTimeSchema,
 }).superRefine((event, context) => {
+  if (
+    event.strategyContextTags.scopeEpoch !== event.strategyArchetype.scopeEpoch
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "alert strategy context must preserve archetype scope lineage",
+      path: ["strategyContextTags", "scopeEpoch"],
+    });
+  }
   if (Date.parse(event.expiresAt) <= Date.parse(event.generatedAt)) {
     context.addIssue({
       code: "custom",
@@ -85,6 +102,9 @@ export const OutcomeRecordSchema = z.strictObject({
   outcomeId: NonEmptyStringSchema,
   episodeId: NonEmptyStringSchema,
   decisionSnapshotId: NonEmptyStringSchema,
+  strategyArchetype: StrategyArchetypeLabelSchema,
+  strategyContextTags: StrategyContextTagsSchema,
+  strategyStateLabel: StrategyStateLabelSchema,
   checkpoint: z.enum(["1H", "4H", "24H"]),
   status: z.enum([
     "TP_FIRST",
@@ -100,6 +120,16 @@ export const OutcomeRecordSchema = z.strictObject({
   leadTimeSeconds: FiniteNumberSchema.nullable(),
   factCutoff: IsoDateTimeSchema,
 }).superRefine((outcome, context) => {
+  if (
+    outcome.strategyContextTags.scopeEpoch !==
+      outcome.strategyArchetype.scopeEpoch
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "outcome strategy context must preserve archetype scope lineage",
+      path: ["strategyContextTags", "scopeEpoch"],
+    });
+  }
   if (
     outcome.status === "DATA_UNAVAILABLE" &&
     [

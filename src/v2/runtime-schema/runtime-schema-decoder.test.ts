@@ -5,10 +5,19 @@ import {
   decodeRuntimeArtifact,
   decodeRuntimeJson,
 } from "./decoder";
+import {
+  strategyArchetypeFixture,
+  strategyContextTagsFixture,
+} from "../testing/strategy-archetype-fixture";
+import { strategyStateLabelFor } from "./strategy-archetype-schemas";
+
+const strategyArchetype = strategyArchetypeFixture();
+const strategyContextTags = strategyContextTagsFixture();
+const strategyStateLabel = strategyStateLabelFor("TRADE_PLAN_READY");
 
 function validReadyDecision() {
   return {
-    schemaVersion: "strategy-decision.v1",
+    schemaVersion: "strategy-decision.v2",
     releaseId: "release-fixture-1",
     producerModule: "execution_feasibility_final_decision",
     generatedAt: "2026-01-15T00:01:00.000Z",
@@ -18,6 +27,9 @@ function validReadyDecision() {
     episodeId: "episode-fixture-1",
     draftId: "draft-fixture-1",
     feasibilityId: "feasibility-fixture-1",
+    strategyArchetype,
+    strategyContextTags,
+    strategyStateLabel,
     reasonCodes: ["all_hard_gates_passed"],
     decidedAt: "2026-01-15T00:01:00.000Z",
     actionState: "TRADE_PLAN_READY",

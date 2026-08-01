@@ -29,7 +29,7 @@ import {
 } from "../strategy/m3-exact-price-math";
 
 export const M3_FINAL_DECISION_CONTRACT_VERSION =
-  "m3-final-decision-contract.v1" as const;
+  "m3-final-decision-contract.v2" as const;
 
 const M3DecisionScopeSchema = z.enum([
   "TEST_ONLY",
@@ -299,6 +299,7 @@ function addIdentityIssues(
     ["draft.episodeId", draft.episodeId, expected.episodeId],
     ["draft.analysisId", draft.analysisId, expected.analysisId],
     ["draft.qualificationId", draft.qualificationId, expected.qualificationId],
+    ["draft.evidencePackageId", draft.evidencePackageId, expected.evidencePackageId],
     ["draft.analyzerVersion", draft.analyzerVersion, analysis.analyzerVersion],
     [
       "draft.qualificationPolicyVersion",
@@ -309,6 +310,21 @@ function addIdentityIssues(
     ["decision.episodeId", decision.episodeId, expected.episodeId],
     ["decision.draftId", decision.draftId, expected.draftId],
     ["decision.feasibilityId", decision.feasibilityId, expected.feasibilityId],
+    [
+      "draft.strategyArchetype.analysisSnapshotId",
+      draft.strategyArchetype.analysisSnapshotId,
+      expected.analysisId,
+    ],
+    [
+      "draft.strategyArchetype.signalQualificationId",
+      draft.strategyArchetype.signalQualificationId,
+      expected.qualificationId,
+    ],
+    [
+      "draft.strategyArchetype.evidencePackageId",
+      draft.strategyArchetype.evidencePackageId,
+      expected.evidencePackageId,
+    ],
   ] as const;
   for (const [path, actual, expectedValue] of mismatches) {
     if (actual !== expectedValue) {
@@ -332,6 +348,83 @@ function addIdentityIssues(
       "opportunity_family_lineage_mismatch",
       "analysis.opportunityFamily",
       "episode, thesis, analysis, qualification and strategy must keep the same opportunity family",
+    );
+  }
+  if (
+    decision.strategyArchetype.contentHash !==
+      draft.strategyArchetype.contentHash ||
+    decision.strategyContextTags.contentHash !==
+      draft.strategyContextTags.contentHash ||
+    decision.strategyArchetype.id !== draft.strategyArchetype.id ||
+    decision.strategyArchetype.taxonomyVersion !==
+      draft.strategyArchetype.taxonomyVersion
+  ) {
+    issue(
+      issues,
+      "strategy_archetype_lineage_mismatch",
+      "decision.strategyArchetype",
+      "Final Decision must freeze the Strategy Construction archetype and context without relabeling",
+    );
+  }
+  if (decision.strategyStateLabel.actionState !== decision.actionState) {
+    issue(
+      issues,
+      "strategy_state_label_mismatch",
+      "decision.strategyStateLabel",
+      "strategy state label must be derived from the authoritative ActionState",
+    );
+  }
+
+  const patterns = new Set(thesis.opportunityPatterns);
+  const labelId = draft.strategyArchetype.id;
+  const patternCompatible =
+    (
+      (labelId === "COMPRESSION_EXPANSION_LONG" ||
+        labelId === "COMPRESSION_EXPANSION_SHORT") &&
+      patterns.has("PRE_MOVE_COMPRESSION")
+    ) ||
+    (
+      (labelId === "BREAKOUT_RETEST_LONG" ||
+        labelId === "BREAKDOWN_RETEST_SHORT") &&
+      patterns.has("ROLE_FLIP_RETEST")
+    ) ||
+    (
+      (labelId === "TREND_PULLBACK_CONTINUATION_LONG" ||
+        labelId === "TREND_RALLY_CONTINUATION_SHORT") &&
+      patterns.has("STRUCTURAL_PULLBACK_RESUMPTION")
+    ) ||
+    (
+      (
+        labelId === "FAILED_BREAKDOWN_REVERSAL_LONG" ||
+        labelId === "FAILED_BREAKOUT_REVERSAL_SHORT" ||
+        labelId === "LIQUIDITY_SWEEP_RECLAIM_LONG" ||
+        labelId === "LIQUIDITY_SWEEP_REJECT_SHORT"
+      ) && patterns.has("KEY_LEVEL_REVERSAL")
+    ) ||
+    (
+      (labelId === "RANGE_LOW_REVERSAL_LONG" ||
+        labelId === "RANGE_HIGH_REVERSAL_SHORT") &&
+      (
+        patterns.has("RANGE_EDGE") ||
+        thesis.opportunityFamily === "RELATIVE_STRENGTH" ||
+        thesis.opportunityFamily === "DERIVATIVES_FLOW"
+      )
+    ) ||
+    (
+      (labelId === "SUPPORT_BOUNCE_LONG" ||
+        labelId === "RESISTANCE_REJECTION_SHORT") &&
+      (
+        patterns.has("KEY_LEVEL_REVERSAL") ||
+        thesis.opportunityFamily === "RELATIVE_STRENGTH" ||
+        thesis.opportunityFamily === "DERIVATIVES_FLOW"
+      )
+    );
+  if (!patternCompatible) {
+    issue(
+      issues,
+      "strategy_archetype_pattern_lineage_mismatch",
+      "draft.strategyArchetype.id",
+      "canonical strategy archetype must be supported by the frozen Thesis pattern lineage",
     );
   }
   if (

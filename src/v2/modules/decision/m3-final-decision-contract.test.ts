@@ -6,6 +6,15 @@ import {
   M3FinalDecisionBundleSchema,
   M3_FINAL_DECISION_CONTRACT_VERSION,
 } from "./m3-final-decision-contract";
+import { strategyStateLabelFor } from "../../runtime-schema/strategy-archetype-schemas";
+import {
+  strategyArchetypeFixture,
+  strategyContextTagsFixture,
+} from "../../testing/strategy-archetype-fixture";
+import {
+  M3StrategyArchetypeLineageBundleSchema,
+  M3_STRATEGY_ARCHETYPE_LINEAGE_CONTRACT_VERSION,
+} from "../strategy/m3-strategy-archetype-lineage-contract";
 
 const RELEASE = "release-m3-contract";
 const BASE = "2026-01-15T00:00:00.000Z";
@@ -187,6 +196,22 @@ function bundle(
   const evidenceGrade = options.evidenceGrade ?? "A";
   const setupGrade = options.setupGrade ?? "PREMIUM";
   const plan = readyPlan();
+  const strategyArchetype = strategyArchetypeFixture({
+    id: "BREAKOUT_RETEST_LONG",
+    opportunityFamily: "BREAKOUT_RETEST",
+    analysisSnapshotId: "analysis-m3-one",
+    signalQualificationId: "qualification-m3-one",
+    evidencePackageId: "evidence-m3-one",
+    structuralLevelIds: ["level-resistance"],
+    releaseIdentity: RELEASE,
+    generatedAt: "2026-01-15T00:00:20.000Z",
+  });
+  const strategyContextTags = strategyContextTagsFixture({
+    scopeEpoch: strategyArchetype.scopeEpoch,
+    regime: "TREND",
+    evidenceDrivers: ["BREAKOUT", "STRUCTURE"],
+  });
+  const strategyStateLabel = strategyStateLabelFor(actionState);
   return M3FinalDecisionBundleSchema.parse({
     schemaVersion: M3_FINAL_DECISION_CONTRACT_VERSION,
     authorization: {
@@ -326,8 +351,8 @@ function bundle(
         : "TEST_ONLY_UNCALIBRATED",
       opportunityFamily: "BREAKOUT_RETEST",
       directionBias: "LONG",
-      structureState: "ROLE_FLIP_RETEST",
-      marketStage: "EARLY_RETEST",
+      structureState: "ROLE_FLIP_RETEST_HOLD",
+      marketStage: "RETEST",
       locationQuality: "GOOD",
       spaceQuality: "GOOD",
       structuralLevels: [
@@ -450,11 +475,13 @@ function bundle(
       reasonCodes: ["evidence_and_setup_independently_qualified"],
     },
     draft: {
-      ...trace("strategy_construction", "strategy-draft.v2"),
+      ...trace("strategy_construction", "strategy-draft.v3"),
       draftId: "draft-m3-one",
       episodeId: "episode-m3-one",
       analysisId: "analysis-m3-one",
       qualificationId: "qualification-m3-one",
+      evidencePackageId: "evidence-m3-one",
+      scopeEpoch: strategyArchetype.scopeEpoch,
       opportunityFamily: "BREAKOUT_RETEST",
       strategyAuthority: authorized
         ? "REPLAY_CALIBRATED"
@@ -466,6 +493,8 @@ function bundle(
       costAssumptionSetId: "conservative-costs",
       costAssumptionVersion: "conservative-costs.v1",
       direction: plan.direction,
+      strategyArchetype,
+      strategyContextTags,
       referencePrice: "100.5",
       referencePriceFactIds: ["fact-m3-one"],
       whyNow: ["retest_acceptance"],
@@ -554,12 +583,15 @@ function bundle(
       reasonCodes: ["runtime_ready"],
     },
     decision: {
-      ...trace("execution_feasibility_final_decision", "strategy-decision.v1", DECIDED),
+      ...trace("execution_feasibility_final_decision", "strategy-decision.v2", DECIDED),
       sourceCutoff: "2026-01-15T00:00:24.000Z",
       decisionId: "decision-m3-one",
       episodeId: "episode-m3-one",
       draftId: "draft-m3-one",
       feasibilityId: "feasibility-m3-one",
+      strategyArchetype,
+      strategyContextTags,
+      strategyStateLabel,
       reasonCodes: fixtureDecisionReasonCodes(
         authorized,
         triggerStatus,
@@ -571,6 +603,77 @@ function bundle(
       executablePlan: actionState === "TRADE_PLAN_READY" ? plan : null,
     },
   });
+}
+
+function archetypeLineageBundle() {
+  const finalBundle = bundle();
+  const { strategyArchetype, strategyContextTags, strategyStateLabel } =
+    finalBundle.decision;
+  const snapshot = {
+    ...trace("decision_read_model", "decision-snapshot.v2", DECIDED),
+    snapshotId: "snapshot-m3-one",
+    episodeId: finalBundle.episode.episodeId,
+    canonicalInstrumentId: finalBundle.episode.canonicalInstrumentId,
+    opportunityFamily: finalBundle.episode.opportunityFamily,
+    thesisId: finalBundle.thesis.thesisId,
+    candidatePriority: finalBundle.episode.priority,
+    evidenceGrade: finalBundle.qualification.evidenceGrade,
+    setupGrade: finalBundle.qualification.setupGrade,
+    actionState: finalBundle.decision.actionState,
+    userFit: "SUITABLE" as const,
+    evidencePackageId: finalBundle.evidence.evidencePackageId,
+    analysisId: finalBundle.analysis.analysisId,
+    qualificationId: finalBundle.qualification.qualificationId,
+    decision: finalBundle.decision,
+    strategyArchetype,
+    strategyContextTags,
+    strategyStateLabel,
+    personalRiskViewId: null,
+    portfolioRiskViewId: null,
+    factVersion: "fixture-fact.v1",
+    featureVersion: "fixture-feature.v1",
+    ruleVersions: { decision: "fixture-decision.v1" },
+    uncertainty,
+    freshness: fresh,
+    unavailableReasonCodes: [],
+    supersedesSnapshotId: null,
+  };
+  const alert = {
+    ...trace("alert_delivery", "alert-event.v2", DECIDED),
+    alertId: "alert-m3-one",
+    episodeId: finalBundle.episode.episodeId,
+    decisionSnapshotId: snapshot.snapshotId,
+    strategyArchetype,
+    strategyContextTags,
+    strategyStateLabel,
+    alertType: "READY" as const,
+    dedupeKey: "ready:episode-m3-one",
+    expiresAt: "2026-01-15T00:15:00.000Z",
+  };
+  const outcome = {
+    ...trace("outcome_evaluation", "outcome-record.v2", "2026-01-15T04:00:30.000Z"),
+    outcomeId: "outcome-m3-one",
+    episodeId: finalBundle.episode.episodeId,
+    decisionSnapshotId: snapshot.snapshotId,
+    strategyArchetype,
+    strategyContextTags,
+    strategyStateLabel,
+    checkpoint: "4H" as const,
+    status: "TP_FIRST" as const,
+    maximumFavorableExcursion: 4,
+    maximumAdverseExcursion: 1,
+    netR: 3.1,
+    leadTimeSeconds: 900,
+    factCutoff: "2026-01-15T04:00:00.000Z",
+  };
+  return {
+    schemaVersion: M3_STRATEGY_ARCHETYPE_LINEAGE_CONTRACT_VERSION,
+    draft: finalBundle.draft,
+    decision: finalBundle.decision,
+    snapshot,
+    alerts: [alert],
+    outcomes: [outcome],
+  };
 }
 
 test("accepts an authorized replay READY only when every hard gate passes", () => {
@@ -588,8 +691,55 @@ test("keeps the current draft lifecycle test-only and planless", () => {
   assert.equal(assessment.authorityStatus, "NOT_AUTHORIZED");
   assert.equal(assessment.expectedActionState, "BLOCKED");
   assert.equal(assessment.executablePlanExposureAllowed, false);
+  assert.equal(
+    bundle({ authorized: false }).draft.strategyArchetype.id,
+    "BREAKOUT_RETEST_LONG",
+  );
   assert.ok(assessment.reasonCodes.includes("m2_lifecycle_gate_not_passed"));
   assert.ok(assessment.reasonCodes.includes("test_only_scope_has_no_decision_authority"));
+});
+
+test("propagates one immutable archetype through Decision, Snapshot, Alert and Outcome", () => {
+  const parsed = M3StrategyArchetypeLineageBundleSchema.parse(
+    archetypeLineageBundle(),
+  );
+  assert.equal(
+    parsed.draft.strategyArchetype.contentHash,
+    parsed.outcomes[0]!.strategyArchetype.contentHash,
+  );
+  assert.equal(
+    parsed.decision.strategyStateLabel.actionState,
+    parsed.alerts[0]!.strategyStateLabel.actionState,
+  );
+});
+
+test("rejects post-hoc Outcome relabeling even with a newly valid content hash", () => {
+  const tampered = structuredClone(archetypeLineageBundle());
+  tampered.outcomes[0]!.strategyArchetype = structuredClone(
+    strategyArchetypeFixture({
+      id: "BREAKDOWN_RETEST_SHORT",
+      opportunityFamily: "BREAKOUT_RETEST",
+      analysisSnapshotId: "analysis-m3-one",
+      signalQualificationId: "qualification-m3-one",
+      evidencePackageId: "evidence-m3-one",
+      structuralLevelIds: ["level-resistance"],
+      releaseIdentity: RELEASE,
+      generatedAt: "2026-01-15T00:00:20.000Z",
+    }),
+  ) as unknown as typeof tampered.outcomes[0]["strategyArchetype"];
+  assert.equal(
+    M3StrategyArchetypeLineageBundleSchema.safeParse(tampered).success,
+    false,
+  );
+});
+
+test("rejects state-label rewriting independently of alert or Outcome status", () => {
+  const tampered = structuredClone(archetypeLineageBundle());
+  tampered.alerts[0]!.strategyStateLabel = strategyStateLabelFor("WAIT");
+  assert.equal(
+    M3StrategyArchetypeLineageBundleSchema.safeParse(tampered).success,
+    false,
+  );
 });
 
 test("rejects a forged READY while M1 and M2 authority remain closed", () => {
@@ -755,6 +905,7 @@ test("rejects uncalibrated family analysis in an authorized replay decision", ()
     "family_analysis_authority_not_calibrated_for_scope",
   ];
   uncalibrated.decision.actionState = "BLOCKED";
+  uncalibrated.decision.strategyStateLabel = strategyStateLabelFor("BLOCKED");
   uncalibrated.decision.executablePlan = null;
   const assessment = assessM3FinalDecisionBundle(uncalibrated);
   assert.equal(assessment.validationStatus, "PASS");
@@ -793,6 +944,7 @@ test("rejects uncalibrated signal qualification in an authorized replay decision
     "signal_qualification_authority_not_calibrated_for_scope",
   ];
   uncalibrated.decision.actionState = "BLOCKED";
+  uncalibrated.decision.strategyStateLabel = strategyStateLabelFor("BLOCKED");
   uncalibrated.decision.executablePlan = null;
   const assessment = assessM3FinalDecisionBundle(uncalibrated);
   assert.equal(assessment.validationStatus, "PASS");
@@ -812,6 +964,7 @@ test("rejects a strategy authority calibrated for the wrong decision scope", () 
     "strategy_authority_not_calibrated_for_scope",
   ];
   wrongScope.decision.actionState = "BLOCKED";
+  wrongScope.decision.strategyStateLabel = strategyStateLabelFor("BLOCKED");
   wrongScope.decision.executablePlan = null;
   const assessment = assessM3FinalDecisionBundle(wrongScope);
   assert.equal(assessment.validationStatus, "PASS");
@@ -825,6 +978,16 @@ test("rejects a strategy authority calibrated for the wrong decision scope", () 
 test("rejects strategy family and policy lineage splicing", () => {
   const spliced = structuredClone(bundle());
   spliced.draft.opportunityFamily = "PRE_MOVE";
+  spliced.draft.strategyArchetype = structuredClone(strategyArchetypeFixture({
+    id: "COMPRESSION_EXPANSION_LONG",
+    opportunityFamily: "PRE_MOVE",
+    analysisSnapshotId: "analysis-m3-one",
+    signalQualificationId: "qualification-m3-one",
+    evidencePackageId: "evidence-m3-one",
+    structuralLevelIds: ["level-resistance"],
+    releaseIdentity: RELEASE,
+    generatedAt: "2026-01-15T00:00:20.000Z",
+  })) as unknown as typeof spliced.draft.strategyArchetype;
   spliced.draft.analyzerVersion = "another-analyzer.v1";
   spliced.draft.qualificationPolicyVersion = "another-qualification-policy.v1";
   const assessment = assessM3FinalDecisionBundle(spliced);

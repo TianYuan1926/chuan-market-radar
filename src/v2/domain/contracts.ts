@@ -15,6 +15,11 @@ import type {
   SetupGrade,
   UserFit,
 } from "./states";
+import type {
+  StrategyArchetypeLabel,
+  StrategyContextTags,
+  StrategyStateLabel,
+} from "./strategy-archetype";
 import type { UncertaintyVector } from "./uncertainty";
 
 export type Direction = "LONG" | "SHORT";
@@ -465,6 +470,8 @@ export type StrategyDraft = TraceEnvelope & {
   episodeId: string;
   analysisId: string;
   qualificationId: string;
+  evidencePackageId: string;
+  scopeEpoch: string;
   opportunityFamily: OpportunityFamily;
   strategyAuthority:
     | "TEST_ONLY_UNCALIBRATED"
@@ -479,6 +486,8 @@ export type StrategyDraft = TraceEnvelope & {
   costAssumptionSetId: string;
   costAssumptionVersion: string;
   direction: Direction;
+  strategyArchetype: StrategyArchetypeLabel;
+  strategyContextTags: StrategyContextTags;
   referencePrice: string;
   referencePriceFactIds: readonly string[];
   whyNow: readonly string[];
@@ -585,6 +594,9 @@ type StrategyDecisionBase = TraceEnvelope & {
   episodeId: string;
   draftId: string;
   feasibilityId: string;
+  strategyArchetype: StrategyArchetypeLabel;
+  strategyContextTags: StrategyContextTags;
+  strategyStateLabel: StrategyStateLabel;
   reasonCodes: readonly string[];
   decidedAt: string;
 };
@@ -645,6 +657,9 @@ export type DecisionSnapshot = TraceEnvelope & {
   analysisId: string;
   qualificationId: string;
   decision: StrategyDecision;
+  strategyArchetype: StrategyArchetypeLabel;
+  strategyContextTags: StrategyContextTags;
+  strategyStateLabel: StrategyStateLabel;
   personalRiskViewId: string | null;
   portfolioRiskViewId: string | null;
   factVersion: string;
@@ -661,6 +676,9 @@ export type AlertEvent = TraceEnvelope & {
   alertId: string;
   episodeId: string;
   decisionSnapshotId: string;
+  strategyArchetype: StrategyArchetypeLabel;
+  strategyContextTags: StrategyContextTags;
+  strategyStateLabel: StrategyStateLabel;
   alertType: "EARLY_CANDIDATE" | "EVIDENCE_READY" | "WAIT_NEAR_TRIGGER" | "READY" | "INVALIDATED" | "EXPIRED" | "DEGRADED";
   dedupeKey: string;
   expiresAt: string;
@@ -682,6 +700,9 @@ export type OutcomeRecord = TraceEnvelope & {
   outcomeId: string;
   episodeId: string;
   decisionSnapshotId: string;
+  strategyArchetype: StrategyArchetypeLabel;
+  strategyContextTags: StrategyContextTags;
+  strategyStateLabel: StrategyStateLabel;
   checkpoint: "1H" | "4H" | "24H";
   status: "TP_FIRST" | "SL_FIRST" | "PARTIAL" | "EXPIRED" | "NOT_TRIGGERED" | "DATA_UNAVAILABLE";
   maximumFavorableExcursion: number | null;

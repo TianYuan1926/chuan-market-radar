@@ -25,9 +25,7 @@ Market Radar 是以加密合约为首要核心、并扩展到股票永续的多�
 -> 交易计划
 -> 复盘进化
 ```
-
 V2 工程链路细化为：
-
 ```text
 Universe Registry
 -> Market Fact + Quality
@@ -45,14 +43,12 @@ Universe Registry
 -> Outcome Evaluation
 -> Research Governance
 ```
-
 Runtime / Security / Release Control 贯穿全链。
-
 ## 4. 当前权威
 当前唯一设计权威：
 
-- `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`，内容版本 v1.75。
-- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.80。
+- `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`，内容版本 v1.76。
+- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.81。
 - `docs/blueprints/README.md`，权威解析入口。
 - `market-radar-v2-build-sequence.md`，当前正确施工依赖与减数规则。
 
@@ -77,7 +73,7 @@ M1.5B1B3_EARLY_SHADOW_BUSINESS_GATE_PASS
 M1.5B1_COMPLETE
 M1.6_PARTITIONED_FACT_STORAGE_LOCAL_POSTGRES16_PASS
 M1.6P0_PRODUCTION_STORAGE_READ_ONLY_PREFLIGHT_EXECUTED_BLOCKED
-M1.6P0R_B8_EXACT_TARGET_ACCEPTANCE_HISTORICAL_PASS / M1.6P0R_B9_STS_AND_AGE_HANDOFF_PASS_RUNNER_STARTED_COS_OBJECT_LOCK_AUTHORIZATION_BLOCKED_BEFORE_DATABASE_READ / COS_CAM_ACTION_AND_SANITIZED_DIAGNOSTIC_ROOT_REMEDIATION_LOCAL_P0R_113_OF_113_AND_FULL_CI_PASS / CLEAN_EXACT_SOURCE_AND_REMOTE_REQUALIFICATION_PENDING / OLD_V3_PLAN_V2_CREDENTIAL_AND_RUN_REJECTED / TEMPORARY_8022_RULE_LISTENER_SECRET_PROCESS_CONTAINER_VOLUME_CLEANUP_PASS / PRODUCTION_ZERO_DRIFT
+M1.6P0R_B9_R1_SOURCE_6A70_FOUR_GITHUB_GATES_FRESH_SIGNED_REBIND_V4_PLAN_TRANSPORT_TARGET_ACCEPTANCE_PASS / FULL_RECOVERY_NOT_EXECUTED / TEMPORARY_8022_STS_DATABASE_COS_BACKUP_RESTORE_NOT_TOUCHED / PRODUCTION_ZERO_DRIFT
 M1.6_FRESH_P0_CAPACITY_ADMISSION_LOCAL_ENGINEERING_PASS_PRODUCTION_EVIDENCE_PENDING
 M2.0_DISCOVERY_CONTRACTS_LOCAL_PASS
 M2.1_DRAFT_REPLAY_KERNELS_LOCAL_PASS
@@ -90,6 +86,7 @@ M2.2B0.2C1_FORWARD_CAPTURE_START_PASS
 M2.2B0.2C1_FOUR_CYCLE_FULL_HISTORY_INTEGRITY_AND_SCOPE_V2_DOMAIN_REPLAY_PASS_NO_AUTHORITY
 forwardInstrumentContinuity=FORWARD_ONLY_READY
 M3.0_M3.1_M3.2_M3.3_LOCAL_CONTRACT_PASS_TEST_ONLY_UNCALIBRATED_NO_READY_AUTHORITY
+M3.3E_LOCAL_SCHEMA_BUILDER_IMMUTABLE_LINEAGE_PASS_TEST_ONLY_UNBOUND_SCOPE_UI_EVALUATION_SHADOW_PENDING_NO_RUNTIME_OR_PRODUCTION_AUTHORITY
 M2.2_REAL_COHORT_GATE_INSUFFICIENT
 detectorLifecycle=DRAFT
 candidateEmissionAllowed=false
@@ -147,8 +144,8 @@ automaticTradingAllowed=false
 - M2.2-B0.1 已为五个 DRAFT Detector 增加 target-blind relative-rule-margin diagnostic strength，明确不是概率、等级或交易结论；固定 Detector 分母 Top20、TRAIN-only 六维事件阈值、matched/background、pre-cutoff regime/liquidity、observed/modeled knowledge-time、purge/embargo 和 1+4 trial registry 已由 version/digest 绑定到 dataset/experiment/holdout v2。定向 45/45 PASS；真实 cohort 仍为 0、Gate=`INSUFFICIENT`、Detector 仍 DRAFT、Candidate 禁发。
 - M2.2-B0.2-A 已把来源权利升级为内容寻址、限定账户/法域、带有效期且只能由账户所有者或合格法律审查者作出的外部结论；把历史 instrument identity、onboard/delist、状态区间、knowledge time、symbol reuse epoch 和全分母覆盖核算做成 fail-closed Gate。当前五个来源候选全部为 `RESEARCH_ONLY`，合格历史来源仍为 0；Agent、当前快照和 archive presence 均不能自证通过。
 - M2.2-B0.2-C/C1 已建立 release-bound 三 Venue exact raw capture、工作区外内容寻址 store、完整分母、三类 identity evidence、identity epoch、持续缺席非 delist、全链 journal 验证与 clean-HEAD CLI。冻结 release `4139cc631d3d760876c3e39404c494462541a910` 连续取得两轮三 Venue COMPLETE；Binance/OKX/Bybit 分别 841/426/746 rows，目标 654/272/642，out-of-scope 187/154/104，unresolved=0；跨度约 368.5 秒，三家均 2/2 complete、gap/conflict/blocker=0、`FORWARD_ONLY_READY`。这只通过前向捕获起点，不回填历史、不解锁 B0.2-B/B1 historical acquisition、Detector 或 Candidate。
-- M3.0-M3.3 已冻结 V1 六族的 Final Decision authority、双评级、Analysis 和 `StrategyDraft v2`，这些测试只属于三 Venue 加密 fixture。M3.4-R0 Scope Rebase Gate 已本地 12/12，把四 Venue、assetDomain、lifecycle、release、通用/加密/股票/warm-up 前置证据机器化。R1 test-only 草稿的 schema/import/fixture 编译阻断已按当前 strict schema 根治，全仓 typecheck/lint/CI 通过；但其自身定向测试仍为 0，且缺真实 Scope V2 上游证据，所以不计 M3.4 出口，也没有 Feasibility、Risk、runtime 或 READY authority。
-- M3.3E 已新增 Strategy Archetype Labeling 与 Outcome Attribution 设计权威：完整策略必须恰好一个后端 canonical 主标签，Decision/Read Model/Outcome 原样冻结，前端只本地化和筛选；标签不得提级或改变结构计划，新标签必须通过真实 cohort、matched control、sealed holdout、前向 Shadow 和独立审计。当前只有设计合同，schema、builder、测试、Outcome、UI 和生产 authority 均未实现。
+- M3.0-M3.3 已冻结 V1 六族的 Final Decision authority、双评级、Analysis 和 Strategy 基线；M3.3E 后当前草案 schema 为 `StrategyDraft v3`，这些测试仍只属于三 Venue 加密 fixture。M3.4-R0 Scope Rebase Gate 已本地 12/12，把四 Venue、assetDomain、lifecycle、release、通用/加密/股票/warm-up 前置证据机器化。R1 test-only 草稿的 schema/import/fixture 编译阻断已按当前 strict schema 根治，全仓 typecheck/lint/CI 通过；但其自身定向测试仍为 0，且缺真实 Scope V2 上游证据，所以不计 M3.4 出口，也没有 Feasibility、Risk、runtime 或 READY authority。
+- M3.3E 本地核心合同已落地：`StrategyDraft v3` 必须恰好一个内容寻址主标签和有界 context tags，input v2 显式消费 Thesis，无法从 pattern、Analysis structure、方向与结构位证明时 no-draft abstain；`StrategyDecision v2`、`DecisionSnapshot v2`、`AlertEvent v2`、`OutcomeRecord v2` 原样传播，跨对象合同拒绝事后改名和状态重写。M3 核心 88/88、多资产 28/28、Scope Rebase 12/12 PASS；当前 scope 明确是 `M3_TEST_ONLY_UNBOUND_SCOPE_EPOCH`，真实 runtime builder、按标签 Outcome 评估、UI、Scope V2、cohort/holdout/Shadow 和生产 authority 均未完成。
 - M1.5-B1-A 已在腾讯宿主机隔离 no-authority Runner 以 exact commit `97f10e75ce296b07d933e9c362c40ba2be0997ea` 构建专用镜像并真实运行两周期。每周期 eligible/collected 均 1,444/1,444、三 Venue provider failure=0、checkpoint/persistence=`INSERTED`，宿主机 11 容器/4 network/5 volume 已按 digest 精确恢复；evidence `sha256:a44cab89b8a4bf291e7c8f67eb6de2b76f2637f4f8265d91ebb8f1224d2a40c2` 独立重算通过。技术 Runner=`PASS`，业务 readiness=`FAIL`：READY 0/2，fresh 1,441 后降至 1,274，原因包括 stale、duplicate 和 missed schedule。31 周期 Shadow、语义整改、24h SLO、生产 migration、API、页面和生产 authority 仍未证明。
 - M1.5-B1-B0 已冻结单进程 31 周期、60 秒 cadence、完整分母、strict process summary、独立业务 SLO、内容寻址 domain/runner evidence 和宿主 Docker 精确恢复；中断、短包或跨进程/config 拼接全部拒绝。
 - M1.5-B1-B1 exact commit `3908f9f5d0066849311e9d3ac875cc6a76acc69e` 虽观察到进程运行 31 周期，但 Runner 使用 1 小时 reconciliation、validator 仍要求旧 24 小时值，导致完整脱敏证据未生成且原始字节已按清理合同删除。两个失败报告 digest 已独立重算、宿主精确恢复；该窗口只能记 `EXECUTION_INVALID_NOT_COUNTED`，不得推断业务 PASS/FAIL。
@@ -390,11 +387,11 @@ Cycle final
 ```text
 V2-M1.6-P0R-B9-R1-COS-OBJECT-LOCK-CAM-ACTION-AND-DIAGNOSTIC-REMEDIATION
 ```
-B1-B3 已关闭 V1 M1.5-B1；P0 已执行并因容量与 recovery evidence BLOCKED。Object Lock 31 天和 age Keychain 身份仍有效。B8 exact target acceptance 只保留为历史运输证据：其旧 v3 plan、v2 credential、run、object key 和 staging 在 B9 真实失败后均无当前执行权，禁止覆盖、手改或复用。OrcaTerm 文件管理器继续永久退出 package transport。
+B1-B3 已关闭 V1 M1.5-B1；P0 已执行并因容量与 recovery evidence BLOCKED。Object Lock 31 天和 age Keychain 身份仍有效。旧 B8/v3 plan/v2 credential/run/object key/staging 只保留历史证据并永久禁止复用；OrcaTerm 文件管理器继续永久退出 package transport。
 
 2026-08-01 最新 B9 现场真实完成 API Explorer 原生 Copy、STS 即时编译、Keychain age identity handoff 和 Runner 启动；Runner 在读取生产数据库前的 COS Object Lock preflight 阻断。腾讯官方合同中的 REST 操作名是 `GET Bucket ObjectLockConfiguration`，但 CAM action 是 `cos:GetBucketObjectLock`；旧 policy 错误请求 `cos:GetBucketObjectLockConfiguration`。没有 backup、COS object、exact retrieval、isolated restore 或业务 mutation。失败后 8022 unit/listener、腾讯 `/32` 规则、`/dev/shm` secret、process、container 和 volume 均已清零；生产 HEAD、clean worktree、11-container identity 与 Web/PostgreSQL/Redis health 零漂移。
 
-本地整改已升级 plan v4、credential v3 和 bridge v4，统一采用官方 CAM action，并将 provider 自由文本替换为 allowlisted 脱敏 `p0r_cos_*` 阶段码；旧 v3/v2 合同自动拒绝。P0R `113/113`、Go helper 和完整 `ci:production` 已 PASS。正确顺序是 `clean exact commit -> GitHub 四门 -> fresh production read-only rebind -> 新 run/object key/v4 plan/transport -> fixed-dispatch staging 与 target acceptance -> API Explorer 预备 -> 临时 8022 -> bridge v4 READY -> fresh STS + age handoff -> backup/exact retrieval/isolated restore -> 全量清理和生产零漂移 -> fresh topology/calibration/P0`。P0R 与 fresh P0 未 PASS 前，P1、M2 runtime、页面交易计划和任何 READY authority 继续关闭。
+本地整改已升级 plan v4、credential v3 和 bridge v4，统一采用官方 CAM action，并将 provider 自由文本替换为 allowlisted 脱敏 `p0r_cos_*` 阶段码；旧 v3/v2 合同自动拒绝。随后 B9-R1 已在冻结 source `6a70b8d3a964dd109d5051ba731813c4bccda62d` 上完成四个 GitHub PASS 门、fresh signed read-only rebind、新 v4 run/plan/transport、无凭证 fixed-dispatch staging 和独立 target acceptance；生产 HEAD/worktree、11-container identity、Web/PostgreSQL/Redis health 与 P0R runtime 清零均保持零漂移。本轮没有建立 8022、没有签发 STS，也没有数据库、COS、backup、restore、服务、env、migration、Feature Flag、流量或生产仓库变更。下一动作入口是 `V2-M1.6-P0R-B9-EXACT-STAGED-RECOVERY-EXECUTION`，只允许在新的动作时授权内执行 `临时 8022 -> bridge v4 READY -> fresh 7200-second STS + age handoff -> encrypted read-only backup -> exact COS version retrieval -> isolated PostgreSQL 16 restore -> 全量清理和生产零漂移 -> fresh topology/calibration/P0`。P0R 与 fresh P0 未 PASS 前，P1、M2 runtime、页面交易计划和任何 READY authority 继续关闭。
 ## 19. 活跃记忆维护规则
 - 本文件最多 400 行，只保留当前事实。
 - 易变生产事实没有 fresh evidence 就写 UNKNOWN，不沿用旧状态。

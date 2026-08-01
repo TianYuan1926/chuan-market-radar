@@ -1,6 +1,6 @@
 # M3.3E Strategy Archetype Labeling and Outcome Attribution Contract v1
 
-状态：`DESIGN_AUTHORITY_ADDED / IMPLEMENTATION_NOT_STARTED / NO_RUNTIME_OR_PRODUCTION_AUTHORITY`
+状态：`LOCAL_SCHEMA_BUILDER_AND_IMMUTABLE_LINEAGE_CONTRACT_PASS / TEST_ONLY_UNBOUND_SCOPE / UI_EVALUATION_SHADOW_PENDING / NO_RUNTIME_OR_PRODUCTION_AUTHORITY`
 
 ## 1. 目的
 
@@ -58,18 +58,16 @@ executionConstraints
 
 ### 2.3 StrategyStateLabel
 
-状态标签只能由权威 Action State 映射：
+状态标签只能由权威 Action State 映射。当前 `ActionState` 权威词表只有以下四项：
 
 ```text
 OBSERVE -> 观察中
 WAIT -> 等待触发
 BLOCKED -> 已阻断
 TRADE_PLAN_READY -> 计划已就绪
-EXPIRED -> 已过期
-INVALIDATED -> 已失效
 ```
 
-状态标签不是策略类型，不能与主标签混用。
+`EXPIRED` 和 `INVALIDATED` 当前属于 Candidate/Trigger/Alert/Outcome 生命周期，不是 `StrategyDecision.ActionState`。界面必须把它们作为独立生命周期状态展示，禁止伪装成决策状态；未来如需扩展 Action State，必须单独升版并迁移。状态标签不是策略类型，不能与主标签混用。
 
 ## 3. 初始主标签词表
 
@@ -196,4 +194,16 @@ taxonomy schema + strict decoder
 - 标签驱动评级或 READY 提升数 = 0。
 - Decision、Snapshot、Outcome 标签 lineage 不一致数 = 0。
 
-在 schema、builder、校验、Outcome、前端和真实 Shadow 全部有证据前，本合同状态保持 `DESIGN_AUTHORITY_ADDED / IMPLEMENTATION_NOT_STARTED / NO_RUNTIME_OR_PRODUCTION_AUTHORITY`。
+## 10. 当前实施真值
+
+本地核心合同已完成以下内容：
+
+- `StrategyDraft v3` 要求恰好一个内容寻址的 `StrategyArchetypeLabel` 和一组内容寻址的有界 `StrategyContextTags`；缺失、数组、多标签、未知版本、ID/方向/family/structure 冲突、hash 篡改、跨 release/scope/time 或虚构结构位均拒绝。
+- Strategy Construction input v2 显式消费 Thesis，并以 `opportunityPatterns + Analysis structureState + direction + entry structural level` 分类；无法证明时 `ABSTAINED_NO_DRAFT`，不按 symbol、Outcome 或近期盈亏猜测。
+- 初始 14 个 ID 全部进入有界 taxonomy；当前 generator 只生成现有上游语义能明确证明的子集。`FAILED_BREAKDOWN_*`、`FAILED_BREAKOUT_*` 等词表项在缺少独立可证伪语义前保持不可发射，不能仅凭相似截图启用。
+- Relative Strength 和 Derivatives Flow 只作为 evidence driver；主标签仍要求可证伪的本地支撑、压力或区间结构，不生成相对强弱/资金流自由文本主标签。
+- `StrategyDecision v2`、`DecisionSnapshot v2`、`AlertEvent v2`、`OutcomeRecord v2` 原样携带主标签、上下文标签和 Action State 派生状态标签；跨对象 lineage contract 会拒绝事后改名，即使攻击者为新标签重新计算了一个格式合法的 hash。
+- 当前 V1 测试链明确使用 `M3_TEST_ONLY_UNBOUND_SCOPE_EPOCH`；Venue、asset domain、listing lifecycle 和 liquidity bucket 保持 `UNBOUND_TEST_ONLY`，不得冒充 Scope V2 四 Venue 或真实资产域能力。
+- M3 核心定向回归 `88/88`、多资产隔离 `28/28`、Scope Rebase `12/12` 通过；这些只证明本地合同，不证明真实 cohort、校准、READY、生产数据或收益能力。
+
+尚未完成：真实 Decision Read Model/Alert/Outcome runtime builder、按标签的真实分层评估、UI 本地化/筛选/E2E、Scope V2 绑定、真实 cohort/matched control/holdout、前向 Shadow、独立审计和生产 authority。因此 M3.3E 仍不计为完整完成，也不得宣布实战准入。

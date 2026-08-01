@@ -2,6 +2,24 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-08-01 / P0R B9-R1 Remote Requalification and M3.3E Local Core
+
+### 本轮目标
+
+在不触碰生产业务与 secret 边界的前提下恢复 P0R 下一次执行资格，并在隔离工作树完成策略类型标签的本地权威合同，避免“标签只是前端文案”或 Outcome 事后改名。
+
+### 当前证据
+
+- P0R B9-R1 已在冻结 source `6a70b8d3a964dd109d5051ba731813c4bccda62d` 上完成四个 GitHub PASS 门、fresh signed read-only rebind、全新 v4 run/plan/transport、无凭证 fixed-dispatch staging 和独立 target acceptance；资格包 SHA-256=`185ebe4f0c0c47f7916ca647c1d10a6219b1e39a10d53382f06a551851258243`。
+- 该窗口没有建立 8022、签发 STS、读取或写入数据库、访问 COS、执行 backup/restore，也没有改变服务、env、migration、Feature Flag、流量或生产仓库；生产保持零漂移。P0R 完整恢复仍未执行，并需要新的动作时授权。
+- M3.3E 隔离本地核心合同已将 `StrategyDraft` 升至 v3：完整草案必须恰好一个内容寻址 canonical 主标签和有界 context tags；无法从 Thesis pattern、Analysis structure、方向和结构位证明时 no-draft abstain。
+- 标签沿 `StrategyDecision v2`、`DecisionSnapshot v2`、`AlertEvent v2`、`OutcomeRecord v2` 原样冻结；跨对象合同拒绝重算合法 hash 后的事后改名与状态重写。词表固定为 14 个结构主标签，相对强弱与衍生品资金流只作为 evidence driver。
+- M3 核心回归 `88/88`、多资产 `28/28`、Scope Rebase `12/12` 已通过。当前仍是 `M3_TEST_ONLY_UNBOUND_SCOPE_EPOCH`；真实 runtime builder、按标签评估、UI、Scope V2、cohort/holdout、Shadow、独立审计和生产 authority 未完成。
+
+### 当前真值与下一步
+
+P0R 是“远端资格通过、完整恢复未执行”；M3.3E 是“本地核心合同通过、完整 runtime 与实战验收未完成”。下一步先完成本包完整 CI 与独立审计并保持冻结 source 不变；P0R 只在新的动作时授权内执行临时 8022、bridge v4、fresh STS、只读加密 backup、精确版本取回、独立 PostgreSQL 16 restore 和全量清理。
+
 ## 2026-08-01 / P0R B9 COS Object Lock CAM Root Remediation
 
 ### 本轮目标
@@ -103,30 +121,3 @@ P0R 仍是 `PRODUCTION_RECOVERY_NOT_EXECUTED / P0_BLOCKED`。现在没有可用 
 ### 下一步
 
 形成新的 clean exact commit 并重新取得 GitHub 四门；随后只通过高层 release 入口执行 fresh read-only rebind，再生成全新 run/object key/plan/bundle/staging。所有新 source 资格成立后，复核 8022 bootstrap gate、启动 bridge 并看到 READY，再由用户完成 MFA 和 API Explorer 原生 Copy。只有真实 backup、exact retrieval、独立 PostgreSQL 16 restore、证据封存、secret/container/volume/runtime 清理、8022 listener/云规则清理与生产零漂移全部 PASS，P0R 才能关闭。
-
-## 2026-07-29 / P0R Atomic Secret Session Root Remediation
-
-### 本轮目标
-
-根据两次真实 STS 失败证据，永久移除 raw response 落盘、裸 `tee`、手工编译、AX response reconstruction 和 Compose env 重插值路径；建立无回显、内存即时编译、两项 secret 到齐后自动执行且失败全清理的原子会话。
-
-### 当前证据
-
-- `bd20bd5b73ef0beb41c331aa43c58051ef01d37a` 的四条 GitHub 门禁、fresh production read-only rebind 和 v3 plan/bundle staging 核验仍是可信历史证据，但其旧 secret 会话实现已被真实失败证伪，因此不再拥有执行权。
-- 第一枚 STS 因 receiver 未运行而误入交互 shell，已过期且永久禁用。第二枚 STS 最终进入真实 receiver，但多条手工操作导致超过签发后 5 分钟；编译器按真实时钟返回 `STS response was not compiled immediately after issuance`。未使用 `--now` 伪造时间，也未继续 COS、数据库、backup、retrieval 或 restore。
-- raw path 删除后，独立现场核验发现 PID `1175383` 的 `tee` 仍持有已 unlink 文件并等待输入。该进程经 exact identity 核对后终止；随后分别证明生产 P0R 文件数 `0`、进程数 `0`。本机 clipboard 已覆盖，secret-bearing Node 会话已整体 reset。
-- 第二枚 STS 的 exact expiry `2026-07-28T20:57:29Z` 已由本机 UTC `2026-07-28T20:57:48Z` 与腾讯 STS HTTPS Date `2026-07-28T20:57:56Z` 双重证明超过；该凭证现为 `EXPIRED_FORBIDDEN_REUSE`，永久禁止复用。两次尝试均没有生产数据库读取、COS 对象、backup、retrieval、restore、业务服务或 authority 变更。
-- 新 `m1-production-storage-p0r-session.sh` 在 TTY 关闭 echo，使用 Web 容器内的受控 Node 从 stdin 有界读取 STS、在内存校验并即时编译，原始响应不落盘；credential 与 age identity 只以 exclusive mode 600 写入 `/dev/shm`。第二会话以 PID、Linux process-start token 和 source commit 三重绑定第一会话，拒绝 PID 复用或陈旧 ready 文件；两项 secret 到齐后自动启动 checksum-bound Runner，任一会话超时、断线、验证失败或 Runner 退出均立即清理整组 exact session 路径。
-- session helper 不执行 `p0r-bindings.env`，只把它作为普通数据解析；恰好接受 12 个白名单键、一个 40 位 source commit 和 11 个 SHA-256。生产容器仅按 exact Compose project/service labels 选择，不再重新渲染 Compose 或读取 env。
-- Runner 内部数据库描述和 canary 不再使用可预测公共 `/dev/shm` 文件：每次执行创建 owner-bound mode-700 私有目录，内部 plaintext/recovered canary 以 no-clobber mode-600 regular file 生成，禁止内部 `tee`，并在成功前验证整个目录已删除。
-- credential ingress CLI 已删除 caller-supplied `--now`，生产编译只能使用进程真实时钟；回归证明任何时钟覆盖参数都会 fail closed。
-- fresh rebind request/result schema v2 已把历史 transport v1 三文件替代比较与当前 transport v2 七文件运行资格分离；七文件集包含 runner 和 atomic session helper，任一摘要缺失或混写都 fail closed，且历史 13-member verifier 边界保持冻结。
-- 当前定向 P0R `81/81`、Go helper、recurrence gate `10/10`、production dispatch `24/24`、`git diff --check` 和完整 `ci:production` 已通过；完整 CI 同时取得 V2 Foundation `631 PASS / 6 explicit skip`、V2 Ops `203/203`、Next production build、Golden `16/16` 与 security PASS。新 clean commit、GitHub 四门、fresh production read-only rebind、新 plan/bundle、真实目标 session acceptance 与恢复仍待完成。
-
-### 当前真值
-
-P0R 当前是“本地根因修复通过专项门禁，完整资格和真实生产恢复未完成”。没有可用 credential，没有读取生产数据库，没有生成或上传 backup，没有创建 COS 对象，没有执行 exact retrieval 或独立 PostgreSQL 16 restore。生产应用、数据库、Redis、Worker、env、migration、Feature Flag、生产仓库和业务 authority 未改变。旧 raw/tee/manual-compile 路线已永久退役，不能因历史四门或 staging PASS 恢复执行权。
-
-### 下一步（已由上方固定 TTY bridge 路线覆盖）
-
-本条原定的两个 fresh OrcaTerm secret 会话已被第三枚 STS disclosure 证伪并永久退役。当前只执行上方 `P0R Post-Response Disclosure Containment and Fixed Local TTY Bridge` 的新顺序；本段保留为历史演进证据，不再具有执行权。
