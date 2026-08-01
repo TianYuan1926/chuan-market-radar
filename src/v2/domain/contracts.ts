@@ -648,6 +648,7 @@ export type DecisionSnapshot = TraceEnvelope & {
   canonicalInstrumentId: string;
   opportunityFamily: OpportunityFamily;
   thesisId: string;
+  firstDetectedAt: string;
   candidatePriority: CandidatePriority;
   evidenceGrade: EvidenceGrade;
   setupGrade: SetupGrade;
@@ -703,6 +704,13 @@ export type OutcomeRecord = TraceEnvelope & {
   strategyArchetype: StrategyArchetypeLabel;
   strategyContextTags: StrategyContextTags;
   strategyStateLabel: StrategyStateLabel;
+  outcomePolicyVersion: string;
+  measurementFactIds: readonly string[];
+  eventStatus: "OBSERVED" | "NO_EVENT" | "UNAVAILABLE";
+  opportunityEventId: string | null;
+  eventLabelVersion: string | null;
+  eventStartAt: string | null;
+  firstDetectedAt: string;
   checkpoint: "1H" | "4H" | "24H";
   status: "TP_FIRST" | "SL_FIRST" | "PARTIAL" | "EXPIRED" | "NOT_TRIGGERED" | "DATA_UNAVAILABLE";
   maximumFavorableExcursion: number | null;

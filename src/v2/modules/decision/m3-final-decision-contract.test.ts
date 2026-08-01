@@ -15,6 +15,15 @@ import {
   M3StrategyArchetypeLineageBundleSchema,
   M3_STRATEGY_ARCHETYPE_LINEAGE_CONTRACT_VERSION,
 } from "../strategy/m3-strategy-archetype-lineage-contract";
+import {
+  assertM3DecisionSnapshotIntegrity,
+  buildM3DecisionSnapshot,
+} from "./m3-decision-read-model-runtime";
+import { buildM3DecisionAlert } from "../alert/m3-decision-alert-runtime";
+import {
+  buildM3StrategyOutcome,
+  buildM3StrategyOutcomeAttribution,
+} from "../outcome/m3-strategy-outcome-runtime";
 
 const RELEASE = "release-m3-contract";
 const BASE = "2026-01-15T00:00:00.000Z";
@@ -610,12 +619,13 @@ function archetypeLineageBundle() {
   const { strategyArchetype, strategyContextTags, strategyStateLabel } =
     finalBundle.decision;
   const snapshot = {
-    ...trace("decision_read_model", "decision-snapshot.v2", DECIDED),
+    ...trace("decision_read_model", "decision-snapshot.v3", DECIDED),
     snapshotId: "snapshot-m3-one",
     episodeId: finalBundle.episode.episodeId,
     canonicalInstrumentId: finalBundle.episode.canonicalInstrumentId,
     opportunityFamily: finalBundle.episode.opportunityFamily,
     thesisId: finalBundle.thesis.thesisId,
+    firstDetectedAt: finalBundle.thesis.firstDetectedAt,
     candidatePriority: finalBundle.episode.priority,
     evidenceGrade: finalBundle.qualification.evidenceGrade,
     setupGrade: finalBundle.qualification.setupGrade,
@@ -628,8 +638,8 @@ function archetypeLineageBundle() {
     strategyArchetype,
     strategyContextTags,
     strategyStateLabel,
-    personalRiskViewId: null,
-    portfolioRiskViewId: null,
+    personalRiskViewId: "personal-risk-m3-one",
+    portfolioRiskViewId: "portfolio-risk-m3-one",
     factVersion: "fixture-fact.v1",
     featureVersion: "fixture-feature.v1",
     ruleVersions: { decision: "fixture-decision.v1" },
@@ -651,20 +661,28 @@ function archetypeLineageBundle() {
     expiresAt: "2026-01-15T00:15:00.000Z",
   };
   const outcome = {
-    ...trace("outcome_evaluation", "outcome-record.v2", "2026-01-15T04:00:30.000Z"),
+    ...trace("outcome_evaluation", "outcome-record.v3", "2026-01-15T04:00:31.000Z"),
+    sourceCutoff: "2026-01-15T04:00:30.000Z",
     outcomeId: "outcome-m3-one",
     episodeId: finalBundle.episode.episodeId,
     decisionSnapshotId: snapshot.snapshotId,
     strategyArchetype,
     strategyContextTags,
     strategyStateLabel,
+    outcomePolicyVersion: "outcome-policy-m3.v1",
+    measurementFactIds: ["outcome-fact-m3-one"],
+    eventStatus: "OBSERVED" as const,
+    opportunityEventId: "opportunity-event-m3-one",
+    eventLabelVersion: "significant-expansion-event.v1",
+    eventStartAt: "2026-01-15T00:15:11.000Z",
+    firstDetectedAt: finalBundle.thesis.firstDetectedAt,
     checkpoint: "4H" as const,
     status: "TP_FIRST" as const,
     maximumFavorableExcursion: 4,
     maximumAdverseExcursion: 1,
     netR: 3.1,
     leadTimeSeconds: 900,
-    factCutoff: "2026-01-15T04:00:00.000Z",
+    factCutoff: "2026-01-15T04:00:30.000Z",
   };
   return {
     schemaVersion: M3_STRATEGY_ARCHETYPE_LINEAGE_CONTRACT_VERSION,
@@ -1042,4 +1060,276 @@ test("assessment output is deterministic and deeply frozen", () => {
   assert.equal(first.assessmentHash, second.assessmentHash);
   assert.equal(Object.isFrozen(first), true);
   assert.equal(Object.isFrozen(first.issues), true);
+});
+
+function riskViews(finalBundle: M3FinalDecisionBundle) {
+  return {
+    personal: {
+      ...trace(
+        "personal_risk_lens",
+        "personal-risk-view.v1",
+        "2026-01-15T00:00:35.000Z",
+      ),
+      sourceCutoff: finalBundle.decision.sourceCutoff,
+      riskViewId: "personal-risk-m3-runtime-one",
+      decisionId: finalBundle.decision.decisionId,
+      userFit: "SUITABLE" as const,
+      maximumPositionNotional: "500",
+      maximumLoss: "15",
+      requiredMargin: "50",
+      liquidationDistancePercent: 10,
+      estimatedFees: "1",
+      blockerReasonCodes: [],
+    },
+    portfolio: {
+      ...trace(
+        "portfolio_risk",
+        "portfolio-risk-view.v1",
+        "2026-01-15T00:00:36.000Z",
+      ),
+      sourceCutoff: finalBundle.decision.sourceCutoff,
+      portfolioRiskViewId: "portfolio-risk-m3-runtime-one",
+      decisionId: finalBundle.decision.decisionId,
+      userFit: "SUITABLE" as const,
+      aggregateStopLoss: "30",
+      aggregateMargin: "100",
+      btcEthBeta: 0.8,
+      clusterConcentration: 0.2,
+      correlatedLoss: "20",
+      venueConcentration: 0.4,
+      blockerReasonCodes: [],
+      quality: fresh,
+    },
+  };
+}
+
+function runtimeSnapshot(
+  finalBundle: M3FinalDecisionBundle = bundle(),
+  previousSnapshot: unknown | null = null,
+) {
+  const risks = riskViews(finalBundle);
+  return buildM3DecisionSnapshot({
+    finalDecisionBundle: finalBundle,
+    personalRiskView: risks.personal,
+    portfolioRiskView: risks.portfolio,
+    generatedAt: previousSnapshot === null
+      ? "2026-01-15T00:00:40.000Z"
+      : "2026-01-15T00:00:41.000Z",
+    factVersion: "fixture-fact.v1",
+    featureVersion: "fixture-feature.v1",
+    ruleVersions: { decision: "fixture-decision.v1" },
+    previousSnapshot,
+  });
+}
+
+test("builds a content-addressed read model, alert and objective outcome without relabeling", () => {
+  const finalBundle = bundle();
+  const snapshot = runtimeSnapshot(finalBundle);
+  const repeated = runtimeSnapshot(finalBundle);
+  assert.equal(snapshot.snapshotId, repeated.snapshotId);
+  assert.equal(snapshot.firstDetectedAt, finalBundle.thesis.firstDetectedAt);
+  assert.equal(
+    snapshot.strategyArchetype.contentHash,
+    finalBundle.decision.strategyArchetype.contentHash,
+  );
+  assert.equal(Object.isFrozen(snapshot), true);
+  assert.equal(Object.isFrozen(snapshot.strategyArchetype), true);
+  assert.deepEqual(assertM3DecisionSnapshotIntegrity(snapshot), snapshot);
+
+  const alertResult = buildM3DecisionAlert({
+    decisionSnapshot: snapshot,
+    generatedAt: "2026-01-15T00:00:41.000Z",
+  });
+  assert.equal(alertResult.status, "EMITTED");
+  if (alertResult.status !== "EMITTED") {
+    assert.fail("expected a READY alert");
+  }
+  assert.equal(alertResult.alert.alertType, "READY");
+  assert.equal(
+    alertResult.alert.strategyArchetype.contentHash,
+    snapshot.strategyArchetype.contentHash,
+  );
+
+  const outcome = buildM3StrategyOutcome({
+    decisionSnapshot: snapshot,
+    observation: {
+      schemaVersion: "m3-outcome-observation.v1",
+      outcomePolicyVersion: "objective-event-outcome-policy.v1",
+      checkpoint: "1H",
+      status: "TP_FIRST",
+      generatedAt: "2026-01-15T01:00:31.000Z",
+      factCutoff: "2026-01-15T01:00:30.000Z",
+      measurementFactIds: ["outcome-fact-one", "outcome-fact-two"],
+      maximumFavorableExcursion: 4,
+      maximumAdverseExcursion: 1,
+      netR: 3,
+      event: {
+        status: "OBSERVED",
+        opportunityEventId: "objective-event-m3-one",
+        eventLabelVersion: "objective-expansion-event.v1",
+        eventStartAt: "2026-01-15T00:05:00.000Z",
+      },
+    },
+  });
+  assert.equal(outcome.leadTimeSeconds, 289);
+  assert.equal(outcome.firstDetectedAt, snapshot.firstDetectedAt);
+  assert.equal(
+    outcome.strategyArchetype.contentHash,
+    snapshot.strategyArchetype.contentHash,
+  );
+
+  const attribution = buildM3StrategyOutcomeAttribution({
+    outcomes: [outcome],
+    generatedAt: "2026-01-15T01:00:32.000Z",
+  });
+  assert.equal(attribution.authority, "DESCRIPTIVE_ONLY");
+  assert.equal(attribution.probabilityAuthority, "ABSENT");
+  assert.equal(attribution.totalRecordCount, 1);
+  assert.equal(attribution.strata[0]?.strategyArchetypeId, "BREAKOUT_RETEST_LONG");
+  assert.equal(attribution.strata[0]?.outcomeStatusCounts.TP_FIRST, 1);
+  assert.equal(attribution.strata[0]?.meanLeadTimeSeconds, 289);
+  assert.throws(
+    () => buildM3StrategyOutcomeAttribution({
+      outcomes: [outcome, outcome],
+      generatedAt: "2026-01-15T01:00:32.000Z",
+    }),
+    /rejects duplicate records or decision checkpoints/,
+  );
+});
+
+test("fails closed when READY risk evidence is absent or crosses releases", () => {
+  const finalBundle = bundle();
+  const risks = riskViews(finalBundle);
+  assert.throws(
+    () => buildM3DecisionSnapshot({
+      finalDecisionBundle: finalBundle,
+      personalRiskView: null,
+      portfolioRiskView: null,
+      generatedAt: "2026-01-15T00:00:40.000Z",
+      factVersion: "fixture-fact.v1",
+      featureVersion: "fixture-feature.v1",
+      ruleVersions: {},
+    }),
+    /TRADE_PLAN_READY cannot enter the read model/,
+  );
+  const crossRelease = {
+    ...risks.portfolio,
+    releaseId: "another-release",
+  };
+  assert.throws(
+    () => buildM3DecisionSnapshot({
+      finalDecisionBundle: finalBundle,
+      personalRiskView: risks.personal,
+      portfolioRiskView: crossRelease,
+      generatedAt: "2026-01-15T00:00:40.000Z",
+      factVersion: "fixture-fact.v1",
+      featureVersion: "fixture-feature.v1",
+      ruleVersions: {},
+    }),
+    /crosses the final-decision release boundary/,
+  );
+});
+
+test("derives WAIT and DEGRADED alerts but never invents pre-strategy alert types", () => {
+  const waiting = bundle({ triggerStatus: "PENDING", actionState: "WAIT" });
+  const waitSnapshot = runtimeSnapshot(waiting);
+  const waitAlert = buildM3DecisionAlert({
+    decisionSnapshot: waitSnapshot,
+    generatedAt: "2026-01-15T00:00:41.000Z",
+  });
+  assert.equal(waitAlert.status, "EMITTED");
+  if (waitAlert.status === "EMITTED") {
+    assert.equal(waitAlert.alert.alertType, "WAIT_NEAR_TRIGGER");
+  }
+
+  const noAuthority = bundle({ authorized: false });
+  const degradedSnapshot = buildM3DecisionSnapshot({
+    finalDecisionBundle: noAuthority,
+    personalRiskView: null,
+    portfolioRiskView: null,
+    generatedAt: "2026-01-15T00:00:40.000Z",
+    factVersion: "fixture-fact.v1",
+    featureVersion: "fixture-feature.v1",
+    ruleVersions: {},
+  });
+  const degradedAlert = buildM3DecisionAlert({
+    decisionSnapshot: degradedSnapshot,
+    generatedAt: "2026-01-15T00:00:41.000Z",
+  });
+  assert.equal(degradedAlert.status, "EMITTED");
+  if (degradedAlert.status === "EMITTED") {
+    assert.equal(degradedAlert.alert.alertType, "DEGRADED");
+    assert.notEqual(degradedAlert.alert.alertType, "EARLY_CANDIDATE");
+    assert.notEqual(degradedAlert.alert.alertType, "EVIDENCE_READY");
+  }
+});
+
+test("keeps unavailable outcomes empty and rejects caller-injected labels or false execution results", () => {
+  const blockedSnapshot = buildM3DecisionSnapshot({
+    finalDecisionBundle: bundle({ authorized: false }),
+    personalRiskView: null,
+    portfolioRiskView: null,
+    generatedAt: "2026-01-15T00:00:40.000Z",
+    factVersion: "fixture-fact.v1",
+    featureVersion: "fixture-feature.v1",
+    ruleVersions: {},
+  });
+  const unavailableObservation = {
+    schemaVersion: "m3-outcome-observation.v1",
+    outcomePolicyVersion: "objective-event-outcome-policy.v1",
+    checkpoint: "1H",
+    status: "DATA_UNAVAILABLE",
+    generatedAt: "2026-01-15T01:00:31.000Z",
+    factCutoff: "2026-01-15T01:00:30.000Z",
+    measurementFactIds: [],
+    maximumFavorableExcursion: null,
+    maximumAdverseExcursion: null,
+    netR: null,
+    event: {
+      status: "UNAVAILABLE",
+      opportunityEventId: null,
+      eventLabelVersion: null,
+      eventStartAt: null,
+    },
+  } as const;
+  const unavailable = buildM3StrategyOutcome({
+    decisionSnapshot: blockedSnapshot,
+    observation: unavailableObservation,
+  });
+  assert.equal(unavailable.status, "DATA_UNAVAILABLE");
+  assert.equal(unavailable.leadTimeSeconds, null);
+  assert.deepEqual(unavailable.measurementFactIds, []);
+
+  assert.throws(() => buildM3StrategyOutcome({
+    decisionSnapshot: blockedSnapshot,
+    observation: {
+      ...unavailableObservation,
+      strategyArchetype: blockedSnapshot.strategyArchetype,
+    },
+  }));
+  assert.throws(() => buildM3StrategyOutcome({
+    decisionSnapshot: blockedSnapshot,
+    observation: {
+      ...unavailableObservation,
+      status: "TP_FIRST",
+      measurementFactIds: ["fact-false-ready"],
+      maximumFavorableExcursion: 3,
+      maximumAdverseExcursion: 1,
+      netR: 2,
+      event: {
+        status: "NO_EVENT",
+        opportunityEventId: "no-event-record-one",
+        eventLabelVersion: "objective-expansion-event.v1",
+        eventStartAt: null,
+      },
+    },
+  }), /execution outcome status requires/);
+});
+
+test("supersession remains monotonic and content addressed", () => {
+  const first = runtimeSnapshot();
+  const second = runtimeSnapshot(bundle(), first);
+  assert.equal(second.supersedesSnapshotId, first.snapshotId);
+  assert.notEqual(second.snapshotId, first.snapshotId);
+  assert.deepEqual(assertM3DecisionSnapshotIntegrity(second), second);
 });

@@ -105,6 +105,13 @@ export const OutcomeRecordSchema = z.strictObject({
   strategyArchetype: StrategyArchetypeLabelSchema,
   strategyContextTags: StrategyContextTagsSchema,
   strategyStateLabel: StrategyStateLabelSchema,
+  outcomePolicyVersion: NonEmptyStringSchema,
+  measurementFactIds: z.array(NonEmptyStringSchema),
+  eventStatus: z.enum(["OBSERVED", "NO_EVENT", "UNAVAILABLE"]),
+  opportunityEventId: NonEmptyStringSchema.nullable(),
+  eventLabelVersion: NonEmptyStringSchema.nullable(),
+  eventStartAt: IsoDateTimeSchema.nullable(),
+  firstDetectedAt: IsoDateTimeSchema,
   checkpoint: z.enum(["1H", "4H", "24H"]),
   status: z.enum([
     "TP_FIRST",
@@ -143,6 +150,148 @@ export const OutcomeRecordSchema = z.strictObject({
       code: "custom",
       message: "unavailable outcomes cannot contain fabricated measurements",
       path: ["status"],
+    });
+  }
+  if (new Set(outcome.measurementFactIds).size !== outcome.measurementFactIds.length) {
+    context.addIssue({
+      code: "custom",
+      message: "outcome measurement fact lineage must be unique",
+      path: ["measurementFactIds"],
+    });
+  }
+  if (
+    outcome.status === "DATA_UNAVAILABLE" &&
+    (outcome.measurementFactIds.length > 0 || outcome.eventStatus !== "UNAVAILABLE")
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "DATA_UNAVAILABLE cannot claim measurement facts or an observed event",
+      path: ["status"],
+    });
+  }
+  if (
+    outcome.status !== "DATA_UNAVAILABLE" &&
+    outcome.measurementFactIds.length === 0
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "an evaluated outcome requires point-in-time measurement facts",
+      path: ["measurementFactIds"],
+    });
+  }
+  const measuredStatuses = new Set(["TP_FIRST", "SL_FIRST", "PARTIAL"]);
+  const measurements = [
+    outcome.maximumFavorableExcursion,
+    outcome.maximumAdverseExcursion,
+    outcome.netR,
+  ];
+  if (
+    measuredStatuses.has(outcome.status) &&
+    measurements.some((value) => value === null)
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "triggered outcomes require complete MFE, MAE and net-R measurements",
+      path: ["status"],
+    });
+  }
+  if (
+    (outcome.status === "EXPIRED" || outcome.status === "NOT_TRIGGERED") &&
+    measurements.some((value) => value !== null)
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "non-triggered outcomes cannot fabricate execution measurements",
+      path: ["status"],
+    });
+  }
+  if (
+    outcome.eventStatus === "OBSERVED" &&
+    (
+      outcome.opportunityEventId === null ||
+      outcome.eventLabelVersion === null ||
+      outcome.eventStartAt === null ||
+      outcome.leadTimeSeconds === null
+    )
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "an observed opportunity event requires versioned identity, start time and lead time",
+      path: ["eventStatus"],
+    });
+  }
+  if (
+    outcome.eventStatus === "NO_EVENT" &&
+    (
+      outcome.opportunityEventId === null ||
+      outcome.eventLabelVersion === null ||
+      outcome.eventStartAt !== null ||
+      outcome.leadTimeSeconds !== null
+    )
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "NO_EVENT requires a versioned denominator record without a fabricated event time",
+      path: ["eventStatus"],
+    });
+  }
+  if (
+    outcome.eventStatus === "UNAVAILABLE" &&
+    (
+      outcome.opportunityEventId !== null ||
+      outcome.eventLabelVersion !== null ||
+      outcome.eventStartAt !== null ||
+      outcome.leadTimeSeconds !== null
+    )
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "unavailable event classification cannot claim event identity or timing",
+      path: ["eventStatus"],
+    });
+  }
+  if (
+    outcome.eventStatus === "OBSERVED" &&
+    outcome.eventStartAt !== null &&
+    outcome.leadTimeSeconds !== null
+  ) {
+    const expectedLeadTime =
+      (Date.parse(outcome.eventStartAt) - Date.parse(outcome.firstDetectedAt)) /
+      1_000;
+    if (outcome.leadTimeSeconds !== expectedLeadTime) {
+      context.addIssue({
+        code: "custom",
+        message: "lead time must be derived from the objective event start and original first detection",
+        path: ["leadTimeSeconds"],
+      });
+    }
+    if (Date.parse(outcome.eventStartAt) > Date.parse(outcome.factCutoff)) {
+      context.addIssue({
+        code: "custom",
+        message: "outcome facts cannot classify an event that starts after their cutoff",
+        path: ["eventStartAt"],
+      });
+    }
+  }
+  if (Date.parse(outcome.factCutoff) > Date.parse(outcome.generatedAt)) {
+    context.addIssue({
+      code: "custom",
+      message: "outcome generation cannot precede its measurement cutoff",
+      path: ["generatedAt"],
+    });
+  }
+  if (outcome.sourceCutoff !== outcome.factCutoff) {
+    context.addIssue({
+      code: "custom",
+      message: "OutcomeRecord source cutoff must equal its measurement fact cutoff",
+      path: ["sourceCutoff"],
+    });
+  }
+  if (Date.parse(outcome.firstDetectedAt) > Date.parse(outcome.factCutoff)) {
+    context.addIssue({
+      code: "custom",
+      message: "an outcome cannot be measured before the original detection existed",
+      path: ["firstDetectedAt"],
     });
   }
 }) satisfies z.ZodType<OutcomeRecord>;

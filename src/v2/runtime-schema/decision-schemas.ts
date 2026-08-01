@@ -1720,6 +1720,7 @@ export const DecisionSnapshotSchema = z.strictObject({
   canonicalInstrumentId: NonEmptyStringSchema,
   opportunityFamily: z.enum(OPPORTUNITY_FAMILIES),
   thesisId: NonEmptyStringSchema,
+  firstDetectedAt: IsoDateTimeSchema,
   candidatePriority: z.enum(CANDIDATE_PRIORITIES),
   evidenceGrade: z.enum(EVIDENCE_GRADES),
   setupGrade: z.enum(SETUP_GRADES),
@@ -1773,6 +1774,34 @@ export const DecisionSnapshotSchema = z.strictObject({
       code: "custom",
       message: "a non-fresh snapshot cannot expose TRADE_PLAN_READY",
       path: ["freshness", "status"],
+    });
+  }
+  if (
+    snapshot.actionState === "TRADE_PLAN_READY" &&
+    (
+      snapshot.userFit !== "SUITABLE" ||
+      snapshot.personalRiskViewId === null ||
+      snapshot.portfolioRiskViewId === null
+    )
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "TRADE_PLAN_READY requires suitable personal and portfolio risk evidence",
+      path: ["userFit"],
+    });
+  }
+  if (Date.parse(snapshot.firstDetectedAt) > Date.parse(snapshot.generatedAt)) {
+    context.addIssue({
+      code: "custom",
+      message: "a read model cannot precede the first auditable detection",
+      path: ["firstDetectedAt"],
+    });
+  }
+  if (snapshot.supersedesSnapshotId === snapshot.snapshotId) {
+    context.addIssue({
+      code: "custom",
+      message: "a read model cannot supersede itself",
+      path: ["supersedesSnapshotId"],
     });
   }
 }) satisfies z.ZodType<DecisionSnapshot>;

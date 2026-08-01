@@ -13,12 +13,13 @@
 - P0R B9-R1 已在冻结 source `6a70b8d3a964dd109d5051ba731813c4bccda62d` 上完成四个 GitHub PASS 门、fresh signed read-only rebind、全新 v4 run/plan/transport、无凭证 fixed-dispatch staging 和独立 target acceptance；资格包 SHA-256=`185ebe4f0c0c47f7916ca647c1d10a6219b1e39a10d53382f06a551851258243`。
 - 该窗口没有建立 8022、签发 STS、读取或写入数据库、访问 COS、执行 backup/restore，也没有改变服务、env、migration、Feature Flag、流量或生产仓库；生产保持零漂移。P0R 完整恢复仍未执行，并需要新的动作时授权。
 - M3.3E 隔离本地核心合同已将 `StrategyDraft` 升至 v3：完整草案必须恰好一个内容寻址 canonical 主标签和有界 context tags；无法从 Thesis pattern、Analysis structure、方向和结构位证明时 no-draft abstain。
-- 标签沿 `StrategyDecision v2`、`DecisionSnapshot v2`、`AlertEvent v2`、`OutcomeRecord v2` 原样冻结；跨对象合同拒绝重算合法 hash 后的事后改名与状态重写。词表固定为 14 个结构主标签，相对强弱与衍生品资金流只作为 evidence driver。
-- M3 核心回归 `88/88`、多资产 `28/28`、Scope Rebase `12/12` 已通过。当前仍是 `M3_TEST_ONLY_UNBOUND_SCOPE_EPOCH`；真实 runtime builder、按标签评估、UI、Scope V2、cohort/holdout、Shadow、独立审计和生产 authority 未完成。
+- 标签沿 `StrategyDecision v2`、`DecisionSnapshot v3`、`AlertEvent v2`、`OutcomeRecord v3` 原样冻结；跨对象合同拒绝重算合法 hash 后的事后改名与状态重写。词表固定为 14 个结构主标签，相对强弱与衍生品资金流只作为 evidence driver。
+- 本地 Read Model/Alert/Outcome 构建器已接通：READY 必须具备同 release、fresh 且 SUITABLE 的 Personal/Portfolio Risk；提醒不能由调用方指定类型或标签；Outcome 必须绑定 policy、measurement facts、objective event、完整 checkpoint 和原始 firstDetectedAt，lead time 由事件起点客观计算。描述性按标签归因拒绝重复记录，并明确无概率 authority。
+- M3 核心回归 `93/93`、runtime/schema 定向 `48/48`、多资产 `28/28`、Scope Rebase `12/12` 已通过。当前仍是 `M3_TEST_ONLY_UNBOUND_SCOPE_EPOCH`；真实 Scope V2 接线/存储、canonical Risk builder、真实评估、UI、cohort/holdout、Shadow、独立审计和生产 authority 未完成。
 
 ### 当前真值与下一步
 
-P0R 是“远端资格通过、完整恢复未执行”；M3.3E 是“本地核心合同通过、完整 runtime 与实战验收未完成”。下一步先完成本包完整 CI 与独立审计并保持冻结 source 不变；P0R 只在新的动作时授权内执行临时 8022、bridge v4、fresh STS、只读加密 backup、精确版本取回、独立 PostgreSQL 16 restore 和全量清理。
+P0R 是“远端资格通过、完整恢复未执行”；M3.3E 是“本地 test-only 运行构建器通过、真实数据接线与实战验收未完成”。下一步先完成本包完整 CI 与独立审计并保持冻结 source 不变；P0R 只在新的动作时授权内执行临时 8022、bridge v4、fresh STS、只读加密 backup、精确版本取回、独立 PostgreSQL 16 restore 和全量清理。
 
 ## 2026-08-01 / P0R B9 COS Object Lock CAM Root Remediation
 

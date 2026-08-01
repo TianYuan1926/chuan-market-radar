@@ -1,6 +1,6 @@
 # M3.3E Strategy Archetype Labeling and Outcome Attribution Contract v1
 
-状态：`LOCAL_SCHEMA_BUILDER_AND_IMMUTABLE_LINEAGE_CONTRACT_PASS / TEST_ONLY_UNBOUND_SCOPE / UI_EVALUATION_SHADOW_PENDING / NO_RUNTIME_OR_PRODUCTION_AUTHORITY`
+状态：`LOCAL_RUNTIME_BUILDERS_CONTENT_ADDRESSED_LINEAGE_AND_DESCRIPTIVE_ATTRIBUTION_PASS / TEST_ONLY_UNBOUND_SCOPE / REAL_EVALUATION_UI_SHADOW_PENDING / NO_PRODUCTION_AUTHORITY`
 
 ## 1. 目的
 
@@ -157,6 +157,8 @@ listingLifecycle
 regime
 liquidityBucket
 ActionState
+checkpoint
+eventLabelVersion
 ```
 
 每个分层必须报告样本量、覆盖分母、precision、recall、误报、漏报、lead time、触发率、expired/not-triggered、MAE、MFE、净 R、费用、滑点、深度、容量和置信区间。样本不足必须是 `INSUFFICIENT`，不能以总平均替代。
@@ -202,8 +204,12 @@ taxonomy schema + strict decoder
 - Strategy Construction input v2 显式消费 Thesis，并以 `opportunityPatterns + Analysis structureState + direction + entry structural level` 分类；无法证明时 `ABSTAINED_NO_DRAFT`，不按 symbol、Outcome 或近期盈亏猜测。
 - 初始 14 个 ID 全部进入有界 taxonomy；当前 generator 只生成现有上游语义能明确证明的子集。`FAILED_BREAKDOWN_*`、`FAILED_BREAKOUT_*` 等词表项在缺少独立可证伪语义前保持不可发射，不能仅凭相似截图启用。
 - Relative Strength 和 Derivatives Flow 只作为 evidence driver；主标签仍要求可证伪的本地支撑、压力或区间结构，不生成相对强弱/资金流自由文本主标签。
-- `StrategyDecision v2`、`DecisionSnapshot v2`、`AlertEvent v2`、`OutcomeRecord v2` 原样携带主标签、上下文标签和 Action State 派生状态标签；跨对象 lineage contract 会拒绝事后改名，即使攻击者为新标签重新计算了一个格式合法的 hash。
+- `StrategyDecision v2`、`DecisionSnapshot v3`、`AlertEvent v2`、`OutcomeRecord v3` 原样携带主标签、上下文标签和 Action State 派生状态标签；跨对象 lineage contract 会拒绝事后改名，即使攻击者为新标签重新计算了一个格式合法的 hash。
+- 本地 `DecisionSnapshot` 构建器只接受通过完整 Final Decision assessment 的同 release 输入，按最差数据质量聚合 freshness；READY 缺 Personal/Portfolio Risk、风险不适配、非 fresh、跨 release 或时间倒流时直接拒绝。快照冻结原始 `firstDetectedAt`，自身使用内容寻址 ID/hash，并只允许单调 supersession。
+- 本地 Alert 构建器不接受调用方传入标签或 Alert 类型，只能从已验证快照派生 `READY`、`WAIT_NEAR_TRIGGER` 或 `DEGRADED`。`EARLY_CANDIDATE`、`EVIDENCE_READY`、`INVALIDATED` 和 `EXPIRED` 必须等待各自权威生命周期证据，不能由 Decision Snapshot 猜测。
+- 本地 Outcome 构建器要求版本化 policy、唯一 point-in-time measurement fact IDs、完整 checkpoint 窗口和客观事件记录；lead time 只能由 `eventStartAt - firstDetectedAt` 计算。`DATA_UNAVAILABLE` 必须保留空事实和空测量，未触发/过期不得伪造 MFE、MAE 或净 R。
+- 本地描述性归因报告按原始主标签、taxonomy/policy、方向、Action State、checkpoint、event label、regime、Venue、流动性、资产域和生命周期分层；拒绝重复 Outcome 或重复 decision-checkpoint，只输出样本数、状态计数及已有测量均值，明确 `probabilityAuthority=ABSENT`，不得冒充正式胜率或等级。
 - 当前 V1 测试链明确使用 `M3_TEST_ONLY_UNBOUND_SCOPE_EPOCH`；Venue、asset domain、listing lifecycle 和 liquidity bucket 保持 `UNBOUND_TEST_ONLY`，不得冒充 Scope V2 四 Venue 或真实资产域能力。
-- M3 核心定向回归 `88/88`、多资产隔离 `28/28`、Scope Rebase `12/12` 通过；这些只证明本地合同，不证明真实 cohort、校准、READY、生产数据或收益能力。
+- M3 核心定向回归 `93/93`、Read Model/Alert/Outcome 与 runtime-schema 定向 `48/48`、多资产隔离 `28/28`、Scope Rebase `12/12` 通过；这些只证明本地 test-only 构建器和合同，不证明真实 cohort、校准、运行服务、READY、生产数据或收益能力。
 
-尚未完成：真实 Decision Read Model/Alert/Outcome runtime builder、按标签的真实分层评估、UI 本地化/筛选/E2E、Scope V2 绑定、真实 cohort/matched control/holdout、前向 Shadow、独立审计和生产 authority。因此 M3.3E 仍不计为完整完成，也不得宣布实战准入。
+尚未完成：真实 Scope V2 数据接线与持久化、canonical Personal/Portfolio Risk builder、按标签的真实分层评估、UI 本地化/筛选/E2E、Scope V2 绑定、真实 cohort/matched control/holdout、前向 Shadow、独立审计和生产 authority。因此 M3.3E 仍不计为完整完成，也不得宣布实战准入。
