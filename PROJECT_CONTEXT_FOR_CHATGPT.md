@@ -47,8 +47,8 @@ Runtime / Security / Release Control 贯穿全链。
 ## 4. 当前权威
 当前唯一设计权威：
 
-- `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`，内容版本 v1.78。
-- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.83。
+- `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`，内容版本 v1.79。
+- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.84。
 - `docs/blueprints/README.md`，权威解析入口。
 - `market-radar-v2-build-sequence.md`，当前正确施工依赖与减数规则。
 
@@ -86,7 +86,7 @@ M2.2B0.2C1_FORWARD_CAPTURE_START_PASS
 M2.2B0.2C1_FOUR_CYCLE_FULL_HISTORY_INTEGRITY_AND_SCOPE_V2_DOMAIN_REPLAY_PASS_NO_AUTHORITY
 forwardInstrumentContinuity=FORWARD_ONLY_READY
 M3.0_M3.1_M3.2_M3.3_LOCAL_CONTRACT_PASS_TEST_ONLY_UNCALIBRATED_NO_READY_AUTHORITY
-M3.3E_LOCAL_RUNTIME_BUILDERS_CONTENT_ADDRESSED_LINEAGE_AND_DESCRIPTIVE_ATTRIBUTION_PASS_INDEPENDENT_FULL_CI_PASS_TEST_ONLY_UNBOUND_SCOPE_REAL_EVALUATION_UI_SHADOW_PENDING_NO_PRODUCTION_AUTHORITY
+M3.3E_LOCAL_RUNTIME_BUILDERS_CONTENT_ADDRESSED_LINEAGE_AND_DESCRIPTIVE_ATTRIBUTION_PASS_INDEPENDENT_FULL_CI_PASS_TEST_ONLY_UNBOUND_SCOPE_REAL_EVALUATION_UI_SHADOW_PENDING_NO_PRODUCTION_AUTHORITY / M3_FEATURE_BRANCH_CANDIDATE_CI_EXACT_PRODUCTION_DERIVATIVE_REMOTE_FOUR_GATES_PASS_STRICT_PRODUCTION_M0_UNCHANGED_NO_PRODUCTION_BRANCH_AUTHORITY
 M2.2_REAL_COHORT_GATE_INSUFFICIENT
 detectorLifecycle=DRAFT
 candidateEmissionAllowed=false
@@ -145,7 +145,7 @@ automaticTradingAllowed=false
 - M2.2-B0.2-A 已把来源权利升级为内容寻址、限定账户/法域、带有效期且只能由账户所有者或合格法律审查者作出的外部结论；把历史 instrument identity、onboard/delist、状态区间、knowledge time、symbol reuse epoch 和全分母覆盖核算做成 fail-closed Gate。当前五个来源候选全部为 `RESEARCH_ONLY`，合格历史来源仍为 0；Agent、当前快照和 archive presence 均不能自证通过。
 - M2.2-B0.2-C/C1 已建立 release-bound 三 Venue exact raw capture、工作区外内容寻址 store、完整分母、三类 identity evidence、identity epoch、持续缺席非 delist、全链 journal 验证与 clean-HEAD CLI。冻结 release `4139cc631d3d760876c3e39404c494462541a910` 连续取得两轮三 Venue COMPLETE；Binance/OKX/Bybit 分别 841/426/746 rows，目标 654/272/642，out-of-scope 187/154/104，unresolved=0；跨度约 368.5 秒，三家均 2/2 complete、gap/conflict/blocker=0、`FORWARD_ONLY_READY`。这只通过前向捕获起点，不回填历史、不解锁 B0.2-B/B1 historical acquisition、Detector 或 Candidate。
 - M3.0-M3.3 已冻结 V1 六族的 Final Decision authority、双评级、Analysis 和 Strategy 基线；M3.3E 后当前草案 schema 为 `StrategyDraft v3`，这些测试仍只属于三 Venue 加密 fixture。M3.4-R0 Scope Rebase Gate 已本地 12/12，把四 Venue、assetDomain、lifecycle、release、通用/加密/股票/warm-up 前置证据机器化。R1 test-only 草稿的 schema/import/fixture 编译阻断已按当前 strict schema 根治，全仓 typecheck/lint/CI 通过；但其自身定向测试仍为 0，且缺真实 Scope V2 上游证据，所以不计 M3.4 出口，也没有 Feasibility、Risk、runtime 或 READY authority。
-- M3.3E 本地运行构建链已落地：`StrategyDraft v3` 必须恰好一个内容寻址主标签和有界 context tags，input v2 显式消费 Thesis，无法从 pattern、Analysis structure、方向与结构位证明时 no-draft abstain；`StrategyDecision v2`、`DecisionSnapshot v3`、`AlertEvent v2`、`OutcomeRecord v3` 原样传播。Read Model 强制 READY risk/freshness/release 门并冻结 firstDetectedAt，Alert 只派生 READY/WAIT/DEGRADED，Outcome 绑定 measurement facts、objective event、checkpoint 并客观计算 lead time；描述性归因拒绝重复记录并明确无概率 authority。M3 核心 93/93、runtime/schema 48/48、多资产 28/28、Scope Rebase 12/12 PASS；提交 `31d73df7474b9b9692f3567fd46f5a5ce09589ee` 又在一次性干净克隆、正式分支身份与独立 `npm ci` 下完整通过 `ci:production`，其中 V2 Foundation 643 PASS / 6 explicit skips、V2 Ops 235/235、M0、Next build、Golden 16/16 与 security 全部 PASS。当前 scope 仍是 `M3_TEST_ONLY_UNBOUND_SCOPE_EPOCH`，真实 Scope V2 接线/存储、canonical Risk builder、真实 cohort/holdout 评估、UI、Shadow、外部独立审计和生产 authority 均未完成。
+- M3.3E 本地运行构建链已落地：`StrategyDraft v3` 必须恰好一个内容寻址主标签和有界 context tags，input v2 显式消费 Thesis，无法从 pattern、Analysis structure、方向与结构位证明时 no-draft abstain；`StrategyDecision v2`、`DecisionSnapshot v3`、`AlertEvent v2`、`OutcomeRecord v3` 原样传播。Read Model 强制 READY risk/freshness/release 门并冻结 firstDetectedAt，Alert 只派生 READY/WAIT/DEGRADED，Outcome 绑定 measurement facts、objective event、checkpoint 并客观计算 lead time；描述性归因拒绝重复记录并明确无概率 authority。M3 核心 93/93、runtime/schema 48/48、多资产 28/28、Scope Rebase 12/12 PASS；提交 `31d73df7474b9b9692f3567fd46f5a5ce09589ee` 又在一次性干净克隆、正式分支身份与独立 `npm ci` 下完整通过 `ci:production`，其中 V2 Foundation 643 PASS / 6 explicit skips、V2 Ops 235/235、M0、Next build、Golden 16/16 与 security 全部 PASS。后续功能分支 Full Quality 暴露 strict M0 branch identity 与 candidate source quality 混用；source `e2b3e01681af6af07fdd27d9a519ba102726bf42` 已将两者永久分离，保持生产 strict M0 不变，并取得 Signed Dispatch `30696570437`、A0 `30696570446`、Independent Security `30696570465`、Full Quality `30696570449` 四门 PASS。当前 scope 仍是 `M3_TEST_ONLY_UNBOUND_SCOPE_EPOCH`，该候选门不授予生产分支权限；真实 Scope V2 接线/存储、canonical Risk builder、真实 cohort/holdout 评估、UI、Shadow、外部最终独立审计和生产 authority 均未完成。
 - M1.5-B1-A 已在腾讯宿主机隔离 no-authority Runner 以 exact commit `97f10e75ce296b07d933e9c362c40ba2be0997ea` 构建专用镜像并真实运行两周期。每周期 eligible/collected 均 1,444/1,444、三 Venue provider failure=0、checkpoint/persistence=`INSERTED`，宿主机 11 容器/4 network/5 volume 已按 digest 精确恢复；evidence `sha256:a44cab89b8a4bf291e7c8f67eb6de2b76f2637f4f8265d91ebb8f1224d2a40c2` 独立重算通过。技术 Runner=`PASS`，业务 readiness=`FAIL`：READY 0/2，fresh 1,441 后降至 1,274，原因包括 stale、duplicate 和 missed schedule。31 周期 Shadow、语义整改、24h SLO、生产 migration、API、页面和生产 authority 仍未证明。
 - M1.5-B1-B0 已冻结单进程 31 周期、60 秒 cadence、完整分母、strict process summary、独立业务 SLO、内容寻址 domain/runner evidence 和宿主 Docker 精确恢复；中断、短包或跨进程/config 拼接全部拒绝。
 - M1.5-B1-B1 exact commit `3908f9f5d0066849311e9d3ac875cc6a76acc69e` 虽观察到进程运行 31 周期，但 Runner 使用 1 小时 reconciliation、validator 仍要求旧 24 小时值，导致完整脱敏证据未生成且原始字节已按清理合同删除。两个失败报告 digest 已独立重算、宿主精确恢复；该窗口只能记 `EXECUTION_INVALID_NOT_COUNTED`，不得推断业务 PASS/FAIL。

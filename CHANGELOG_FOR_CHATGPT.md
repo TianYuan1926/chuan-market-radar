@@ -2,7 +2,7 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
-## 2026-08-01 / P0R B9-R1 Remote Requalification and M3.3E Local Core
+## 2026-08-01 / P0R B9-R1, M3.3E Local Core and Candidate CI Authority Remediation
 
 ### 本轮目标
 
@@ -17,10 +17,13 @@
 - 本地 Read Model/Alert/Outcome 构建器已接通：READY 必须具备同 release、fresh 且 SUITABLE 的 Personal/Portfolio Risk；提醒不能由调用方指定类型或标签；Outcome 必须绑定 policy、measurement facts、objective event、完整 checkpoint 和原始 firstDetectedAt，lead time 由事件起点客观计算。描述性按标签归因拒绝重复记录，并明确无概率 authority。
 - M3 核心回归 `93/93`、runtime/schema 定向 `48/48`、多资产 `28/28`、Scope Rebase `12/12` 已通过。当前仍是 `M3_TEST_ONLY_UNBOUND_SCOPE_EPOCH`；真实 Scope V2 接线/存储、canonical Risk builder、真实评估、UI、cohort/holdout、Shadow、独立审计和生产 authority 未完成。
 - 两个 M3.3E 隔离提交已在一次性干净克隆中快进到正式分支身份，并以 Node `22.23.1`、npm `10.9.8`、Go `1.26.3` 和独立 `npm ci` 从头通过完整 `ci:production`。V2 Foundation=`643 PASS / 6 explicit skips / 0 fail`、V2 Ops=`235/235`，M0、Next production build、Golden=`16/16` 和 security 均 PASS；该证据不冒充外部独立审计或生产验收。
+- M3.3E source `f40f7866fe5b2f84c992c555adae8a21e4cb3f8b` 的 A0 run `30693742320` 与 Independent Security run `30693742338` PASS，但 Full Quality run `30693742333` / job `91352908993` 真实 FAIL。精确本地复现证明唯一失败是 strict M0 的 `clean_v2_branch_identity`：功能分支本来就不应拥有正式实施分支身份；M3 业务合同没有失败。
+- 根因修复 source `e2b3e01681af6af07fdd27d9a519ba102726bf42` 保持正式 `ci:production` 与 strict M0 不变，新增只用于功能分支的 `ci:candidate`。它与生产 CI 的唯一差异是 no-authority candidate M0 verifier；只有 branch identity 是唯一 strict M0 failure 时才通过，任何第二项失败、任意分支、身份不一致或正式实施分支冒充 candidate 都 fail closed。A0 材料门禁和回归测试锁定这项精确派生关系。
+- 最终本地 `ci:candidate` 从头 PASS：V2 Foundation=`649 PASS / 6 explicit skips / 0 fail`、V2 Ops=`236/236`、candidate M0、Next build、Golden=`16/16` 与 security 全部通过。精确 source 又取得 Signed Dispatch `30696570437`、A0 `30696570446`、Independent Security `30696570465` 和 Full Quality `30696570449` 四门 PASS；Full Quality 的 candidate step PASS，strict production step 按设计 skipped。该结果只证明功能分支源码质量，不授予生产分支、部署、数据写入或 READY authority。
 
 ### 当前真值与下一步
 
-P0R 是“远端资格通过、完整恢复未执行”；M3.3E 是“本地 test-only 运行构建器与独立完整 CI 通过、真实数据接线与实战验收未完成”。下一步保持冻结 source 不变，优先完成 canonical Risk builder 与真实 Scope V2 接线设计；外部独立审计仍是后续单独门禁。P0R 只在新的动作时授权内执行临时 8022、bridge v4、fresh STS、只读加密 backup、精确版本取回、独立 PostgreSQL 16 restore 和全量清理。
+P0R 是“远端资格通过、完整恢复未执行”；M3.3E 是“test-only 运行构建器、本地完整门和功能分支四个远端质量门通过，真实数据接线与实战验收未完成”。下一步保持 P0R 冻结 source 不变，优先完成 canonical Risk builder 与真实 Scope V2 接线设计；外部最终独立审计仍是后续单独门禁。P0R 只在新的动作时授权内执行临时 8022、bridge v4、fresh STS、只读加密 backup、精确版本取回、独立 PostgreSQL 16 restore 和全量清理。
 
 ## 2026-08-01 / P0R B9 COS Object Lock CAM Root Remediation
 

@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.83",
-  "status": "m0_4_expanded_scope_design_pass_m0_5_market_mechanics_microstructure_precursor_atlas_local_contract_pass_a0_engineering_subgates_pass_total_gate_incomplete_p0r_pending_m1_1b0_r3_live_15_of_15_all_gates_pass_m1_4a_through_m1_4d_local_contracts_pass_no_authority_m1_5c_m1_5d_local_runtime_and_exact_package_pass_live_zero_of_31_each_m1_6_p0_blocked_p0r_b9_r1_source_6a70_four_github_gates_fresh_signed_rebind_v4_target_acceptance_pass_full_recovery_not_executed_production_zero_drift_m2_1a_local_research_contract_pass_real_cohort_missing_no_candidate_emission_m2_2_c1_forward_only_ready_no_authority_m3_0_through_m3_3_local_contract_pass_test_only_uncalibrated_no_ready_authority_m3_3e_local_runtime_builders_content_addressed_lineage_and_descriptive_attribution_pass_test_only_unbound_scope_real_evaluation_ui_shadow_pending_m3_4_r0_scope_rebase_governance_pass_r1_partial_test_only_draft_external_historical_source_blocked_m1_not_complete",
-  "generatedAt": "2026-08-01T16:02:16+08:00",
+  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.84",
+  "status": "m0_4_expanded_scope_design_pass_m0_5_market_mechanics_microstructure_precursor_atlas_local_contract_pass_a0_engineering_subgates_pass_total_gate_incomplete_p0r_pending_m1_1b0_r3_live_15_of_15_all_gates_pass_m1_4a_through_m1_4d_local_contracts_pass_no_authority_m1_5c_m1_5d_local_runtime_and_exact_package_pass_live_zero_of_31_each_m1_6_p0_blocked_p0r_b9_r1_source_6a70_four_github_gates_fresh_signed_rebind_v4_target_acceptance_pass_full_recovery_not_executed_production_zero_drift_m2_1a_local_research_contract_pass_real_cohort_missing_no_candidate_emission_m2_2_c1_forward_only_ready_no_authority_m3_0_through_m3_3_local_contract_pass_test_only_uncalibrated_no_ready_authority_m3_3e_local_runtime_builders_content_addressed_lineage_and_descriptive_attribution_pass_test_only_unbound_scope_real_evaluation_ui_shadow_pending_m3_feature_branch_candidate_ci_remote_four_gates_pass_strict_production_m0_unchanged_no_production_authority_m3_4_r0_scope_rebase_governance_pass_r1_partial_test_only_draft_external_historical_source_blocked_m1_not_complete",
+  "generatedAt": "2026-08-01T19:00:26+08:00",
   "implementationAuthorized": true,
   "productionMutationAuthorized": false,
   "longTermEngineeringGovernance": {
@@ -2015,6 +2015,36 @@
       "goldenCasesPassed": 16,
       "goldenCasesTotal": 16,
       "securityCheckPassed": true
+    },
+    "candidateSourceCiGovernance": {
+      "status": "PASS_EXACT_PRODUCTION_DERIVATIVE_REMOTE_FOUR_GATES_NO_PRODUCTION_BRANCH_AUTHORITY",
+      "sourceCommit": "e2b3e01681af6af07fdd27d9a519ba102726bf42",
+      "priorFailedSourceCommit": "f40f7866fe5b2f84c992c555adae8a21e4cb3f8b",
+      "priorFullQualityRunId": 30693742333,
+      "priorFullQualityJobId": 91352908993,
+      "priorStrictFailedCheckIds": [
+        "clean_v2_branch_identity"
+      ],
+      "rootCause": "feature_branch_source_quality_was_incorrectly_coupled_to_production_branch_identity",
+      "strictProductionM0Changed": false,
+      "candidateCiDiffersFromProductionCiOnlyAtM0Verifier": true,
+      "candidateSecondM0FailureAllowed": false,
+      "candidateProductionBranchAuthorityGranted": false,
+      "localCandidateCiPassed": true,
+      "localV2FoundationPassed": 649,
+      "localV2FoundationExplicitSkips": 6,
+      "localV2OpsPassed": 236,
+      "localNextProductionBuildPassed": true,
+      "localGoldenCasesPassed": 16,
+      "localSecurityCheckPassed": true,
+      "remoteRuns": {
+        "signedProductionDispatchQuality": 30696570437,
+        "a0ReleaseQualification": 30696570446,
+        "independentSecurityQuality": 30696570465,
+        "fullQualityAndMaterials": 30696570449
+      },
+      "remoteFourGatesPassed": true,
+      "productionMutationPerformed": false
     },
     "externalIndependentAuditComplete": false,
     "readyRequiresPersonalAndPortfolioRisk": true,
