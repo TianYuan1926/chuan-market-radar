@@ -21,6 +21,15 @@ function packageFixture() {
       packageManager: "npm@10.9.8",
       engines: { node: "22.23.1", npm: "10.9.8" },
       volta: { node: "22.23.1", npm: "10.9.8" },
+      scripts: {
+        "ci:production": "common && npm run v2:m0:verify && finish",
+        "ci:candidate":
+          "common && npm run v2:m0:candidate:verify && finish",
+        "v2:m0:candidate:verify":
+          "npm run build:market-cli && npm run v2:m0:candidate:verify:compiled",
+        "v2:m0:candidate:verify:compiled":
+          "node .tmp/market-tests/v2/governance/m0-candidate-source-validator.js",
+      },
       dependencies: {
         next: "16.2.12",
         react: "19.2.7",
@@ -79,6 +88,20 @@ test("materials gate rejects latest, lock drift, vulnerable Next and GPL", () =>
   assert.ok(codes.includes("NEXT_SECURITY_PATCH_BELOW_MINIMUM"));
   assert.ok(codes.includes("NEXT_ESLINT_VERSION_DRIFT"));
   assert.ok(codes.includes("FORBIDDEN_STRONG_COPYLEFT_LICENSE"));
+});
+
+test("materials gate rejects candidate CI drift from the strict production gate", () => {
+  const fixture = packageFixture();
+  fixture.packageJson.scripts["ci:candidate"] += " && skip-security";
+
+  const codes = validatePackagePolicy(
+    fixture.packageJson,
+    fixture.packageLock,
+  ).map((item) => item.code);
+
+  assert.ok(
+    codes.includes("V2_CANDIDATE_CI_NOT_EXACT_PRODUCTION_DERIVATIVE"),
+  );
 });
 
 test("collector runtime lock remains a narrow production-only subset of the root lock", () => {
@@ -183,7 +206,11 @@ test("full quality workflow retains the Git ancestry required by M0", () => {
     "          test \"$(dpkg-query -W -f='${Version}' expect)\" = \"5.45.4-3\"",
     "          test \"$(dpkg-query -W -f='${Version}' tcl-expect)\" = \"5.45.4-3\"",
     "          test -x /usr/bin/expect",
+    "      - name: Run complete candidate source CI",
+    "        if: github.ref != 'refs/heads/codex/market-radar-v2-implementation'",
+    "        run: npm run ci:candidate",
     "      - name: Run complete production CI",
+    "        if: github.ref == 'refs/heads/codex/market-radar-v2-implementation'",
     "        run: npm run ci:production",
   ].join("\n");
   assert.deepEqual(
@@ -200,6 +227,16 @@ test("full quality workflow retains the Git ancestry required by M0", () => {
   );
   assert.ok(
     issues.some((item) => item.code === "V2_FULL_CI_GIT_HISTORY_SHALLOW"),
+  );
+
+  const branchModeIssues = validateFullCiWorkflowPolicy(
+    ".github/workflows/v2-full-quality.yml",
+    workflow.replace("npm run ci:candidate", "npm run ci:production"),
+  );
+  assert.ok(
+    branchModeIssues.some(
+      (item) => item.code === "V2_FULL_CI_WORKFLOW_INCOMPLETE",
+    ),
   );
 
   const expectIssues = validateFullCiWorkflowPolicy(

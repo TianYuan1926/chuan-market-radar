@@ -102,6 +102,32 @@ export function validatePackagePolicy(packageJson, packageLock) {
     ));
   }
 
+  const productionCi = packageJson.scripts?.["ci:production"] ?? "";
+  const candidateCi = packageJson.scripts?.["ci:candidate"] ?? "";
+  const productionM0Command = "npm run v2:m0:verify";
+  const candidateM0Command = "npm run v2:m0:candidate:verify";
+  const candidateVerifier =
+    packageJson.scripts?.["v2:m0:candidate:verify"] ?? "";
+  const candidateCompiledVerifier =
+    packageJson.scripts?.["v2:m0:candidate:verify:compiled"] ?? "";
+  if (
+    productionCi.split(productionM0Command).length !== 2 ||
+    candidateCi !== productionCi.replace(
+      productionM0Command,
+      candidateM0Command,
+    ) ||
+    !candidateVerifier.includes("build:market-cli") ||
+    !candidateVerifier.includes("v2:m0:candidate:verify:compiled") ||
+    candidateCompiledVerifier !==
+      "node .tmp/market-tests/v2/governance/m0-candidate-source-validator.js"
+  ) {
+    issues.push(issue(
+      "V2_CANDIDATE_CI_NOT_EXACT_PRODUCTION_DERIVATIVE",
+      "package.json#scripts",
+      "candidate CI must differ from production CI only at the no-authority M0 candidate verifier",
+    ));
+  }
+
   const rootLock = packageLock.packages?.[""];
   for (const section of ["dependencies", "devDependencies"]) {
     for (
@@ -314,12 +340,19 @@ export function validateFullCiWorkflowPolicy(path, source) {
   if (
     !/^\s*pull_request:\s*$/mu.test(source) ||
     !/^\s*push:\s*$/mu.test(source) ||
-    !source.includes("npm run ci:production")
+    !source.includes("npm run ci:production") ||
+    !source.includes("npm run ci:candidate") ||
+    !source.includes(
+      "if: github.ref == 'refs/heads/codex/market-radar-v2-implementation'",
+    ) ||
+    !source.includes(
+      "if: github.ref != 'refs/heads/codex/market-radar-v2-implementation'",
+    )
   ) {
     issues.push(issue(
       "V2_FULL_CI_WORKFLOW_INCOMPLETE",
       path,
-      "pull_request, push and ci:production are all required",
+      "pull_request, push, candidate CI and branch-authoritative production CI are all required",
     ));
   }
 

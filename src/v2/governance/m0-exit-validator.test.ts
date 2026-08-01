@@ -4,8 +4,17 @@ import { resolve } from "node:path";
 import test from "node:test";
 import { buildM0ExitReport } from "./m0-exit-validator";
 
-test("M0 engineering exit remains closed unless every required proof passes", () => {
+test("M0 engineering exit keeps production branch identity fail closed", () => {
   const report = buildM0ExitReport(process.cwd());
+  const baseManifest = JSON.parse(
+    readFileSync(
+      resolve(
+        process.cwd(),
+        "docs/architecture/v2/V2_BASE_MANIFEST.v1.json",
+      ),
+      "utf8",
+    ),
+  ) as { implementation: { branch: string } };
   const matrix = JSON.parse(
     readFileSync(
       resolve(
@@ -60,15 +69,24 @@ test("M0 engineering exit remains closed unless every required proof passes", ()
     pendingHistoricalDataGate: { id: string };
   };
 
-  assert.equal(
-    report.status,
-    "PASS_M0_ENGINEERING_EXIT_PRODUCTION_UNCHANGED",
-    JSON.stringify(
-      report.checks.filter((check) => !check.passed),
-      null,
-      2,
-    ),
+  const failedChecks = report.checks.filter((check) => !check.passed);
+  const nonBranchFailures = failedChecks.filter(
+    (check) => check.id !== "clean_v2_branch_identity",
   );
+  assert.deepEqual(nonBranchFailures, []);
+  if (report.branch === baseManifest.implementation.branch) {
+    assert.equal(
+      report.status,
+      "PASS_M0_ENGINEERING_EXIT_PRODUCTION_UNCHANGED",
+    );
+    assert.deepEqual(failedChecks, []);
+  } else {
+    assert.equal(report.status, "FAIL_M0_EXIT");
+    assert.deepEqual(
+      failedChecks.map((check) => check.id),
+      ["clean_v2_branch_identity"],
+    );
+  }
   assert.equal(report.authorityOutputs, 30);
   assert.equal(report.runtimeSchemas, 30);
   assert.equal(report.productionMutationPerformed, false);
@@ -77,7 +95,11 @@ test("M0 engineering exit remains closed unless every required proof passes", ()
     "UNKNOWN_UNTIL_FRESH_READ_ONLY_VERIFICATION",
   );
   assert.ok(report.checks.length >= 10);
-  assert.ok(report.checks.every((check) => check.passed));
+  assert.ok(
+    report.checks.every(
+      (check) => check.passed || check.id === "clean_v2_branch_identity",
+    ),
+  );
   assert.ok(
     report.checks.some(
       (check) => check.id === "legacy_sources_match_reviewed_commit",

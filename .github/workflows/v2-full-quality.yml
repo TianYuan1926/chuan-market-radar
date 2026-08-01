@@ -68,7 +68,12 @@ jobs:
       - name: Audit high and critical dependency advisories
         run: npm audit --audit-level=high
 
+      - name: Run complete candidate source CI
+        if: github.ref != 'refs/heads/codex/market-radar-v2-implementation'
+        run: npm run ci:candidate
+
       - name: Run complete production CI
+        if: github.ref == 'refs/heads/codex/market-radar-v2-implementation'
         run: npm run ci:production
 
       - name: Upload non-secret SBOM evidence
