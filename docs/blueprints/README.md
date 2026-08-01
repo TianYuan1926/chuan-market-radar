@@ -29,8 +29,8 @@ Legacy G0 的七个生产出口继续作为历史安全义务，但它们不是 
 
 | 优先级 | 文档 | 唯一职责 |
 | ---: | --- | --- |
-| 1 | [V2 受控替换工程与运行蓝图 v1.75](./MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md) | 当前唯一产品、领域、工程、研究、运行与切换设计权威 |
-| 2 | [V2 机器追踪矩阵 v1.80](./market-radar-v2-controlled-replacement-traceability.v1.json) | Scope Epoch、A0、18 个 Module、5 维状态、硬门槛和 M0-M7 的机器合同 |
+| 1 | [V2 受控替换工程与运行蓝图 v1.82](./MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md) | 当前唯一产品、领域、工程、研究、运行与切换设计权威 |
+| 2 | [V2 机器追踪矩阵 v1.87](./market-radar-v2-controlled-replacement-traceability.v1.json) | Scope Epoch、A0、18 个 Module、5 维状态、硬门槛和 M0-M7 的机器合同 |
 | 2P | [P0R 只读重绑定交付报告](./V2_M1_6_P0R_READ_ONLY_REBIND_PREFLIGHT_DELIVERY_REPORT.md) | 历史 staging 失效依据、当前源码重绑定边界、测试与生产零变更真值 |
 | 2P1 | [P0R fixed-dispatch transport staging 根因整改交付报告](./V2_M1_6_P0R_FIXED_DISPATCH_TRANSPORT_STAGING_REMEDIATION_DELIVERY_REPORT.md) | OrcaTerm 三次失败、运输退役、0755 fail-closed、0700 根治、B8 exact target acceptance 与 B9 边界 |
 | 2A | [M0.4 扩展市场范围与 Scope Epoch 合同](../architecture/v2/M0_4_EXPANDED_MARKET_SCOPE_AND_SCOPE_EPOCH_CONTRACT_V1.md) | Bitget、上新/新币 watch、股票合约、T0-T3 数据策略和跨范围证据隔离 |
@@ -122,6 +122,7 @@ Legacy G0 的七个生产出口继续作为历史安全义务，但它们不是 
 | 62 | [M3.3 交付报告](./V2_M3_3_STRATEGY_CONSTRUCTION_DELIVERY_REPORT.md) | M3 合计 81 项、StrategyDraft v2、全 V2/ops 回归、生产零变更与未完成事实 |
 | 63 | [M3.1A-D 四轨多资产决策研究合同](../architecture/v2/M3_1A_D_FOUR_LANE_MULTI_ASSET_DECISION_RESEARCH_CONTRACT_V1.md) | exact lane/domain/lifecycle、双 calibration、成本/reference 和策略弃权合同 |
 | 64 | [M3.1A-D 四轨研究合同交付报告](./V2_M3_1A_D_FOUR_LANE_MULTI_ASSET_DECISION_RESEARCH_CONTRACT_DELIVERY_REPORT.md) | 四轨 28/28、无真实 cohort/holdout/authority 和生产零变更 |
+| 65 | [M2.3A R2 运行证据持久化与连接交付报告](./V2_M2_3A_R2_LIVE_EVIDENCE_PERSISTENCE_AND_RUNTIME_JOIN_DELIVERY_REPORT.md) | 31 周期 refresh 文件链、checkpoint 连续性、M2 五件套回读重建、live 0/31 与无 authority 边界 |
 
 只有第一份蓝图和第二份机器矩阵具有 V2 设计权威。Context 不能改写长期合同，蓝图也不能覆盖更晚的生产只读事实。
 
@@ -131,7 +132,7 @@ Legacy G0 的七个生产出口继续作为历史安全义务，但它们不是 
 
 1. 与当前 release 身份对齐的新鲜生产只读证据。
 2. 永久安全、事实、交易、无 future leak 和无自动交易红线。
-3. V2 蓝图 v1.75 与机器追踪矩阵 v1.80。
+3. V2 蓝图 v1.82 与机器追踪矩阵 v1.87。
 4. `PROJECT_CONTEXT_FOR_CHATGPT.md` 中仍标为 current 的事实。
 5. Legacy 工程、运行和 readiness 文档中仍适用的安全与验收合同。
 6. 历史蓝图、旧请求、旧报告、旧 digest 和 Git history。

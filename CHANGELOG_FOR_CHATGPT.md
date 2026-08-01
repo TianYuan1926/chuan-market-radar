@@ -2,11 +2,11 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
-## 2026-08-01 / P0R B9-R1, M3.3E Candidate Authority Remediation and M2.3A Event Truth Vertical
+## 2026-08-01 / P0R B9-R1, M3.3E and M2.3A Runtime Evidence Chain
 
 ### 本轮目标
 
-在不触碰生产业务与 secret 边界的前提下恢复 P0R 下一次执行资格，完成策略类型标签的本地权威合同与 candidate CI 权限根治，并建立 M2.3A Listing/Venue point-in-time 事件研究真值，避免“标签只是前端文案”、Outcome 事后改名或由当前目录倒推历史上市事件。
+在不触碰生产业务与 secret 边界的前提下恢复 P0R 下一次执行资格，完成策略类型标签与 candidate CI 权限根治，并让 M2.3A 从研究真值、上游证据连接继续推进到可由真实 M1.5C 文件链独立重建的 no-authority runtime evidence。
 
 ### 当前证据
 
@@ -26,10 +26,14 @@
 - M2.3A R1 source `777af03d18bb8c677854bdd3579c19d003f71864` 已禁止调用方手写 source coverage，改由 exact upstream binding、digest assessment PASS 的 capability registry、四 Venue catalog/identity，以及 Bybit/Bitget listing refresh/page/checkpoint/binding 推导 coverage、lifecycle ledger 与 R0 research Bundle。blocked/partial/gap 留在分母，跨 source、release、cutoff、分母和 authority 篡改 fail closed。
 - R1 定向 `14/14`、R0 与相邻 M1 合同 `70/70`、完整 candidate CI 全部 PASS：V2 Foundation=`677 PASS / 6 explicit skips / 0 fail`、V2 Ops=`236/236`、Next build、Golden=`16/16` 和 security PASS。Signed Dispatch `30700942398`、A0 `30700942328`、Independent Security `30700942353`、Full Quality `30700942338` 四门 PASS。
 - R1 没有执行真实 live runtime，没有读取或修改生产数据库、Redis、COS、服务、Worker、env、migration、Feature Flag、流量、P0R 或 Legacy；Candidate、方向、概率、Grade、Strategy、READY 与生产权限继续全部为 false。真实 same-release source evidence、cohort/holdout/calibration、Shadow 与独立审计仍未完成，M2.3A 主步骤继续不减数。
+- M2.3A R2 source `d5d70bc50484db570748a7744319e2b35e0e8426` 修复了 M1.5C 只落 binding/checkpoint、真实运行后无法独立重建 M2 的断点。每周期新增完整 `listing-watch-refresh-batch.json`，persistence receipt 升至 v3，31 周期 verifier 升至 v2 并核验 280 个文件、两条 initial checkpoint、逐周期 prior checkpoint 连续性和首尾 batch hash。
+- exact live package 现在会从 independently verified cycle 30/31 source 生成 refresh evidence、lifecycle ledger、research bundle、evidence join 与 runtime manifest 五个内容寻址文件，再从磁盘回读并整组重建。Refresh evidence v2 还保留原 source batch hash，伪造 source hash 即使重算 manifest 也会 fail closed。
+- R2 相邻合同 `148/148`、固定 Node `22.23.1` / npm `10.9.8` 的完整 candidate CI、Signed Dispatch `30706385082`、A0 `30706385111`、Independent Security `30706385064`、Full Quality `30706385069` 全部 PASS。第一次 CI 因宿主 PATH 误选 Node `24.15.0` 被 P0R exact runtime gate 拒绝；固定到仓库声明版本后从头重跑，失败运行不计入通过。
+- R2 没有部署或运行 M1.5C/M1.5D，live evidence 仍为 `0/31`；生产数据库、Redis、COS、服务、Worker、env、migration、Feature Flag、流量、P0R 和 Legacy 全部未改变。Candidate、方向、概率、Grade、Strategy、READY 与 production runtime authority 继续关闭。
 
 ### 当前真值与下一步
 
-P0R 是“远端资格通过、完整恢复未执行”；M3.3E 是“test-only 运行构建器、本地完整门和功能分支四个远端质量门通过，真实数据接线与实战验收未完成”；M2.3A 是“R0 事件真值与 R1 上游证据连接通过，但真实 live Detector、cohort、holdout、校准、Shadow 和生产 authority 未完成”。后续优先取得 same-release 真实 Scope V2 source evidence 并进入 M2.4A，同时并行推进 canonical Risk builder；外部最终独立审计仍是单独门禁。P0R 只在新的动作时授权内执行临时 8022、bridge v4、fresh STS、只读加密 backup、精确版本取回、独立 PostgreSQL 16 restore 和全量清理。
+P0R 是“远端资格通过、完整恢复未执行”；M3.3E 是“test-only 运行构建器、本地完整门和功能分支四个远端质量门通过，真实数据接线与实战验收未完成”；M2.3A 是“R0 事件真值、R1 上游证据连接、R2 持久化/连续性/runtime join 均通过本地和远端质量门，但真实运行仍为 0/31，Detector、cohort、holdout、校准、Shadow 和生产 authority 未完成”。后续先关闭 P0R/fresh P0，再在同一 clean exact release 刷新 M1.4B/conformance 并运行 M1.5C/M1.5D；外部最终独立审计仍是单独门禁。
 
 ## 2026-08-01 / P0R B9 COS Object Lock CAM Root Remediation
 
