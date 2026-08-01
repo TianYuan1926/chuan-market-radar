@@ -23,7 +23,7 @@ import {
 export const M1_ANNOUNCEMENT_OBSERVATION_VERSION =
   "v2-m1-listing-announcement-observation.v1" as const;
 export const M1_LISTING_LIFECYCLE_LEDGER_VERSION =
-  "v2-m1-listing-lifecycle-ledger.v1" as const;
+  "v2-m1-listing-lifecycle-ledger.v2" as const;
 
 const DigestSchema = z.string().regex(/^sha256:[0-9a-f]{64}$/u);
 const VenueSchema = z.enum(M1_VENUE_SOURCE_IDS);
@@ -118,6 +118,7 @@ export const M1ListingLifecycleEventSchema = z.strictObject({
     "ANNOUNCEMENT",
     "CATALOG_ABSENCE",
   ]),
+  providerPublishedAt: IsoDateTimeSchema.nullable(),
   providerEffectiveAt: IsoDateTimeSchema.nullable(),
   knowledgeTime: IsoDateTimeSchema,
   announcementIds: z.array(NonEmptyStringSchema),
@@ -137,6 +138,27 @@ export const M1ListingLifecycleEventSchema = z.strictObject({
       code: "custom",
       message: "instrument and listing epoch must be present together",
       path: ["listingEpoch"],
+    });
+  }
+  if (
+    (event.eventSource === "ANNOUNCEMENT") !==
+      (event.providerPublishedAt !== null)
+  ) {
+    context.addIssue({
+      code: "custom",
+      message:
+        "announcement events require provider publication time and catalog events forbid it",
+      path: ["providerPublishedAt"],
+    });
+  }
+  if (
+    event.providerPublishedAt !== null &&
+    Date.parse(event.providerPublishedAt) > Date.parse(event.knowledgeTime)
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "provider publication cannot occur after event knowledge time",
+      path: ["providerPublishedAt"],
     });
   }
   if (
@@ -359,6 +381,7 @@ function catalogEvent(input: {
     previousState: input.previous?.lifecycleState ?? null,
     currentState: input.current.lifecycleState,
     eventSource: "DERIVATIVE_CATALOG" as const,
+    providerPublishedAt: null,
     providerEffectiveAt: input.current.statusEffectiveAt,
     knowledgeTime: input.current.knowledgeTime,
     announcementIds: [],
@@ -386,6 +409,7 @@ function absenceEvent(
     previousState: previous.lifecycleState,
     currentState: "UNRESOLVED" as const,
     eventSource: "CATALOG_ABSENCE" as const,
+    providerPublishedAt: null,
     providerEffectiveAt: null,
     knowledgeTime: sourceCutoff,
     announcementIds: [],
@@ -425,6 +449,7 @@ function announcementEvent(
         ? "ANNOUNCED_WAITING_CATALOG" as const
         : "UNRESOLVED" as const,
     eventSource: "ANNOUNCEMENT" as const,
+    providerPublishedAt: announcement.providerPublishedAt,
     providerEffectiveAt: announcement.providerEffectiveAt,
     knowledgeTime: announcement.knowledgeTime,
     announcementIds: [announcement.announcementId],
