@@ -1,6 +1,6 @@
 #!/usr/bin/expect -f
 
-set BRIDGE_SCHEMA_VERSION "v2-m1-production-storage-p0r-local-tty-bridge.v4"
+set BRIDGE_SCHEMA_VERSION "v2-m1-production-storage-p0r-local-tty-bridge.v5"
 set CLIPBOARD_CLEAR_VALUE "MARKET_RADAR_P0R_CLIPBOARD_CLEAR"
 set KEYCHAIN_ACCOUNT "market-radar-v2-p0r-recovery"
 set KEYCHAIN_SERVICE "com.chuan.market-radar.v2.p0r.age"
@@ -58,7 +58,8 @@ set timeout 30
 match_max 131072
 log_user 0
 set spawn_ids {}
-set clipboard_wait_seconds 540
+set clipboard_wait_seconds 1200
+set heartbeat_seconds 30
 set recovery_wait_seconds 5400
 set remote_marker_wait_seconds 30
 
@@ -83,6 +84,25 @@ proc clear_clipboard {} {
 proc close_spawned_sessions {} {
   foreach id $::spawn_ids {
     catch {close -i $id}
+  }
+}
+
+proc require_spawn_alive {id failure_code} {
+  set previous_timeout $::timeout
+  set ::timeout 0
+  set closed false
+  expect -i $id \
+    eof {set closed true} \
+    timeout {}
+  set ::timeout $previous_timeout
+  if {$closed} {
+    bridge_fail "${failure_code}_disconnected"
+  }
+  if {[catch {set pid [exp_pid -i $id]}] || ![regexp {^[1-9][0-9]*$} $pid]} {
+    bridge_fail "${failure_code}_pid_unavailable"
+  }
+  if {[catch {exec /bin/kill -0 $pid 2> /dev/null}]} {
+    bridge_fail "${failure_code}_disconnected"
   }
 }
 
@@ -205,6 +225,7 @@ proc configure_test_runtime {fixture_root} {
   set ::run_id "p0r-20990101t000000z-0123456789abcdef0123456789abcdef"
   set ::remote_source "/test/staging/$::run_id"
   set ::clipboard_wait_seconds 3
+  set ::heartbeat_seconds 1
   set ::recovery_wait_seconds 8
   set ::remote_marker_wait_seconds 3
 }
@@ -299,9 +320,13 @@ proc arm_clipboard {} {
   }
 }
 
-proc wait_for_normalized_sts_response {} {
+proc wait_for_normalized_sts_response {session_ids} {
   set deadline [expr {[clock milliseconds] + ($::clipboard_wait_seconds * 1000)}]
+  set next_heartbeat [expr {[clock milliseconds] + ($::heartbeat_seconds * 1000)}]
   while {[clock milliseconds] < $deadline} {
+    foreach id $session_ids {
+      require_spawn_alive $id "prearmed_secret_session"
+    }
     if {[catch {set raw [exec $::pbpaste_binary 2> /dev/null]}]} {
       bridge_fail "clipboard_read_failed"
     }
@@ -327,6 +352,10 @@ proc wait_for_normalized_sts_response {} {
         bridge_fail "clipboard_clear_before_handoff_failed"
       }
       return $normalized
+    }
+    if {[clock milliseconds] >= $next_heartbeat} {
+      emit_status "WAITING_P0R_NATIVE_COPY_BOTH_TTY_SESSIONS_ALIVE"
+      set next_heartbeat [expr {[clock milliseconds] + ($::heartbeat_seconds * 1000)}]
     }
     set raw ""
     after 200
@@ -367,9 +396,18 @@ proc run_bridge {} {
     "READY_P0R_STS_RESPONSE_INPUT_NO_ECHO" \
     $::remote_marker_wait_seconds \
     "credential_receiver_not_ready"
+  set secondary [spawn_remote_session "receive-age-identity"]
+  wait_for_marker \
+    $secondary \
+    "READY_P0R_AGE_IDENTITY_INPUT_NO_ECHO" \
+    $::remote_marker_wait_seconds \
+    "age_receiver_not_ready"
+  require_spawn_alive $primary "prearmed_credential_session"
+  require_spawn_alive $secondary "prearmed_age_session"
+  emit_status "PASS_P0R_BOTH_TTY_SESSIONS_PREARMED"
   emit_status "READY_P0R_API_NATIVE_COPY_TO_LOCAL_TTY_BRIDGE"
 
-  set sts_response [wait_for_normalized_sts_response]
+  set sts_response [wait_for_normalized_sts_response [list $primary $secondary]]
   send_secret_and_eof $primary $sts_response
   set sts_response ""
   wait_for_marker \
@@ -384,12 +422,6 @@ proc run_bridge {} {
     "credential_session_handoff_failed"
   emit_status "PASS_P0R_EPHEMERAL_CREDENTIAL_HANDOFF"
 
-  set secondary [spawn_remote_session "receive-age-identity"]
-  wait_for_marker \
-    $secondary \
-    "READY_P0R_AGE_IDENTITY_INPUT_NO_ECHO" \
-    $::remote_marker_wait_seconds \
-    "age_receiver_not_ready"
   set age_identity [read_age_identity_from_keychain]
   send_secret_and_eof $secondary $age_identity
   set age_identity ""
@@ -411,7 +443,7 @@ proc run_bridge {} {
 
 proc parse_mode {} {
   if {$::argc == 1 && [lindex $::argv 0] eq "plan"} {
-    puts stdout "{\"ageIdentityFromKeychainOnly\":true,\"browserAccessibilityReadAfterResponseAllowed\":false,\"browserOcrAfterResponseAllowed\":false,\"browserScreenshotAfterResponseAllowed\":false,\"clipboardClearedBeforeAndAfterHandoff\":true,\"containsSecret\":false,\"exactRemoteCommandsOnly\":true,\"fixedSshHostAlias\":\"$::LOCKED_SSH_HOST_ALIAS\",\"fixedSshPort\":$::LOCKED_SSH_PORT,\"nativeApiResponseCopyOnly\":true,\"remoteReadyMarkerRequired\":true,\"schemaVersion\":\"$::BRIDGE_SCHEMA_VERSION\",\"secretOutputAllowed\":false,\"status\":\"PASS_P0R_LOCAL_TTY_BRIDGE_PLAN\"}"
+    puts stdout "{\"ageIdentityFromKeychainOnly\":true,\"bothSshSessionsPrearmedBeforeIssuance\":true,\"browserAccessibilityReadAfterResponseAllowed\":false,\"browserOcrAfterResponseAllowed\":false,\"browserScreenshotAfterResponseAllowed\":false,\"clipboardClearedBeforeAndAfterHandoff\":true,\"clipboardWaitSeconds\":$::clipboard_wait_seconds,\"containsSecret\":false,\"exactRemoteCommandsOnly\":true,\"fixedSshHostAlias\":\"$::LOCKED_SSH_HOST_ALIAS\",\"fixedSshPort\":$::LOCKED_SSH_PORT,\"nativeApiResponseCopyOnly\":true,\"postIssuanceNetworkReconnectRequired\":false,\"remoteReadyMarkerRequired\":true,\"schemaVersion\":\"$::BRIDGE_SCHEMA_VERSION\",\"secretOutputAllowed\":false,\"sessionHeartbeatRequired\":true,\"status\":\"PASS_P0R_LOCAL_TTY_BRIDGE_PLAN\"}"
     exit 0
   }
   if {$::argc == 3 \

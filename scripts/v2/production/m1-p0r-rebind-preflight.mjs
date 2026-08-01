@@ -23,11 +23,11 @@ const execFileAsync = promisify(execFile);
 export const P0R_REBIND_PACKAGE_ID =
   "V2-M1-6-P0R-READ-ONLY-REBIND-PREFLIGHT";
 export const P0R_REBIND_REQUEST_SCHEMA =
-  "market-radar-v2-m1-p0r-rebind-request.v3";
+  "market-radar-v2-m1-p0r-rebind-request.v4";
 export const P0R_REBIND_RESULT_SCHEMA =
-  "market-radar-v2-m1-p0r-rebind-result.v2";
+  "market-radar-v2-m1-p0r-rebind-result.v3";
 export const P0R_REBIND_FAILURE_RESULT_SCHEMA =
-  "market-radar-v2-m1-p0r-rebind-failure-result.v2";
+  "market-radar-v2-m1-p0r-rebind-failure-result.v3";
 export const P0R_REBIND_MANIFEST_SCHEMA =
   "market-radar-v2-m1-p0r-rebind-manifest.v1";
 export const P0R_REBIND_MANIFEST =
@@ -41,6 +41,9 @@ export const P0R_REBIND_SUCCESS_MARKER =
 export const P0R_REBIND_DISPATCH_RUNTIME_MAX_SECONDS = 90;
 export const P0R_REBIND_METADATA_ENDPOINT =
   "http://metadata.tencentyun.com/latest/meta-data/public-ipv4";
+export const P0R_REBIND_FORBIDDEN_LISTENER_PORT = 8022;
+export const P0R_REBIND_FORBIDDEN_LISTENER_UNIT =
+  "market-radar-p0r-8022.service";
 
 export const P0R_REBIND_LEGACY_SUPERSESSION_FILES = Object.freeze([
   "m1-production-storage-backup-capture.mjs",
@@ -96,6 +99,8 @@ const REQUEST_KEYS = Object.freeze([
   "expectedProductionHead",
   "expectedSourceIpCidrSha256",
   "expectedTimerUnit",
+  "forbiddenListenerPort",
+  "forbiddenListenerUnit",
   "launchSuccessMarker",
   "legacyStagingDirectory",
   "maxExecutions",
@@ -273,6 +278,11 @@ export function validateP0RRebindRequest(
   ensure(
     request.metadataEndpoint === P0R_REBIND_METADATA_ENDPOINT,
     "p0r_rebind_metadata_endpoint_invalid",
+  );
+  ensure(
+    request.forbiddenListenerPort === P0R_REBIND_FORBIDDEN_LISTENER_PORT &&
+      request.forbiddenListenerUnit === P0R_REBIND_FORBIDDEN_LISTENER_UNIT,
+    "p0r_rebind_forbidden_listener_binding_invalid",
   );
   ensure(
     COMMIT.test(request.expectedProductionHead) &&
@@ -675,9 +685,18 @@ export function p0rRebindReadOnlyInvocation(command, args, request) {
     };
   }
   if (command === "systemctl") {
+    const forbiddenListenerUnit = [
+      "show",
+      "--no-pager",
+      "--property=ActiveState",
+      "--property=LoadState",
+      "--",
+      request.forbiddenListenerUnit,
+    ];
     ensure(
       sameArgs(args, ["is-enabled", request.expectedTimerUnit]) ||
-        sameArgs(args, ["is-active", request.expectedTimerUnit]),
+        sameArgs(args, ["is-active", request.expectedTimerUnit]) ||
+        sameArgs(args, forbiddenListenerUnit),
       "p0r_rebind_systemctl_command_not_read_only",
     );
     return { args, executable: COMMAND_PATHS.systemctl };
@@ -732,6 +751,52 @@ function normalizedLines(value) {
     .map((line) => line.trim())
     .filter(Boolean)
     .sort();
+}
+
+export function countP0RForbiddenListeners(listenerLines, port) {
+  ensure(
+    Array.isArray(listenerLines) &&
+      Number.isSafeInteger(port) &&
+      port >= 1 &&
+      port <= 65_535,
+    "p0r_rebind_listener_inventory_invalid",
+  );
+  let count = 0;
+  for (const line of listenerLines) {
+    const columns = line.split(/\s+/u);
+    ensure(
+      columns.length >= 5 && columns[0] === "LISTEN",
+      "p0r_rebind_listener_inventory_invalid",
+    );
+    if (columns[3].endsWith(`:${port}`)) count += 1;
+  }
+  return count;
+}
+
+function forbiddenListenerUnitSummary(raw) {
+  const entries = {};
+  for (const line of raw.split(/\r?\n/u).filter(Boolean)) {
+    const separator = line.indexOf("=");
+    ensure(separator > 0, "p0r_rebind_listener_unit_inventory_invalid");
+    const key = line.slice(0, separator);
+    const value = line.slice(separator + 1);
+    ensure(
+      ["ActiveState", "LoadState"].includes(key) &&
+        /^[a-z][a-z-]{1,31}$/u.test(value) &&
+        entries[key] === undefined,
+      "p0r_rebind_listener_unit_inventory_invalid",
+    );
+    entries[key] = value;
+  }
+  exactKeys(
+    entries,
+    ["ActiveState", "LoadState"],
+    "p0r_rebind_listener_unit_inventory_invalid",
+  );
+  return {
+    activeState: entries.ActiveState,
+    loadState: entries.LoadState,
+  };
 }
 
 function healthSummary(raw, expected) {
@@ -796,6 +861,20 @@ export async function captureP0RRebindProductionIdentity(
     "{{.Name}}",
   ])).filter((name) => P0R_RUNTIME_NAME.test(name));
   const listenerLines = normalizedLines(await run("ss", ["-lntH"]));
+  const forbiddenListenerCount = countP0RForbiddenListeners(
+    listenerLines,
+    request.forbiddenListenerPort,
+  );
+  const forbiddenListenerUnit = forbiddenListenerUnitSummary(
+    await run("systemctl", [
+      "show",
+      "--no-pager",
+      "--property=ActiveState",
+      "--property=LoadState",
+      "--",
+      request.forbiddenListenerUnit,
+    ]),
+  );
   const timerEnabled = await run("systemctl", [
     "is-enabled",
     request.expectedTimerUnit,
@@ -816,6 +895,8 @@ export async function captureP0RRebindProductionIdentity(
   return {
     containerIds,
     health,
+    forbiddenListenerCount,
+    forbiddenListenerUnit,
     listenerSha256: sha256(`${listenerLines.join("\n")}\n`),
     p0rContainerNames,
     p0rVolumeNames,
@@ -849,12 +930,25 @@ export function assertP0RRebindProductionIdentity(identity, request, phase) {
       identity.p0rVolumeNames.length === 0,
     `p0r_rebind_${phase}_runtime_residue_detected`,
   );
+  ensure(
+    identity.forbiddenListenerCount === 0,
+    `p0r_rebind_${phase}_forbidden_listener_detected`,
+  );
+  ensure(
+    identity.forbiddenListenerUnit.activeState === "inactive" &&
+      identity.forbiddenListenerUnit.loadState === "not-found",
+    `p0r_rebind_${phase}_forbidden_listener_unit_residue_detected`,
+  );
 }
 
 export function boundedP0RRebindIdentity(identity) {
   return {
     containerCount: identity.containerIds.length,
     containerIdsSha256: sha256(`${identity.containerIds.join("\n")}\n`),
+    forbiddenListenerCount: identity.forbiddenListenerCount,
+    forbiddenListenerUnitActiveState:
+      identity.forbiddenListenerUnit.activeState,
+    forbiddenListenerUnitLoadState: identity.forbiddenListenerUnit.loadState,
     health: identity.health,
     listenerSha256: identity.listenerSha256,
     p0rContainerCount: identity.p0rContainerNames.length,

@@ -128,7 +128,7 @@ sudo journalctl -u market-radar-production-dispatch.service --since -10min
 
 ### 5.2 准备签名 Outbox
 
-以下 `production-dispatch.mjs prepare` 仅是通用工作包示例，`--runtime-max-seconds 5400` 不是全局默认值。P0R 只读重绑定明确禁止使用本节的通用 prepare 命令或人工填写 runtime/source/window/runner/staging/success-marker；P0R 必须使用 `npm run v2:m1:p0r:rebind-release`，由 canonical request v3 自动派生并强制 `dispatchRuntimeMaxSeconds=90`。任何 P0R 外层 5400 秒配置都必须在 outbox 创建前失败。
+以下 `production-dispatch.mjs prepare` 仅是通用工作包示例，`--runtime-max-seconds 5400` 不是全局默认值。P0R 只读重绑定明确禁止使用本节的通用 prepare 命令或人工填写 runtime/source/window/runner/staging/success-marker；P0R 必须使用 `npm run v2:m1:p0r:rebind-release`，由 canonical request v4 自动派生并强制 `dispatchRuntimeMaxSeconds=90`、TCP 8022 零监听和 exact transient unit 不存在。任何 P0R 外层 5400 秒配置都必须在 outbox 创建前失败。
 
 ```bash
 node scripts/v2/production/fixed-channel/production-dispatch.mjs prepare \

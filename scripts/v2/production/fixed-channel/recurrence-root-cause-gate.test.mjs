@@ -200,7 +200,7 @@ test("the real registry closes accepted package transport and keeps secret recov
     [
       {
         id: "REC-2026-07-28-P0R-SECRET-RECEIVER-FOCUS",
-        recurrenceCount: 8,
+        recurrenceCount: 10,
         status: "REMEDIATION_IN_PROGRESS",
         workaroundLimitBreached: false,
       },
@@ -344,7 +344,7 @@ test("the real registry closes accepted package transport and keeps secret recov
   assert.ok(
     openIncident.permanentFix.evidence.some(
       (item) =>
-        item.includes("Bridge schema v4") &&
+        item.includes("Bridge schema v5") &&
         item.includes("port 8022") &&
         item.includes("HostKeyAlias") &&
         item.includes("port 22") &&
@@ -379,7 +379,7 @@ test("the P0R runbook retires post-response browser recovery and OrcaTerm secret
   assert.match(runbook, /bridge 返回 READY 前禁止请求 STS/u);
   assert.match(runbook, /先清空 clipboard/u);
   assert.match(runbook, /Keychain 项内部读取 age identity/u);
-  assert.match(runbook, /固定 SSH port 8022/u);
+  assert.match(runbook, /固定目标 IP、ubuntu 用户、SSH port 8022/u);
   assert.match(runbook, /HostKeyAlias=43\.161\.202\.227/u);
   assert.match(runbook, /默认 SSH port 22.*永久禁止/u);
   assert.match(runbook, /P0R 111\/111/u);
@@ -394,11 +394,11 @@ test("the P0R runbook retires post-response browser recovery and OrcaTerm secret
   assert.match(runbook, /用户未明确在线时不得继续/u);
   assert.match(
     runbook,
-    /request schema 必须为 `market-radar-v2-m1-p0r-rebind-request\.v3`/u,
+    /request schema 必须为 `market-radar-v2-m1-p0r-rebind-request\.v4`/u,
   );
   assert.match(
     runbook,
-    /result schema 必须为 `market-radar-v2-m1-p0r-rebind-result\.v2`/u,
+    /result schema 必须为 `market-radar-v2-m1-p0r-rebind-result\.v3`/u,
   );
   assert.match(runbook, /`dispatchRuntimeMaxSeconds=90`/u);
   assert.match(runbook, /`v2:m1:p0r:rebind-release`/u);
@@ -408,22 +408,30 @@ test("the P0R runbook retires post-response browser recovery and OrcaTerm secret
   );
   assert.match(
     dispatchRunbook,
-    /由 canonical request v3 自动派生并强制 `dispatchRuntimeMaxSeconds=90`/u,
+    /由 canonical request v4 自动派生并强制 `dispatchRuntimeMaxSeconds=90`/u,
   );
+  assert.match(runbook, /`forbiddenListenerPort=8022`/u);
+  assert.match(runbook, /`forbiddenListenerUnit=market-radar-p0r-8022\.service`/u);
+  assert.match(runbook, /TCP 8022 监听数量为 0/u);
+  assert.match(runbook, /`LoadState=not-found`、`ActiveState=inactive`/u);
   assert.match(
     dispatchRunbook,
     /任何 P0R 外层 5400 秒配置都必须在 outbox 创建前失败/u,
   );
   assert.match(
     runbook,
+    /transaction\.mjs execute --plan <plan> --lease <lease> --route-evidence <route-evidence> --result <result>/u,
+  );
+  assert.doesNotMatch(
+    runbook,
     /m1-production-storage-p0r-local-tty-bridge\.exp execute --plan <plan>/u,
   );
   assert.doesNotMatch(runbook, /以下两条是唯一允许的 secret session 入口/u);
 });
 
-test("all active authority surfaces identify B9 R1 after the COS authorization failure", async () => {
+test("all active authority surfaces identify the B9 R2 external transaction remediation", async () => {
   const expectedEntry =
-    "V2-M1.6-P0R-B9-R1-COS-OBJECT-LOCK-CAM-ACTION-AND-DIAGNOSTIC-REMEDIATION";
+    "V2-M1.6-P0R-B9-R2-LEASED-DUAL-TTY-TRANSACTION-ROOT-REMEDIATION";
   const remediationEntry =
     "V2-M1.6-P0R-B8-FIXED-DISPATCH-TRANSPORT-STAGING-ROOT-REMEDIATION";
   const runtimeNamespaceEntry =
@@ -443,12 +451,23 @@ test("all active authority surfaces identify B9 R1 after the COS authorization f
   ]);
 
   assert.equal(matrix.currentImplementationEntry.id, expectedEntry);
+  assert.equal(matrix.currentImplementationEntry.localP0RTestsPassed, 125);
+  assert.equal(matrix.currentImplementationEntry.localP0RTestsFailed, 0);
+  assert.equal(matrix.currentImplementationEntry.fullLocalCiPassed, true);
+  assert.equal(matrix.currentImplementationEntry.fullLocalCiPending, false);
   assert.equal(
     matrix.currentP0RTransportStagingRemediation.id,
     remediationEntry,
   );
   assert.equal(matrix.currentP0RRuntimeNamespaceRemediation.id, runtimeNamespaceEntry);
-  assert.equal(matrix.currentP0RB9CosAuthorizationRemediation.id, expectedEntry);
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.id,
+    expectedEntry,
+  );
+  assert.equal(
+    matrix.currentP0RB9CosAuthorizationRemediation.id,
+    "V2-M1.6-P0R-B9-R1-COS-OBJECT-LOCK-CAM-ACTION-AND-DIAGNOSTIC-REMEDIATION",
+  );
   assert.equal(
     matrix.currentP0RB9CosAuthorizationRemediation.officialCamAction,
     "cos:GetBucketObjectLock",
@@ -475,6 +494,115 @@ test("all active authority surfaces identify B9 R1 after the COS authorization f
   assert.equal(
     matrix.currentP0RB9CosAuthorizationRemediation.productionZeroDriftPassed,
     true,
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.replacementBridgeSchema,
+    "v2-m1-production-storage-p0r-local-tty-bridge.v5",
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.replacementSessionSchema,
+    "v2-m1-production-storage-p0r-session.v5",
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.replacementTransactionSchema,
+    "market-radar-v2-m1-p0r-external-transaction.v1",
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.replacementRouteEvidenceSchema,
+    "market-radar-v2-m1-p0r-external-route-evidence.v1",
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.routeEvidenceMaxAgeSeconds,
+    120,
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.cleanupEvidenceMaxAgeSeconds,
+    120,
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.detachedAuthorizeCommandAllowed,
+    false,
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.bridgeOutputExactAllowlistRequired,
+    true,
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.bridgeExactTerminalSequenceRequired,
+    true,
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.bridgeSafeOutputMaxBytes,
+    65_536,
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.bridgeSafeStatusMaxCount,
+    64,
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation
+      .secureControlFileNoFollowStableReadRequired,
+    true,
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.secureControlFileMaxBytes,
+    1_048_576,
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.leaseContractExactValidationRequired,
+    true,
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.clipboardCleanupCoversPreflightFailure,
+    true,
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation
+      .operatorReadyForwardedOnlyAfterRouteAndDualTtyAuthorization,
+    true,
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.postIssuanceNetworkReconnectRequired,
+    false,
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.targetedP0RTestsPassed,
+    125,
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.freshRebindRequestSchema,
+    "market-radar-v2-m1-p0r-rebind-request.v4",
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.freshRebindResultSchema,
+    "market-radar-v2-m1-p0r-rebind-result.v3",
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation
+      .freshRebindForbiddenListenerPort,
+    8022,
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation
+      .freshRebindForbiddenListenerUnit,
+    "market-radar-p0r-8022.service",
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation
+      .freshRebindForbiddenListenerAndUnitAbsenceRequired,
+    true,
+  );
+  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.targetedV2OpsPassed, 247);
+  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.fullLocalCiPassed, true);
+  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.fullLocalCiPending, false);
+  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.fullLocalCiV2OpsPassed, 247);
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.externalCloudCleanupPending,
+    true,
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.productionZeroDriftPassed,
+    false,
   );
   assert.equal(matrix.currentP0RTransportStagingRemediation.targetProductionStagingTestsPassed, 11);
   assert.equal(matrix.currentP0RTransportStagingRemediation.p0rTestsPassed, 111);

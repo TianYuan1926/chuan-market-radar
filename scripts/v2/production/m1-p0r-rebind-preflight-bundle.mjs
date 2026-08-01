@@ -26,6 +26,8 @@ import {
   P0R_REBIND_CURRENT_RUNTIME_FILES,
   P0R_REBIND_DISPATCH_RUNTIME_MAX_SECONDS,
   P0R_REBIND_ENTRYPOINT,
+  P0R_REBIND_FORBIDDEN_LISTENER_PORT,
+  P0R_REBIND_FORBIDDEN_LISTENER_UNIT,
   P0R_REBIND_LEGACY_SUPERSESSION_FILES,
   P0R_REBIND_MANIFEST,
   P0R_REBIND_MANIFEST_SCHEMA,
@@ -364,6 +366,8 @@ export async function buildP0RRebindBundle({
       expectedProductionHead: approval.expectedProductionHead,
       expectedSourceIpCidrSha256: legacy.sourceIpCidrSha256,
       expectedTimerUnit: DEFAULT_P0R_REBIND_POLICY.expectedTimerUnit,
+      forbiddenListenerPort: P0R_REBIND_FORBIDDEN_LISTENER_PORT,
+      forbiddenListenerUnit: P0R_REBIND_FORBIDDEN_LISTENER_UNIT,
       launchSuccessMarker: P0R_REBIND_SUCCESS_MARKER,
       legacyStagingDirectory: join(
         DEFAULT_P0R_REBIND_POLICY.p0rStagingRoot,

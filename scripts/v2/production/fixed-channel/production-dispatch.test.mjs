@@ -1073,7 +1073,24 @@ test("governance contract matches the executable transport and truth boundary", 
   );
   assert.equal(
     contract.recurrenceRootCauseGate.p0rFreshRebindRequestSchema,
-    "market-radar-v2-m1-p0r-rebind-request.v3",
+    "market-radar-v2-m1-p0r-rebind-request.v4",
+  );
+  assert.equal(
+    contract.recurrenceRootCauseGate.p0rFreshRebindResultSchema,
+    "market-radar-v2-m1-p0r-rebind-result.v3",
+  );
+  assert.equal(
+    contract.recurrenceRootCauseGate.p0rFreshRebindForbiddenListenerPort,
+    8022,
+  );
+  assert.equal(
+    contract.recurrenceRootCauseGate.p0rFreshRebindForbiddenListenerUnit,
+    "market-radar-p0r-8022.service",
+  );
+  assert.equal(
+    contract.recurrenceRootCauseGate
+      .p0rFreshRebindForbiddenListenerAndUnitAbsenceRequired,
+    true,
   );
   assert.equal(
     contract.recurrenceRootCauseGate

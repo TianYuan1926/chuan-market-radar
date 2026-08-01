@@ -53,6 +53,7 @@ case "$(cat "\${P0R_BRIDGE_FIXTURE_ROOT}/case.txt")" in
     cat "\${P0R_BRIDGE_FIXTURE_ROOT}/clipboard.txt"
     ;;
   *)
+    [[ -e "\${P0R_BRIDGE_FIXTURE_ROOT}/secondary-ready" ]]
     cat "\${P0R_BRIDGE_FIXTURE_ROOT}/response.json"
     ;;
 esac
@@ -76,7 +77,11 @@ if [[ "$remote_command" == *"receive-credentials-and-run" ]]; then
     sleep 4
     exit 43
   fi
+  touch "\${P0R_BRIDGE_FIXTURE_ROOT}/primary-ready"
   printf '{"status":"READY_P0R_STS_RESPONSE_INPUT_NO_ECHO"}\\n'
+  if [[ "$test_case" == "prearmed-disconnect" ]]; then
+    exit 49
+  fi
   payload="$(cat)"
   [[ "$payload" == "$(cat "\${P0R_BRIDGE_FIXTURE_ROOT}/response.json")" ]]
   printf '{"status":"PASS_P0R_EPHEMERAL_CREDENTIAL_COMPILED"}\\n'
@@ -109,7 +114,8 @@ if [[ "$remote_command" == *"receive-credentials-and-run" ]]; then
 	  exit 0
 	fi
 if [[ "$remote_command" == *"receive-age-identity" ]]; then
-  [[ -e "\${P0R_BRIDGE_FIXTURE_ROOT}/primary-waiting" ]]
+  [[ -e "\${P0R_BRIDGE_FIXTURE_ROOT}/primary-ready" ]]
+  touch "\${P0R_BRIDGE_FIXTURE_ROOT}/secondary-ready"
   printf '{"status":"READY_P0R_AGE_IDENTITY_INPUT_NO_ECHO"}\\n'
   payload="$(cat)"
   [[ "$payload" == "$(cat "\${P0R_BRIDGE_FIXTURE_ROOT}/identity.txt")" ]]
@@ -143,11 +149,15 @@ test("bridge plan fixes the browser-free post-response and no-output secret boun
   ));
   assert.equal(
     plan.schemaVersion,
-    "v2-m1-production-storage-p0r-local-tty-bridge.v4",
+    "v2-m1-production-storage-p0r-local-tty-bridge.v5",
   );
   assert.equal(plan.fixedSshHostAlias, "43.161.202.227");
   assert.equal(plan.fixedSshPort, 8022);
   assert.equal(plan.nativeApiResponseCopyOnly, true);
+  assert.equal(plan.bothSshSessionsPrearmedBeforeIssuance, true);
+  assert.equal(plan.postIssuanceNetworkReconnectRequired, false);
+  assert.equal(plan.clipboardWaitSeconds, 1200);
+  assert.equal(plan.sessionHeartbeatRequired, true);
   assert.equal(plan.remoteReadyMarkerRequired, true);
   assert.equal(plan.ageIdentityFromKeychainOnly, true);
   assert.equal(plan.browserAccessibilityReadAfterResponseAllowed, false);
@@ -165,10 +175,15 @@ test("bridge transfers fake secrets through exact TTY sessions without output or
     const result = runSelfTest(root);
     assert.equal(result.error, undefined);
     assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /PASS_P0R_BOTH_TTY_SESSIONS_PREARMED/u);
     assert.match(result.stdout, /READY_P0R_API_NATIVE_COPY_TO_LOCAL_TTY_BRIDGE/u);
     assert.match(result.stdout, /PASS_P0R_EPHEMERAL_CREDENTIAL_HANDOFF/u);
     assert.match(result.stdout, /PASS_P0R_AGE_IDENTITY_HANDOFF/u);
     assert.match(result.stdout, /PASS_P0R_LOCAL_TTY_BRIDGE/u);
+    assert.ok(
+      result.stdout.indexOf("PASS_P0R_BOTH_TTY_SESSIONS_PREARMED") <
+        result.stdout.indexOf("READY_P0R_API_NATIVE_COPY_TO_LOCAL_TTY_BRIDGE"),
+    );
     const combined = `${result.stdout}\n${result.stderr}`;
     for (const secret of [
       FAKE_STS_RESPONSE.Response.Credentials.TmpSecretId,
@@ -217,6 +232,7 @@ for (const [testCase, reason] of [
   ["malformed", "clipboard_response_invalid"],
   ["marker-mismatch", "credential_receiver_not_ready_timeout"],
   ["ssh-failure", "credential_receiver_not_ready_eof"],
+  ["prearmed-disconnect", "prearmed_credential_session_disconnected"],
 ]) {
   test(`bridge fails closed and clears clipboard for ${testCase}`, async () => {
     const root = await fixture(testCase);
@@ -327,12 +343,15 @@ test("bridge source pins the SSH and browser-independent secret boundary", async
     "MARKET_RADAR_P0R_WAITING_FOR_NATIVE_COPY_",
     "READY_P0R_STS_RESPONSE_INPUT_NO_ECHO",
     "READY_P0R_AGE_IDENTITY_INPUT_NO_ECHO",
+    "PASS_P0R_BOTH_TTY_SESSIONS_PREARMED",
+    "WAITING_P0R_NATIVE_COPY_BOTH_TTY_SESSIONS_ALIVE",
     "source_identity_not_clean_exact_plan_commit",
     "clipboard_clear_before_handoff_failed",
     "/Users/chuan/.nvm/versions/node/v22.23.1/bin/node",
     'set LOCKED_NODE_VERSION "v22.23.1"',
     'set LOCKED_SSH_HOST_ALIAS "43.161.202.227"',
     "set LOCKED_SSH_PORT 8022",
+    "set clipboard_wait_seconds 1200",
     "locked_node_version_invalid",
     "blocked_unclassified",
     "p0r_(session|runner)_line_",

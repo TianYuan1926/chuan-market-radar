@@ -4,7 +4,8 @@ set -euo pipefail
 MODE="${1:-plan}"
 PRODUCTION_WORKTREE="${P0R_PRODUCTION_WORKTREE:-/home/ubuntu/apps/chuan-market-radar}"
 PRODUCTION_ENV_FILE="${P0R_PRODUCTION_ENV_FILE:-${PRODUCTION_WORKTREE}/.env.production}"
-WAIT_FOR_AGE_SECONDS=600
+SECRET_INGRESS_WINDOW_SECONDS=1200
+WAIT_FOR_AGE_SECONDS=1200
 
 fail() {
   local caller_line="${BASH_LINENO[0]:-0}"
@@ -16,7 +17,7 @@ fail() {
 
 if [[ "${MODE}" == "plan" ]]; then
   cat <<'JSON'
-{"schemaVersion":"v2-m1-production-storage-p0r-session.v4","rawStsResponsePersisted":false,"terminalEchoDisabledDuringSecretInput":true,"readyMarkerAfterEchoDisabled":true,"boundedSecretInput":true,"inputCompletion":"NEWLINE_THEN_EOT_FROM_PREARMED_LOCAL_TTY_BRIDGE","localTtyBridgeRequired":true,"browserStateReadAfterResponseAllowed":false,"credentialCompileImmediate":true,"callerClockOverrideAllowed":false,"credentialOutputExclusive":true,"ageIdentityOutputExclusive":true,"credentialAndIdentityOnlyInDevShm":true,"credentialAndIdentityOwnerUid":0,"containerSelection":"EXACT_COMPOSE_PROJECT_AND_SERVICE_LABELS","composeInterpolationRequired":false,"runtimeCapsuleChecksumBound":true,"productionNodeModulesRequired":false,"sessionPidStartTokenAndSourceBound":true,"runnerStartsAutomaticallyAfterBothSecrets":true,"sanitizedFailureSiteOnly":true,"abandonedSessionCleansSecrets":true,"secondaryFailureCleansAllSessionSecrets":true,"cancelledReadyAbortsPrimaryWait":true,"successRequiresVerifiedSecretCleanup":true,"productionDatabaseMutation":false,"productionServiceMutation":false,"productionRepositoryMutation":false}
+{"schemaVersion":"v2-m1-production-storage-p0r-session.v5","rawStsResponsePersisted":false,"terminalEchoDisabledDuringSecretInput":true,"readyMarkerAfterEchoDisabled":true,"boundedSecretInput":true,"inputCompletion":"NEWLINE_THEN_EOT_FROM_PREARMED_LOCAL_TTY_BRIDGE","localTtyBridgeRequired":true,"browserStateReadAfterResponseAllowed":false,"credentialCompileImmediate":true,"callerClockOverrideAllowed":false,"credentialOutputExclusive":true,"ageIdentityOutputExclusive":true,"credentialAndIdentityOnlyInDevShm":true,"credentialAndIdentityOwnerUid":0,"containerSelection":"EXACT_COMPOSE_PROJECT_AND_SERVICE_LABELS","composeInterpolationRequired":false,"runtimeCapsuleChecksumBound":true,"productionNodeModulesRequired":false,"sessionPidStartTokenAndSourceBound":true,"bothSshSessionsPrearmedBeforeIssuance":true,"postIssuanceNetworkReconnectRequired":false,"secretIngressWindowSeconds":1200,"runnerStartsAutomaticallyAfterBothSecrets":true,"sanitizedFailureSiteOnly":true,"abandonedSessionCleansSecrets":true,"secondaryFailureCleansAllSessionSecrets":true,"cancelledReadyAbortsPrimaryWait":true,"successRequiresVerifiedSecretCleanup":true,"productionDatabaseMutation":false,"productionServiceMutation":false,"productionRepositoryMutation":false}
 JSON
   exit 0
 fi
@@ -180,7 +181,7 @@ receive_secret() {
   printf '{"status":"%s","runId":"%s","terminalEcho":false,"inputCompletion":"NEWLINE_THEN_EOT_FROM_PREARMED_LOCAL_TTY_BRIDGE"}\n' \
     "${ready_status}" "${RUN_ID}"
   set +e
-  sudo -n timeout --foreground 600s \
+  sudo -n timeout --foreground "${SECRET_INGRESS_WINDOW_SECONDS}s" \
     "${HOST_NODE}" --preserve-symlinks \
     "${PROVISIONING_TOOL}" "${action}" --plan "${PLAN_FILE}"
   local status=$?
@@ -191,7 +192,6 @@ receive_secret() {
 
 if [[ "${MODE}" == "receive-age-identity" ]]; then
   CLEANUP_SCOPE="all"
-  require_secure_file "${CREDENTIAL_FILE}" "COS credential file" 65536 0
   require_secure_file \
     "${SESSION_READY_FILE}" "P0R session-ready file" 256 "$(id -u)"
   require_absent "${AGE_IDENTITY_FILE}" "age identity file"
@@ -228,10 +228,6 @@ require_absent "${SESSION_READY_FILE}" "P0R session-ready file"
 require_absent "${OUTPUT_DIRECTORY}" "P0R evidence directory"
 CLEANUP_SCOPE="all"
 
-receive_secret "receive-credentials" "READY_P0R_STS_RESPONSE_INPUT_NO_ECHO" \
-  || fail "STS credential ingress or immediate compile failed"
-require_secure_file "${CREDENTIAL_FILE}" "COS credential file" 65536 0
-
 umask 077
 set -o noclobber
 SESSION_START_TOKEN="$(awk '{print $22}' "/proc/$$/stat")"
@@ -241,6 +237,11 @@ printf '%s %s %s\n' "$$" "${SESSION_START_TOKEN}" "${P0R_SOURCE_COMMIT}" \
   > "${SESSION_READY_FILE}"
 set +o noclobber
 chmod 600 "${SESSION_READY_FILE}"
+
+receive_secret "receive-credentials" "READY_P0R_STS_RESPONSE_INPUT_NO_ECHO" \
+  || fail "STS credential ingress or immediate compile failed"
+require_secure_file "${CREDENTIAL_FILE}" "COS credential file" 65536 0
+
 printf '{"status":"WAITING_P0R_AGE_IDENTITY","runId":"%s","waitSeconds":%s}\n' \
   "${RUN_ID}" "${WAIT_FOR_AGE_SECONDS}"
 

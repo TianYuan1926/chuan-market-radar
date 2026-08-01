@@ -40,6 +40,8 @@ import {
   P0R_REBIND_CURRENT_RUNTIME_FILES,
   P0R_REBIND_DISPATCH_RUNTIME_MAX_SECONDS,
   P0R_REBIND_ENTRYPOINT,
+  P0R_REBIND_FORBIDDEN_LISTENER_PORT,
+  P0R_REBIND_FORBIDDEN_LISTENER_UNIT,
   P0R_REBIND_LEGACY_SUPERSESSION_FILES,
   P0R_REBIND_MANIFEST,
   P0R_REBIND_MANIFEST_SCHEMA,
@@ -48,7 +50,9 @@ import {
   P0R_REBIND_REQUEST_SCHEMA,
   P0R_REBIND_RUNNER,
   P0R_REBIND_SUCCESS_MARKER,
+  assertP0RRebindProductionIdentity,
   canonicalJson,
+  countP0RForbiddenListeners,
   inspectP0REphemeralSecretBaseline,
   inspectSupersededP0RStaging,
   p0rRebindReadOnlyInvocation,
@@ -249,6 +253,8 @@ function fixtureRequest(policy, legacy) {
     expectedProductionHead: PRODUCTION_HEAD,
     expectedSourceIpCidrSha256: legacy.sourceIpCidrSha256,
     expectedTimerUnit: policy.expectedTimerUnit,
+    forbiddenListenerPort: P0R_REBIND_FORBIDDEN_LISTENER_PORT,
+    forbiddenListenerUnit: P0R_REBIND_FORBIDDEN_LISTENER_UNIT,
     launchSuccessMarker: P0R_REBIND_SUCCESS_MARKER,
     legacyStagingDirectory: legacy.stagingDirectory,
     maxExecutions: 1,
@@ -294,6 +300,8 @@ test("request freezes no-secret read-only rebinding boundaries", async () => {
       { ...request, databaseMutationAllowed: true },
       { ...request, dispatchRuntimeMaxSeconds: 5_400 },
       { ...request, transportContainsSecrets: true },
+      { ...request, forbiddenListenerPort: 22 },
+      { ...request, forbiddenListenerUnit: "ssh.service" },
       { ...request, metadataEndpoint: "https://example.invalid/ip" },
       { ...request, sourceCommit: request.expectedLegacySourceCommit },
       {
@@ -366,6 +374,7 @@ test("high-level release CLI rejects every operator-supplied binding field", () 
 test("command allowlist permits only exact read-only production probes", () => {
   const request = {
     expectedTimerUnit: "market-radar-production-dispatch.timer",
+    forbiddenListenerUnit: P0R_REBIND_FORBIDDEN_LISTENER_UNIT,
     metadataEndpoint: P0R_REBIND_METADATA_ENDPOINT,
     productionWorktree: "/production",
   };
@@ -388,6 +397,18 @@ test("command allowlist permits only exact read-only production probes", () => {
     ],
     executable: "/usr/bin/curl",
   });
+  const listenerUnitProbe = [
+    "show",
+    "--no-pager",
+    "--property=ActiveState",
+    "--property=LoadState",
+    "--",
+    P0R_REBIND_FORBIDDEN_LISTENER_UNIT,
+  ];
+  assert.deepEqual(
+    p0rRebindReadOnlyInvocation("systemctl", listenerUnitProbe, request),
+    { args: listenerUnitProbe, executable: "/usr/bin/systemctl" },
+  );
   assert.throws(
     () => p0rRebindReadOnlyInvocation("docker", ["rm", "-f", "anything"], request),
     /p0r_rebind_docker_command_not_read_only/u,
@@ -399,6 +420,88 @@ test("command allowlist permits only exact read-only production probes", () => {
       request,
     ),
     /p0r_rebind_curl_command_not_read_only/u,
+  );
+  assert.throws(
+    () => p0rRebindReadOnlyInvocation(
+      "systemctl",
+      ["stop", P0R_REBIND_FORBIDDEN_LISTENER_UNIT],
+      request,
+    ),
+    /p0r_rebind_systemctl_command_not_read_only/u,
+  );
+});
+
+test("explicit P0R listener and transient unit residue fail closed", () => {
+  const normalListeners = [
+    "LISTEN 0 4096 127.0.0.1:80 0.0.0.0:*",
+    "LISTEN 0 4096 [::1]:5432 [::]:*",
+  ];
+  assert.equal(
+    countP0RForbiddenListeners(
+      normalListeners,
+      P0R_REBIND_FORBIDDEN_LISTENER_PORT,
+    ),
+    0,
+  );
+  assert.equal(
+    countP0RForbiddenListeners(
+      [
+        ...normalListeners,
+        "LISTEN 0 128 0.0.0.0:8022 0.0.0.0:*",
+        "LISTEN 0 128 [::]:8022 [::]:*",
+      ],
+      P0R_REBIND_FORBIDDEN_LISTENER_PORT,
+    ),
+    2,
+  );
+  assert.throws(
+    () => countP0RForbiddenListeners(["malformed"], 8022),
+    /p0r_rebind_listener_inventory_invalid/u,
+  );
+
+  const identity = {
+    containerIds: [...CONTAINER_IDS],
+    forbiddenListenerCount: 0,
+    forbiddenListenerUnit: {
+      activeState: "inactive",
+      loadState: "not-found",
+    },
+    p0rContainerNames: [],
+    p0rVolumeNames: [],
+    productionHead: PRODUCTION_HEAD,
+    timerActive: "active",
+    timerEnabled: "enabled",
+    worktreeClean: true,
+  };
+  const request = {
+    expectedContainerIds: CONTAINER_IDS,
+    expectedProductionHead: PRODUCTION_HEAD,
+  };
+  assert.equal(
+    assertP0RRebindProductionIdentity(identity, request, "test"),
+    undefined,
+  );
+  assert.throws(
+    () => assertP0RRebindProductionIdentity(
+      { ...identity, forbiddenListenerCount: 1 },
+      request,
+      "test",
+    ),
+    /p0r_rebind_test_forbidden_listener_detected/u,
+  );
+  assert.throws(
+    () => assertP0RRebindProductionIdentity(
+      {
+        ...identity,
+        forbiddenListenerUnit: {
+          activeState: "active",
+          loadState: "loaded",
+        },
+      },
+      request,
+      "test",
+    ),
+    /p0r_rebind_test_forbidden_listener_unit_residue_detected/u,
   );
 });
 
@@ -785,6 +888,9 @@ test("runner produces sanitized zero-drift evidence end to end", async () => {
       if (command === "ss") return "LISTEN 0 4096 127.0.0.1:80 0.0.0.0:*";
       if (command === "systemctl" && args[0] === "is-enabled") return "enabled";
       if (command === "systemctl" && args[0] === "is-active") return "active";
+      if (command === "systemctl" && args[0] === "show") {
+        return "ActiveState=inactive\nLoadState=not-found";
+      }
       if (command === "curl" && args.includes(request.metadataEndpoint)) {
         return SOURCE_IP_CIDR.replace("/32", "");
       }
@@ -800,6 +906,9 @@ test("runner produces sanitized zero-drift evidence end to end", async () => {
     });
     assert.equal(result.status, "PASS_P0R_READ_ONLY_REBIND_PREFLIGHT");
     assert.equal(result.productionChanged, false);
+    assert.equal(result.before.forbiddenListenerCount, 0);
+    assert.equal(result.before.forbiddenListenerUnitActiveState, "inactive");
+    assert.equal(result.before.forbiddenListenerUnitLoadState, "not-found");
     assert.equal(
       result.supersededStaging.status,
       "REJECTED_SUPERSEDED_SECURITY_SOURCE",

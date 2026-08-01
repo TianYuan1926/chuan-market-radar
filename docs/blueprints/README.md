@@ -1,6 +1,6 @@
 # Market Radar 权威蓝图目录
 
-更新日期：2026-08-01
+更新日期：2026-08-02
 
 本目录只回答三件事：当前真实状态是什么、V2 应该怎样建设、哪些历史材料只能作参考。任何旧报告、旧周期身份或旧蓝图都不能绕过这里重新成为当前权威。
 
@@ -9,17 +9,17 @@
 ```text
 当前系统等级：R1 / 可运行但不完整 / 不能支撑实战
 V2 设计状态：ACTIVE_DESIGN_AUTHORITY
-V2 实现状态：M0_ENGINEERING_EXIT_LOCAL_PASS / M0.4_EXPANDED_SCOPE_DESIGN_PASS / M0.5_MARKET_MECHANICS_MICROSTRUCTURE_PRECURSOR_ATLAS_DESIGN_PASS / A0_ENGINEERING_SUBGATES_PASS_TOTAL_GATE_INCOMPLETE_P0R_PENDING / M1.1B0_R3_LIVE_15_OF_15_ALL_GATES_PASS / M1.4A_M1.4D_LOCAL_RUNTIME_CONTRACTS_PASS_NO_AUTHORITY / M1.5C_M1.5D_LOCAL_RUNTIME_EVIDENCE_AND_EXACT_PACKAGE_PASS_LIVE_ZERO_OF_31_EACH / M2.1A_LOCAL_RESEARCH_CONTRACT_PASS_REAL_COHORT_MISSING_NO_CANDIDATE_EMISSION / M1.5-B1_EARLY_SHADOW_BUSINESS_GATE_PASS_V1_ONLY / M1.6-P0_EXECUTED_BLOCKED_CAPACITY_AND_RECOVERY / M1.6-P0R_B8_EXACT_TARGET_ACCEPTANCE_HISTORICAL_PASS / M1.6-P0R_B9_STS_AND_AGE_HANDOFF_PASS_COS_OBJECT_LOCK_AUTHORIZATION_BLOCKED_PRE_DATABASE / COS_CAM_ACTION_ROOT_REMEDIATION_LOCAL_113_OF_113_AND_FULL_CI_PASS_CLEAN_EXACT_SOURCE_PENDING / TEMPORARY_ROUTE_SECRET_AND_RUNTIME_CLEANUP_PASS_PRODUCTION_ZERO_DRIFT / M2.2-B0.2-C1_FORWARD_ONLY_READY_NO_AUTHORITY / M3.0-M3.3_LOCAL_CONTRACT_PASS_TEST_ONLY_UNCALIBRATED_NO_READY_AUTHORITY / M3.3E_STRATEGY_ARCHETYPE_LABELING_DESIGN_AUTHORITY_ONLY / M3.4-R0_SCOPE_REBASE_GOVERNANCE_PASS_R1_PARTIAL_TEST_ONLY_DRAFT / EXTERNAL_RIGHTS_AND_HISTORICAL_SOURCE_BLOCKED / GATE_INSUFFICIENT / DETECTORS_DRAFT / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED
+V2 实现状态：M0_ENGINEERING_EXIT_LOCAL_PASS / M0.4_EXPANDED_SCOPE_DESIGN_PASS / M0.5_MARKET_MECHANICS_MICROSTRUCTURE_PRECURSOR_ATLAS_DESIGN_PASS / A0_ENGINEERING_SUBGATES_PASS_TOTAL_GATE_INCOMPLETE_P0R_PENDING / M1.1B0_R3_LIVE_15_OF_15_ALL_GATES_PASS / M1.4A_M1.4D_LOCAL_RUNTIME_CONTRACTS_PASS_NO_AUTHORITY / M1.5C_M1.5D_LOCAL_RUNTIME_EVIDENCE_AND_EXACT_PACKAGE_PASS_LIVE_ZERO_OF_31_EACH / M2.1A_LOCAL_RESEARCH_CONTRACT_PASS_REAL_COHORT_MISSING_NO_CANDIDATE_EMISSION / M1.5-B1_EARLY_SHADOW_BUSINESS_GATE_PASS_V1_ONLY / M1.6-P0_EXECUTED_BLOCKED_CAPACITY_AND_RECOVERY / M1.6-P0R_B8_AND_B9_R1_HISTORICAL_ONLY / M1.6-P0R_B9_R2_LOCAL_TRANSACTION_AND_REBIND_EXPLICIT_8022_ZERO_RESIDUE_P0R_125_OF_125_AND_FULL_CI_PASS / CLEAN_SOURCE_REMOTE_GATES_AND_RECOVERY_PENDING / CLOUD_LISTENER_FIREWALL_SERVER_RESIDUE_AND_PRODUCTION_ZERO_DRIFT_UNVERIFIED / M2.2-B0.2-C1_FORWARD_ONLY_READY_NO_AUTHORITY / M3.0-M3.3_LOCAL_CONTRACT_PASS_TEST_ONLY_UNCALIBRATED_NO_READY_AUTHORITY / M3.3E_STRATEGY_ARCHETYPE_LABELING_DESIGN_AUTHORITY_ONLY / M3.4-R0_SCOPE_REBASE_GOVERNANCE_PASS_R1_PARTIAL_TEST_ONLY_DRAFT / EXTERNAL_RIGHTS_AND_HISTORICAL_SOURCE_BLOCKED / GATE_INSUFFICIENT / DETECTORS_DRAFT / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED
 V2 生产权限：false
 自动交易：永久禁止
 最新生产存储门禁：P0_BLOCKED_CAPACITY_AND_RECOVERY / APPLICATION_HEALTH_NOT_EVALUATED
 ```
 
-2026-08-01 最新覆盖：B8 exact target acceptance 仍是可信历史 PASS，但它绑定的旧 v3 plan 已在 B9 首次 Runner 执行中被真实证伪。该次执行完成 STS 即时编译和 age identity 交接，随后在生产数据库读取前的 COS Object Lock preflight 阻断；没有 backup、COS 对象、retrieval、restore 或业务 mutation。根因是旧 policy 使用 REST 操作名 `GetBucketObjectLockConfiguration`，而腾讯 CAM 的真实动作名是 `cos:GetBucketObjectLock`。本地整改已升级 plan v4、credential v3、bridge v4，旧 run/plan/credential/staging 均自动失去执行权，并新增固定脱敏阶段诊断；P0R `113/113`、Go helper 和完整 `ci:production` PASS。失败后的临时 8022 listener、腾讯 `/32` 规则、`/dev/shm`、process、container、volume 均已清零，生产 HEAD、11-container identity 与 Web/PostgreSQL/Redis 健康保持零漂移。下一入口不是复用 B8 target，而是形成 clean exact commit、通过 GitHub 四门、fresh read-only rebind、新 run/v4 plan/package/staging 后再执行 corrected B9。
+2026-08-02 最新覆盖：B8 exact target 和 B9 COS CAM action 修复均只保留历史证据。两个新 Bridge 窗口只预建 credential TTY，并在 native Copy 到达前分别等待 540 秒超时；后到 response 已作废且未进入 Bridge 或服务器。之后双端点 egress 一致漂移为 `156.248.15.36`，旧 exact `/32` 下的 8022 已不可达。当前仅证明本机 Bridge=0、clipboard 已覆盖；云 listener、旧规则、服务器 residue 和生产零漂移尚未复核。本地 bridge/session v5 已在签发前同时预建 credential 与 age 两条 strict no-echo TTY，并以 1200 秒无 secret 心跳窗口维持连接；transaction v1 用 7200 秒 exact lease 绑定全资源，execute 强制消费 120 秒内的 mode-600 精确 route evidence。detached authorize CLI 已删除；Bridge 必须严格按 `PREARMED -> READY -> HEARTBEAT* -> CREDENTIAL -> AGE -> PASS` 推进，BLOCKED 为终态，累计输出上限 `65,536` bytes、状态上限 `64`。plan/lease/route/cleanup 采用 canonical mode-600、`O_NOFOLLOW`、最大 `1 MiB` 且读取前后 identity 稳定的控制文件边界。fresh rebind request/result 已升为 v4/v3，明确要求 TCP 8022 count=0 与 exact unit=`not-found/inactive`，不再用 listener 总哈希冒充零残留。rebind `13/13`、P0R `125/125` 与 Go helper PASS；最终字节完整 `ci:production` 已从头通过 recurrence `11/11`、dispatch `25/25`、V2 Foundation `631 PASS / 6 explicit skips`、V2 Ops `247/247`、Next build、Golden `16/16` 和 security。外部清场、clean exact source、GitHub 四门、fresh rebind、新 execution identity 和真实恢复仍待完成。
 
 2026-07-21 M1.6-P0 已以 exact source 完成生产只读存储核验：PostgreSQL 16、V2 schema=`ABSENT_CLEAN`、旧/新 Fact=0、连接使用率 2%，数据库/服务/仓库 mutation 均为 0；但 120 GiB 系统盘按冻结模型预计使用率 90%，容量余量不足且 recovery evidence 缺失，因此准入结论是 `BLOCKED`。这不评价 `/api/health` 或生产业务 ready，不能扩写成全站健康或全站失败。
 
-P0R 本地恢复、六小时无扩容容量和 fresh P0 组合准入工程已通过；真实 COS 已启用并回读 Object Lock=`COMPLIANCE` 31 天，age X25519 身份仅保存在 macOS Keychain。历史 `bed938...`、`bd20...`、`e362...`、`44e518...` 和 `e83c1f...` 的运行材料均只保留为事故或资格证据，不拥有下一次执行权。裸 `tee`、raw 落盘、manual compile、caller-supplied clock override、AX/browser-state recovery、Compose env 重插值、default port 22 和宿主读取容器 `node_modules` 均已退役。当前 request v3/result v2 将历史 transport-v1 三文件比较与 transport-v3 八文件运行资格分离；16-member package 内含 checksum-bound runtime capsule，14 个 binding key 分别锁定 source、工具和胶囊。真实 backup、exact retrieval、isolated restore、fresh topology、calibration 和 fresh P0 仍未发生，P1 关闭。M1.1B0 R3 已真实取得 15/15 exact endpoint conformance；M1.4B 腾讯 bootstrap/resume 两轮均为 14/14 route PASS、0 failed、1 registry blocked，Binance spot 请求数固定为 0。M1.4C 22/22 与 M2.1A 13/13 本地合同出口通过；M1.4D Base Fact 23/23、M1.5C/M1.5D Expanded Shadow 70/70、exact no-secret package 12/12 均通过，但真实 live cycle 均为 0。C1 四轮三 Venue COMPLETE 与 Scope V2 资产域重放仍为 forward-only/no-authority；Bitget、Listing Lifecycle、Equity Asset Domain 和 Data Maximization 独立核算，股票 tradable Fact=0。真实 cohort、holdout、校准和 authority 仍为 0。
+P0R 本地恢复、六小时无扩容容量和 fresh P0 组合准入工程已通过；真实 COS 已启用并回读 Object Lock=`COMPLIANCE` 31 天，age X25519 身份仅保存在 macOS Keychain。历史 `bed938...`、`bd20...`、`e362...`、`44e518...` 和 `e83c1f...` 的运行材料均只保留为事故或资格证据，不拥有下一次执行权。裸 `tee`、raw 落盘、manual compile、caller-supplied clock override、AX/browser-state recovery、Compose env 重插值、default port 22 和宿主读取容器 `node_modules` 均已退役。当前 request v4/result v3 将历史 transport-v1 三文件比较与 transport-v3 八文件运行资格分离，并显式拒绝 8022 listener/unit residue；16-member package 内含 checksum-bound runtime capsule，14 个 binding key 分别锁定 source、工具和胶囊。真实 backup、exact retrieval、isolated restore、fresh topology、calibration 和 fresh P0 仍未发生，P1 关闭。M1.1B0 R3 已真实取得 15/15 exact endpoint conformance；M1.4B 腾讯 bootstrap/resume 两轮均为 14/14 route PASS、0 failed、1 registry blocked，Binance spot 请求数固定为 0。M1.4C 22/22 与 M2.1A 13/13 本地合同出口通过；M1.4D Base Fact 23/23、M1.5C/M1.5D Expanded Shadow 70/70、exact no-secret package 12/12 均通过，但真实 live cycle 均为 0。C1 四轮三 Venue COMPLETE 与 Scope V2 资产域重放仍为 forward-only/no-authority；Bitget、Listing Lifecycle、Equity Asset Domain 和 Data Maximization 独立核算，股票 tradable Fact=0。真实 cohort、holdout、校准和 authority 仍为 0。
 
 固定生产派发通道的首个真实 signed dispatch 已完成端到端验收；Git fetch 超时后遗留空锁的生产根因也已关闭。生产 agent、SSH wrapper 与 README 使用精确哈希升级，timer 历史基线稳定，应用 HEAD、clean worktree、11 个容器、health、数据库、Redis 和六 Worker 零漂移。OrcaTerm package transport 事故已由 B8 exact signed target acceptance 关闭；中央机器注册表仍保留 secret session 事故，等待 B9 replacement real-target atomic session 与完整 recovery acceptance。固定通道结果只证明普通无 secret 包的运输与独立启动地基，不提升任何 G0、M1 或交易能力状态，也不运输 P0R 临时凭证。
 
@@ -29,8 +29,8 @@ Legacy G0 的七个生产出口继续作为历史安全义务，但它们不是 
 
 | 优先级 | 文档 | 唯一职责 |
 | ---: | --- | --- |
-| 1 | [V2 受控替换工程与运行蓝图 v1.75](./MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md) | 当前唯一产品、领域、工程、研究、运行与切换设计权威 |
-| 2 | [V2 机器追踪矩阵 v1.80](./market-radar-v2-controlled-replacement-traceability.v1.json) | Scope Epoch、A0、18 个 Module、5 维状态、硬门槛和 M0-M7 的机器合同 |
+| 1 | [V2 受控替换工程与运行蓝图 v1.79](./MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md) | 当前唯一产品、领域、工程、研究、运行与切换设计权威 |
+| 2 | [V2 机器追踪矩阵 v1.84](./market-radar-v2-controlled-replacement-traceability.v1.json) | Scope Epoch、A0、18 个 Module、5 维状态、硬门槛和 M0-M7 的机器合同 |
 | 2P | [P0R 只读重绑定交付报告](./V2_M1_6_P0R_READ_ONLY_REBIND_PREFLIGHT_DELIVERY_REPORT.md) | 历史 staging 失效依据、当前源码重绑定边界、测试与生产零变更真值 |
 | 2P1 | [P0R fixed-dispatch transport staging 根因整改交付报告](./V2_M1_6_P0R_FIXED_DISPATCH_TRANSPORT_STAGING_REMEDIATION_DELIVERY_REPORT.md) | OrcaTerm 三次失败、运输退役、0755 fail-closed、0700 根治、B8 exact target acceptance 与 B9 边界 |
 | 2A | [M0.4 扩展市场范围与 Scope Epoch 合同](../architecture/v2/M0_4_EXPANDED_MARKET_SCOPE_AND_SCOPE_EPOCH_CONTRACT_V1.md) | Bitget、上新/新币 watch、股票合约、T0-T3 数据策略和跨范围证据隔离 |
@@ -131,7 +131,7 @@ Legacy G0 的七个生产出口继续作为历史安全义务，但它们不是 
 
 1. 与当前 release 身份对齐的新鲜生产只读证据。
 2. 永久安全、事实、交易、无 future leak 和无自动交易红线。
-3. V2 蓝图 v1.75 与机器追踪矩阵 v1.80。
+3. V2 蓝图 v1.79 与机器追踪矩阵 v1.84。
 4. `PROJECT_CONTEXT_FOR_CHATGPT.md` 中仍标为 current 的事实。
 5. Legacy 工程、运行和 readiness 文档中仍适用的安全与验收合同。
 6. 历史蓝图、旧请求、旧报告、旧 digest 和 Git history。
@@ -174,13 +174,13 @@ Runtime / Security / Release Control 贯穿全链。任何 Module 不得跳过�
 
 ## 6. 当前实施入口
 
-M0.0-M0.5、M1.1-M1.6、M2.0-M2.2 已列本地包、C1、M3.0-M3.3 已通过各自工程、业务、运行起点或合同出口。M1.4C、M1.4D、M1.5C/M1.5D 与 M2.1A 均只有各自本地或 research-only 出口；真实 live、cohort/holdout、校准和 authority 仍未完成。A0 唯一剩余控制是 P0R 真实恢复，总门禁保持 `INCOMPLETE_P0R_PENDING`。B8 exact target acceptance 只保留为历史无 secret 运输证据；B9 已真实完成 STS 与 age handoff并启动 Runner，但旧 policy 使用错误 COS Object Lock CAM action，因而在数据库读取前安全阻断。没有 backup、COS object、retrieval、restore 或业务 mutation，临时 8022、secret 与恢复 runtime 均已清零，生产零漂移。历史来源仍 `RESEARCH_ONLY`，Gate=INSUFFICIENT、Detector=DRAFT；M3.3E 只完成标签设计权威，M3.4-R1 草稿没有独立测试出口，仍无 Feasibility/runtime/READY authority。当前实施入口是：
+M0.0-M0.5、M1.1-M1.6、M2.0-M2.2 已列本地包、C1、M3.0-M3.3 已通过各自工程、业务、运行起点或合同出口。M1.4C、M1.4D、M1.5C/M1.5D 与 M2.1A 均只有各自本地或 research-only 出口；真实 live、cohort/holdout、校准和 authority 仍未完成。A0 唯一剩余控制是 P0R 真实恢复，总门禁保持 `INCOMPLETE_P0R_PENDING`。B8 exact target acceptance 和 B9 COS CAM action 修复只保留为历史证据。2026-08-02 新窗口连续两次只预建第一条 TTY 后在 540 秒 clipboard deadline 超时；后到的 native Copy 已作废且未进入 Bridge 或服务器。随后两端点均测得代理出口漂移为 `156.248.15.36`，严格 8022 已不可达。当前已证明本机 Bridge 为 0 且 clipboard 被覆盖，但云端 listener、旧 `/32` 规则、服务器 secret/process/container/volume 和生产零漂移仍未重新核验，因此不得沿用旧 PASS。历史来源仍 `RESEARCH_ONLY`，Gate=INSUFFICIENT、Detector=DRAFT；M3.3E 只完成标签设计权威，M3.4-R1 草稿没有独立测试出口，仍无 Feasibility/runtime/READY authority。当前实施入口是：
 
 ```text
-V2-M1.6-P0R-B9-R1-COS-OBJECT-LOCK-CAM-ACTION-AND-DIAGNOSTIC-REMEDIATION
+V2-M1.6-P0R-B9-R2-LEASED-DUAL-TTY-TRANSACTION-ROOT-REMEDIATION
 ```
 
-本地根治已把 plan、credential、bridge 升为 v4/v3/v4，统一使用官方 `cos:GetBucketObjectLock`，旧 v3/v2 authority 自动拒绝，并以 allowlisted 脱敏阶段码替代 provider 自由文本。P0R `113/113`、Go helper 和完整 CI PASS；clean exact source、GitHub 四门、fresh read-only rebind、新 run/v4 plan/package/staging 和 corrected recovery 尚未完成。完成这些资格后，fixed local TTY bridge 才能在新动作窗口建立 8022，并由用户完成 MFA 和 API Explorer 原生 Copy。helper 必须完成真实加密离机备份、exact version retrieval、独立 PG16 restore parity、全量 cleanup 和零漂移复核；随后刷新 health/topology、容量校准和 fresh P0。只有新 P0 PASS 才能请求 P1，并严格按 `P1 schema -> P2 identities -> P3 partitions+dormant Worker -> P4 isolated-write Shadow -> M1.7 24h` 推进。固定通道只作为无 secret 包的运输层，不替代 P0R `/dev/shm` 凭证边界或任一业务包自身 Gate。外部门 `V2-M2.2-B0.2-B-EXACT-SOURCE-RIGHTS-AND-CAPABILITY-RESOLUTION` 仍需人工来源权利和合格历史身份；M1.7 前不得让 M2/M3 runtime 写 Candidate、接页面或生成真实等级/计划。
+本地根治保留 plan v4、credential v3 和官方 `cos:GetBucketObjectLock`，同时把 bridge/session 升为 v5，并新增 lease-bound transaction v1。它在签发前同时建立 credential 与 age 两条严格 no-echo TTY，20 分钟等待期间检查两条连接并输出无密钥心跳，彻底取消签发后的第二次网络连接；7200 秒事务租约绑定 source、plan、双端点 egress、listener、精确 `/32`、Bridge、clipboard、`/dev/shm`、process、container、volume、staging 和零残留 closure。execute 必须先验证 120 秒内的 mode-600 route evidence，精确匹配 listener unit、唯一 firewall identity/remark/source/port 和两个一致 egress；协调器观察到双 TTY PREARMED 后才内部授权并输出 READY。detached authorize CLI 被删除；Bridge 只允许唯一终态顺序，BLOCKED/PASS 后禁止任何状态，两个输出流总量与状态数均有硬上限；所有控制文件使用 canonical、current-user、mode-600、`O_NOFOLLOW`、最大 1 MiB 且读取前后 identity 不变的边界。fresh rebind v4/v3 还必须证明 TCP 8022 count=0 和 exact unit=`not-found/inactive`。定向 P0R `125/125`、Go helper 与当前最终字节完整 CI PASS；外部清场、clean exact source、GitHub 四门、fresh read-only rebind、新 lease/run/v4 plan/package/staging 和 corrected recovery 尚未完成。clean commit 与 GitHub 四门可在不接触敏感 Edge 页时先行，但外部全清场前不得创建任何新 route 或 secret。只有这些资格和全量 cleanup 同时成立，才允许由用户完成一次 MFA + API Explorer 原生 Copy。helper 仍必须完成真实加密离机备份、exact version retrieval、独立 PG16 restore parity、全量 cleanup 和零漂移复核；随后刷新 health/topology、容量校准和 fresh P0。只有新 P0 PASS 才能请求 P1，并严格按 `P1 schema -> P2 identities -> P3 partitions+dormant Worker -> P4 isolated-write Shadow -> M1.7 24h` 推进。固定通道只作为无 secret 包的运输层，不替代 P0R `/dev/shm` 凭证边界或任一业务包自身 Gate。外部门 `V2-M2.2-B0.2-B-EXACT-SOURCE-RIGHTS-AND-CAPABILITY-RESOLUTION` 仍需人工来源权利和合格历史身份；M1.7 前不得让 M2/M3 runtime 写 Candidate、接页面或生成真实等级/计划。
 
 ## 7. Legacy 参考材料
 

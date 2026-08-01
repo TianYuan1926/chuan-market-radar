@@ -2,6 +2,27 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-08-02 / P0R B9 R2 Lease-Bound Route-Gated Dual-TTY Root Remediation
+
+### 本轮目标
+
+根据同一 secret handoff 故障类连续两次 clipboard timeout 和随后 dynamic egress 漂移的真实证据停止重试，根治“只预建第一条 TTY、签发后再建第二条 SSH、短窗口无双会话心跳、事务执行未真正消费 route authority”四个跨层缺口。
+
+### 当前证据
+
+- source `6a70b8d3a964dd109d5051ba731813c4bccda62d` 的两个旧窗口分别等待 540 秒后安全退出；后到 native Copy 已作废，从未进入 Bridge、`/dev/shm` 或服务器。没有 Runner、数据库读取、COS、backup、retrieval、restore 或业务 mutation。
+- 两个独立公网端点随后一致测得 BoostNet egress=`156.248.15.36`，旧 exact `/32` 下 strict 8022 在 SSH banner 前超时；这证明签发后的第二次 SSH 不能依赖动态 egress。
+- 当前仅证明本机 Bridge process=0、clipboard 已覆盖。旧敏感 Edge response 页尚待本人关闭；云 listener、旧 firewall rule、服务器 secret/process/container/volume 和 production zero drift 均保持 `UNVERIFIED`，不得沿用上一窗口的 cleanup PASS。
+- bridge/session v5 在 operator READY 前同时建立 credential 和 age 两条 strict no-echo TTY；primary 先发布 PID/start-token/source binding，secondary 验证后等待。1200 秒窗口持续检查两个 SSH 子进程并输出无 secret heartbeat，签发后不再建立网络连接。
+- transaction v1 创建 mode-600、7200 秒 lease，绑定 exact clean source、plan SHA-256、双端点 egress、listener、唯一 `/32`、两条 TTY、clipboard、`/dev/shm`、process、container、volume、staging 和 closure。
+- pre-commit 审计发现 transaction 初稿的 `authorizeIssuance` 尚未接入 execute。现 execute 强制消费 120 秒内 mode-600 的 exact route evidence，精确核对 listener unit/port/count 和 firewall identity hash/remark/source/direction/protocol/port；协调器只有在 route 有效且恰好一次双 TTY PREARMED 后才输出授权与 READY。
+- 二次预提交审计继续发现 detached `authorize` CLI、Bridge 未声明字段/任意状态接收、陈旧或未来 cleanup evidence、lease 嵌套合同不精确和 preflight failure 未统一覆盖 clipboard cleanup 五类缺口；最终审计又发现 allowlist 未强制唯一终态顺序、累计输出/状态数无总上限以及 path `lstat` 后另行 `readFile` 的控制文件稳定性缺口。当前 CLI 只保留 `plan/create/execute/close`；Bridge 只接受 `PREARMED -> READY -> HEARTBEAT* -> CREDENTIAL -> AGE -> PASS`，BLOCKED/PASS 均为终态，两个输出流合计最多 `65,536` bytes、状态最多 `64`；plan/lease/route/cleanup 必须以 canonical current-user mode-600、`O_NOFOLLOW`、最大 1 MiB 且读取前后 identity 不变的方式读取。cleanup evidence 必须非未来且不超过 120 秒，outer finally 覆盖 preflight。focused bridge/session `22/22`、transaction `10/10`、完整 P0R `124/124` 与 Go helper PASS；精确 Node `22.23.1`、npm `10.9.8`、本机 Go 且 `GOTOOLCHAIN=local` 的当前源码完整 `ci:production` 已从头 PASS：recurrence `11/11`、dispatch `25/25`、V2 Foundation `631 PASS / 6 explicit skips`、V2 Ops `246/246`、Next production build、Golden `16/16` 和 security 均通过。
+- 当前 rebind 又识别出一个独立验收缺口：旧实现只保存全部 listener 哈希，无法证明 TCP 8022 为零。request/result 已升级为 v4/v3，强制 `forbiddenListenerPort=8022`、`forbiddenListenerUnit=market-radar-p0r-8022.service`，并分别要求 listener count=0、unit=`not-found/inactive`；任意 active/listening/malformed 状态失败关闭。rebind `13/13`、完整 P0R `125/125` 与 Go helper PASS；当前最终字节完整 `ci:production` 已从头 PASS：recurrence `11/11`、dispatch `25/25`、V2 Foundation `631 PASS / 6 explicit skips`、V2 Ops `247/247`、Next production build、Golden `16/16` 和 security 均通过。
+
+### 当前真值与下一步
+
+状态是 `LOCAL_EXACT_TRANSACTION_AND_REBIND_EXPLICIT_8022_ZERO_RESIDUE_REMEDIATION_P0R_125_OF_125_AND_FULL_CI_PASS / EXTERNAL_CLOUD_CLEANUP_AND_PRODUCTION_ZERO_DRIFT_UNVERIFIED / CLEAN_EXACT_SOURCE_REMOTE_GATES_REBIND_NEW_EXECUTION_PENDING / NO_USABLE_CREDENTIAL / P0_BLOCKED`。为减少无意义等待，clean commit 与 GitHub 四门可在不读取或操纵敏感 Edge 页的前提下先行；fresh rebind 随后只读证明服务器 8022/unit/P0R residue 为零。用户本人只需在最后确认旧敏感页关闭，代理再自动删除旧腾讯规则；外部全清场前仍禁止新 route、STS、数据库和 COS 动作。
+
 ## 2026-08-01 / P0R B9 COS Object Lock CAM Root Remediation
 
 ### 本轮目标
@@ -103,30 +124,3 @@ P0R 仍是 `PRODUCTION_RECOVERY_NOT_EXECUTED / P0_BLOCKED`。现在没有可用 
 ### 下一步
 
 形成新的 clean exact commit 并重新取得 GitHub 四门；随后只通过高层 release 入口执行 fresh read-only rebind，再生成全新 run/object key/plan/bundle/staging。所有新 source 资格成立后，复核 8022 bootstrap gate、启动 bridge 并看到 READY，再由用户完成 MFA 和 API Explorer 原生 Copy。只有真实 backup、exact retrieval、独立 PostgreSQL 16 restore、证据封存、secret/container/volume/runtime 清理、8022 listener/云规则清理与生产零漂移全部 PASS，P0R 才能关闭。
-
-## 2026-07-29 / P0R Atomic Secret Session Root Remediation
-
-### 本轮目标
-
-根据两次真实 STS 失败证据，永久移除 raw response 落盘、裸 `tee`、手工编译、AX response reconstruction 和 Compose env 重插值路径；建立无回显、内存即时编译、两项 secret 到齐后自动执行且失败全清理的原子会话。
-
-### 当前证据
-
-- `bd20bd5b73ef0beb41c331aa43c58051ef01d37a` 的四条 GitHub 门禁、fresh production read-only rebind 和 v3 plan/bundle staging 核验仍是可信历史证据，但其旧 secret 会话实现已被真实失败证伪，因此不再拥有执行权。
-- 第一枚 STS 因 receiver 未运行而误入交互 shell，已过期且永久禁用。第二枚 STS 最终进入真实 receiver，但多条手工操作导致超过签发后 5 分钟；编译器按真实时钟返回 `STS response was not compiled immediately after issuance`。未使用 `--now` 伪造时间，也未继续 COS、数据库、backup、retrieval 或 restore。
-- raw path 删除后，独立现场核验发现 PID `1175383` 的 `tee` 仍持有已 unlink 文件并等待输入。该进程经 exact identity 核对后终止；随后分别证明生产 P0R 文件数 `0`、进程数 `0`。本机 clipboard 已覆盖，secret-bearing Node 会话已整体 reset。
-- 第二枚 STS 的 exact expiry `2026-07-28T20:57:29Z` 已由本机 UTC `2026-07-28T20:57:48Z` 与腾讯 STS HTTPS Date `2026-07-28T20:57:56Z` 双重证明超过；该凭证现为 `EXPIRED_FORBIDDEN_REUSE`，永久禁止复用。两次尝试均没有生产数据库读取、COS 对象、backup、retrieval、restore、业务服务或 authority 变更。
-- 新 `m1-production-storage-p0r-session.sh` 在 TTY 关闭 echo，使用 Web 容器内的受控 Node 从 stdin 有界读取 STS、在内存校验并即时编译，原始响应不落盘；credential 与 age identity 只以 exclusive mode 600 写入 `/dev/shm`。第二会话以 PID、Linux process-start token 和 source commit 三重绑定第一会话，拒绝 PID 复用或陈旧 ready 文件；两项 secret 到齐后自动启动 checksum-bound Runner，任一会话超时、断线、验证失败或 Runner 退出均立即清理整组 exact session 路径。
-- session helper 不执行 `p0r-bindings.env`，只把它作为普通数据解析；恰好接受 12 个白名单键、一个 40 位 source commit 和 11 个 SHA-256。生产容器仅按 exact Compose project/service labels 选择，不再重新渲染 Compose 或读取 env。
-- Runner 内部数据库描述和 canary 不再使用可预测公共 `/dev/shm` 文件：每次执行创建 owner-bound mode-700 私有目录，内部 plaintext/recovered canary 以 no-clobber mode-600 regular file 生成，禁止内部 `tee`，并在成功前验证整个目录已删除。
-- credential ingress CLI 已删除 caller-supplied `--now`，生产编译只能使用进程真实时钟；回归证明任何时钟覆盖参数都会 fail closed。
-- fresh rebind request/result schema v2 已把历史 transport v1 三文件替代比较与当前 transport v2 七文件运行资格分离；七文件集包含 runner 和 atomic session helper，任一摘要缺失或混写都 fail closed，且历史 13-member verifier 边界保持冻结。
-- 当前定向 P0R `81/81`、Go helper、recurrence gate `10/10`、production dispatch `24/24`、`git diff --check` 和完整 `ci:production` 已通过；完整 CI 同时取得 V2 Foundation `631 PASS / 6 explicit skip`、V2 Ops `203/203`、Next production build、Golden `16/16` 与 security PASS。新 clean commit、GitHub 四门、fresh production read-only rebind、新 plan/bundle、真实目标 session acceptance 与恢复仍待完成。
-
-### 当前真值
-
-P0R 当前是“本地根因修复通过专项门禁，完整资格和真实生产恢复未完成”。没有可用 credential，没有读取生产数据库，没有生成或上传 backup，没有创建 COS 对象，没有执行 exact retrieval 或独立 PostgreSQL 16 restore。生产应用、数据库、Redis、Worker、env、migration、Feature Flag、生产仓库和业务 authority 未改变。旧 raw/tee/manual-compile 路线已永久退役，不能因历史四门或 staging PASS 恢复执行权。
-
-### 下一步（已由上方固定 TTY bridge 路线覆盖）
-
-本条原定的两个 fresh OrcaTerm secret 会话已被第三枚 STS disclosure 证伪并永久退役。当前只执行上方 `P0R Post-Response Disclosure Containment and Fixed Local TTY Bridge` 的新顺序；本段保留为历史演进证据，不再具有执行权。

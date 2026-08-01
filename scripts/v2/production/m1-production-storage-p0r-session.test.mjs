@@ -7,7 +7,7 @@ const SESSION_SCRIPT = "scripts/v2/production/m1-production-storage-p0r-session.
 
 test("session plan fixes the no-echo in-memory ingress and exact runtime identity boundary", () => {
   const plan = JSON.parse(execFileSync("bash", [SESSION_SCRIPT, "plan"], { encoding: "utf8" }));
-  assert.equal(plan.schemaVersion, "v2-m1-production-storage-p0r-session.v4");
+  assert.equal(plan.schemaVersion, "v2-m1-production-storage-p0r-session.v5");
   assert.equal(plan.rawStsResponsePersisted, false);
   assert.equal(plan.terminalEchoDisabledDuringSecretInput, true);
   assert.equal(plan.readyMarkerAfterEchoDisabled, true);
@@ -26,6 +26,9 @@ test("session plan fixes the no-echo in-memory ingress and exact runtime identit
   assert.equal(plan.runtimeCapsuleChecksumBound, true);
   assert.equal(plan.productionNodeModulesRequired, false);
   assert.equal(plan.sessionPidStartTokenAndSourceBound, true);
+  assert.equal(plan.bothSshSessionsPrearmedBeforeIssuance, true);
+  assert.equal(plan.postIssuanceNetworkReconnectRequired, false);
+  assert.equal(plan.secretIngressWindowSeconds, 1200);
   assert.equal(plan.runnerStartsAutomaticallyAfterBothSecrets, true);
   assert.equal(plan.sanitizedFailureSiteOnly, true);
   assert.equal(plan.abandonedSessionCleansSecrets, true);
@@ -43,7 +46,7 @@ test("session source retires tee and Compose interpolation while preserving exac
     "receive-credentials-and-run",
     "receive-age-identity",
     "stty -echo",
-    "timeout --foreground 600s",
+    'timeout --foreground "${SECRET_INGRESS_WINDOW_SECONDS}s"',
     "com.docker.compose.project=chuan-market-radar",
     "com.docker.compose.service=web",
     "P0R_SESSION_SHA256",
@@ -63,6 +66,9 @@ test("session source retires tee and Compose interpolation while preserving exac
     '"age identity file" 8192 0',
     "require_absent \"${OUTPUT_DIRECTORY}\"",
     "WAITING_P0R_AGE_IDENTITY",
+    "SECRET_INGRESS_WINDOW_SECONDS=1200",
+    "bothSshSessionsPrearmedBeforeIssuance",
+    "postIssuanceNetworkReconnectRequired",
     "NEWLINE_THEN_EOT_FROM_PREARMED_LOCAL_TTY_BRIDGE",
     "kill -0",
     "/proc/${SESSION_PID}/stat",
@@ -87,6 +93,11 @@ test("session source retires tee and Compose interpolation while preserving exac
     source.indexOf("stty -echo") <
       source.lastIndexOf("NEWLINE_THEN_EOT_FROM_PREARMED_LOCAL_TTY_BRIDGE"),
     "the READY contract must be emitted only after terminal echo is disabled",
+  );
+  assert.ok(
+    source.indexOf('> "${SESSION_READY_FILE}"') <
+      source.lastIndexOf('receive_secret "receive-credentials"'),
+    "the primary identity binding must exist before either SSH session is declared ready",
   );
 });
 
