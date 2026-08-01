@@ -47,8 +47,8 @@ Runtime / Security / Release Control 贯穿全链。
 ## 4. 当前权威
 当前唯一设计权威：
 
-- `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`，内容版本 v1.79。
-- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.84。
+- `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`，内容版本 v1.80。
+- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.85。
 - `docs/blueprints/README.md`，权威解析入口。
 - `market-radar-v2-build-sequence.md`，当前正确施工依赖与减数规则。
 
@@ -76,7 +76,7 @@ M1.6P0_PRODUCTION_STORAGE_READ_ONLY_PREFLIGHT_EXECUTED_BLOCKED
 M1.6P0R_B9_R1_SOURCE_6A70_FOUR_GITHUB_GATES_FRESH_SIGNED_REBIND_V4_PLAN_TRANSPORT_TARGET_ACCEPTANCE_PASS / FULL_RECOVERY_NOT_EXECUTED / TEMPORARY_8022_STS_DATABASE_COS_BACKUP_RESTORE_NOT_TOUCHED / PRODUCTION_ZERO_DRIFT
 M1.6_FRESH_P0_CAPACITY_ADMISSION_LOCAL_ENGINEERING_PASS_PRODUCTION_EVIDENCE_PENDING
 M2.0_DISCOVERY_CONTRACTS_LOCAL_PASS
-M2.1_DRAFT_REPLAY_KERNELS_LOCAL_PASS
+M2.1_DRAFT_REPLAY_KERNELS_LOCAL_PASS / M2.3A_R0_EVENT_TRUTH_VERTICAL_LOCAL_AND_REMOTE_QUALITY_PASS_NO_CANDIDATE_OR_PRODUCTION_AUTHORITY_REAL_RUNTIME_COHORT_HOLDOUT_PENDING
 M2.2A_HISTORICAL_REPLAY_GATE_HARNESS_LOCAL_PASS
 M2.2B0_HISTORICAL_SOURCE_GATE_AND_TECHNICAL_PILOT_LOCAL_PASS
 M2.2B0.1_TARGET_BLIND_STRENGTH_AND_CONSTRUCTION_POLICY_LOCAL_PASS
@@ -138,7 +138,7 @@ automaticTradingAllowed=false
 - M1.6 v1 日分区迁移 checksum 保持不可变；additive v2 六小时分区、无扩容 59%/67% 模型、Object Lock `COMPLIANCE` 31 天、Keychain age 身份、atomic remote session 和 private `/dev/shm` runner boundary 均已形成。B8 已把 `be87cf...` run 的 exact 16-member transport 安全送达并通过 target acceptance。B9 随后真实完成 STS 即时编译、age identity 交接并启动 Runner，但在读取生产数据库前的 COS Object Lock preflight 阻断；没有 backup、COS object、retrieval 或 restore。根因是把 REST 操作名 `GetBucketObjectLockConfiguration` 错当成腾讯 CAM 动作；官方授权动作实际是 `cos:GetBucketObjectLock`。本地已将 plan/credential/bridge 分别升级为 v4/v3/v4，旧 v3 plan、v2 credential、run/object key/staging 自动失去执行权，并把 helper 自由文本替换成 bridge allowlist 内的固定脱敏 `p0r_cos_*` 阶段码。P0R `113/113`、Go helper 与完整 `ci:production` PASS；完整 CI 包含 recurrence `11/11`、dispatch `25/25`、V2 Foundation `631 PASS / 6 explicit skips`、V2 Ops `235/235`、Next build、Golden `16/16` 和 security。clean commit、GitHub 四门、fresh rebind、新 run/v4 plan/transport/fixed-dispatch staging 和 corrected real-target recovery 仍待完成。失败后的 8022 listener/云规则、secret、process、container、volume 已清零，生产 HEAD `cec0b657...`、clean worktree、11 个容器和 Web/PostgreSQL/Redis 健康保持零漂移。
 - fresh rebind request v3/result v2 已把历史 transport v1 三文件替代比较与当前 transport v3 八文件运行资格分离；八文件集包含 runner、atomic session helper 和 runtime capsule helper，缺任一摘要 fail closed。旧七文件/transport-v2 合同只保留历史证据；当前本地修复尚无远端或生产执行权。
 - M2.0 已冻结六个机会族、十四种模式、family-specific direction、Detector event/knowledge 双 cutoff、Candidate/Episode/Thesis strict v2 schema、Detector emission authority、UTC Episode 去重、生命周期、三层运行漏斗和 19 个 test-only point-in-time fixture；fixture 递归拒绝 Outcome/MFE/MAE 等未来材料。该结论只证明本地合同，不证明 Detector、Deep Validation、真实市场发现率或生产能力。
-- M2.1 已建立三个 Pre-Move 与两个 Breakout/Retest 独立 DRAFT 纯回放内核。M2.1A 又建立八族各自 LONG/SHORT/UNKNOWN 共 24 个 DRAFT/UNCALIBRATED 假设、三 Outcome、point-in-time 板块传播、逐 family-direction 的 Venue/regime/liquidity 分层，以及 matched control、消融、sealed holdout、forward Shadow、rights 和独立审计 Gate；定向 13/13 PASS。它只能返回 research blocker 或进入 replay validation 的无发射状态，Candidate emission=false；没有真实 cohort、真实指标或生命周期升级证据。
+- M2.1 已建立三个 Pre-Move 与两个 Breakout/Retest 独立 DRAFT 纯回放内核。M2.1A 又建立八族各自 LONG/SHORT/UNKNOWN 共 24 个 DRAFT/UNCALIBRATED 假设、三 Outcome、point-in-time 板块传播、逐 family-direction 的 Venue/regime/liquidity 分层，以及 matched control、消融、sealed holdout、forward Shadow、rights 和独立审计 Gate；定向 13/13 PASS。M2.3A R0 source `1d0a4a79f3673d0439f305d4171c738f6252c998` 已建立四 Venue、十四类 Listing/Venue event 的内容寻址研究 Bundle，M1 lifecycle ledger v2 保留 publication/effective/knowledge 三时间，一条 upstream event 恰好映射一条研究事件；未关联公告不猜 symbol，目录首次观察只算 baseline，目录消失不推断 delist，WATCH_ONLY 不生成合约计划，股票 handoff M2.3B，partial identity 显式 BLOCKED。定向 14/14、相邻 65/65、完整 candidate CI 与 GitHub 四门 PASS；所有 Candidate、方向、概率、Grade、Strategy、READY、production runtime 权限仍为 false，真实 source coverage、cohort/holdout/calibration、Shadow 与独立审计缺失，所以 M2.3A 主步骤仍未完成。
 - M2.2-A 已建立真实历史数据接纳、完整 Candidate 背景窗口、candidate/event/matched-non-event 三业务分母、固定 Detector 分母、purge/embargo、holdout group isolation 与独立 custody、target-blind 首次发现、Wilson CI/lead-time 秩区间和四态 lifecycle proposal Gate。独立 custody 下 research Bundle 物理禁止 inline holdout，Gate 只打开 commitment 匹配的 sealed artifact；lead time 使用数据实际可知的 knowledge cutoff。当前仓库 accepted real cohort=0，Top20 ranking、threshold sensitivity 和真实 untouched holdout 均缺失，因此 Gate=`INSUFFICIENT`；五个 Detector 保持 DRAFT、Candidate 禁发。
 - M2.2-B0 已把来源权利、point-in-time instrument history、knowledge-time、逐 Detector 数据覆盖、精确对象/checksum、磁盘预算、Git 外原始区和单对象技术验证做成 fail-closed 合同。真实 BTCUSDT 1m 月文件 1,838,455 bytes 与官方 SHA-256 一致，验证后原始字节强制删除；但权利审查、历史合约身份和 L2 不足，故 bulk acquisition=false、cohort freeze=false。
 - M2.2-B0.1 已为五个 DRAFT Detector 增加 target-blind relative-rule-margin diagnostic strength，明确不是概率、等级或交易结论；固定 Detector 分母 Top20、TRAIN-only 六维事件阈值、matched/background、pre-cutoff regime/liquidity、observed/modeled knowledge-time、purge/embargo 和 1+4 trial registry 已由 version/digest 绑定到 dataset/experiment/holdout v2。定向 45/45 PASS；真实 cohort 仍为 0、Gate=`INSUFFICIENT`、Detector 仍 DRAFT、Candidate 禁发。

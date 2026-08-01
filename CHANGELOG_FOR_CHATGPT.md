@@ -2,11 +2,11 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
-## 2026-08-01 / P0R B9-R1, M3.3E Local Core and Candidate CI Authority Remediation
+## 2026-08-01 / P0R B9-R1, M3.3E Candidate Authority Remediation and M2.3A Event Truth Vertical
 
 ### 本轮目标
 
-在不触碰生产业务与 secret 边界的前提下恢复 P0R 下一次执行资格，并在隔离工作树完成策略类型标签的本地权威合同，避免“标签只是前端文案”或 Outcome 事后改名。
+在不触碰生产业务与 secret 边界的前提下恢复 P0R 下一次执行资格，完成策略类型标签的本地权威合同与 candidate CI 权限根治，并建立 M2.3A Listing/Venue point-in-time 事件研究真值，避免“标签只是前端文案”、Outcome 事后改名或由当前目录倒推历史上市事件。
 
 ### 当前证据
 
@@ -20,10 +20,13 @@
 - M3.3E source `f40f7866fe5b2f84c992c555adae8a21e4cb3f8b` 的 A0 run `30693742320` 与 Independent Security run `30693742338` PASS，但 Full Quality run `30693742333` / job `91352908993` 真实 FAIL。精确本地复现证明唯一失败是 strict M0 的 `clean_v2_branch_identity`：功能分支本来就不应拥有正式实施分支身份；M3 业务合同没有失败。
 - 根因修复 source `e2b3e01681af6af07fdd27d9a519ba102726bf42` 保持正式 `ci:production` 与 strict M0 不变，新增只用于功能分支的 `ci:candidate`。它与生产 CI 的唯一差异是 no-authority candidate M0 verifier；只有 branch identity 是唯一 strict M0 failure 时才通过，任何第二项失败、任意分支、身份不一致或正式实施分支冒充 candidate 都 fail closed。A0 材料门禁和回归测试锁定这项精确派生关系。
 - 最终本地 `ci:candidate` 从头 PASS：V2 Foundation=`649 PASS / 6 explicit skips / 0 fail`、V2 Ops=`236/236`、candidate M0、Next build、Golden=`16/16` 与 security 全部通过。精确 source 又取得 Signed Dispatch `30696570437`、A0 `30696570446`、Independent Security `30696570465` 和 Full Quality `30696570449` 四门 PASS；Full Quality 的 candidate step PASS，strict production step 按设计 skipped。该结果只证明功能分支源码质量，不授予生产分支、部署、数据写入或 READY authority。
+- M2.3A R0 source `1d0a4a79f3673d0439f305d4171c738f6252c998` 新增四 Venue、十四类事件的 strict 内容寻址研究 Bundle，并将 M1 lifecycle ledger 升至 v2，原样保留 provider publication time。publication/effective/knowledge 三时间分离，一条 upstream event 恰好映射一条研究事件；未关联公告不猜 symbol，首次目录观察只算 baseline，目录消失不推断 delist，WATCH_ONLY、股票 handoff 和 partial identity 保持显式边界。
+- M2.3A 定向 `14/14`、相邻合同 `65/65`、锁定 Node `22.23.1` / npm `10.9.8` 的完整 candidate CI 全部 PASS：V2 Foundation=`663 PASS / 6 explicit skips / 0 fail`、V2 Ops=`236/236`、Next build、Golden=`16/16` 和 security 均 PASS。Signed Dispatch `30699019243`、A0 `30699019238`、Independent Security `30699019242`、Full Quality `30699019235` 四门 PASS。
+- M2.3A R0 所有 Candidate、方向、概率、Grade、Strategy、READY、production runtime 与 production mutation 权限均固定为 false。真实四 Venue source coverage、M1.5C/M1.5D、M1.6-D1、M2.4A cohort/matched control/untouched holdout/calibration、前向 Shadow 和独立审计仍未完成，因此该主步骤不减数。
 
 ### 当前真值与下一步
 
-P0R 是“远端资格通过、完整恢复未执行”；M3.3E 是“test-only 运行构建器、本地完整门和功能分支四个远端质量门通过，真实数据接线与实战验收未完成”。下一步保持 P0R 冻结 source 不变，优先完成 canonical Risk builder 与真实 Scope V2 接线设计；外部最终独立审计仍是后续单独门禁。P0R 只在新的动作时授权内执行临时 8022、bridge v4、fresh STS、只读加密 backup、精确版本取回、独立 PostgreSQL 16 restore 和全量清理。
+P0R 是“远端资格通过、完整恢复未执行”；M3.3E 是“test-only 运行构建器、本地完整门和功能分支四个远端质量门通过，真实数据接线与实战验收未完成”；M2.3A 是“事件研究真值纵切通过，但真实 Detector、cohort、holdout、校准、Shadow 和生产 authority 未完成”。后续优先把真实 Scope V2 source coverage 与 forward evidence 接入 M2.3A/M2.4A，并并行推进 canonical Risk builder；外部最终独立审计仍是单独门禁。P0R 只在新的动作时授权内执行临时 8022、bridge v4、fresh STS、只读加密 backup、精确版本取回、独立 PostgreSQL 16 restore 和全量清理。
 
 ## 2026-08-01 / P0R B9 COS Object Lock CAM Root Remediation
 
