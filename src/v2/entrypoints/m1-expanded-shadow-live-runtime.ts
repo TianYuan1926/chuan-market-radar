@@ -13,8 +13,12 @@ export {
   M1ListingHistoryCheckpointSchema,
 } from "../modules/multi-asset-universe/listing-history-runtime";
 export {
+  M1ListingWatchRefreshBatchSchema,
   refreshM1ListingWatchEvidence,
 } from "../modules/multi-asset-universe/m1-listing-watch-live-runtime";
+export {
+  M1_FOUR_VENUE_SOURCE_CAPABILITY_REGISTRY,
+} from "../modules/source-capability/adapters/four-venue-capability-registry";
 export {
   M1MultiAssetIdentitySnapshotSchema,
 } from "../modules/multi-asset-universe/multi-asset-identity-contract";
@@ -63,3 +67,20 @@ export {
 export {
   stableContentHash,
 } from "../modules/universe/stable-artifact";
+export {
+  M2ListingVenueEventEvidenceJoinSchema,
+  M2ListingWatchRefreshEvidenceSchema,
+  buildM2ListingVenueEventEvidenceJoin,
+} from "../modules/detection/m2-listing-venue-event-evidence-join";
+export {
+  M2ListingVenueEventResearchBundleSchema,
+} from "../modules/detection/m2-listing-venue-event-research";
+export {
+  M2ListingVenueEventRuntimeEvidenceSchema,
+  buildM2ListingVenueEventRuntimeEvidence,
+  buildM2ListingVenueEventRuntimeEvidenceFromM15cAudit,
+  verifyM2ListingVenueEventRuntimeEvidenceSet,
+} from "../modules/detection/m2-listing-venue-event-runtime-evidence";
+export {
+  M1ListingLifecycleLedgerSchema,
+} from "../modules/multi-asset-universe/listing-lifecycle-contract";

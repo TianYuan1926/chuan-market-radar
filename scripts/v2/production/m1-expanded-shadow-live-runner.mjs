@@ -35,9 +35,9 @@ export const M1_EXPANDED_SHADOW_LIVE_PACKAGE_ID =
 export const M1_EXPANDED_SHADOW_LIVE_REQUEST_SCHEMA =
   "market-radar-v2-m1-expanded-shadow-live-request.v1";
 export const M1_EXPANDED_SHADOW_LIVE_RESULT_SCHEMA =
-  "market-radar-v2-m1-expanded-shadow-live-result.v1";
+  "market-radar-v2-m1-expanded-shadow-live-result.v2";
 export const M1_EXPANDED_SHADOW_LIVE_FAILURE_SCHEMA =
-  "market-radar-v2-m1-expanded-shadow-live-failure.v1";
+  "market-radar-v2-m1-expanded-shadow-live-failure.v2";
 export const M1_EXPANDED_SHADOW_LIVE_ENTRYPOINT =
   "scripts/v2/production/m1-expanded-shadow-live-entrypoint.sh";
 export const M1_EXPANDED_SHADOW_LIVE_RUNNER =
@@ -161,6 +161,8 @@ function createExecutionContext() {
     nonTargetServiceCountBefore: null,
     m15cEvidenceId: null,
     m15cEvidenceHash: null,
+    m23aRuntimeEvidenceId: null,
+    m23aRuntimeEvidenceHash: null,
     m15dEvidenceId: null,
     m15dEvidenceHash: null,
   };
@@ -598,6 +600,9 @@ function loadRuntimeBindings(stagingDirectory) {
 function validateRuntimeBindings(bindings) {
   const requiredFunctions = [
     "buildM1ExpandedShadowReleaseResult",
+    "buildM2ListingVenueEventEvidenceJoin",
+    "buildM2ListingVenueEventRuntimeEvidence",
+    "buildM2ListingVenueEventRuntimeEvidenceFromM15cAudit",
     "buildM1MicrostructureForwardRuntimeSelection",
     "buildM1MultiAssetShadowUpstreamBinding",
     "buildM1RuntimeAdapterProfileSet",
@@ -609,6 +614,7 @@ function validateRuntimeBindings(bindings) {
     "verifyM1MicrostructureForwardCaptureStore",
     "verifyM1MicrostructureForwardEvidenceStore",
     "verifyM1MultiAssetShadowEvidenceStore",
+    "verifyM2ListingVenueEventRuntimeEvidenceSet",
   ];
   ensure(
     requiredFunctions.every(
@@ -620,6 +626,18 @@ function validateRuntimeBindings(bindings) {
         "function" &&
       typeof bindings.runtime.M1SourceConformanceArtifactSchema?.parse ===
         "function" &&
+      typeof bindings.runtime.M2ListingVenueEventEvidenceJoinSchema?.parse ===
+        "function" &&
+      typeof bindings.runtime.M2ListingVenueEventRuntimeEvidenceSchema?.parse ===
+        "function" &&
+      typeof bindings.runtime.M2ListingWatchRefreshEvidenceSchema?.parse ===
+        "function" &&
+      typeof bindings.runtime.M2ListingVenueEventResearchBundleSchema?.parse ===
+        "function" &&
+      typeof bindings.runtime.M1ListingLifecycleLedgerSchema?.parse ===
+        "function" &&
+      typeof bindings.runtime.M1_FOUR_VENUE_SOURCE_CAPABILITY_REGISTRY
+          ?.registryDigest === "string" &&
       bindings.runtime.M1_EXPANDED_SHADOW_DATABASE_NAME ===
         "market_radar_m1_expanded_shadow" &&
       typeof bindings.pg.Pool === "function",
@@ -947,6 +965,108 @@ async function readLastM15cSelectionInputs(root, runtime) {
   };
 }
 
+async function persistM23aListingRuntimeEvidence({
+  audit,
+  evidenceRoot,
+  runtime,
+  upstream,
+}) {
+  const latestSourceMs = Math.max(
+    Date.now(),
+    Date.parse(runtime.M1_FOUR_VENUE_SOURCE_CAPABILITY_REGISTRY.reviewedAt),
+    ...audit.catalogCaptureBindings.map((catalog) =>
+      Date.parse(catalog.generatedAt)
+    ),
+    ...audit.identitySnapshots.map((identity) =>
+      Date.parse(identity.sourceCutoff)
+    ),
+    ...audit.listingWatchRefreshBatches.flatMap((batch) =>
+      batch.results.flatMap((result) => [
+        ...result.pages.map((page) => Date.parse(page.receivedAt)),
+        ...(result.checkpoint === null
+          ? []
+          : [Date.parse(result.checkpoint.sourceCutoff)]),
+      ])
+    ),
+  );
+  ensure(
+    Number.isFinite(latestSourceMs),
+    "m2_listing_runtime_source_clock_invalid",
+  );
+  const generatedAt = new Date(latestSourceMs + 1).toISOString();
+  const built = runtime.buildM2ListingVenueEventRuntimeEvidenceFromM15cAudit({
+    upstreamBinding: upstream,
+    registry: runtime.M1_FOUR_VENUE_SOURCE_CAPABILITY_REGISTRY,
+    audit,
+    generatedAt,
+  });
+  const { result, runtimeEvidence, sourceAudit } = built;
+  await mkdir(evidenceRoot, { mode: 0o700 });
+  const paths = {
+    refresh: join(evidenceRoot, "listing-refresh-evidence.json"),
+    ledger: join(evidenceRoot, "listing-lifecycle-ledger.json"),
+    research: join(evidenceRoot, "listing-event-research-bundle.json"),
+    join: join(evidenceRoot, "listing-event-evidence-join.json"),
+    runtime: join(evidenceRoot, "runtime-evidence.json"),
+  };
+  await writeExclusiveCanonical(paths.refresh, result.refreshEvidence);
+  await writeExclusiveCanonical(paths.ledger, result.lifecycleLedger);
+  await writeExclusiveCanonical(paths.research, result.researchBundle);
+  await writeExclusiveCanonical(paths.join, result.evidenceJoin);
+  await writeExclusiveCanonical(paths.runtime, runtimeEvidence);
+
+  const persistedResult = {
+    refreshEvidence: runtime.M2ListingWatchRefreshEvidenceSchema.parse(
+      (await readCanonicalJson(
+        paths.refresh,
+        "m2_listing_runtime_refresh_evidence_invalid",
+        64 * 1024 * 1024,
+      )).value,
+    ),
+    lifecycleLedger: runtime.M1ListingLifecycleLedgerSchema.parse(
+      (await readCanonicalJson(
+        paths.ledger,
+        "m2_listing_runtime_lifecycle_ledger_invalid",
+        64 * 1024 * 1024,
+      )).value,
+    ),
+    researchBundle: runtime.M2ListingVenueEventResearchBundleSchema.parse(
+      (await readCanonicalJson(
+        paths.research,
+        "m2_listing_runtime_research_bundle_invalid",
+        64 * 1024 * 1024,
+      )).value,
+    ),
+    evidenceJoin: runtime.M2ListingVenueEventEvidenceJoinSchema.parse(
+      (await readCanonicalJson(
+        paths.join,
+        "m2_listing_runtime_evidence_join_invalid",
+        64 * 1024 * 1024,
+      )).value,
+    ),
+  };
+  const persistedRuntimeEvidence = (
+    await readCanonicalJson(
+      paths.runtime,
+      "m2_listing_runtime_manifest_invalid",
+      8 * 1024 * 1024,
+    )
+  ).value;
+  const verified = runtime.verifyM2ListingVenueEventRuntimeEvidenceSet({
+    sourceAudit,
+    result: persistedResult,
+    runtimeEvidence: persistedRuntimeEvidence,
+  });
+  ensure(
+    verified.contentHash === runtimeEvidence.contentHash &&
+      verified.productionRuntimeAllowed === false &&
+      verified.candidateEmissionAllowed === false &&
+      verified.readyAuthorityAllowed === false,
+    "m2_listing_runtime_evidence_verification_invalid",
+  );
+  return { paths, runtimeEvidence: verified };
+}
+
 function componentResult(componentId, evidence, rollbackStatus, reasonCodes) {
   if (evidence === null) {
     return {
@@ -1080,6 +1200,7 @@ async function executeExpandedShadow({
   ].map((checkpoint) =>
     runtime.M1ListingHistoryCheckpointSchema.parse(checkpoint)
   );
+  const initialListingCheckpoints = [...listingCheckpoints];
 
   await ensureEvidenceRoot({ evidenceRoot: request.evidenceRoot });
   const runRoot = join(request.evidenceRoot, request.dispatchId);
@@ -1107,6 +1228,7 @@ async function executeExpandedShadow({
     `m1-5d:${request.dispatchId}:${randomBytes(8).toString("hex")}`;
   let m15cEvidence;
   let m15dEvidence;
+  let m23aRuntimeEvidence;
   let pool = null;
   let capture;
   try {
@@ -1116,7 +1238,8 @@ async function executeExpandedShadow({
       networkEnvironment: "TENCENT_ISOLATED_READ_ONLY",
       evidenceRoot: m15cRoot,
       workerRunId: m15cWorkerRunId,
-      listingWatchBindings: async () => {
+      initialListingCheckpoints,
+      listingWatchRefreshBatch: async () => {
         const refreshed = await runtime.refreshM1ListingWatchEvidence({
           upstreamBinding: upstream,
           profileSet,
@@ -1130,13 +1253,14 @@ async function executeExpandedShadow({
           "expanded_shadow_listing_watch_refresh_blocked",
         );
         listingCheckpoints = refreshed.checkpoints;
-        return refreshed.bindings;
+        return refreshed;
       },
     });
     const m15cAudit = await runtime.verifyM1MultiAssetShadowEvidenceStore({
       evidenceRoot: m15c.canonicalEvidenceRoot,
       upstreamBinding: upstream,
       expectedWorkerRunId: m15cWorkerRunId,
+      initialListingCheckpoints,
       verifiedAt: new Date().toISOString(),
     });
     m15cEvidence = runtime.M1MultiAssetShadowEvidenceSchema.parse(
@@ -1144,6 +1268,19 @@ async function executeExpandedShadow({
     );
     executionContext.m15cEvidenceId = m15cEvidence.evidenceId;
     executionContext.m15cEvidenceHash = m15cEvidence.contentHash;
+
+    executionContext.phase = "M2_3A_LISTING_RUNTIME_EVIDENCE";
+    const m23a = await persistM23aListingRuntimeEvidence({
+      audit: m15cAudit,
+      evidenceRoot: join(runRoot, "m2-3a"),
+      runtime,
+      upstream,
+    });
+    m23aRuntimeEvidence = m23a.runtimeEvidence;
+    executionContext.m23aRuntimeEvidenceId =
+      m23aRuntimeEvidence.runtimeEvidenceId;
+    executionContext.m23aRuntimeEvidenceHash =
+      m23aRuntimeEvidence.contentHash;
 
     const selectionInputs = await readLastM15cSelectionInputs(
       m15cRoot,
@@ -1315,6 +1452,9 @@ async function executeExpandedShadow({
     m15cEvidenceHash: m15cEvidence.contentHash,
     m15dEvidenceId: m15dEvidence.evidenceId,
     m15dEvidenceHash: m15dEvidence.contentHash,
+    m23aRuntimeEvidenceId: m23aRuntimeEvidence.runtimeEvidenceId,
+    m23aRuntimeEvidenceHash: m23aRuntimeEvidence.contentHash,
+    m23aRuntimeEvidenceStatus: m23aRuntimeEvidence.status,
     topologyBeforeHash: beforeHash,
     topologyAfterHash: afterHash,
     productionChanged: false,
@@ -1479,6 +1619,10 @@ export function buildM1ExpandedShadowFailureArtifact({
     reasonCodes: [...new Set([reason, ...recovery.reasonCodes])].sort(),
     m15cEvidenceId: executionContext.m15cEvidenceId,
     m15cEvidenceHash: executionContext.m15cEvidenceHash,
+    m23aRuntimeEvidenceId:
+      executionContext.m23aRuntimeEvidenceId ?? null,
+    m23aRuntimeEvidenceHash:
+      executionContext.m23aRuntimeEvidenceHash ?? null,
     m15dEvidenceId: executionContext.m15dEvidenceId,
     m15dEvidenceHash: executionContext.m15dEvidenceHash,
     hostRecoveryStatus: recovery.status,

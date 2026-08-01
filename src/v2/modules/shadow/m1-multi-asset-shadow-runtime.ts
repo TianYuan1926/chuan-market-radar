@@ -43,12 +43,20 @@ import {
   M1MultiAssetIdentitySnapshotSchema,
 } from "../multi-asset-universe/multi-asset-identity-contract";
 import {
+  M1ListingWatchRefreshBatchSchema,
+  type M1ListingWatchRefreshBatch,
+} from "../multi-asset-universe/m1-listing-watch-live-runtime";
+import {
+  M1ListingHistoryCheckpointSchema,
+  type M1ListingHistoryCheckpoint,
+} from "../multi-asset-universe/listing-history-runtime";
+import {
   deepFreezeArtifact,
   stableContentHash,
 } from "../universe/stable-artifact";
 
 export const M1_MULTI_ASSET_SHADOW_PERSISTENCE_RECEIPT_VERSION =
-  "v2-m1-multi-asset-shadow-persistence-receipt.v2" as const;
+  "v2-m1-multi-asset-shadow-persistence-receipt.v3" as const;
 export const M1_MULTI_ASSET_SHADOW_CHECKPOINT_RECEIPT_VERSION =
   "v2-m1-multi-asset-shadow-checkpoint-receipt.v1" as const;
 
@@ -72,7 +80,8 @@ const PersistenceReceiptCoreSchema = z.strictObject({
   baseFactSnapshotHash: DigestSchema,
   listingWatchBindingIds: z.array(NonEmptyStringSchema).length(2),
   listingWatchBindingHashes: z.array(DigestSchema).length(2),
-  persistedArtifactCount: z.literal(5),
+  listingWatchRefreshBatchHash: DigestSchema,
+  persistedArtifactCount: z.literal(6),
   persistedBytes: NonNegativeIntegerSchema,
   status: z.literal("COMMITTED"),
   rawBodyRetained: z.literal(false),
@@ -128,6 +137,7 @@ function persistenceReceiptCore(
     baseFactSnapshotHash: value.baseFactSnapshotHash,
     listingWatchBindingIds: value.listingWatchBindingIds,
     listingWatchBindingHashes: value.listingWatchBindingHashes,
+    listingWatchRefreshBatchHash: value.listingWatchRefreshBatchHash,
     persistedArtifactCount: value.persistedArtifactCount,
     persistedBytes: value.persistedBytes,
     status: value.status,
@@ -144,7 +154,7 @@ function buildPersistenceReceipt(input: {
   persistedAt: string;
   previousReceiptHash: string | null;
   capture: M1ScopeV2BaseMarketCaptureResult;
-  listingWatchBindings: readonly M1ListingWatchEvidenceBinding[];
+  listingWatchRefreshBatch: M1ListingWatchRefreshBatch;
   persistedBytes: number;
 }): M1MultiAssetShadowPersistenceReceipt {
   const catalog = M1MultiAssetCatalogCaptureBindingSchema.parse(
@@ -156,7 +166,10 @@ function buildPersistenceReceipt(input: {
   const facts = M1MultiAssetBaseFactSnapshotSchema.parse(
     input.capture.baseFactSnapshot,
   );
-  const listingWatchBindings = input.listingWatchBindings
+  const listingWatchRefreshBatch = M1ListingWatchRefreshBatchSchema.parse(
+    input.listingWatchRefreshBatch,
+  );
+  const listingWatchBindings = listingWatchRefreshBatch.bindings
     .map((binding) => M1ListingWatchEvidenceBindingSchema.parse(binding))
     .sort((left, right) => left.sourceId.localeCompare(right.sourceId));
   if (
@@ -199,7 +212,10 @@ function buildPersistenceReceipt(input: {
     baseFactSnapshotHash: facts.contentHash,
     listingWatchBindingIds,
     listingWatchBindingHashes,
-    persistedArtifactCount: 5,
+    listingWatchRefreshBatchHash: stableContentHash(
+      listingWatchRefreshBatch,
+    ),
+    persistedArtifactCount: 6,
     persistedBytes: input.persistedBytes,
     status: "COMMITTED",
     rawBodyRetained: false,
@@ -335,7 +351,7 @@ type M1MultiAssetShadowFileStore = Readonly<{
     persistedAt: string;
     previousReceiptHash: string | null;
     capture: M1ScopeV2BaseMarketCaptureResult;
-    listingWatchBindings: readonly M1ListingWatchEvidenceBinding[];
+    listingWatchRefreshBatch: M1ListingWatchRefreshBatch;
   }): Promise<M1MultiAssetShadowPersistenceReceipt>;
   commitCheckpoint(input: {
     workerRunId: string;
@@ -433,6 +449,9 @@ async function createM1MultiAssetShadowFileStore(
     canonicalRoot,
     async persistArtifacts(input) {
       const directory = await cycleDirectory(input.cycleIndex);
+      const listingWatchRefreshBatch = M1ListingWatchRefreshBatchSchema.parse(
+        input.listingWatchRefreshBatch,
+      );
       const artifacts = [
         [
           "catalog-capture-binding.json",
@@ -443,15 +462,16 @@ async function createM1MultiAssetShadowFileStore(
           input.capture.identityCapture.identitySnapshot,
         ],
         ["base-fact-snapshot.json", input.capture.baseFactSnapshot],
+        ["listing-watch-refresh-batch.json", listingWatchRefreshBatch],
         [
           "listing-watch-binding-bitget.json",
-          input.listingWatchBindings.find(
+          listingWatchRefreshBatch.bindings.find(
             (binding) => binding.sourceId === "BITGET_FUTURES",
           ),
         ],
         [
           "listing-watch-binding-bybit.json",
-          input.listingWatchBindings.find(
+          listingWatchRefreshBatch.bindings.find(
             (binding) => binding.sourceId === "BYBIT_DERIVATIVES",
           ),
         ],
@@ -469,7 +489,7 @@ async function createM1MultiAssetShadowFileStore(
         persistedAt: input.persistedAt,
         previousReceiptHash: input.previousReceiptHash,
         capture: input.capture,
-        listingWatchBindings: input.listingWatchBindings,
+        listingWatchRefreshBatch,
         persistedBytes,
       });
       await atomicWriteExclusive(
@@ -521,6 +541,7 @@ async function createM1MultiAssetShadowFileStore(
 export type M1MultiAssetShadowWorkerResult = Readonly<{
   evidence: M1MultiAssetShadowEvidence;
   cycles: readonly M1MultiAssetShadowCycle[];
+  listingWatchRefreshBatchHashes: readonly string[];
   persistenceReceiptHashes: readonly string[];
   checkpointReceiptHashes: readonly string[];
   canonicalEvidenceRoot: string;
@@ -548,10 +569,10 @@ export async function runM1MultiAssetShadowWorker(input: {
   evidenceRoot: string;
   workerRunId: string;
   mappings?: readonly M1OfficialUnderlyingMapping[];
-  listingWatchBindings:
-    | readonly M1ListingWatchEvidenceBinding[]
-    | ((cycleIndex: number) =>
-      Promise<readonly M1ListingWatchEvidenceBinding[]>);
+  initialListingCheckpoints: readonly M1ListingHistoryCheckpoint[];
+  listingWatchRefreshBatch:
+    | M1ListingWatchRefreshBatch
+    | ((cycleIndex: number) => Promise<M1ListingWatchRefreshBatch>);
   transportImplementation?: M1ScopeV2ProviderTransport;
   captureImplementation?: CycleCaptureImplementation;
   now?: () => Date;
@@ -597,6 +618,7 @@ export async function runM1MultiAssetShadowWorker(input: {
     upstream.releaseId,
   );
   const cycles: M1MultiAssetShadowCycle[] = [];
+  const listingWatchRefreshBatchHashes: string[] = [];
   const persistenceReceiptHashes: string[] = [];
   const checkpointReceiptHashes: string[] = [];
   let previousPersistenceHash: string | null = null;
@@ -604,6 +626,24 @@ export async function runM1MultiAssetShadowWorker(input: {
   let previousIdentitySnapshot:
     M1ScopeV2BaseMarketCaptureResult["identityCapture"]["identitySnapshot"]
       | null = null;
+  const expectedListingCheckpoints = new Map(
+    input.initialListingCheckpoints
+      .map((checkpoint) => M1ListingHistoryCheckpointSchema.parse(checkpoint))
+      .sort((left, right) => left.sourceId.localeCompare(right.sourceId))
+      .map((checkpoint) => [checkpoint.sourceId, checkpoint] as const),
+  );
+  if (
+    expectedListingCheckpoints.size !== 2 ||
+    !expectedListingCheckpoints.has("BITGET_FUTURES") ||
+    !expectedListingCheckpoints.has("BYBIT_DERIVATIVES") ||
+    [...expectedListingCheckpoints.values()].some(
+      (checkpoint) => checkpoint.releaseId !== upstream.releaseId,
+    )
+  ) {
+    throw new Error(
+      "M1.5C requires exact initial listing checkpoints for both sources",
+    );
+  }
 
   for (
     let cycleIndex = 1;
@@ -621,11 +661,31 @@ export async function runM1MultiAssetShadowWorker(input: {
       0,
       cycleStartedAt.getTime() - scheduledMs,
     );
-    const listingWatchBindings =
-      typeof input.listingWatchBindings === "function"
-        ? await input.listingWatchBindings(cycleIndex)
-        : input.listingWatchBindings;
-    const exactListingWatchBindings = listingWatchBindings
+    const listingWatchRefreshBatch = M1ListingWatchRefreshBatchSchema.parse(
+      typeof input.listingWatchRefreshBatch === "function"
+        ? await input.listingWatchRefreshBatch(cycleIndex)
+        : input.listingWatchRefreshBatch,
+    );
+    if (!listingWatchRefreshBatch.allCommitted) {
+      throw new Error(
+        "M1.5C cycle requires complete listing refresh evidence",
+      );
+    }
+    for (const result of listingWatchRefreshBatch.results) {
+      const expectedPrior = expectedListingCheckpoints.get(result.sourceId);
+      if (
+        expectedPrior === undefined ||
+        result.priorCheckpointId !== expectedPrior.checkpointId ||
+        result.priorCheckpointHash !== expectedPrior.contentHash ||
+        result.checkpoint === null
+      ) {
+        throw new Error(
+          "M1.5C listing refresh checkpoint continuity drifted",
+        );
+      }
+      expectedListingCheckpoints.set(result.sourceId, result.checkpoint);
+    }
+    const exactListingWatchBindings = listingWatchRefreshBatch.bindings
       .map((binding) => M1ListingWatchEvidenceBindingSchema.parse(binding))
       .sort((left, right) => left.sourceId.localeCompare(right.sourceId));
     if (
@@ -671,7 +731,7 @@ export async function runM1MultiAssetShadowWorker(input: {
       persistedAt: now().toISOString(),
       previousReceiptHash: previousPersistenceHash,
       capture,
-      listingWatchBindings: exactListingWatchBindings,
+      listingWatchRefreshBatch,
     });
     const checkpoint = await store.commitCheckpoint({
       workerRunId: input.workerRunId,
@@ -739,6 +799,9 @@ export async function runM1MultiAssetShadowWorker(input: {
     });
     await store.persistCycle(cycle);
     cycles.push(cycle);
+    listingWatchRefreshBatchHashes.push(
+      stableContentHash(listingWatchRefreshBatch),
+    );
     persistenceReceiptHashes.push(persistence.contentHash);
     checkpointReceiptHashes.push(checkpoint.contentHash);
     previousPersistenceHash = persistence.contentHash;
@@ -756,6 +819,7 @@ export async function runM1MultiAssetShadowWorker(input: {
   return deepFreezeArtifact({
     evidence,
     cycles,
+    listingWatchRefreshBatchHashes,
     persistenceReceiptHashes,
     checkpointReceiptHashes,
     canonicalEvidenceRoot: store.canonicalRoot,

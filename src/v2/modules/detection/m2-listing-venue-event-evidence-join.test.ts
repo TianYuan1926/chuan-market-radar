@@ -58,6 +58,10 @@ import {
   buildM2ListingVenueEventEvidenceJoin,
   buildM2ListingWatchRefreshEvidence,
 } from "./m2-listing-venue-event-evidence-join";
+import {
+  buildM2ListingVenueEventRuntimeEvidence,
+  verifyM2ListingVenueEventRuntimeEvidenceSet,
+} from "./m2-listing-venue-event-runtime-evidence";
 
 const CONFORMANCE_RELEASE = "a".repeat(40);
 const RELEASE_ID = "b".repeat(40);
@@ -276,6 +280,8 @@ function committedListingResult(input: {
     status: "COMMITTED",
     requestCount: 1,
     responseBytes: 1_000,
+    priorCheckpointId: null,
+    priorCheckpointHash: null,
     pages: [page],
     advance,
     checkpoint,
@@ -530,9 +536,14 @@ function blockSource(
 }
 
 test("joins exact catalog, checkpoint and capability evidence without granting authority", () => {
-  const result = buildScenario();
+  const value = scenario();
+  const result = buildScenario(value);
 
   assert.equal(result.refreshEvidence.allCommitted, true);
+  assert.equal(
+    result.refreshEvidence.sourceRefreshBatchHash,
+    stableContentHash(value.batch),
+  );
   assert.equal(result.evidenceJoin.completeCatalogSourceCount, 4);
   assert.equal(
     result.evidenceJoin.completeOrQualifiedAnnouncementSourceCount,
@@ -578,6 +589,66 @@ test("joins exact catalog, checkpoint and capability evidence without granting a
   assert.equal(result.evidenceJoin.productionRuntimeAllowed, false);
   assert.equal(result.evidenceJoin.productionChanged, false);
   assert.equal(Object.isFrozen(result.evidenceJoin), true);
+});
+
+test("binds persisted runtime evidence to the independently verified M1.5C source set", () => {
+  const value = scenario();
+  const result = buildScenario(value);
+  const sourceAudit = {
+    m15cStoreVerificationId: "m1-5c-store-verification:fixture",
+    m15cStoreVerificationHash: stableContentHash({ fixture: "verification" }),
+    m15cEvidenceId: "m1-5c-evidence:fixture",
+    m15cEvidenceHash: stableContentHash({ fixture: "evidence" }),
+    workerRunId: "m1-5c-worker:fixture",
+    currentCycleIndex: 31 as const,
+    previousCycleIndex: 30 as const,
+    sourceListingRefreshBatchHash: stableContentHash(value.batch),
+    catalogCaptureBindingId: value.catalog.captureBindingId,
+    catalogCaptureBindingHash: value.catalog.contentHash,
+    currentIdentitySnapshotId: value.identity.snapshotId,
+    currentIdentitySnapshotHash: value.identity.contentHash,
+    previousIdentitySnapshotId: null,
+    previousIdentitySnapshotHash: null,
+  };
+  const runtimeEvidence = buildM2ListingVenueEventRuntimeEvidence({
+    sourceAudit,
+    result,
+  });
+  const verified = verifyM2ListingVenueEventRuntimeEvidenceSet({
+    sourceAudit,
+    result,
+    runtimeEvidence,
+  });
+
+  assert.equal(verified.contentHash, runtimeEvidence.contentHash);
+  assert.equal(verified.candidateEmissionAllowed, false);
+  assert.equal(verified.readyAuthorityAllowed, false);
+  assert.equal(verified.productionRuntimeAllowed, false);
+
+  assert.throws(
+    () =>
+      buildM2ListingVenueEventRuntimeEvidence({
+        sourceAudit: {
+          ...sourceAudit,
+          sourceListingRefreshBatchHash: stableContentHash({ drift: true }),
+        },
+        result,
+      }),
+    /artifacts do not reconcile/u,
+  );
+
+  assert.throws(
+    () =>
+      verifyM2ListingVenueEventRuntimeEvidenceSet({
+        sourceAudit: {
+          ...sourceAudit,
+          sourceListingRefreshBatchHash: stableContentHash({ drift: true }),
+        },
+        result,
+        runtimeEvidence,
+      }),
+    /artifacts do not reconcile/u,
+  );
 });
 
 test("is deterministic when caller-owned batch arrays arrive in a different order", () => {

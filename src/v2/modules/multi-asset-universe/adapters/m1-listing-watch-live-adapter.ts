@@ -1,5 +1,7 @@
+import { z } from "zod";
 import {
   M1_LISTING_WATCH_BINDING_VERSION,
+  M1ListingWatchEvidenceBindingSchema,
   buildM1ListingWatchEvidenceBinding,
   type M1ListingWatchEvidenceBinding,
 } from "../../market-fact/multi-asset-base-fact-contract";
@@ -9,7 +11,9 @@ import {
   type M1RuntimeAdapterProfileSet,
 } from "../../collector/runtime-adapter-profile";
 import {
+  M1ListingHistoryAdvanceResultSchema,
   M1ListingHistoryCheckpointSchema,
+  M1ListingHistoryPageSchema,
   advanceM1ListingHistory,
   buildM1ListingHistoryPageRequest,
   buildM1ListingHistoryRequest,
@@ -18,6 +22,10 @@ import {
   type M1ListingHistoryCheckpoint,
   type M1ListingHistoryPage,
 } from "../listing-history-runtime";
+import {
+  NonNegativeIntegerSchema,
+  ReasonCodesSchema,
+} from "../../../runtime-schema/primitives";
 import {
   M1_SCOPE_EPOCH,
 } from "../../source-capability/source-capability-contract";
@@ -35,11 +43,96 @@ import {
 
 type ListingSourceId = "BYBIT_DERIVATIVES" | "BITGET_FUTURES";
 
+const ListingSourceSchema = z.enum([
+  "BITGET_FUTURES",
+  "BYBIT_DERIVATIVES",
+]);
+const DigestSchema = z.string().regex(/^sha256:[0-9a-f]{64}$/u);
+
+const CanonicalReasonCodesSchema = ReasonCodesSchema.superRefine(
+  (values, context) => {
+    if (
+      new Set(values).size !== values.length ||
+      values.some(
+        (value, index) =>
+          index > 0 && values[index - 1]!.localeCompare(value) >= 0,
+      )
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "listing refresh reason codes must be unique and ordered",
+      });
+    }
+  },
+);
+
+export const M1ListingWatchRefreshResultSchema = z.strictObject({
+  sourceId: ListingSourceSchema,
+  status: z.enum(["COMMITTED", "BLOCKED"]),
+  requestCount: NonNegativeIntegerSchema,
+  responseBytes: NonNegativeIntegerSchema,
+  priorCheckpointId: z.string().min(1).nullable(),
+  priorCheckpointHash: DigestSchema.nullable(),
+  pages: z.array(M1ListingHistoryPageSchema),
+  advance: M1ListingHistoryAdvanceResultSchema.nullable(),
+  checkpoint: M1ListingHistoryCheckpointSchema.nullable(),
+  binding: M1ListingWatchEvidenceBindingSchema.nullable(),
+  reasonCodes: CanonicalReasonCodesSchema,
+  rawBodyRetained: z.literal(false),
+  secretMaterialPresent: z.literal(false),
+  authorityGranted: z.literal(false),
+  productionChanged: z.literal(false),
+}).superRefine((result, context) => {
+  const committed = result.status === "COMMITTED";
+  if (
+    (result.priorCheckpointId === null) !==
+      (result.priorCheckpointHash === null) ||
+    committed !== (result.advance?.status === "COMMITTED") ||
+    committed !== (result.checkpoint !== null) ||
+    committed !== (result.binding !== null) ||
+    (committed && result.reasonCodes.length !== 0) ||
+    (!committed && result.reasonCodes.length === 0) ||
+    result.requestCount < result.pages.length ||
+    result.pages.some(
+      (page, index) =>
+        page.sourceId !== result.sourceId || page.pageOrdinal !== index + 1,
+    )
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "listing refresh result status or denominator disagrees",
+    });
+  }
+  if (
+    result.checkpoint !== null &&
+    result.binding !== null &&
+    (
+      result.checkpoint.sourceId !== result.sourceId ||
+      result.binding.sourceId !== result.sourceId ||
+      result.binding.releaseId !== result.checkpoint.releaseId ||
+      result.binding.evidenceId !== result.checkpoint.checkpointId ||
+      result.binding.evidenceHash !== result.checkpoint.contentHash ||
+      result.binding.sourceCutoff !== result.checkpoint.sourceCutoff ||
+      result.advance?.status !== "COMMITTED" ||
+      result.advance.checkpoint.checkpointId !==
+        result.checkpoint.checkpointId ||
+      result.advance.checkpoint.contentHash !== result.checkpoint.contentHash
+    )
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "listing refresh nested evidence identity disagrees",
+    });
+  }
+});
+
 export type M1ListingWatchRefreshResult = Readonly<{
   sourceId: ListingSourceId;
   status: "COMMITTED" | "BLOCKED";
   requestCount: number;
   responseBytes: number;
+  priorCheckpointId: string | null;
+  priorCheckpointHash: string | null;
   pages: readonly M1ListingHistoryPage[];
   advance: M1ListingHistoryAdvanceResult | null;
   checkpoint: M1ListingHistoryCheckpoint | null;
@@ -50,6 +143,56 @@ export type M1ListingWatchRefreshResult = Readonly<{
   authorityGranted: false;
   productionChanged: false;
 }>;
+
+export const M1ListingWatchRefreshBatchSchema = z.strictObject({
+  results: z.array(M1ListingWatchRefreshResultSchema).length(2),
+  bindings: z.array(M1ListingWatchEvidenceBindingSchema),
+  checkpoints: z.array(M1ListingHistoryCheckpointSchema),
+  allCommitted: z.boolean(),
+  requestCount: NonNegativeIntegerSchema,
+  responseBytes: NonNegativeIntegerSchema,
+  rawBodyRetained: z.literal(false),
+  secretMaterialPresent: z.literal(false),
+  authorityGranted: z.literal(false),
+  productionChanged: z.literal(false),
+}).superRefine((batch, context) => {
+  const expectedBindings = batch.results.flatMap((result) =>
+    result.binding === null ? [] : [result.binding]
+  );
+  const expectedCheckpoints = batch.results.flatMap((result) =>
+    result.checkpoint === null ? [] : [result.checkpoint]
+  );
+  const exactNestedIdentity = <T extends { contentHash: string }>(
+    actual: readonly T[],
+    expected: readonly T[],
+  ) =>
+    actual.length === expected.length &&
+    actual.every(
+      (item, index) => item.contentHash === expected[index]!.contentHash,
+    );
+  if (
+    batch.results[0]?.sourceId !== "BITGET_FUTURES" ||
+    batch.results[1]?.sourceId !== "BYBIT_DERIVATIVES" ||
+    !exactNestedIdentity(batch.bindings, expectedBindings) ||
+    !exactNestedIdentity(batch.checkpoints, expectedCheckpoints) ||
+    batch.allCommitted !== batch.results.every(
+      (result) => result.status === "COMMITTED",
+    ) ||
+    batch.requestCount !== batch.results.reduce(
+      (total, result) => total + result.requestCount,
+      0,
+    ) ||
+    batch.responseBytes !== batch.results.reduce(
+      (total, result) => total + result.responseBytes,
+      0,
+    )
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "listing refresh batch source or accounting disagrees",
+    });
+  }
+});
 
 export type M1ListingWatchRefreshBatch = Readonly<{
   results: readonly M1ListingWatchRefreshResult[];
@@ -155,17 +298,20 @@ function exactPriorCheckpoints(
 
 function blocked(input: {
   sourceId: ListingSourceId;
+  priorCheckpoint: M1ListingHistoryCheckpoint;
   requestCount: number;
   responseBytes: number;
   pages: readonly M1ListingHistoryPage[];
   advance?: M1ListingHistoryAdvanceResult;
   reasonCode: string;
 }): M1ListingWatchRefreshResult {
-  return deepFreezeArtifact({
+  return deepFreezeArtifact(M1ListingWatchRefreshResultSchema.parse({
     sourceId: input.sourceId,
     status: "BLOCKED",
     requestCount: input.requestCount,
     responseBytes: input.responseBytes,
+    priorCheckpointId: input.priorCheckpoint.checkpointId,
+    priorCheckpointHash: input.priorCheckpoint.contentHash,
     pages: input.pages,
     advance: input.advance ?? null,
     checkpoint: null,
@@ -175,7 +321,7 @@ function blocked(input: {
     secretMaterialPresent: false,
     authorityGranted: false,
     productionChanged: false,
-  });
+  }));
 }
 
 async function refreshSource(input: {
@@ -225,6 +371,7 @@ async function refreshSource(input: {
     if (!response.ok) {
       return blocked({
         sourceId,
+        priorCheckpoint: input.priorCheckpoint,
         requestCount,
         responseBytes,
         pages,
@@ -238,6 +385,7 @@ async function refreshSource(input: {
     ) {
       return blocked({
         sourceId,
+        priorCheckpoint: input.priorCheckpoint,
         requestCount,
         responseBytes,
         pages,
@@ -260,6 +408,7 @@ async function refreshSource(input: {
     } catch {
       return blocked({
         sourceId,
+        priorCheckpoint: input.priorCheckpoint,
         requestCount,
         responseBytes,
         pages,
@@ -288,6 +437,7 @@ async function refreshSource(input: {
   ) {
     return blocked({
       sourceId,
+      priorCheckpoint: input.priorCheckpoint,
       requestCount,
       responseBytes,
       pages,
@@ -306,6 +456,7 @@ async function refreshSource(input: {
   if (advance.status !== "COMMITTED") {
     return blocked({
       sourceId,
+      priorCheckpoint: input.priorCheckpoint,
       requestCount,
       responseBytes,
       pages,
@@ -333,11 +484,13 @@ async function refreshSource(input: {
     secretMaterialPresent: false,
     authorityGranted: false,
   });
-  return deepFreezeArtifact({
+  return deepFreezeArtifact(M1ListingWatchRefreshResultSchema.parse({
     sourceId,
     status: "COMMITTED",
     requestCount,
     responseBytes,
+    priorCheckpointId: input.priorCheckpoint.checkpointId,
+    priorCheckpointHash: input.priorCheckpoint.contentHash,
     pages,
     advance,
     checkpoint,
@@ -347,7 +500,7 @@ async function refreshSource(input: {
     secretMaterialPresent: false,
     authorityGranted: false,
     productionChanged: false,
-  });
+  }));
 }
 
 export async function refreshM1ListingWatchEvidence(input: {
@@ -398,7 +551,7 @@ export async function refreshM1ListingWatchEvidence(input: {
   const checkpoints = results.flatMap((result) =>
     result.checkpoint === null ? [] : [result.checkpoint]
   );
-  return deepFreezeArtifact({
+  return deepFreezeArtifact(M1ListingWatchRefreshBatchSchema.parse({
     results,
     bindings,
     checkpoints,
@@ -415,5 +568,5 @@ export async function refreshM1ListingWatchEvidence(input: {
     secretMaterialPresent: false,
     authorityGranted: false,
     productionChanged: false,
-  });
+  }));
 }

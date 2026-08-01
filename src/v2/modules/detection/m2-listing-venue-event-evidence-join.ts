@@ -17,9 +17,10 @@ import {
   type M1ListingHistoryCheckpoint,
   type M1ListingHistoryPage,
 } from "../multi-asset-universe/listing-history-runtime";
-import type {
-  M1ListingWatchRefreshBatch,
-  M1ListingWatchRefreshResult,
+import {
+  M1ListingWatchRefreshBatchSchema,
+  type M1ListingWatchRefreshBatch,
+  type M1ListingWatchRefreshResult,
 } from "../multi-asset-universe/m1-listing-watch-live-runtime";
 import {
   M1MultiAssetCatalogCaptureBindingSchema,
@@ -56,7 +57,7 @@ import {
 } from "./m2-listing-venue-event-research";
 
 export const M2_LISTING_WATCH_REFRESH_EVIDENCE_VERSION =
-  "v2-m2-listing-watch-refresh-evidence.v1" as const;
+  "v2-m2-listing-watch-refresh-evidence.v2" as const;
 export const M2_LISTING_VENUE_EVENT_EVIDENCE_JOIN_VERSION =
   "v2-m2-listing-venue-event-evidence-join.v1" as const;
 export const M2_LISTING_VENUE_EVENT_EVIDENCE_JOIN_AUTHORITY =
@@ -97,6 +98,8 @@ const ListingRefreshSourceEvidenceCoreSchema = z.strictObject({
   status: z.enum(["COMMITTED", "BLOCKED"]),
   requestCount: NonNegativeIntegerSchema,
   responseBytes: NonNegativeIntegerSchema,
+  priorCheckpointId: NonEmptyStringSchema.nullable(),
+  priorCheckpointHash: DigestSchema.nullable(),
   pages: z.array(ListingPageReferenceSchema),
   advanceArtifactId: NonEmptyStringSchema.nullable(),
   advanceArtifactHash: DigestSchema.nullable(),
@@ -114,6 +117,8 @@ export const M2ListingRefreshSourceEvidenceSchema =
   }).superRefine((evidence, context) => {
     const committed = evidence.status === "COMMITTED";
     if (
+      (evidence.priorCheckpointId === null) !==
+        (evidence.priorCheckpointHash === null) ||
       committed !== (evidence.checkpointId !== null) ||
       committed !== (evidence.checkpointHash !== null) ||
       committed !== (evidence.bindingId !== null) ||
@@ -168,6 +173,7 @@ const ListingWatchRefreshEvidenceCoreSchema = z.strictObject({
   sourceCutoff: IsoDateTimeSchema,
   upstreamBindingId: NonEmptyStringSchema,
   upstreamBindingHash: DigestSchema,
+  sourceRefreshBatchHash: DigestSchema,
   evidenceClass: z.enum(["LIVE_READ_ONLY", "TEST_ONLY"]),
   networkEnvironment: z.enum([
     "TENCENT_ISOLATED_READ_ONLY",
@@ -444,6 +450,12 @@ function parseRefreshResult(input: {
     throw new Error("listing refresh result boundary is invalid");
   }
   const pages = result.pages.map((page) => M1ListingHistoryPageSchema.parse(page));
+  if (
+    (result.priorCheckpointId === null) !==
+      (result.priorCheckpointHash === null)
+  ) {
+    throw new Error("listing refresh prior checkpoint identity is partial");
+  }
   const advance = result.advance === null
     ? null
     : M1ListingHistoryAdvanceResultSchema.parse(result.advance);
@@ -510,6 +522,8 @@ function parseRefreshResult(input: {
     status: result.status,
     requestCount: result.requestCount,
     responseBytes: result.responseBytes,
+    priorCheckpointId: result.priorCheckpointId,
+    priorCheckpointHash: result.priorCheckpointHash,
     pages: pages.map((page) => ({
       pageId: page.pageId,
       contentHash: page.contentHash,
@@ -550,7 +564,8 @@ export function buildM2ListingWatchRefreshEvidence(input: {
   const upstream = M1MultiAssetShadowUpstreamBindingSchema.parse(
     input.upstreamBinding,
   );
-  const results = input.refreshBatch.results
+  const results = [...input.refreshBatch.results]
+    .sort((left, right) => left.sourceId.localeCompare(right.sourceId))
     .map((result) => parseRefreshResult({ result, upstream }))
     .sort((left, right) =>
       left.sourceEvidence.sourceId.localeCompare(
@@ -609,6 +624,18 @@ export function buildM2ListingWatchRefreshEvidence(input: {
   ) {
     throw new Error("listing refresh batch denominator or boundary drifted");
   }
+  const canonicalRefreshBatch = M1ListingWatchRefreshBatchSchema.parse({
+    ...input.refreshBatch,
+    results: [...input.refreshBatch.results].sort((left, right) =>
+      left.sourceId.localeCompare(right.sourceId)
+    ),
+    bindings: [...input.refreshBatch.bindings].sort((left, right) =>
+      left.sourceId.localeCompare(right.sourceId)
+    ),
+    checkpoints: [...input.refreshBatch.checkpoints].sort((left, right) =>
+      left.sourceId.localeCompare(right.sourceId)
+    ),
+  });
   const sourceTimes = [
     upstream.sourceCutoff,
     ...results.flatMap((result) => [
@@ -633,6 +660,7 @@ export function buildM2ListingWatchRefreshEvidence(input: {
     sourceCutoff,
     upstreamBindingId: upstream.upstreamBindingId,
     upstreamBindingHash: upstream.contentHash,
+    sourceRefreshBatchHash: stableContentHash(canonicalRefreshBatch),
     evidenceClass: upstream.evidenceClass,
     networkEnvironment: upstream.networkEnvironment,
     sourceDenominator: ["BITGET_FUTURES", "BYBIT_DERIVATIVES"],

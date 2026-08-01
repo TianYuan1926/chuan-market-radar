@@ -199,6 +199,8 @@ test("bundle closes the compiled code and lock-derived runtime dependencies", as
       "const pg=require(process.argv[2]);",
       "process.stdout.write(JSON.stringify({",
       "capture:typeof runtime.captureM1MicrostructureForwardWorker,",
+      "listingJoin:typeof runtime.buildM2ListingVenueEventEvidenceJoin,",
+      "listingVerify:typeof runtime.verifyM2ListingVenueEventRuntimeEvidenceSet,",
       "multiAsset:typeof runtime.runM1MultiAssetShadowWorker,",
       "pool:typeof pg.Pool",
       "}));",
@@ -221,6 +223,8 @@ test("bundle closes the compiled code and lock-derived runtime dependencies", as
     });
     assert.deepEqual(JSON.parse(stdout), {
       capture: "function",
+      listingJoin: "function",
+      listingVerify: "function",
       multiAsset: "function",
       pool: "function",
     });

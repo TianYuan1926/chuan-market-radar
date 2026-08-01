@@ -18,7 +18,17 @@ import {
 import {
   M1MultiAssetCatalogCaptureBindingSchema,
   M1MultiAssetIdentitySnapshotSchema,
+  type M1MultiAssetCatalogCaptureBinding,
+  type M1MultiAssetIdentitySnapshot,
 } from "../multi-asset-universe/multi-asset-identity-contract";
+import {
+  M1ListingWatchRefreshBatchSchema,
+  type M1ListingWatchRefreshBatch,
+} from "../multi-asset-universe/m1-listing-watch-live-runtime";
+import {
+  M1ListingHistoryCheckpointSchema,
+  type M1ListingHistoryCheckpoint,
+} from "../multi-asset-universe/listing-history-runtime";
 import {
   deepFreezeArtifact,
   omitArtifactFields,
@@ -43,7 +53,7 @@ import {
 } from "./m1-shadow-lossless-json";
 
 export const M1_MULTI_ASSET_SHADOW_STORE_VERIFICATION_VERSION =
-  "v2-m1-multi-asset-shadow-store-verification.v1" as const;
+  "v2-m1-multi-asset-shadow-store-verification.v2" as const;
 
 const DigestSchema = z.string().regex(/^sha256:[0-9a-f]{64}$/u);
 const ReleaseIdSchema = z.string().regex(/^[0-9a-f]{40}$/u);
@@ -55,6 +65,7 @@ const EXPECTED_CYCLE_FILES = [
   "identity-snapshot.json",
   "listing-watch-binding-bitget.json",
   "listing-watch-binding-bybit.json",
+  "listing-watch-refresh-batch.json",
   "persistence-receipt.json",
 ] as const;
 const MAX_ARTIFACT_BYTES = 64 * 1024 * 1024;
@@ -233,12 +244,14 @@ const VerificationCoreSchema = z.strictObject({
     "TEST_ONLY_NOT_LIVE_EVIDENCE",
   ]),
   cycleCount: z.literal(31),
-  verifiedFileCount: z.literal(249),
+  verifiedFileCount: z.literal(280),
   verifiedBytes: z.number().int().positive(),
   firstPersistenceReceiptHash: DigestSchema,
   lastPersistenceReceiptHash: DigestSchema,
   firstCheckpointReceiptHash: DigestSchema,
   lastCheckpointReceiptHash: DigestSchema,
+  firstListingWatchRefreshBatchHash: DigestSchema,
+  lastListingWatchRefreshBatchHash: DigestSchema,
   componentAcceptanceGate: z.enum(["PASS", "BLOCKED"]),
   verificationStatus: z.literal(
     "PASS_EVIDENCE_INTEGRITY_NO_AUTHORITY",
@@ -291,6 +304,9 @@ export type M1MultiAssetShadowEvidenceStoreAudit = Readonly<{
   verification: M1MultiAssetShadowStoreVerification;
   evidence: M1MultiAssetShadowEvidence;
   cycles: readonly M1MultiAssetShadowCycle[];
+  catalogCaptureBindings: readonly M1MultiAssetCatalogCaptureBinding[];
+  identitySnapshots: readonly M1MultiAssetIdentitySnapshot[];
+  listingWatchRefreshBatches: readonly M1ListingWatchRefreshBatch[];
   canonicalEvidenceRoot: string;
   authorityGranted: false;
   productionChanged: false;
@@ -301,6 +317,7 @@ export async function verifyM1MultiAssetShadowEvidenceStore(input: {
   evidenceRoot: string;
   upstreamBinding: M1MultiAssetShadowUpstreamBinding;
   expectedWorkerRunId: string;
+  initialListingCheckpoints: readonly M1ListingHistoryCheckpoint[];
   verifiedAt: string;
 }): Promise<M1MultiAssetShadowEvidenceStoreAudit> {
   if (
@@ -326,6 +343,24 @@ export async function verifyM1MultiAssetShadowEvidenceStore(input: {
   }
 
   const fingerprints: FileFingerprint[] = [];
+  const expectedListingCheckpoints = new Map(
+    input.initialListingCheckpoints
+      .map((checkpoint) => M1ListingHistoryCheckpointSchema.parse(checkpoint))
+      .sort((left, right) => left.sourceId.localeCompare(right.sourceId))
+      .map((checkpoint) => [checkpoint.sourceId, checkpoint] as const),
+  );
+  if (
+    expectedListingCheckpoints.size !== 2 ||
+    !expectedListingCheckpoints.has("BITGET_FUTURES") ||
+    !expectedListingCheckpoints.has("BYBIT_DERIVATIVES") ||
+    [...expectedListingCheckpoints.values()].some(
+      (checkpoint) => checkpoint.releaseId !== upstream.releaseId,
+    )
+  ) {
+    throw new Error(
+      "M1.5C verifier requires exact initial listing checkpoints",
+    );
+  }
   fingerprints.push(await assertDirectory(canonicalRoot));
   const cycleDirectoryNames = Array.from(
     { length: M1_MULTI_ASSET_SHADOW_PROFILE.cycleCount },
@@ -338,6 +373,10 @@ export async function verifyM1MultiAssetShadowEvidenceStore(input: {
   );
 
   const cycles: M1MultiAssetShadowCycle[] = [];
+  const catalogCaptureBindings: M1MultiAssetCatalogCaptureBinding[] = [];
+  const identitySnapshots: M1MultiAssetIdentitySnapshot[] = [];
+  const listingWatchRefreshBatches: M1ListingWatchRefreshBatch[] = [];
+  const listingWatchRefreshBatchHashes: string[] = [];
   const persistenceHashes: string[] = [];
   const checkpointHashes: string[] = [];
   let verifiedBytes = 0;
@@ -382,6 +421,12 @@ export async function verifyM1MultiAssetShadowEvidenceStore(input: {
       M1ListingWatchEvidenceBindingSchema,
       fingerprints,
     );
+    const listingRefreshFile = await readRegularJson(
+      path.join(directory, "listing-watch-refresh-batch.json"),
+      MAX_ARTIFACT_BYTES,
+      M1ListingWatchRefreshBatchSchema,
+      fingerprints,
+    );
     const persistenceFile = await readRegularJson(
       path.join(directory, "persistence-receipt.json"),
       MAX_RECEIPT_BYTES,
@@ -406,6 +451,7 @@ export async function verifyM1MultiAssetShadowEvidenceStore(input: {
       factsFile.bytes +
       bitgetListingFile.bytes +
       bybitListingFile.bytes +
+      listingRefreshFile.bytes +
       persistenceFile.bytes +
       checkpointFile.bytes +
       cycleFile.bytes;
@@ -420,6 +466,21 @@ export async function verifyM1MultiAssetShadowEvidenceStore(input: {
       bitgetListingFile.value,
       bybitListingFile.value,
     ];
+    const listingWatchRefreshBatch = listingRefreshFile.value;
+    for (const result of listingWatchRefreshBatch.results) {
+      const expectedPrior = expectedListingCheckpoints.get(result.sourceId);
+      if (
+        expectedPrior === undefined ||
+        result.priorCheckpointId !== expectedPrior.checkpointId ||
+        result.priorCheckpointHash !== expectedPrior.contentHash ||
+        result.checkpoint === null
+      ) {
+        throw new Error(
+          `M1.5C cycle ${cycleIndex} listing checkpoint continuity drifted`,
+        );
+      }
+      expectedListingCheckpoints.set(result.sourceId, result.checkpoint);
+    }
     const listingBindingIds = listingBindings
       .map((binding) => binding.bindingId)
       .sort();
@@ -468,7 +529,19 @@ export async function verifyM1MultiAssetShadowEvidenceStore(input: {
       stableContentHash(listingBindingIds) !==
         stableContentHash(facts.listingCheckpointBindingIds) ||
       stableContentHash(listingBindingHashes) !==
-        stableContentHash(facts.listingCheckpointBindingHashes)
+        stableContentHash(facts.listingCheckpointBindingHashes) ||
+      stableContentHash(listingWatchRefreshBatch.bindings) !==
+        stableContentHash(listingBindings) ||
+      !listingWatchRefreshBatch.allCommitted ||
+      listingWatchRefreshBatch.results.some(
+        (result) =>
+          result.pages.some(
+            (page) => page.releaseId !== upstream.releaseId,
+          ) ||
+          result.checkpoint?.releaseId !== upstream.releaseId ||
+          result.binding?.upstreamBindingId !== upstream.upstreamBindingId ||
+          result.binding?.upstreamBindingHash !== upstream.contentHash,
+      )
     ) {
       throw new Error(
         `M1.5C cycle ${cycleIndex} listing checkpoint bindings drifted`,
@@ -499,12 +572,15 @@ export async function verifyM1MultiAssetShadowEvidenceStore(input: {
         stableContentHash(listingBindingIds) ||
       stableContentHash(persistence.listingWatchBindingHashes) !==
         stableContentHash(listingBindingHashes) ||
+      persistence.listingWatchRefreshBatchHash !==
+        stableContentHash(listingWatchRefreshBatch) ||
       persistence.persistedBytes !==
         catalogFile.bytes +
           identityFile.bytes +
           factsFile.bytes +
           bitgetListingFile.bytes +
-          bybitListingFile.bytes
+          bybitListingFile.bytes +
+          listingRefreshFile.bytes
     ) {
       throw new Error(
         `M1.5C cycle ${cycleIndex} persistence receipt does not bind disk bytes`,
@@ -567,6 +643,12 @@ export async function verifyM1MultiAssetShadowEvidenceStore(input: {
     );
 
     cycles.push(cycle);
+    catalogCaptureBindings.push(catalog);
+    identitySnapshots.push(identity);
+    listingWatchRefreshBatches.push(listingWatchRefreshBatch);
+    listingWatchRefreshBatchHashes.push(
+      stableContentHash(listingWatchRefreshBatch),
+    );
     persistenceHashes.push(persistence.contentHash);
     checkpointHashes.push(checkpoint.contentHash);
   }
@@ -621,12 +703,16 @@ export async function verifyM1MultiAssetShadowEvidenceStore(input: {
     evidenceHash: evidence.contentHash,
     evidenceStatus: evidence.status,
     cycleCount: 31,
-    verifiedFileCount: 249,
+    verifiedFileCount: 280,
     verifiedBytes,
     firstPersistenceReceiptHash: persistenceHashes[0],
     lastPersistenceReceiptHash: persistenceHashes.at(-1),
     firstCheckpointReceiptHash: checkpointHashes[0],
     lastCheckpointReceiptHash: checkpointHashes.at(-1),
+    firstListingWatchRefreshBatchHash:
+      listingWatchRefreshBatchHashes[0],
+    lastListingWatchRefreshBatchHash:
+      listingWatchRefreshBatchHashes.at(-1),
     componentAcceptanceGate:
       evidence.status ===
           "PASS_FOUR_VENUE_MULTI_ASSET_SHADOW_NO_AUTHORITY"
@@ -652,6 +738,9 @@ export async function verifyM1MultiAssetShadowEvidenceStore(input: {
     verification,
     evidence,
     cycles,
+    catalogCaptureBindings,
+    identitySnapshots,
+    listingWatchRefreshBatches,
     canonicalEvidenceRoot: canonicalRoot,
     authorityGranted: false,
     productionChanged: false,

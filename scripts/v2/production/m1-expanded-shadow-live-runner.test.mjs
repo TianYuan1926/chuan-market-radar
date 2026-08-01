@@ -384,6 +384,10 @@ test("compiled runtime exports both independent workers and exact verifiers", as
       "verifyM1MicrostructureForwardEvidenceStore",
       "buildM1ExpandedShadowReleaseManifest",
       "buildM1ExpandedShadowReleaseResult",
+      "buildM2ListingVenueEventEvidenceJoin",
+      "buildM2ListingVenueEventRuntimeEvidence",
+      "buildM2ListingVenueEventRuntimeEvidenceFromM15cAudit",
+      "verifyM2ListingVenueEventRuntimeEvidenceSet",
     ]) {
       assert.equal(typeof runtime[name], "function", `missing runtime: ${name}`);
     }
