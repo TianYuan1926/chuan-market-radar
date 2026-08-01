@@ -23,10 +23,13 @@
 - M2.3A R0 source `1d0a4a79f3673d0439f305d4171c738f6252c998` 新增四 Venue、十四类事件的 strict 内容寻址研究 Bundle，并将 M1 lifecycle ledger 升至 v2，原样保留 provider publication time。publication/effective/knowledge 三时间分离，一条 upstream event 恰好映射一条研究事件；未关联公告不猜 symbol，首次目录观察只算 baseline，目录消失不推断 delist，WATCH_ONLY、股票 handoff 和 partial identity 保持显式边界。
 - M2.3A 定向 `14/14`、相邻合同 `65/65`、锁定 Node `22.23.1` / npm `10.9.8` 的完整 candidate CI 全部 PASS：V2 Foundation=`663 PASS / 6 explicit skips / 0 fail`、V2 Ops=`236/236`、Next build、Golden=`16/16` 和 security 均 PASS。Signed Dispatch `30699019243`、A0 `30699019238`、Independent Security `30699019242`、Full Quality `30699019235` 四门 PASS。
 - M2.3A R0 所有 Candidate、方向、概率、Grade、Strategy、READY、production runtime 与 production mutation 权限均固定为 false。真实四 Venue source coverage、M1.5C/M1.5D、M1.6-D1、M2.4A cohort/matched control/untouched holdout/calibration、前向 Shadow 和独立审计仍未完成，因此该主步骤不减数。
+- M2.3A R1 source `777af03d18bb8c677854bdd3579c19d003f71864` 已禁止调用方手写 source coverage，改由 exact upstream binding、digest assessment PASS 的 capability registry、四 Venue catalog/identity，以及 Bybit/Bitget listing refresh/page/checkpoint/binding 推导 coverage、lifecycle ledger 与 R0 research Bundle。blocked/partial/gap 留在分母，跨 source、release、cutoff、分母和 authority 篡改 fail closed。
+- R1 定向 `14/14`、R0 与相邻 M1 合同 `70/70`、完整 candidate CI 全部 PASS：V2 Foundation=`677 PASS / 6 explicit skips / 0 fail`、V2 Ops=`236/236`、Next build、Golden=`16/16` 和 security PASS。Signed Dispatch `30700942398`、A0 `30700942328`、Independent Security `30700942353`、Full Quality `30700942338` 四门 PASS。
+- R1 没有执行真实 live runtime，没有读取或修改生产数据库、Redis、COS、服务、Worker、env、migration、Feature Flag、流量、P0R 或 Legacy；Candidate、方向、概率、Grade、Strategy、READY 与生产权限继续全部为 false。真实 same-release source evidence、cohort/holdout/calibration、Shadow 与独立审计仍未完成，M2.3A 主步骤继续不减数。
 
 ### 当前真值与下一步
 
-P0R 是“远端资格通过、完整恢复未执行”；M3.3E 是“test-only 运行构建器、本地完整门和功能分支四个远端质量门通过，真实数据接线与实战验收未完成”；M2.3A 是“事件研究真值纵切通过，但真实 Detector、cohort、holdout、校准、Shadow 和生产 authority 未完成”。后续优先把真实 Scope V2 source coverage 与 forward evidence 接入 M2.3A/M2.4A，并并行推进 canonical Risk builder；外部最终独立审计仍是单独门禁。P0R 只在新的动作时授权内执行临时 8022、bridge v4、fresh STS、只读加密 backup、精确版本取回、独立 PostgreSQL 16 restore 和全量清理。
+P0R 是“远端资格通过、完整恢复未执行”；M3.3E 是“test-only 运行构建器、本地完整门和功能分支四个远端质量门通过，真实数据接线与实战验收未完成”；M2.3A 是“R0 事件真值与 R1 上游证据连接通过，但真实 live Detector、cohort、holdout、校准、Shadow 和生产 authority 未完成”。后续优先取得 same-release 真实 Scope V2 source evidence 并进入 M2.4A，同时并行推进 canonical Risk builder；外部最终独立审计仍是单独门禁。P0R 只在新的动作时授权内执行临时 8022、bridge v4、fresh STS、只读加密 backup、精确版本取回、独立 PostgreSQL 16 restore 和全量清理。
 
 ## 2026-08-01 / P0R B9 COS Object Lock CAM Root Remediation
 
