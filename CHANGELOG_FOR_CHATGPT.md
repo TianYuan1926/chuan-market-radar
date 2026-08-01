@@ -16,10 +16,11 @@
 - 标签沿 `StrategyDecision v2`、`DecisionSnapshot v3`、`AlertEvent v2`、`OutcomeRecord v3` 原样冻结；跨对象合同拒绝重算合法 hash 后的事后改名与状态重写。词表固定为 14 个结构主标签，相对强弱与衍生品资金流只作为 evidence driver。
 - 本地 Read Model/Alert/Outcome 构建器已接通：READY 必须具备同 release、fresh 且 SUITABLE 的 Personal/Portfolio Risk；提醒不能由调用方指定类型或标签；Outcome 必须绑定 policy、measurement facts、objective event、完整 checkpoint 和原始 firstDetectedAt，lead time 由事件起点客观计算。描述性按标签归因拒绝重复记录，并明确无概率 authority。
 - M3 核心回归 `93/93`、runtime/schema 定向 `48/48`、多资产 `28/28`、Scope Rebase `12/12` 已通过。当前仍是 `M3_TEST_ONLY_UNBOUND_SCOPE_EPOCH`；真实 Scope V2 接线/存储、canonical Risk builder、真实评估、UI、cohort/holdout、Shadow、独立审计和生产 authority 未完成。
+- 两个 M3.3E 隔离提交已在一次性干净克隆中快进到正式分支身份，并以 Node `22.23.1`、npm `10.9.8`、Go `1.26.3` 和独立 `npm ci` 从头通过完整 `ci:production`。V2 Foundation=`643 PASS / 6 explicit skips / 0 fail`、V2 Ops=`235/235`，M0、Next production build、Golden=`16/16` 和 security 均 PASS；该证据不冒充外部独立审计或生产验收。
 
 ### 当前真值与下一步
 
-P0R 是“远端资格通过、完整恢复未执行”；M3.3E 是“本地 test-only 运行构建器通过、真实数据接线与实战验收未完成”。下一步先完成本包完整 CI 与独立审计并保持冻结 source 不变；P0R 只在新的动作时授权内执行临时 8022、bridge v4、fresh STS、只读加密 backup、精确版本取回、独立 PostgreSQL 16 restore 和全量清理。
+P0R 是“远端资格通过、完整恢复未执行”；M3.3E 是“本地 test-only 运行构建器与独立完整 CI 通过、真实数据接线与实战验收未完成”。下一步保持冻结 source 不变，优先完成 canonical Risk builder 与真实 Scope V2 接线设计；外部独立审计仍是后续单独门禁。P0R 只在新的动作时授权内执行临时 8022、bridge v4、fresh STS、只读加密 backup、精确版本取回、独立 PostgreSQL 16 restore 和全量清理。
 
 ## 2026-08-01 / P0R B9 COS Object Lock CAM Root Remediation
 

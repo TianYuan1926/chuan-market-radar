@@ -1,6 +1,6 @@
 # M3.3E Strategy Archetype Labeling and Outcome Attribution Contract v1
 
-状态：`LOCAL_RUNTIME_BUILDERS_CONTENT_ADDRESSED_LINEAGE_AND_DESCRIPTIVE_ATTRIBUTION_PASS / TEST_ONLY_UNBOUND_SCOPE / REAL_EVALUATION_UI_SHADOW_PENDING / NO_PRODUCTION_AUTHORITY`
+状态：`LOCAL_RUNTIME_BUILDERS_CONTENT_ADDRESSED_LINEAGE_AND_DESCRIPTIVE_ATTRIBUTION_PASS / INDEPENDENT_FULL_CI_PASS / TEST_ONLY_UNBOUND_SCOPE / REAL_EVALUATION_UI_SHADOW_PENDING / NO_PRODUCTION_AUTHORITY`
 
 ## 1. 目的
 
@@ -211,5 +211,6 @@ taxonomy schema + strict decoder
 - 本地描述性归因报告按原始主标签、taxonomy/policy、方向、Action State、checkpoint、event label、regime、Venue、流动性、资产域和生命周期分层；拒绝重复 Outcome 或重复 decision-checkpoint，只输出样本数、状态计数及已有测量均值，明确 `probabilityAuthority=ABSENT`，不得冒充正式胜率或等级。
 - 当前 V1 测试链明确使用 `M3_TEST_ONLY_UNBOUND_SCOPE_EPOCH`；Venue、asset domain、listing lifecycle 和 liquidity bucket 保持 `UNBOUND_TEST_ONLY`，不得冒充 Scope V2 四 Venue 或真实资产域能力。
 - M3 核心定向回归 `93/93`、Read Model/Alert/Outcome 与 runtime-schema 定向 `48/48`、多资产隔离 `28/28`、Scope Rebase `12/12` 通过；这些只证明本地 test-only 构建器和合同，不证明真实 cohort、校准、运行服务、READY、生产数据或收益能力。
+- 提交 `31d73df7474b9b9692f3567fd46f5a5ce09589ee` 已在一次性干净克隆的正式分支身份下，通过独立 `npm ci` 和完整 `ci:production`：V2 Foundation `643 PASS / 6 explicit skips / 0 fail`、V2 Ops `235/235`、M0、Next production build、Golden `16/16` 与 security 全部 PASS。该验证关闭本包完整本地质量门，不替代外部独立审计或真实市场运行验收。
 
 尚未完成：真实 Scope V2 数据接线与持久化、canonical Personal/Portfolio Risk builder、按标签的真实分层评估、UI 本地化/筛选/E2E、Scope V2 绑定、真实 cohort/matched control/holdout、前向 Shadow、独立审计和生产 authority。因此 M3.3E 仍不计为完整完成，也不得宣布实战准入。
