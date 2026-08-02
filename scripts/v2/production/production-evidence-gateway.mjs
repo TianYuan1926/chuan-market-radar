@@ -88,7 +88,7 @@ const REQUEST_KEYS = Object.freeze([
   "envMutationAllowed",
   "evidenceOutboxRoot",
   "evidenceRecipientFileSha256",
-  "evidenceRecipientKeySha256",
+  "evidenceRecipientFingerprintSha256",
   "expectedBaselineCaddyfileSha256",
   "expectedBaselineComposeSha256",
   "expectedContainerCount",
@@ -211,7 +211,7 @@ export function validateProductionEvidenceGatewayRequest(request, {
   ensure([
     request.artifactManifestSha256,
     request.evidenceRecipientFileSha256,
-    request.evidenceRecipientKeySha256,
+    request.evidenceRecipientFingerprintSha256,
     request.expectedBaselineCaddyfileSha256,
     request.expectedBaselineComposeSha256,
     request.expectedTargetCaddyfileSha256,
@@ -788,7 +788,7 @@ async function publishGatewayEvidence({
     }
     throw error;
   }
-  ensure(sealed.recipientKeySha256 === request.evidenceRecipientKeySha256,
+  ensure(sealed.recipientKeySha256 === request.evidenceRecipientFingerprintSha256,
     "evidence_gateway_recipient_identity_mismatch");
   const scheduled = await expiryScheduler({
     dispatchId: request.dispatchId,

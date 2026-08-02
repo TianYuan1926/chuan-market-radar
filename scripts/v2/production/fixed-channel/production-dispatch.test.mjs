@@ -239,6 +239,59 @@ test("prepare rejects sensitive credentials hidden inside an allowlisted bundle 
   }
 });
 
+test("prepare rejects a secret-shaped recipient fingerprint before dispatch publication", async () => {
+  const root = await mkdtemp(join(tmpdir(), "dispatch-secret-shaped-fingerprint-"));
+  try {
+    const now = new Date();
+    const { bundle, entrypointPath } = await createBundle(
+      root,
+      "#!/usr/bin/env bash\nprintf '%s\\n' 'safe'\n",
+    );
+    const bundleBytes = await readFile(bundle);
+    const privateKeyPath = join(root, "private.pem");
+    const publicKeyPath = join(root, "public.pem");
+    await generateSigningKeyPair({ privateKeyPath, publicKeyPath });
+    const targetCommit = "e".repeat(40);
+    const stagingDirectory =
+      "/home/ubuntu/.cache/market-radar-ops/dispatch-secret-shaped-fingerprint-0001";
+    const runnerUnitName = "market-radar-secret-shaped-fingerprint-0001";
+    const approvalRequestPath = join(root, "approval-request.json");
+    await writeFile(approvalRequestPath, `${JSON.stringify({
+      evidenceRecipientKeySha256: "a".repeat(64),
+      packageId: "V2-SECRET-SHAPED-FINGERPRINT",
+      runnerSourceCommit: targetCommit,
+      runnerUnitName,
+      stagingDirectory,
+      transportBundleSha256: sha256(bundleBytes),
+      transportMethod: "signed_git_bundle",
+    })}\n`, { mode: 0o600 });
+
+    await assert.rejects(prepareDispatch({
+      approvalRequestPath,
+      bundlePath: bundle,
+      dispatch: {
+        dispatchId: "dispatch-secret-shaped-fingerprint-0001",
+        entrypointPath,
+        expiresAt: new Date(now.getTime() + 30 * 60_000).toISOString(),
+        issuedAt: new Date(now.getTime() - 1_000).toISOString(),
+        launchSuccessMarker: "DETACHED_EXAMPLE_RUNNER_STARTED",
+        packageId: "V2-SECRET-SHAPED-FINGERPRINT",
+        revocationEpoch: 0,
+        runnerUnitName,
+        runtimeMaxSeconds: 5_400,
+        sourceRef: "refs/heads/codex/dispatch-test",
+        stagingDirectory,
+        targetCommit,
+      },
+      outbox: join(root, "outbox"),
+      privateKeyPath,
+      now,
+    }), policyReason("dispatch_bundle_sensitive_content"));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("prepare and validate bind bundle, external approval request and entrypoint", async () => {
   const root = await mkdtemp(join(tmpdir(), "dispatch-prepare-"));
   try {

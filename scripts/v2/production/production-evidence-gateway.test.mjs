@@ -320,6 +320,14 @@ test("gateway request freezes a Caddy-only, no-repository, auto-rollback boundar
     assert.equal(fixture.request.redisMutationAllowed, false);
     assert.equal(fixture.request.workerMutationAllowed, false);
     assert.equal(fixture.request.automaticRollbackRequired, true);
+    assert.match(
+      fixture.request.evidenceRecipientFingerprintSha256,
+      /^[a-f0-9]{64}$/u,
+    );
+    assert.equal(
+      Object.hasOwn(fixture.request, "evidenceRecipientKeySha256"),
+      false,
+    );
     await assert.rejects(
       async () => validateProductionEvidenceGatewayRequest({
         ...fixture.request,

@@ -119,6 +119,7 @@ const SENSITIVE_CONTENT = [
   /\bAKID[A-Za-z0-9]{13,}\b/u,
   /postgres(?:ql)?:\/\/[^\s:/]+:[^\s@/]+@/iu,
   /"(?:AccessToken|PrivateKey|Password|SecretId|SecretKey|SessionToken|TmpSecretKey|TmpToken|Token)"\s*:\s*"(?!REDACTED|<[^>]+>|\*{3})[^"\s][^"]*"/iu,
+  /"(?![^"]*(?:Public|public)[A-Za-z0-9_-]*KeySha256")[^"]*KeySha256"\s*:\s*"[a-f0-9]{64}"/u,
 ];
 
 export class DispatchPolicyError extends Error {
