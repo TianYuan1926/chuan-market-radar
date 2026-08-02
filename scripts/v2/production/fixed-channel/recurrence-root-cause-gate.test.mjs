@@ -517,6 +517,12 @@ test("all active authority surfaces identify the evidence gateway and retain rou
     matrix.currentImplementationEntry.authoritySyncRemediationCommit,
     "35d7b63a40f9a21a07a44a974c0a1250b1c6c9be",
   );
+  assert.equal(
+    matrix.currentImplementationEntry.healthContractRemediationCommit,
+    "51886b038b6dfa5e1bf0169abc518810de7eb2d5",
+  );
+  assert.equal(matrix.currentImplementationEntry.healthContractRemediationCleanCommitCreated, true);
+  assert.equal(matrix.currentImplementationEntry.authoritySyncFinalBytesFullLocalCiPassed, true);
   assert.equal(matrix.currentImplementationEntry.latestFullLocalCiPassed, true);
   assert.equal(matrix.currentImplementationEntry.latestRemediationDirectedGatewayTestsPassed, 8);
   assert.equal(matrix.currentImplementationEntry.latestRemediationTargetedEslintPassed, true);

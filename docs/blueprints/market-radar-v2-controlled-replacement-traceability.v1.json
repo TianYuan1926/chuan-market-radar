@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.96",
-  "status": "m0_4_expanded_scope_design_pass_m0_5_market_mechanics_microstructure_precursor_atlas_local_contract_pass_a0_engineering_subgates_pass_total_gate_incomplete_p0r_pending_m1_1b0_r3_live_15_of_15_all_gates_pass_m1_4a_through_m1_4d_local_contracts_pass_no_authority_m1_5c_m1_5d_local_runtime_and_exact_package_pass_live_zero_of_31_each_m1_6_p0_blocked_p0r_route_authority_upstream_qualified_production_evidence_gateway_first_exact_attempt_blocked_pre_mutation_health_envelope_contract_last_qualified_source_remote_four_gates_pass_last_approval_expired_dispatch_not_reusable_failed_attempt_zero_drift_pass_current_health_contract_remediation_gateway_8_of_8_full_ci_pass_clean_commit_remote_four_gates_new_package_and_new_approval_pending_p0r_backup_retrieval_restore_not_executed_m2_1a_local_research_contract_pass_real_cohort_missing_no_candidate_emission_m2_2_c1_forward_only_ready_no_authority_m3_0_through_m3_3_local_contract_pass_test_only_uncalibrated_no_ready_authority_m3_3e_strategy_label_design_authority_only_m3_4_r0_scope_rebase_governance_pass_r1_partial_test_only_draft_external_historical_source_blocked_m1_not_complete",
-  "generatedAt": "2026-08-02T16:14:09+08:00",
+  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.97",
+  "status": "m0_4_expanded_scope_design_pass_m0_5_market_mechanics_microstructure_precursor_atlas_local_contract_pass_a0_engineering_subgates_pass_total_gate_incomplete_p0r_pending_m1_1b0_r3_live_15_of_15_all_gates_pass_m1_4a_through_m1_4d_local_contracts_pass_no_authority_m1_5c_m1_5d_local_runtime_and_exact_package_pass_live_zero_of_31_each_m1_6_p0_blocked_p0r_route_authority_upstream_qualified_production_evidence_gateway_first_exact_attempt_blocked_pre_mutation_health_envelope_contract_last_qualified_source_remote_four_gates_pass_last_approval_expired_dispatch_not_reusable_failed_attempt_zero_drift_pass_health_contract_remediation_commit_51886b0_authority_sync_full_ci_pass_push_remote_four_gates_new_package_and_new_approval_pending_p0r_backup_retrieval_restore_not_executed_m2_1a_local_research_contract_pass_real_cohort_missing_no_candidate_emission_m2_2_c1_forward_only_ready_no_authority_m3_0_through_m3_3_local_contract_pass_test_only_uncalibrated_no_ready_authority_m3_3e_strategy_label_design_authority_only_m3_4_r0_scope_rebase_governance_pass_r1_partial_test_only_draft_external_historical_source_blocked_m1_not_complete",
+  "generatedAt": "2026-08-02T16:23:40+08:00",
   "implementationAuthorized": true,
   "productionMutationAuthorized": false,
   "longTermEngineeringGovernance": {
@@ -2932,7 +2932,7 @@
   "currentImplementationEntry": {
     "id": "V2-PRODUCTION-EVIDENCE-GATEWAY-CADDY-ONLY",
     "name": "signed_encrypted_autonomous_production_evidence_return_and_exact_ttl_cleanup",
-    "status": "health_contract_remediation_gateway_8_of_8_full_ci_pass_clean_commit_four_gate_requalification_new_package_and_new_approval_pending_last_exact_attempt_blocked_pre_mutation_zero_drift_pass",
+    "status": "health_contract_remediation_commit_created_authority_sync_full_ci_pass_push_four_gate_requalification_new_package_and_new_approval_pending_last_exact_attempt_blocked_pre_mutation_zero_drift_pass",
     "scopeEpoch": "SCOPE_EPOCH_V1_CRYPTO_3V",
     "rootCause": "fixed_dispatch_was_pull_only_and_left_sanitized_results_on_the_server_forcing_repeated_browser_or_manual_result_extraction",
     "latestAttemptRootCause": "runner_and_test_fixture_expected_data_health_while_the_real_production_api_returns_top_level_health",
@@ -2980,6 +2980,9 @@
     "implementationBranch": "codex/market-radar-v2-implementation",
     "implementationCommit": "1ddc0fdc9408c697fcb73c42fe2b4c6e98b34e3e",
     "authoritySyncRemediationCommit": "35d7b63a40f9a21a07a44a974c0a1250b1c6c9be",
+    "healthContractRemediationCommit": "51886b038b6dfa5e1bf0169abc518810de7eb2d5",
+    "healthContractRemediationCleanCommitCreated": true,
+    "authoritySyncFinalBytesFullLocalCiPassed": true,
     "firstRemoteQualificationSourceCommit": "d67c0e87d5de3914a433d3bcc3f94ac5ead54bb0",
     "firstRemoteSignedProductionDispatchRunId": 30733232254,
     "firstRemoteFullQualityRunId": 30733232256,
@@ -3087,7 +3090,7 @@
       "reusable": false
     },
     "nextMandatorySequence": [
-      "CREATE_AND_PUSH_CLEAN_REMEDIATION_COMMIT",
+      "COMMIT_AND_PUSH_AUTHORITY_SYNC_SOURCE",
       "OBTAIN_SAME_COMMIT_GITHUB_FOUR_GATES",
       "CAPTURE_FRESH_PRODUCTION_READ_ONLY_BASELINE",
       "BUILD_NEW_DETERMINISTIC_CADDY_ONLY_GATEWAY_PACKAGE",

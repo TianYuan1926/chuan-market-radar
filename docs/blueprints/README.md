@@ -15,7 +15,7 @@ V2 生产权限：false
 最新生产存储门禁：P0_BLOCKED_CAPACITY_AND_RECOVERY / APPLICATION_HEALTH_NOT_EVALUATED
 ```
 
-2026-08-02 最新覆盖：当前执行入口为 `V2-PRODUCTION-EVIDENCE-GATEWAY-CADDY-ONLY` health-envelope 根因修复与重新资格化。exact source `dd67d819...` 已从零取得四个 GitHub PASS 门和旧窗口 exact 批准；signed dispatch `a52aa6a...` 在任何 gateway/Caddy mutation 前 `FAIL_DISPATCH_NOT_REUSABLE`。stderr digest 唯一解码为 `evidence_gateway_health_not_ready`：真实 `/api/health` 返回顶层 `{ok,health}`，旧 runner 与 fixture 同时错误读取 `data.health`。fresh read-only 复核证明 health/scan/persistence ready、exact 11 containers 不变、目标 route 仍 404、gateway/outbound/staging/global lease absent，仓库、数据库、Redis、Worker、env、migration、Feature Flag 和流量零漂移。旧批准已过期且旧 dispatch 不可复用。当前 parser/fixture 与 obsolete nested-envelope 零 mutation 红例已修复，gateway `8/8` 和最终字节完整 `ci:production` PASS；clean commit、当前字节四门、新 package、新批准、bootstrap、自动取回、fresh rebind 和真实 recovery 尚未完成。
+2026-08-02 最新覆盖：当前执行入口为 `V2-PRODUCTION-EVIDENCE-GATEWAY-CADDY-ONLY` health-envelope 根因修复与重新资格化。exact source `dd67d819...` 已从零取得四个 GitHub PASS 门和旧窗口 exact 批准；signed dispatch `a52aa6a...` 在任何 gateway/Caddy mutation 前 `FAIL_DISPATCH_NOT_REUSABLE`。stderr digest 唯一解码为 `evidence_gateway_health_not_ready`：真实 `/api/health` 返回顶层 `{ok,health}`，旧 runner 与 fixture 同时错误读取 `data.health`。fresh read-only 复核证明 health/scan/persistence ready、exact 11 containers 不变、目标 route 仍 404、gateway/outbound/staging/global lease absent，仓库、数据库、Redis、Worker、env、migration、Feature Flag 和流量零漂移。旧批准已过期且旧 dispatch 不可复用。当前 parser/fixture 与 obsolete nested-envelope 零 mutation 红例已形成 clean commit `51886b0...`，authority-sync 最终字节完整 `ci:production` PASS；推送、authority-sync source 四门、新 package、新批准、bootstrap、自动取回、fresh rebind 和真实 recovery 尚未完成。
 
 上一覆盖中的 Bridge timeout、dynamic egress、route authority producer 和 CodeQL 修复仍保留为事故与上游资格证据，但已被本段替代为当前施工入口，不再授权新的 Edge/API result extraction、8022、STS 或 recovery 动作。
 
@@ -183,7 +183,7 @@ M0.0-M0.5、M1.1-M1.6、M2.0-M2.2 已列本地包、C1、M3.0-M3.3 已通过各�
 V2-PRODUCTION-EVIDENCE-GATEWAY-CADDY-ONLY
 ```
 
-route target、Tencent firewall capture、route evidence、descriptor-first 安全修复和 source `dd67d819...` 的四门只保留为已资格化上游及事故证据，不再授权当前修复字节。首个 exact gateway 尝试已经证明固定派发可到达真实 runner，但在初始 health preflight 暴露 parser/生产 API 合同漂移；旧 fixture 与错误实现自洽，未模拟真实顶层 `health`。当前修复把真实 envelope 固定为绿例、旧 nested envelope 固定为 pre-mutation 红例，gateway `8/8`、recurrence `11/11`、Ops `275/275` 与最终字节完整 `ci:production` PASS。必须继续形成 clean commit、取得同一 commit GitHub 四门、fresh baseline、新 deterministic package 和新 exact approval；之后才允许 current-image 隔离验证、Caddy-only deploy/自动回滚、自动取回、fresh rebind 与真实 P0R recovery。只有 P0R 与 fresh P0 均 PASS 才能请求 P1，并严格按 `P1 schema -> P2 identities -> P3 partitions+dormant Worker -> P4 isolated-write Shadow -> M1.7 24h` 推进。
+route target、Tencent firewall capture、route evidence、descriptor-first 安全修复和 source `dd67d819...` 的四门只保留为已资格化上游及事故证据，不再授权当前修复字节。首个 exact gateway 尝试已经证明固定派发可到达真实 runner，但在初始 health preflight 暴露 parser/生产 API 合同漂移；旧 fixture 与错误实现自洽，未模拟真实顶层 `health`。真实 envelope 绿例与旧 nested envelope pre-mutation 红例已形成 `51886b0...`；authority-sync 最终字节的 gateway `8/8`、recurrence `11/11`、Ops `275/275` 与完整 `ci:production` PASS。必须继续推送并取得 authority-sync exact source GitHub 四门、fresh baseline、新 deterministic package 和新 exact approval；之后才允许 current-image 隔离验证、Caddy-only deploy/自动回滚、自动取回、fresh rebind 与真实 P0R recovery。只有 P0R 与 fresh P0 均 PASS 才能请求 P1，并严格按 `P1 schema -> P2 identities -> P3 partitions+dormant Worker -> P4 isolated-write Shadow -> M1.7 24h` 推进。
 
 ## 7. Legacy 参考材料
 

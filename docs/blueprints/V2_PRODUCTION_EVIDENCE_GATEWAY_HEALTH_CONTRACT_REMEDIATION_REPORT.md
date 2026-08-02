@@ -2,7 +2,7 @@
 
 Date: 2026-08-02
 
-Status: `LOCAL_RUNTIME_PASS / FULL_CI_PASS / NEW_CLEAN_SOURCE_PENDING / PRODUCTION_UNCHANGED`
+Status: `LOCAL_RUNTIME_PASS / CLEAN_REMEDIATION_COMMIT_CREATED / AUTHORITY_SYNC_FULL_CI_PASS / REMOTE_GATES_PENDING / PRODUCTION_UNCHANGED`
 
 ## Scope
 
@@ -61,12 +61,14 @@ This is a fresh zero-drift result for the failed gateway attempt only. It is not
 - A red regression feeds the obsolete nested envelope, requires `evidence_gateway_health_not_ready`, and proves zero mutation plus no gateway-root creation.
 - The regression statically binds the fixture expectation to the production route source so the two surfaces cannot silently drift again.
 
-Current evidence is gateway `8/8` plus exact Node `22.23.1` / npm `10.9.8` full `ci:production` PASS: recurrence `11/11`, dispatch `37/37`, V2 Foundation `644 total / 638 PASS / 6 explicit skips`, V2 Ops `275/275`, M0 `12/12`, Next production build, Golden `16/16`, and security. Clean commit, push, and all four GitHub gates have not yet run for these remediation bytes.
+Current evidence is gateway `8/8` plus exact Node `22.23.1` / npm `10.9.8` full `ci:production` PASS: recurrence `11/11`, dispatch `37/37`, V2 Foundation `644 total / 638 PASS / 6 explicit skips`, V2 Ops `275/275`, M0 `12/12`, Next production build, Golden `16/16`, and security. Push and all four GitHub gates have not yet run for the authority-sync source.
+
+The clean remediation implementation commit is `51886b038b6dfa5e1bf0169abc518810de7eb2d5`. Authority-sync final bytes were rechecked with the same complete CI before their commit; only the final authority-sync source may proceed to remote qualification. Production remained unchanged.
 
 ## Mandatory Next Sequence
 
-1. Create and push one clean remediation commit after the final-byte CI recheck.
-2. Obtain all four GitHub gates for that exact commit.
+1. Commit and push the authority-sync final source.
+2. Obtain all four GitHub gates for that exact source.
 3. Rebind a fresh production read-only baseline and build a new deterministic package.
 4. Obtain a new exact current production approval; the expired approval cannot be reused.
 5. Run current-image isolated validation, deploy Caddy only or automatically restore the baseline, and autonomously retrieve and verify the encrypted evidence.
