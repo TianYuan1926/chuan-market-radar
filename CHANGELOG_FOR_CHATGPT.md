@@ -2,11 +2,11 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
-## 2026-08-02 / Fixed Dispatch Autonomous Evidence Return Root Remediation
+## 2026-08-02 / Autonomous Evidence Return And Runtime Preflight Root Remediation
 
 ### 本轮目标
 
-根据 fixed dispatch 可送达 signed package、但严格脱敏结果只能滞留生产服务器的重复阻断，永久退役 Edge/API response reading、AX/browser-state、人工复制和 OrcaTerm result transport，建立可签名、加密、自动取回、独立验证和到期删除的生产证据返回通道。
+根据 fixed dispatch 可送达 signed package、但严格脱敏结果只能滞留生产服务器的重复阻断，永久退役 Edge/API response reading、AX/browser-state、人工复制和 OrcaTerm result transport，建立可签名、加密、自动取回、独立验证和到期删除的生产证据返回通道；同时根据两次生产 preflight 偏离真实 runtime 的证据触发 STOP-THE-LINE，根治 health、Caddy capability 与 Compose identity 的模拟自洽问题。
 
 ### 当前证据
 
@@ -21,10 +21,14 @@
 - 根因是生产 `/api/health` 返回顶层 `{ok,health}`，gateway parser 与测试 fixture 却共同读取 `data.health`，导致模拟测试自洽但偏离真实 API。生产 fresh read-only 复核证明 health/scan/persistence ready、exact 11 containers 不变、目标 route 仍 404、gateway/outbound/staging/global lease absent，数据库、Redis、Worker、env、migration、Feature Flag、流量和仓库均无 mutation。旧批准已过期，旧 dispatch 永久不可复用。
 - parser 与 fixture 已绑定真实 top-level envelope，并新增 obsolete nested envelope 必须在 mutation 前失败、mutation count=0、gateway root absent 的防复发红例；clean remediation commit `51886b038b6dfa5e1bf0169abc518810de7eb2d5` 已形成。authority-sync source parts `d1c3d987cf55105e94e8 + 15992dbb989ea1045629` 随后取得 Signed Dispatch `30739919674`、Full Quality `30739919649`、A0 `30739919664` PASS，但 Independent Security `30739919662` FAIL，严格保持 `3/4`。
 - Security 中 CodeQL `91475363037` 与 image scan `91475363053` PASS，full-history Gitleaks `91475363046` 唯一 finding 为历史 `approval-request.json:1 / generic-api-key`。脱敏 artifact `8830917655` 证明它是固定 X25519 recipient 公钥指纹而非 credential；旧 generated 字段 `evidenceRecipientKeySha256` 具有 secret-shaped 语义。永久修复使用 `evidenceRecipientFingerprintSha256`、严格拒绝旧字段，fixed dispatch 在发布前阻断歧义非 public `*KeySha256` 高熵值；历史仅登记 exact finding。clean implementation commit `8742828086041da1db51a5abeeef01ba7656e5fd` 已形成，recurrence `11/11`、dispatch `38/38`、gateway `8/8` 合计 `57/57`，最终 authority-sync 字节完整 exact-toolchain CI 已通过 Foundation `638 PASS / 6 skip`、Ops `275/275`、M0 `12/12`、Next build、Golden `16/16` 与 security；authority-sync commit/push 与 replacement 同源四门仍待完成，生产未改变。
+- replacement source `d9a1e5fedf481f00e3cc88705c7e2b884add3ebe` 随后从零通过 Signed Dispatch `30743899298`、Full Quality `30743899329`、A0 `30743899304`、Independent Security `30743899295` 四门；exact dispatch `39732e2e943e7b32648d1f0ca43c477900133acb` 在 `2026-08-02T11:39:28.743Z` 被目标 claim，并于 `11:39:39.416Z` 在任何 Caddy mutation 前 `FAIL_DISPATCH_NOT_REUSABLE`。旧 runner 的 stderr digest `67269043...` 只对应 canonical `unexpected_error`，未被美化为可诊断 PASS。
+- 生产等价无 mutation A/B 直接复现 current Caddy image 在 `cap-drop ALL` 下以 RC 255 `operation not permitted` 失败，以及 direct Compose 绕过 root-owned production identity wrapper 后因缺 `POSTGRES_USER` 以 RC 1 失败。相同 isolation 仅加 `NET_BIND_SERVICE` 后 Caddy validate PASS；exact wrapper 携 gateway override 后 `config --quiet` PASS。wrapper 为 root/root mode `0700`、SHA `fb473dc3...`，runtime override 为 root/root mode `0600`、SHA `1b7f8ba4...`。
+- 第二次生产复核仍为 HEAD `cec0b657...`、clean worktree、11-container exact identity、health ready/fresh、404 route 与全部非目标面零漂移。唯一空 outbound residue 已在批准的自动清理边界内删除，gateway/staging/lock/diagnostic container 均 absent；数据库、Redis、Worker、env、migration、Feature Flag 和生产仓库未改变。
+- 该问题与首次 health-envelope 偏差共同登记为 `REC-2026-08-02-PRODUCTION-GATEWAY-PREFLIGHT-EQUIVALENCE` occurrence 2，generic gateway release STOP-THE-LINE。local remediation commit `bb9abe5cf0404ca7ce9af55f6ed99a6e3f646d76` 使用 request v3 绑定 exact wrapper/override identity、最小 Caddy capability、稳定 command digest、owned-state cleanup，并让 checksum-bound recurrence registry 在构包和生产 gateway state 创建前各验证一次。gateway `12/12`、recurrence `11/11`、dispatch `38/38` 与完整 exact-toolchain CI PASS；完整 CI 精确结果为 market `965/969`（4 explicit skips）、workers `23/23`、historical `4/4`、Foundation `638/644`（6 explicit skips）、Ops `279/279`、M0 `12/12`、Next build、Golden `16/16` 和 security。final authority commit/push、新同源四门、fresh baseline、新 deterministic package 和新批准尚未完成。
 
 ### 当前真值与下一步
 
-状态是 `LAST_EXACT_SOURCE_REMOTE_FOUR_GATES_PASS / FIRST_PRODUCTION_ATTEMPT_BLOCKED_PRE_MUTATION_HEALTH_ENVELOPE_MISMATCH / LAST_APPROVAL_EXPIRED_DISPATCH_NOT_REUSABLE / FAILED_ATTEMPT_FRESH_ZERO_DRIFT_PASS / HEALTH_CONTRACT_REMEDIATION_COMMIT_51886B0 / AUTHORITY_SYNC_SOURCE_REMOTE_3_OF_4_SECURITY_FAIL / PUBLIC_KEY_FINGERPRINT_ARTIFACT_ROOT_REMEDIATION_COMMIT_8742828 / AUTHORITY_SYNC_FINAL_BYTES_FULL_LOCAL_CI_PASS / AUTHORITY_SYNC_PUSH_REPLACEMENT_SOURCE_REMOTE_FOUR_GATES_NEW_PACKAGE_AND_NEW_APPROVAL_PENDING / P0R_BACKUP_RETRIEVAL_RESTORE_NOT_EXECUTED`。下一步提交并推送 authority-sync exact source、从零取得该 replacement source 的同源四门，再重采生产基线并生成新 exact package；只有新的当前批准成立后才允许 Caddy-only bootstrap。成功自动取回并验证 gateway evidence 后，使用同一通道 fresh rebind，再恢复 P0R。
+状态是 `TWO_EXACT_GATEWAY_ATTEMPTS_FAILED_PRE_CADDY_MUTATION / FIRST_HEALTH_ENVELOPE_SECOND_CADDY_CAPABILITY_AND_COMPOSE_IDENTITY / BOTH_DISPATCHES_NOT_REUSABLE / BOTH_APPROVALS_EXPIRED / TWO_ATTEMPT_ZERO_DRIFT / RUNTIME_PREFLIGHT_RECURRENCE_STOP_THE_LINE / LOCAL_REMEDIATION_COMMIT_BB9ABE5_FULL_LOCAL_CI_PASS / FINAL_COMMIT_PUSH_REMOTE_FOUR_GATES_NEW_PACKAGE_AND_NEW_APPROVAL_PENDING / P0R_BACKUP_RETRIEVAL_RESTORE_NOT_EXECUTED`。下一步提交推送 final exact source、从零取得同源四门、重采生产基线并双构建 deterministic package；只有新 request/bundle/source/baseline/窗口全部绑定的新批准成立后，才允许执行登记过的 remediation path。成功自动取回并验证 gateway evidence 后，使用同一通道 fresh rebind，再恢复 P0R。
 
 ## 2026-08-02 / P0R B9 R2 External Transaction and Route Authority Root Remediation
 

@@ -615,8 +615,8 @@
           "The new rebind zero-residue gate cannot stop or delete production resources; it only issues sanitized PASS or BLOCKED evidence so cleanup remains separately controlled and auditable."
         ]
       },
-      "regression": {
-        "status": "PARTIAL",
+    "regression": {
+      "status": "PASS",
         "redCase": "A secret receiver persists raw STS bytes, defers compile across manual UI commands, trusts AX reconstruction, leaves a waiting tee or recreates current container identity through incomplete Compose interpolation.",
         "greenCommand": "npm run test:recurrence-gate",
         "evidence": [
@@ -766,9 +766,10 @@
         "evidence": [
           "The gateway suite includes the real top-level health envelope and rejects the obsolete nested envelope before mutation.",
           "The gateway suite requires the minimal Caddy capability and exact Compose wrapper for config, deploy and rollback.",
-          "Failure injection proves target Compose failure is classified before mutation and removes both created gateway and empty outbox state.",
-          "Unknown pre-existing outbox state is preserved and blocks before mutation.",
-          "The recurrence tests retire mock-only and unbound release operations, block the generic Caddy release while the incident is open and allow only the registered remediation path."
+        "Failure injection proves target Compose failure is classified before mutation and removes both created gateway and empty outbox state.",
+        "Unknown pre-existing outbox state is preserved and blocks before mutation.",
+        "The recurrence tests retire mock-only and unbound release operations, block the generic Caddy release while the incident is open and allow only the registered remediation path.",
+        "Complete exact-toolchain production CI passed with recurrence 11/11, production dispatch 38/38, market 965/969 with four explicit skips, workers 23/23, historical 4/4, V2 Foundation 638/644 with six explicit skips, V2 Ops 279/279, M0 12/12, Next production build, Golden 16/16 and security."
         ]
       },
       "runtimeGate": {
@@ -795,7 +796,7 @@
         "unknownReason": null
       },
       "remainingRisks": [
-        "The remediation bytes have not yet passed complete local production CI or same-source GitHub qualification.",
+      "The remediation bytes have passed complete local production CI but have not yet passed same-source GitHub qualification.",
         "The root-owned identity wrapper and override are external production authorities whose disappearance or byte drift must fail closed until a fresh exact package is approved.",
         "Production-equivalent component diagnostics do not replace one complete fresh gateway real-target acceptance.",
         "The evidence gateway and P0R backup, exact retrieval and isolated restore remain incomplete."
