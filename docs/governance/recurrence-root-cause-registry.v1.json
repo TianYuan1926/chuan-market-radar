@@ -435,7 +435,8 @@
         "p0r_detached_authorize_without_transaction_execution",
         "p0r_bridge_output_with_undeclared_fields",
         "p0r_stale_or_future_cleanup_evidence",
-        "p0r_listener_hash_without_explicit_8022_zero_proof"
+        "p0r_listener_hash_without_explicit_8022_zero_proof",
+        "p0r_hand_authored_route_evidence_without_authoritative_producer"
       ],
       "prohibitedOperations": [
         "p0r_single_session_secret_receiver",
@@ -455,7 +456,8 @@
         "p0r_detached_authorize_without_transaction_execution",
         "p0r_bridge_output_with_undeclared_fields",
         "p0r_stale_or_future_cleanup_evidence",
-        "p0r_listener_hash_without_explicit_8022_zero_proof"
+        "p0r_listener_hash_without_explicit_8022_zero_proof",
+        "p0r_hand_authored_route_evidence_without_authoritative_producer"
       ],
       "remediationOperations": [
         "p0r_dual_session_exact_receiver_qualification",
@@ -479,7 +481,8 @@
         "p0r_exact_lease_plan_and_bridge_output_contract",
         "p0r_fresh_cleanup_closure_evidence",
         "p0r_clipboard_cleanup_on_preflight_failure",
-        "p0r_explicit_8022_listener_and_unit_absence_rebind"
+        "p0r_explicit_8022_listener_and_unit_absence_rebind",
+        "p0r_authoritative_tencent_firewall_and_listener_route_evidence_producer"
       ],
       "fingerprint": {
         "signature": "A short-lived STS response exists in the browser, but post-response browser or terminal context recovery is not independently bound to the exact no-echo receiver and can disclose, misroute or delay the response.",
@@ -497,7 +500,8 @@
           "The clipboard wait expires without a visible heartbeat or an independent check that every required SSH session remains alive.",
           "A transaction declares an issuance authorization contract but execute does not consume fresh exact route evidence or enforce that authorization before forwarding operator READY.",
           "A detached authorize command, undeclared Bridge output fields or stale cleanup evidence can create apparently valid partial authority or closure outside the exact transaction.",
-          "A read-only rebind can preserve the same aggregate listener hash before and after while an old TCP 8022 listener and its exact transient systemd unit both remain present."
+          "A read-only rebind can preserve the same aggregate listener hash before and after while an old TCP 8022 listener and its exact transient systemd unit both remain present.",
+          "Route evidence can pass a consumer validator while its firewall identity is still a caller-supplied 64-character value and no producer binds it to the complete authenticated Tencent response and exact server listener observation."
         ],
         "observedEvidence": [
           "The pre-MFA receiver session disconnected and could not prove that its waiting process survived.",
@@ -523,12 +527,13 @@
           "A second pre-commit audit found that the detached authorize CLI was still externally callable, Bridge output accepted extra JSON fields and arbitrary status-shaped strings, cleanup evidence accepted stale or future timestamps, nested lease fields were not exact-key validated, and a preflight failure before child spawn did not enter the same clipboard-finally boundary.",
           "A final pre-commit audit found that the Bridge allowlist did not yet enforce one exact terminal sequence, aggregate stdout and stderr bytes plus status count were unbounded, and control files used path lstat followed by a separate unbounded read without no-follow or stable file-identity proof.",
           "All three transaction audit rounds were completed before a clean commit, production route creation, credential issuance, database access or COS access.",
-          "A later authority audit found that rebind v3/result v2 stored only the aggregate listener digest and did not explicitly require TCP 8022 count zero or market-radar-p0r-8022.service absence; this was found before current-source commit or reuse of the production route."
+          "A later authority audit found that rebind v3/result v2 stored only the aggregate listener digest and did not explicitly require TCP 8022 count zero or market-radar-p0r-8022.service absence; this was found before current-source commit or reuse of the production route.",
+          "The next authority audit proved that route evidence v1 had a validator but no producer; transaction tests supplied an arbitrary 64-character firewall identity, so the final JSON did not prove the exact Lighthouse instance, complete DescribeFirewallRules pagination, unique /32 rule or exact listener observation."
         ]
       },
       "rootCause": {
         "boundary": "external_browser_response_and_orcaterm_ui_split_from_prearmed_exact_tty_handoff_and_unqualified_default_ssh_route",
-        "conclusion": "The secret path incorrectly depended on recovering browser and terminal UI context after credential issuance, assumed default SSH port 22 before route qualification, and still left the second age-identity SSH connection until after STS issuance. A short clipboard deadline without two-session liveness heartbeat made a late native Copy indistinguishable from a live receiver, while dynamic proxy egress could invalidate the exact /32 before the second connection. The first local transaction drafts also left partial authority and closure paths outside one exact transaction: execute initially omitted fresh route authority, detached authorize remained callable, Bridge output accepted undeclared fields without a unique terminal sequence or aggregate bounds, cleanup evidence lacked freshness and future-time rejection, lease nesting was not exact-key validated, control-file reads lacked no-follow/stable-identity/size boundaries, and clipboard cleanup did not cover every preflight failure. The permanent boundary must be established and network-qualified before issuance: one exact lease-bound coordinator validates the full plan and stable control files, rechecks two egress endpoints, consumes fresh listener/firewall evidence, pre-arms both strict no-echo TTY sessions, internally authorizes READY only after exact state ordering, accepts only bounded allowlisted Bridge output through one terminal state machine, keeps both sessions alive, consumes only native Copy, clears it on every exit and accepts only fresh explicit zero-residue closure evidence.",
+        "conclusion": "The secret path incorrectly depended on recovering browser and terminal UI context after credential issuance, assumed default SSH port 22 before route qualification, and still left the second age-identity SSH connection until after STS issuance. A short clipboard deadline without two-session liveness heartbeat made a late native Copy indistinguishable from a live receiver, while dynamic proxy egress could invalidate the exact /32 before the second connection. The first local transaction drafts also left partial authority and closure paths outside one exact transaction: execute initially omitted fresh route authority, detached authorize remained callable, Bridge output accepted undeclared fields without a unique terminal sequence or aggregate bounds, cleanup evidence lacked freshness and future-time rejection, lease nesting was not exact-key validated, control-file reads lacked no-follow/stable-identity/size boundaries, and clipboard cleanup did not cover every preflight failure. Even after those consumer gates were added, route evidence still had no authoritative producer and tests could hand-fill the firewall identity. The permanent boundary must be established and network-qualified before issuance: one exact lease-bound coordinator validates canonical stable control files, rechecks two egress endpoints, derives route evidence from the complete authenticated Tencent firewall response and a checksum-bound exact server listener observation, independently recomputes every identity and digest, pre-arms both strict no-echo TTY sessions, internally authorizes READY only after exact state ordering, accepts only bounded allowlisted Bridge output through one terminal state machine, keeps both sessions alive, consumes only native Copy, clears it on every exit and accepts only fresh explicit zero-residue closure evidence.",
         "confidence": "DIRECT",
         "evidence": [
           "Independent production verification found no matching tee process and no P0R raw credential file.",
@@ -549,7 +554,10 @@
           "The final pre-commit contract removes the detached authorize CLI, exact-validates lease and plan nesting, rejects undeclared Bridge keys or statuses, rejects future or older-than-120-second cleanup evidence, and clears the clipboard even when preflight fails before child spawn.",
           "The last audit hardening accepts only PREARMED, READY, zero or more HEARTBEAT, CREDENTIAL_HANDOFF, AGE_HANDOFF and LOCAL_PASS in that order; BLOCKED and LOCAL_PASS are terminal, aggregate output is capped at 65536 bytes and statuses at 64.",
           "Plan, lease, route and cleanup inputs are opened with O_NOFOLLOW, capped at 1048576 bytes and accepted only when their canonical path, current-user mode-600 regular-file properties and full file identity remain stable before, during and after the bounded read.",
-          "Fresh rebind request v4/result v3 bind forbiddenListenerPort=8022 and forbiddenListenerUnit=market-radar-p0r-8022.service, require listener count zero plus LoadState=not-found and ActiveState=inactive, and reject malformed listener inventories or any systemctl mutation."
+          "Fresh rebind request v4/result v3 bind forbiddenListenerPort=8022 and forbiddenListenerUnit=market-radar-p0r-8022.service, require listener count zero plus LoadState=not-found and ActiveState=inactive, and reject malformed listener inventories or any systemctl mutation.",
+      "The authoritative route producer binds canonical target, lease, firewall capture and listener-observation bytes, the complete paginated Tencent DescribeFirewallRules response, unique RequestId and FirewallVersion provenance, one exact /32 ACCEPT rule, strict SSH identity, exact unit/MainPID, one IPv4 listener, zero IPv6 listeners and a source-bound observer digest; the existing provisioning plan remains stable-read and exact-SHA-bound, and the transaction recomputes the firewall identity and listener digest before Bridge startup.",
+      "Official Tencent firewall response semantics are locked by a two-page 101-rule regression, protocol-aware Port validation including the documented empty ICMP Port shape, duplicate RequestId rejection and exact pagination accounting.",
+      "The public SSH identity is read through the same O_NOFOLLOW descriptor with bounded pre/post descriptor and path identity checks; the private identity, public key and known_hosts identities are rechecked after remote observation so path swaps or mid-observation drift fail closed."
         ]
       },
       "permanentFix": {
@@ -561,11 +569,17 @@
           "scripts/v2/production/m1-production-storage-p0r-local-tty-bridge.test.mjs",
           "scripts/v2/production/m1-production-storage-p0r-transaction.mjs",
           "scripts/v2/production/m1-production-storage-p0r-transaction.test.mjs",
+          "scripts/v2/production/m1-production-storage-p0r-route-authority.mjs",
+          "scripts/v2/production/m1-production-storage-p0r-route-authority.test.mjs",
+          "scripts/v2/production/m1-production-storage-p0r-route-evidence.mjs",
+          "scripts/v2/production/m1-production-storage-p0r-route-evidence.test.mjs",
+          "scripts/v2/production/m1-production-storage-p0r-route-listener-observer.sh",
           "scripts/v2/production/m1-production-storage-p0r-runtime-capsule.mjs",
           "scripts/v2/production/m1-production-storage-p0r-runtime-capsule.test.mjs",
           "scripts/v2/production/m1-p0r-rebind-preflight.mjs",
           "scripts/v2/production/m1-p0r-rebind-preflight-bundle.mjs",
-          "scripts/v2/production/m1-p0r-rebind-preflight.test.mjs"
+          "scripts/v2/production/m1-p0r-rebind-preflight.test.mjs",
+          "docs/blueprints/V2_M1_6_P0R_ROUTE_AUTHORITY_ROOT_REMEDIATION_DELIVERY_REPORT.md"
         ],
         "workaroundDisposition": "RETIRED_AFTER_BOOTSTRAP",
         "evidence": [
@@ -578,21 +592,21 @@
           "The same session validates exact binding keys and source checksums, locates current Web and PostgreSQL containers by exact Compose labels, and rejects caller-supplied clock overrides.",
           "The second session binds the first by PID, Linux process-start token and source commit before age identity handoff, then starts the checksum-bound Runner automatically.",
           "Any timeout, disconnect, invalid secret, secondary-session failure or Runner exit immediately cleans credential, age identity and session-ready paths; a successful Runner exit must synchronously delete and verify absence of all three paths before the session can report success.",
-          "Fresh read-only rebind request v4 keeps the frozen three-file transport-v1 supersession comparison separate from the complete eight-file transport-v3 runtime digest set, including the Runner, atomic session helper and runtime capsule helper, and independently binds exact TCP 8022 and transient-unit absence.",
+          "Fresh read-only rebind request v4 keeps the frozen three-file transport-v1 supersession comparison separate from the complete nine-file transport-v4 runtime digest set, including the Runner, atomic session helper, runtime capsule helper and route listener observer, and independently binds exact TCP 8022 and transient-unit absence.",
           "The Runner creates one high-entropy mode-700 private /dev/shm directory, exclusively creates every internal plaintext or recovered canary as a mode-600 non-symlink file, forbids internal tee writes and verifies removal of the entire private directory before success.",
           "The replacement local Expect bridge fixes the SSH host, identity, known-hosts policy, proxy, Node v22.23.1, run-derived staging path and two remote commands; arbitrary host, runtime or command input is impossible in execute mode.",
           "Bridge schema v5 preserves fixed SSH port 8022 and HostKeyAlias 43.161.202.227, carries the same complete SSH argument set through pseudo-TTY tests, forbids fallback to default port 22 and propagates only bounded session, runner or allowlisted sanitized COS reason codes.",
-          "Transport schema v3 embeds a checksum-bound Node 22.23.1, npm 10.9.8 and pg 8.16.3 runtime capsule, so the Runner no longer assumes that a production container node_modules tree is host-visible across mount namespaces.",
+          "Transport schema v4 embeds a checksum-bound Node 22.23.1, npm 10.9.8 and pg 8.16.3 runtime capsule plus the exact route listener observer, so neither recovery dependencies nor listener evidence depend on unbound production host state.",
           "The bootstrap listener is a separate 7200-second systemd transient sshd that permits only ubuntu public-key authentication with forwarding disabled; the Tencent rule permits only the measured proxy egress /32 and must be removed after success or failure.",
           "The bridge is armed before issuance, accepts only a structurally exact native-copied Tencent response after the remote echo-disabled marker, clears the clipboard before handoff, retrieves the age identity directly from the fixed Keychain item and suppresses all child output.",
           "Before opening the listener, cloud rule or clipboard window, the exact API Explorer request must be prepared in Microsoft Edge at the not-yet-invoked state and the account owner must be present for immediate MFA, invocation and native Copy; preparation never permits issuance before bridge READY.",
           "API response screenshots, OCR, accessibility reads, full browser-state reads and OrcaTerm secret entry are permanently forbidden after issuance.",
           "Bridge schema v5 establishes the credential and age-identity TTYs before emitting operator READY, monitors both local SSH processes during a 1200-second no-secret clipboard window and emits bounded secret-free heartbeat states.",
           "Session schema v5 creates the primary PID/start-token/source binding before credential ingress, lets the secondary TTY validate and wait before the credential exists, and removes every post-issuance network reconnect dependency.",
-          "The external transaction controller binds exact source, plan digest, two-endpoint egress, 7200-second TTL, listener, /32 firewall rule, both TTYs, clipboard, /dev/shm, process, container, volume and staging into one lease; execute requires mode-600 route evidence no older than 120 seconds and exact listener/rule identity before Bridge startup.",
+          "The external transaction controller binds exact source, plan digest, canonical route target digest, two-endpoint egress, 7200-second TTL, provider endpoint/action/version/region/instance, listener observer digest, /32 firewall rule, both TTYs, clipboard, /dev/shm, process, container, volume and staging into one lease; execute requires canonical mode-600 route evidence v2 no older than 120 seconds and recomputes exact listener/rule identity before Bridge startup.",
           "Operator READY is not forwarded directly from the child Bridge. The coordinator first requires exactly one dual-TTY PREARMED state, revalidates route authority, forms issuance authorization only inside execute and then forwards READY; duplicate or out-of-order states fail closed, and no detached authorize CLI exists.",
           "The transaction validates exact lease, cleanup scope and full COS plan contracts; Bridge output is restricted to an exact key and status allowlist plus one exact terminal state machine so undeclared, duplicated, out-of-order or post-terminal data cannot be re-emitted.",
-          "The coordinator caps combined child stdout and stderr at 65536 bytes and accepted states at 64; plan, lease, route and cleanup control files use canonical current-user mode-600 no-follow reads capped at 1 MiB with pre/post descriptor and path identity verification.",
+          "The coordinator caps combined child stdout and stderr at 65536 bytes and accepted states at 64; lease, route and cleanup control files use canonical current-user mode-600 no-follow reads capped at 1 MiB with pre/post descriptor and path identity verification, while the existing provisioning plan remains exact-byte SHA-bound under the same secure stable-read boundary.",
           "Cleanup closure accepts only current-user mode-600 evidence whose timestamp is not in the future and is no older than 120 seconds; the outer clipboard finally also covers preflight failures before child spawn.",
           "The superseded 2026-08-02 run, plan, route and any copied response are invalidated; they cannot receive a new credential or be represented as current authority.",
           "The new rebind zero-residue gate cannot stop or delete production resources; it only issues sanitized PASS or BLOCKED evidence so cleanup remains separately controlled and auditable."
@@ -607,16 +621,18 @@
           "The registry also retires overlength P0R OrcaTerm composite commands and allows only bounded segmented remediation.",
           "The registry retires unsettled rapid editor writes and requires clear, settle and exact visible preview before every execution.",
           "P0R tests prove bounded in-memory stdin ingress, no raw-response file, exclusive mode-600 credential and age outputs, rejection of clock overrides, exact binding parsing, Compose-label identity, PID/start-token/source session binding, automatic Runner handoff and abandoned-session cleanup.",
-          "The rebind regression proves that the current eight-file runtime set exactly matches the transport-v3 source set while the historical verifier remains limited to files that existed in transport v1.",
-          "The rebind regression also proves IPv4 and IPv6 TCP 8022 detection, exact transient-unit absence, malformed inventory rejection and a strict systemctl read-only allowlist; rebind passes 13/13 and the complete P0R suite passes 125/125 plus the Go helper.",
+          "The rebind regression proves that the current nine-file runtime set exactly matches the transport-v4 source set while the historical verifier remains limited to files that existed in transport v1.",
+      "The rebind regression also proves IPv4 and IPv6 TCP 8022 detection, exact transient-unit absence, malformed inventory rejection and a strict systemctl read-only allowlist; the route authority/producer/transaction suite passes 23/23 and the complete P0R suite passes 138/138 plus the Go helper.",
           "Runner regression locks the private mode-700 /dev/shm directory, exclusive mode-600 internal file creation, exact age identity grammar, prohibition of internal tee and verified directory cleanup.",
           "Local pseudo-TTY regression proves exact primary and secondary commands, exact ready markers, native clipboard validation, internal Keychain retrieval, secret-free stdout/stderr, final clipboard clearing, and fail-closed behavior for malformed clipboard, marker mismatch and SSH failure.",
           "The pseudo-TTY regression now observes the complete SSH invocation, requires -p 8022 and HostKeyAlias=43.161.202.227 on both sessions, and rejects any -p 22 fallback.",
           "The current bridge regression covers successful two-session handoff, bounded session and runner sites, allowlisted sanitized COS stages, malformed and secret-shaped diagnostic rejection and clipboard cleanup.",
           "The prior COS-action root-remediation suite passed 113/113 plus the Go helper; corrected exact-toolchain production CI passed recurrence 11/11, dispatch 25/25, V2 Foundation 631 with 6 explicit skips, V2 Ops 235/235, Next production build, Golden 16/16 and security.",
           "The dual-prearm and exact transaction replacement passes 22 focused bridge/session tests plus 10 lease/transaction tests; the transaction regressions include out-of-order and duplicate states, output-state saturation, post-terminal writes, symlinked controls, empty controls and oversized controls. After the explicit rebind residue gate, the complete exact-toolchain P0R suite passes 125/125 plus the Go helper. Two earlier runs with incomplete frozen PATH failed and are not counted as PASS.",
-          "The final exact-toolchain source bytes containing rebind v4/result v3 pass complete production CI: recurrence 11/11, production dispatch 25/25, V2 Foundation 631 with 6 explicit skips, V2 Ops 247/247, Next production build, Golden 16/16 and security.",
-          "Closure still requires external residue cleanup proof, a clean exact commit, remote gates, fresh read-only rebind, new lease/run/plan/package/staging and full real-target recovery acceptance."
+          "The predecessor exact source 6c7f382 containing rebind v4/result v3 passed complete production CI and all four remote gates, but the new route authority source cannot inherit those gates.",
+      "The isolated route authority source passes ESLint, Biome, 23/23 directed authority tests, 30/30 transport/rebind/bundle regressions and P0R 138/138 plus the Go helper. Candidate-branch production CI reached the required unique V2 implementation branch identity gate; Foundation is 643 total / 636 pass / 6 explicit skip / one expected branch-identity failure, so that fail-closed result is not bypassed and final-byte CI remains pending on the integrated main V2 branch.",
+      "One standalone P0R run under the host default Node 24/npm 11 failed the exact runtime-capsule gate and is not counted as PASS. A fixed-target launcher now automatically selects the installed Node 22.23.1/npm 10.9.8 toolchain, rejects arbitrary npm targets, fails before long work when the exact toolchain is unavailable, passes 3/3 launcher tests and raises the isolated V2 Ops denominator to 263/263. M0 additionally passes 6/6 tamper regressions that bind the exact outer launcher, 14 ordered production gates, self-building verifier and compiled authority.",
+      "Closure still requires final-byte CI on the unique V2 implementation branch, external residue cleanup proof, a clean exact commit, remote gates, fresh read-only rebind, new route target/lease/run/plan/transport-v4/staging and full real-target recovery acceptance."
         ]
       },
       "runtimeGate": {
@@ -644,7 +660,7 @@
           "The fresh rebind result v3 must bind the canonical current P0R runtime set digest, separately retain the frozen historical supersession proof, and explicitly prove TCP 8022 count zero plus market-radar-p0r-8022.service not-found/inactive.",
           "The 2026-07-29 STS exact expiry prerequisite is complete and the credential remains forbidden forever; a new exact-plan STS may be requested only after a new clean source, all GitHub gates, fresh read-only rebind and new run/plan/bundle pass.",
           "The P0R Runner must still complete backup, exact retrieval, isolated restore, cleanup and zero-drift verification.",
-          "Bridge schema v5, session schema v5, transaction schema v1, plan schema v4, credential schema v3 and transport schema v3 must pass all four GitHub gates, a fresh read-only rebind and a new run/plan/bundle/staging acceptance before a newly qualified route may carry a new STS.",
+          "Bridge schema v5, session schema v5, transaction schema v1, plan schema v4, credential schema v3, route evidence schema v2 and transport schema v4 must pass final-byte CI, all four GitHub gates, a fresh read-only rebind and a new 17-member run/plan/bundle/staging acceptance before a newly qualified route may carry a new STS.",
           "The next B9 attempt must prepare and verify the exact API Explorer request page and account-owner presence before recreating the temporary 8022 and /32 route; any response possibly issued during the timed-out 2026-08-01 or 2026-08-02 windows is forbidden from reuse.",
           "The next attempt must use bridge/session v5 and the lease-bound transaction controller; execute must consume route evidence no older than 120 seconds, both strict TTYs and the exact route must be READY before issuance, and post-issuance SSH reconnect is forbidden."
         ]
@@ -664,7 +680,8 @@
         "Any future 8022 Tencent /32 rule and transient sshd must be removed and their absence verified after P0R success, failure or timeout; the timer alone does not remove the cloud firewall rule.",
         "The local bridge, atomic session and runtime capsule are not full production recovery evidence until the corrected exact source is clean committed, passes remote gates and read-only rebind, and completes the full P0R recovery.",
         "A REST operation name must never again be inferred to be the corresponding Tencent CAM action; the corrected plan must remain bound to the official cos:GetBucketObjectLock action and reject the superseded v3 plan and v2 credential schemas.",
-        "The dual-prearm and route-gated lease transaction implementation is only local evidence until a clean exact source passes remote gates and one full real-target backup, exact retrieval, isolated restore and zero-residue closure.",
+        "The dual-prearm transaction and authoritative route producer are only local evidence until a clean exact source passes final-byte CI, remote gates, fresh rebind and one full real-target backup, exact retrieval, isolated restore and zero-residue closure.",
+        "Tencent API Explorer returns an authenticated control-plane response but not a cryptographically signed evidence object; the producer therefore requires exact account-session capture provenance, complete pagination and independent server observation, and must never let a user hand-author the final route JSON.",
         "The 2026-08-02 old cloud firewall rule and listener state must be independently verified and cleaned before another production route is created."
       ]
     }

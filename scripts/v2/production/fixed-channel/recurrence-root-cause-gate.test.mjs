@@ -306,8 +306,8 @@ test("the real registry closes accepted package transport and keeps secret recov
   assert.ok(
     openIncident.permanentFix.evidence.some(
       (item) =>
-        item.includes("eight-file transport-v3 runtime digest set") &&
-        item.includes("three-file transport-v1 supersession comparison"),
+        item.includes("complete nine-file transport-v4 runtime digest set") &&
+        item.includes("frozen three-file transport-v1 supersession comparison"),
     ),
   );
   assert.ok(
@@ -429,9 +429,9 @@ test("the P0R runbook retires post-response browser recovery and OrcaTerm secret
   assert.doesNotMatch(runbook, /以下两条是唯一允许的 secret session 入口/u);
 });
 
-test("all active authority surfaces identify the B9 R2 external transaction remediation", async () => {
+test("all active authority surfaces identify the B9 R2 route authority remediation", async () => {
   const expectedEntry =
-    "V2-M1.6-P0R-B9-R2-LEASED-DUAL-TTY-TRANSACTION-ROOT-REMEDIATION";
+    "V2-M1.6-P0R-B9-R2-ROUTE-AUTHORITY-PRODUCER-ROOT-REMEDIATION";
   const remediationEntry =
     "V2-M1.6-P0R-B8-FIXED-DISPATCH-TRANSPORT-STAGING-ROOT-REMEDIATION";
   const runtimeNamespaceEntry =
@@ -451,10 +451,22 @@ test("all active authority surfaces identify the B9 R2 external transaction reme
   ]);
 
   assert.equal(matrix.currentImplementationEntry.id, expectedEntry);
-  assert.equal(matrix.currentImplementationEntry.localP0RTestsPassed, 125);
+  assert.equal(matrix.currentImplementationEntry.routeAuthorityProducerTransactionTestsPassed, 23);
+  assert.equal(matrix.currentImplementationEntry.localP0RTestsPassed, 138);
   assert.equal(matrix.currentImplementationEntry.localP0RTestsFailed, 0);
-  assert.equal(matrix.currentImplementationEntry.fullLocalCiPassed, true);
-  assert.equal(matrix.currentImplementationEntry.fullLocalCiPending, false);
+  assert.equal(matrix.currentImplementationEntry.fullLocalCiPassed, false);
+  assert.equal(matrix.currentImplementationEntry.fullLocalCiPending, true);
+  assert.equal(matrix.currentImplementationEntry.fullLocalCiAttemptedOnCandidateBranch, true);
+  assert.equal(matrix.currentImplementationEntry.exactToolchainAutoDispatchRequired, true);
+  assert.equal(matrix.currentImplementationEntry.exactToolchainLauncherTestsPassed, 3);
+  assert.equal(matrix.currentImplementationEntry.isolatedV2OpsTestsPassed, 263);
+  assert.equal(matrix.currentImplementationEntry.wrongDefaultToolchainAttemptCount, 1);
+  assert.equal(matrix.currentImplementationEntry.wrongDefaultToolchainAttemptCountedAsPass, false);
+  assert.equal(
+    matrix.currentImplementationEntry.fullLocalCiCandidateBlocker,
+    "REQUIRED_UNIQUE_V2_IMPLEMENTATION_BRANCH_IDENTITY",
+  );
+  assert.equal(matrix.currentImplementationEntry.fullLocalCiPending, true);
   assert.equal(
     matrix.currentP0RTransportStagingRemediation.id,
     remediationEntry,
@@ -509,8 +521,31 @@ test("all active authority surfaces identify the B9 R2 external transaction reme
   );
   assert.equal(
     matrix.currentP0RB9ExternalTransactionRemediation.replacementRouteEvidenceSchema,
-    "market-radar-v2-m1-p0r-external-route-evidence.v1",
+    "market-radar-v2-m1-p0r-external-route-evidence.v2",
   );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.replacementRouteTargetSchema,
+    "market-radar-v2-m1-p0r-route-target.v1",
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.replacementTencentFirewallCaptureSchema,
+    "market-radar-v2-m1-p0r-tencent-firewall-capture.v1",
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.replacementListenerObservationSchema,
+    "market-radar-v2-m1-p0r-listener-observation.v1",
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.replacementTransportSchema,
+    "v2-m1-production-storage-p0r-transport.v4",
+  );
+  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.replacementTransportMemberCount, 17);
+  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.replacementCurrentRuntimeFileCount, 9);
+  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.authoritativeRouteProducerRequired, true);
+  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.canonicalRouteControlInputsRequired, true);
+  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.provisioningPlanExactShaBound, true);
+  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.firewallIdentityRecomputedFromProviderResponse, true);
+  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.listenerObservationDigestRecomputed, true);
   assert.equal(
     matrix.currentP0RB9ExternalTransactionRemediation.routeEvidenceMaxAgeSeconds,
     120,
@@ -567,7 +602,7 @@ test("all active authority surfaces identify the B9 R2 external transaction reme
   );
   assert.equal(
     matrix.currentP0RB9ExternalTransactionRemediation.targetedP0RTestsPassed,
-    125,
+    138,
   );
   assert.equal(
     matrix.currentP0RB9ExternalTransactionRemediation.freshRebindRequestSchema,
@@ -592,10 +627,51 @@ test("all active authority surfaces identify the B9 R2 external transaction reme
       .freshRebindForbiddenListenerAndUnitAbsenceRequired,
     true,
   );
-  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.targetedV2OpsPassed, 247);
-  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.fullLocalCiPassed, true);
-  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.fullLocalCiPending, false);
-  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.fullLocalCiV2OpsPassed, 247);
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation
+      .tencentFirewallMultiPagePaginationRegressionPassed,
+    true,
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation
+      .tencentFirewallProtocolPortSemanticsValidated,
+    true,
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation
+      .tencentFirewallRequestIdUniquenessRequired,
+    true,
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.sshIdentityNoFollowStableReadRequired,
+    true,
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.sshIdentityPrePostDriftCheckRequired,
+    true,
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.exactToolchainAutoDispatchRequired,
+    true,
+  );
+  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.exactToolchainLauncherTestsPassed, 3);
+  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.isolatedV2OpsTestsPassed, 263);
+  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.wrongDefaultToolchainAttemptCount, 1);
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.wrongDefaultToolchainAttemptCountedAsPass,
+    false,
+  );
+  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.routeAuthorityProducerTransactionTestsPassed, 23);
+  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.fullLocalCiPassed, false);
+  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.fullLocalCiPending, true);
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.fullLocalCiAttemptedOnCandidateBranch,
+    true,
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.fullLocalCiCandidateBlocker,
+    "REQUIRED_UNIQUE_V2_IMPLEMENTATION_BRANCH_IDENTITY",
+  );
   assert.equal(
     matrix.currentP0RB9ExternalTransactionRemediation.externalCloudCleanupPending,
     true,
@@ -604,6 +680,25 @@ test("all active authority surfaces identify the B9 R2 external transaction reme
     matrix.currentP0RB9ExternalTransactionRemediation.productionZeroDriftPassed,
     false,
   );
+  assert.equal(matrix.currentP0RRouteAuthorityRemediation.id, expectedEntry);
+  assert.equal(
+    matrix.currentP0RRouteAuthorityRemediation.routeEvidenceSchema,
+    "market-radar-v2-m1-p0r-external-route-evidence.v2",
+  );
+  assert.equal(matrix.currentP0RRouteAuthorityRemediation.transportMemberCount, 17);
+  assert.equal(matrix.currentP0RRouteAuthorityRemediation.currentRuntimeSourceFileCount, 9);
+  assert.equal(matrix.currentP0RRouteAuthorityRemediation.routeAuthorityProducerTransactionTestsPassed, 23);
+  assert.equal(matrix.currentP0RRouteAuthorityRemediation.targetedP0RTestsPassed, 138);
+  assert.equal(matrix.currentP0RRouteAuthorityRemediation.exactToolchainAutoDispatchRequired, true);
+  assert.equal(matrix.currentP0RRouteAuthorityRemediation.exactToolchainLauncherTestsPassed, 3);
+  assert.equal(matrix.currentP0RRouteAuthorityRemediation.isolatedV2OpsTestsPassed, 263);
+  assert.equal(matrix.currentP0RRouteAuthorityRemediation.fullLocalCiPending, true);
+  assert.equal(matrix.currentP0RRouteAuthorityRemediation.fullLocalCiAttemptedOnCandidateBranch, true);
+  assert.equal(
+    matrix.currentP0RRouteAuthorityRemediation.fullLocalCiCandidateBlocker,
+    "REQUIRED_UNIQUE_V2_IMPLEMENTATION_BRANCH_IDENTITY",
+  );
+  assert.equal(matrix.currentP0RRouteAuthorityRemediation.executionAuthority, false);
   assert.equal(matrix.currentP0RTransportStagingRemediation.targetProductionStagingTestsPassed, 11);
   assert.equal(matrix.currentP0RTransportStagingRemediation.p0rTestsPassed, 111);
   assert.equal(

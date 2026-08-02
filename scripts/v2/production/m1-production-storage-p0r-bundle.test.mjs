@@ -59,7 +59,7 @@ test("builds a byte-reproducible, secret-free local template", async () => {
     assert.equal(first.bundleSha256, second.bundleSha256);
     assert.deepEqual(await readFile(first.output), await readFile(second.output));
     assert.equal(first.schemaVersion, P0R_BUNDLE_SCHEMA_VERSION);
-    assert.equal(P0R_BUNDLE_SCHEMA_VERSION, "v2-m1-production-storage-p0r-transport.v3");
+    assert.equal(P0R_BUNDLE_SCHEMA_VERSION, "v2-m1-production-storage-p0r-transport.v4");
     assert.equal(first.approvalEligible, false);
     assert.equal(first.containsSecrets, false);
     const { stdout } = await execFileAsync("tar", ["-tzf", first.output], { encoding: "utf8" });
@@ -150,15 +150,15 @@ test("approval package embeds and checksum-binds the exact COS provisioning plan
       { encoding: "utf8" },
     );
     const archiveMembers = archiveListing.trim().split("\n");
-    assert.equal(archiveMembers.length, 16);
-    assert.equal(new Set(archiveMembers).size, 16);
+    assert.equal(archiveMembers.length, 17);
+    assert.equal(new Set(archiveMembers).size, 17);
     const { stdout: manifestText } = await execFileAsync(
       "tar",
       ["-xOzf", result.output, "transport-manifest.json"],
       { encoding: "utf8" },
     );
     const manifest = JSON.parse(manifestText);
-    assert.equal(manifest.files.length, 15);
+    assert.equal(manifest.files.length, 16);
     assert.equal(
       manifest.nodeRuntime.runtimeDependencyBoundary,
       "EXACT_SOURCE_BOUND_P0R_NODE_RUNTIME_CAPSULE",
@@ -184,6 +184,7 @@ test("approval package embeds and checksum-binds the exact COS provisioning plan
     assert.match(bindings, /P0R_COS_PROVISIONING_TOOL_SHA256=[0-9a-f]{64}/u);
     assert.match(bindings, /P0R_NODE_RUNTIME_SHA256=[0-9a-f]{64}/u);
     assert.match(bindings, /P0R_RUNTIME_CAPSULE_TOOL_SHA256=[0-9a-f]{64}/u);
+    assert.match(bindings, /P0R_ROUTE_LISTENER_OBSERVER_SHA256=[0-9a-f]{64}/u);
     assert.match(bindings, /P0R_SESSION_SHA256=[0-9a-f]{64}/u);
   } finally {
     await rm(directory, { recursive: true, force: true });

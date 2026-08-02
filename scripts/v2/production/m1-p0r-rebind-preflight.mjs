@@ -55,6 +55,7 @@ export const P0R_REBIND_CURRENT_RUNTIME_FILES = Object.freeze([
   "m1-production-storage-backup-capture.mjs",
   "m1-production-storage-database-fingerprint.mjs",
   "m1-production-storage-p0r-cos-provisioning.mjs",
+  "m1-production-storage-p0r-route-listener-observer.sh",
   "m1-production-storage-p0r-runner.sh",
   "m1-production-storage-p0r-runtime-capsule.mjs",
   "m1-production-storage-p0r-session.sh",

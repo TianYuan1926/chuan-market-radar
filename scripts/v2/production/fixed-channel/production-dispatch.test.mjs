@@ -1164,7 +1164,7 @@ test("governance contract matches the executable transport and truth boundary", 
   );
   assert.equal(
     contract.recurrenceRootCauseGate.p0rTransportStageTransportSchema,
-    "v2-m1-production-storage-p0r-transport.v3",
+    "v2-m1-production-storage-p0r-transport.v4",
   );
   assert.equal(
     contract.recurrenceRootCauseGate.p0rTransportStageSingleHighLevelReleaseEntrypoint,
@@ -1172,7 +1172,7 @@ test("governance contract matches the executable transport and truth boundary", 
   );
   assert.equal(contract.recurrenceRootCauseGate.p0rTransportStageRuntimeMaxSeconds, 90);
   assert.equal(contract.recurrenceRootCauseGate.p0rTransportStageOuterMemberCount, 5);
-  assert.equal(contract.recurrenceRootCauseGate.p0rTransportStageInnerMemberCount, 16);
+  assert.equal(contract.recurrenceRootCauseGate.p0rTransportStageInnerMemberCount, 17);
   assert.equal(contract.recurrenceRootCauseGate.p0rTransportStageContainsSecrets, false);
   assert.equal(
     contract.recurrenceRootCauseGate.p0rTransportStageCredentialRequestAllowed,

@@ -131,7 +131,7 @@ async function createInnerBundle(root) {
     productionRepositoryMutationAllowed: false,
     productionServiceMutationAllowed: false,
     reproducibleArchive: true,
-    schemaVersion: "v2-m1-production-storage-p0r-transport.v3",
+    schemaVersion: "v2-m1-production-storage-p0r-transport.v4",
     sourceCommit: INNER_SOURCE_COMMIT,
     sourceDateEpoch: 946_684_800,
   };
@@ -260,12 +260,12 @@ async function prepareFixture() {
   };
 }
 
-test("transport v3 inspection binds the exact 16-member package", async () => {
+test("transport v4 inspection binds the exact 17-member package", async () => {
   const root = await mkdtemp(join(tmpdir(), "p0r-inner-inspect-test-"));
   try {
     const path = await createInnerBundle(root);
     const inspected = await inspectP0RTransportArchive(path);
-    assert.equal(inspected.memberCount, 16);
+    assert.equal(inspected.memberCount, 17);
     assert.equal(inspected.runId, RUN_ID);
     assert.equal(inspected.planDigest, PLAN_DIGEST);
     assert.equal(inspected.sourceCommit, INNER_SOURCE_COMMIT);

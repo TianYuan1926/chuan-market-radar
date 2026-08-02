@@ -12,6 +12,7 @@ import {
   MAX_SECURE_CONTROL_FILE_BYTES,
   READY_EVIDENCE_SCHEMA,
   ROUTE_EVIDENCE_SCHEMA,
+  ROUTE_TARGET_SCHEMA,
   TRANSACTION_SCHEMA,
   appendSafeBridgeStatus,
   authorizeBridgeReady,
@@ -24,22 +25,57 @@ import {
   validateRouteEvidence,
   validateTransactionLease,
 } from "./m1-production-storage-p0r-transaction.mjs";
+import {
+  LISTENER_OBSERVATION_SCHEMA,
+  REMOTE_LISTENER_OBSERVATION_SCHEMA,
+  TENCENT_API_EXPLORER_CAPTURE_METHOD,
+  TENCENT_FIREWALL_CAPTURE_SCHEMA,
+  TENCENT_LIGHTHOUSE_API_ACTION,
+  TENCENT_LIGHTHOUSE_API_ENDPOINT,
+  TENCENT_LIGHTHOUSE_API_VERSION,
+  TENCENT_LIGHTHOUSE_PROVIDER,
+  buildListenerObservation,
+  buildRouteEvidence,
+  routeTargetDigest,
+} from "./m1-production-storage-p0r-route-authority.mjs";
 
 const SOURCE_COMMIT = "a".repeat(40);
 const PLAN_SHA256 = "b".repeat(64);
 const RUN_ID = "p0r-20990101t000000z-0123456789abcdef0123456789abcdef";
 const NOW = "2099-01-01T00:00:00.000Z";
 
+function routeTarget() {
+  return {
+    schemaVersion: ROUTE_TARGET_SCHEMA,
+    provider: TENCENT_LIGHTHOUSE_PROVIDER,
+    apiEndpoint: TENCENT_LIGHTHOUSE_API_ENDPOINT,
+    apiAction: TENCENT_LIGHTHOUSE_API_ACTION,
+    apiVersion: TENCENT_LIGHTHOUSE_API_VERSION,
+    region: "ap-hongkong",
+    instanceId: "lhins-abcdefgh",
+    sshHost: "43.161.202.227",
+    sshHostAlias: "43.161.202.227",
+    sshUser: "ubuntu",
+    listenerPort: 8022,
+    listenerUnit: "market-radar-p0r-8022.service",
+    containsSecret: false,
+  };
+}
+
 function lease() {
+  const target = routeTarget();
   return buildTransactionLease({
     egressA: "156.248.15.36",
     egressB: "156.248.15.36",
+    listenerObserverScriptSha256: "e".repeat(64),
     now: NOW,
     plan: {
       credentialGrant: { runId: RUN_ID },
       sourceCommit: SOURCE_COMMIT,
     },
     planSha256: PLAN_SHA256,
+    routeTarget: target,
+    routeTargetSha256: routeTargetDigest(target),
     sourceFacts: { clean: true, head: SOURCE_COMMIT },
   });
 }
@@ -66,28 +102,72 @@ function readyEvidence(target) {
 }
 
 function routeEvidence(target, checkedAt = "2099-01-01T00:01:00.000Z") {
-  return {
-    schemaVersion: ROUTE_EVIDENCE_SCHEMA,
-    leaseId: target.leaseId,
-    sourceCommit: target.sourceCommit,
-    runId: target.runId,
-    planSha256: target.planSha256,
-    checkedAt,
-    egressIpv4A: target.egress.ipv4,
-    egressIpv4B: target.egress.ipv4,
-    listenerActive: true,
-    listenerCount: 1,
-    listenerPort: target.resources.listener.port,
-    listenerUnit: target.resources.listener.unit,
-    firewallRuleCount: 1,
-    firewallRuleIdentityHash: "c".repeat(64),
-    firewallSourceCidr: target.resources.firewall.sourceCidr,
-    firewallDirection: target.resources.firewall.direction,
-    firewallProtocol: target.resources.firewall.protocol,
-    firewallPort: target.resources.firewall.port,
-    firewallRemark: target.resources.firewall.remark,
+  const capture = {
+    schemaVersion: TENCENT_FIREWALL_CAPTURE_SCHEMA,
+    provider: target.resources.firewall.provider,
+    apiEndpoint: target.resources.firewall.apiEndpoint,
+    apiAction: target.resources.firewall.apiAction,
+    apiVersion: target.resources.firewall.apiVersion,
+    region: target.resources.firewall.region,
+    instanceId: target.resources.firewall.instanceId,
+    captureMethod: TENCENT_API_EXPLORER_CAPTURE_METHOD,
+    capturedAt: "2099-01-01T00:00:30.000Z",
+    pages: [{
+      offset: 0,
+      limit: 100,
+      response: {
+        Response: {
+          FirewallRuleSet: [{
+            Action: "ACCEPT",
+            AppType: "Custom",
+            CidrBlock: target.resources.firewall.sourceCidr,
+            FirewallRuleDescription: target.resources.firewall.remark,
+            Port: String(target.resources.firewall.port),
+            Protocol: target.resources.firewall.protocol,
+          }],
+          FirewallVersion: 17,
+          RequestId: "01234567-89ab-cdef-0123-456789abcdef",
+          TotalCount: 1,
+        },
+      },
+    }],
     containsSecret: false,
   };
+  const remote = {
+    schemaVersion: REMOTE_LISTENER_OBSERVATION_SCHEMA,
+    checkedAt: "2099-01-01T00:00:45.000Z",
+    hostname: "VM-0-9-ubuntu",
+    listenerUnit: target.resources.listener.unit,
+    listenerPort: target.resources.listener.port,
+    loadState: "loaded",
+    activeState: "active",
+    subState: "running",
+    mainPid: 4242,
+    ipv4ListenerCount: 1,
+    ipv6ListenerCount: 0,
+    listenerLocalAddress: `0.0.0.0:${target.resources.listener.port}`,
+    listenerProcessName: "sshd",
+    listenerProcessPid: 4242,
+    containsSecret: false,
+  };
+  const observation = buildListenerObservation({
+    identityPublicKeySha256: "c".repeat(64),
+    knownHostsSha256: "d".repeat(64),
+    lease: target,
+    now: checkedAt,
+    remoteObservation: remote,
+    target: routeTarget(),
+  });
+  assert.equal(observation.schemaVersion, LISTENER_OBSERVATION_SCHEMA);
+  return buildRouteEvidence({
+    egressA: target.egress.ipv4,
+    egressB: target.egress.ipv4,
+    firewallCapture: capture,
+    lease: target,
+    listenerObservation: observation,
+    now: checkedAt,
+    target: routeTarget(),
+  });
 }
 
 function cleanupEvidence(target) {
@@ -130,6 +210,9 @@ test("transaction plan requires a lease, dual prearm and explicit cleanup proof"
   assert.equal(plan.egressEndpointCount, 2);
   assert.equal(plan.egressRecheckBeforeBridgeRequired, true);
   assert.equal(plan.exactRouteEvidenceRequiredBeforeBridge, true);
+  assert.equal(plan.authoritativeRouteEvidenceProducerRequired, true);
+  assert.equal(plan.routeEvidenceSchema, ROUTE_EVIDENCE_SCHEMA);
+  assert.equal(plan.routeTargetSchema, ROUTE_TARGET_SCHEMA);
   assert.equal(plan.routeEvidenceMaxAgeSeconds, 120);
   assert.equal(plan.cleanupEvidenceMaxAgeSeconds, CLEANUP_EVIDENCE_MAX_AGE_SECONDS);
   assert.equal(plan.cloudFirewallAutoExpirySufficient, false);
@@ -146,12 +229,16 @@ test("lease binds the exact source, plan, route, TTL and destructor scope", () =
   assert.equal(target.sourceCommit, SOURCE_COMMIT);
   assert.equal(target.runId, RUN_ID);
   assert.equal(target.planSha256, PLAN_SHA256);
+  assert.equal(target.routeTargetSha256, routeTargetDigest(routeTarget()));
   assert.equal(target.phase, "PREPARED_NO_PRODUCTION_MUTATION");
   assert.equal(target.egress.endpointCount, 2);
   assert.equal(target.egress.cidr, "156.248.15.36/32");
   assert.equal(target.resources.listener.port, 8022);
   assert.equal(target.resources.listener.runtimeMaxSeconds, 7200);
   assert.equal(target.resources.firewall.sourceCidr, "156.248.15.36/32");
+  assert.equal(target.resources.firewall.provider, TENCENT_LIGHTHOUSE_PROVIDER);
+  assert.equal(target.resources.firewall.instanceId, "lhins-abcdefgh");
+  assert.equal(target.resources.listener.host, "43.161.202.227");
   assert.equal(target.resources.bridge.bothSessionsPrearmedBeforeIssuance, true);
   assert.equal(target.resources.bridge.postIssuanceReconnectRequired, false);
   assert.equal(target.resources.bridge.clipboardWaitSeconds, 1200);
@@ -166,6 +253,7 @@ test("lease validation rejects preauthorization, TTL and nested route drift", ()
     (value) => { value.ttlSeconds = 7_201; },
     (value) => { value.resources.listener.port = 22; },
     (value) => { value.resources.firewall.sourceCidr = "0.0.0.0/0"; },
+    (value) => { value.routeTargetSha256 = "f".repeat(64); },
     (value) => { value.cleanupRequired = value.cleanupRequired.slice(1); },
   ]) {
     const invalid = structuredClone(lease());
@@ -205,6 +293,8 @@ test("route evidence binds the exact listener and firewall and expires after 120
     (value) => { value.firewallSourceCidr = "156.248.15.37/32"; },
     (value) => { value.firewallRemark = "wrong"; },
     (value) => { value.firewallRuleIdentityHash = "not-a-hash"; },
+    (value) => { value.firewallRuleIdentityHash = "e".repeat(64); },
+    (value) => { value.listenerObservationSha256 = "f".repeat(64); },
   ]) {
     const invalid = routeEvidence(target);
     mutate(invalid);
@@ -385,15 +475,19 @@ test("the CLI exposes no detached issuance authorization command", () => {
 });
 
 test("egress disagreement and dirty source facts fail before a lease exists", () => {
+  const target = routeTarget();
   const base = {
     egressA: "156.248.15.36",
     egressB: "156.248.15.36",
+    listenerObserverScriptSha256: "e".repeat(64),
     now: NOW,
     plan: {
       credentialGrant: { runId: RUN_ID },
       sourceCommit: SOURCE_COMMIT,
     },
     planSha256: PLAN_SHA256,
+    routeTarget: target,
+    routeTargetSha256: routeTargetDigest(target),
     sourceFacts: { clean: true, head: SOURCE_COMMIT },
   };
   assert.throws(() => buildTransactionLease({ ...base, egressB: "156.248.15.37" }));

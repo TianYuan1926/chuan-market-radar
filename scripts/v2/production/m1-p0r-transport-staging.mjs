@@ -49,7 +49,7 @@ export const P0R_TRANSPORT_STAGE_INNER_BUNDLE =
   "p0r-transport.tar.gz";
 export const P0R_TRANSPORT_STAGE_RUNTIME_MAX_SECONDS = 90;
 export const P0R_TRANSPORT_SCHEMA =
-  "v2-m1-production-storage-p0r-transport.v3";
+  "v2-m1-production-storage-p0r-transport.v4";
 
 export const P0R_TRANSPORT_STAGE_OUTER_MEMBER_MODES = Object.freeze({
   [P0R_TRANSPORT_STAGE_ENTRYPOINT]: 0o700,
@@ -93,6 +93,7 @@ export const P0R_TRANSPORT_MEMBER_MODES = Object.freeze({
   "m1-production-storage-backup-capture.mjs": 0o600,
   "m1-production-storage-database-fingerprint.mjs": 0o600,
   "m1-production-storage-p0r-cos-provisioning.mjs": 0o600,
+  "m1-production-storage-p0r-route-listener-observer.sh": 0o700,
   "m1-production-storage-p0r-runner.sh": 0o700,
   "m1-production-storage-p0r-runtime-capsule.mjs": 0o600,
   "m1-production-storage-p0r-session.sh": 0o700,

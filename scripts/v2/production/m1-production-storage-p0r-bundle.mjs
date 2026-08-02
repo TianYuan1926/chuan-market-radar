@@ -38,7 +38,7 @@ export const P0R_AGE_LINUX_AMD64_ARCHIVE_URL =
 export const P0R_AGE_LINUX_AMD64_ARCHIVE_SHA256 =
   "bdc69c09cbdd6cf8b1f333d372a1f58247b3a33146406333e30c0f26e8f51377";
 export const P0R_BUNDLE_SCHEMA_VERSION =
-  "v2-m1-production-storage-p0r-transport.v3";
+  "v2-m1-production-storage-p0r-transport.v4";
 
 const SOURCE_DATE_EPOCH = 946_684_800;
 const FIXED_TIME = new Date(SOURCE_DATE_EPOCH * 1000);
@@ -50,6 +50,7 @@ export const P0R_TRANSPORT_SOURCES = Object.freeze([
   "scripts/v2/production/m1-production-storage-backup-capture.mjs",
   "scripts/v2/production/m1-production-storage-database-fingerprint.mjs",
   "scripts/v2/production/m1-production-storage-p0r-cos-provisioning.mjs",
+  "scripts/v2/production/m1-production-storage-p0r-route-listener-observer.sh",
   "scripts/v2/production/m1-production-storage-p0r-runner.sh",
   "scripts/v2/production/m1-production-storage-p0r-runtime-capsule.mjs",
   "scripts/v2/production/m1-production-storage-p0r-session.sh",
@@ -189,6 +190,7 @@ function bindings(sourceCommit, files) {
     `P0R_RECOVERY_EVIDENCE_SHA256=${byName["m1-production-storage-recovery-evidence.mjs"]}`,
     `P0R_NODE_RUNTIME_SHA256=${byName["p0r-node-runtime.tar"]}`,
     `P0R_RUNTIME_CAPSULE_TOOL_SHA256=${byName["m1-production-storage-p0r-runtime-capsule.mjs"]}`,
+    `P0R_ROUTE_LISTENER_OBSERVER_SHA256=${byName["m1-production-storage-p0r-route-listener-observer.sh"]}`,
     `P0R_RUNNER_SHA256=${byName["m1-production-storage-p0r-runner.sh"]}`,
     `P0R_SESSION_SHA256=${byName["m1-production-storage-p0r-session.sh"]}`,
     "",

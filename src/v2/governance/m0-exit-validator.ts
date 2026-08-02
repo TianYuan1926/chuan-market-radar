@@ -23,6 +23,31 @@ const A0_QUALIFICATION_SOURCE_PARTS = [
   "815e081506c5dbc074a5",
 ] as const;
 
+const EXACT_PRODUCTION_CI_WRAPPER =
+  "bash scripts/v2/production/run-exact-toolchain.sh ci:production:exact";
+
+const EXACT_PRODUCTION_CI_COMMANDS = [
+  "npm run ci:forbidden-files",
+  "npm run ci:secret-patterns",
+  "npm run v2:a0:materials:verify",
+  "npm run test:recurrence-gate",
+  "npm run test:production-dispatch",
+  "npm run typecheck",
+  "npm run lint",
+  "npm run test:market",
+  "npm run test:v2-foundation",
+  "npm run test:v2-ops",
+  "npm run v2:m0:verify",
+  "npm run build",
+  "npm run backtest:golden",
+  "npm run security:check",
+] as const;
+
+const EXACT_M0_VERIFIER =
+  "npm run build:market-cli && npm run v2:m0:verify:compiled";
+const EXACT_M0_COMPILED_VERIFIER =
+  "node .tmp/market-tests/v2/governance/m0-exit-validator.js";
+
 export type M0ExitCheck = Readonly<{
   id: string;
   passed: boolean;
@@ -44,6 +69,36 @@ export type M0ExitReport = Readonly<{
 }>;
 
 type CheckRunner = () => string;
+
+export function validateM0ProductionCiBinding(
+  scripts: Readonly<Record<string, string>>,
+): string {
+  const wrapper = scripts["ci:production"] ?? "";
+  if (wrapper !== EXACT_PRODUCTION_CI_WRAPPER) {
+    throw new Error(
+      "ci:production is not bound to the exact-toolchain production target",
+    );
+  }
+
+  const exactProductionCi = scripts["ci:production:exact"] ?? "";
+  const expectedProductionCi = EXACT_PRODUCTION_CI_COMMANDS.join(" && ");
+  if (exactProductionCi !== expectedProductionCi) {
+    throw new Error(
+      "ci:production:exact differs from the locked production quality chain",
+    );
+  }
+
+  if (scripts["v2:m0:verify"] !== EXACT_M0_VERIFIER) {
+    throw new Error("v2:m0:verify is not the self-building M0 verifier");
+  }
+  if (scripts["v2:m0:verify:compiled"] !== EXACT_M0_COMPILED_VERIFIER) {
+    throw new Error(
+      "v2:m0:verify:compiled does not execute the compiled M0 authority",
+    );
+  }
+
+  return `${EXACT_PRODUCTION_CI_COMMANDS.length} locked production gates + exact-toolchain wrapper + self-building M0 verifier`;
+}
 
 function readJson<T>(repositoryRoot: string, path: string): T {
   return JSON.parse(
@@ -419,19 +474,7 @@ export function buildM0ExitReport(repositoryRoot: string): M0ExitReport {
   });
 
   check("m0_gates_in_production_ci", () => {
-    const ci = packageJson.scripts["ci:production"] ?? "";
-    const verifier = packageJson.scripts["v2:m0:verify"] ?? "";
-    if (
-      !ci.includes("test:v2-foundation") ||
-      !ci.includes("v2:m0:verify") ||
-      !verifier.includes("build:market-cli") ||
-      !verifier.includes("v2:m0:verify:compiled")
-    ) {
-      throw new Error(
-        "production CI does not execute V2 tests and a self-building M0 verifier",
-      );
-    }
-    return "test:v2-foundation + self-building v2:m0:verify";
+    return validateM0ProductionCiBinding(packageJson.scripts);
   });
 
   check("production_and_destructive_authority_closed", () => {

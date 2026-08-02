@@ -4,13 +4,34 @@ import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import { constants } from "node:fs";
-import { lstat, open, realpath } from "node:fs/promises";
+import { lstat, open, readFile, realpath } from "node:fs/promises";
 import { isIPv4 } from "node:net";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 import { validateP0RCosProvisioningPlan } from "./m1-production-storage-p0r-cos-provisioning.mjs";
+import { canonicalJson } from "./fixed-channel/production-dispatch.mjs";
+import {
+  FIXED_LISTENER_UNIT,
+  FIXED_SSH_PORT,
+  LISTENER_OBSERVATION_SCHEMA,
+  ROUTE_EVIDENCE_SCHEMA,
+  ROUTE_SOURCE_MAX_AGE_SECONDS,
+  ROUTE_TARGET_SCHEMA,
+  firewallRuleIdentityDigest,
+  listenerObservationDigest,
+  listenerRemoteCommandSha256,
+  routeTargetDigest,
+  validateRouteTarget,
+} from "./m1-production-storage-p0r-route-authority.mjs";
+
+export {
+  FIXED_LISTENER_UNIT,
+  FIXED_SSH_PORT,
+  ROUTE_EVIDENCE_SCHEMA,
+  ROUTE_TARGET_SCHEMA,
+};
 
 const execFileAsync = promisify(execFile);
 
@@ -18,18 +39,14 @@ export const TRANSACTION_SCHEMA =
   "market-radar-v2-m1-p0r-external-transaction.v1";
 export const READY_EVIDENCE_SCHEMA =
   "market-radar-v2-m1-p0r-external-ready-evidence.v1";
-export const ROUTE_EVIDENCE_SCHEMA =
-  "market-radar-v2-m1-p0r-external-route-evidence.v1";
 export const CLEANUP_EVIDENCE_SCHEMA =
   "market-radar-v2-m1-p0r-external-cleanup-evidence.v1";
 export const TRANSACTION_RESULT_SCHEMA =
   "market-radar-v2-m1-p0r-external-transaction-result.v1";
 export const TRANSACTION_TTL_SECONDS = 7200;
 export const CLIPBOARD_WAIT_SECONDS = 1200;
-export const ROUTE_EVIDENCE_MAX_AGE_SECONDS = 120;
+export const ROUTE_EVIDENCE_MAX_AGE_SECONDS = ROUTE_SOURCE_MAX_AGE_SECONDS;
 export const CLEANUP_EVIDENCE_MAX_AGE_SECONDS = 120;
-export const FIXED_SSH_PORT = 8022;
-export const FIXED_LISTENER_UNIT = "market-radar-p0r-8022.service";
 export const FIXED_FIREWALL_REMARK_PREFIX = "market-radar-p0r-b9-";
 export const MAX_SAFE_BRIDGE_OUTPUT_BYTES = 65_536;
 export const MAX_SAFE_BRIDGE_STATUS_COUNT = 64;
@@ -40,6 +57,10 @@ const REPOSITORY_ROOT = resolve(SOURCE_DIRECTORY, "../../..");
 const BRIDGE_PATH = resolve(
   SOURCE_DIRECTORY,
   "m1-production-storage-p0r-local-tty-bridge.exp",
+);
+const ROUTE_LISTENER_OBSERVER_PATH = resolve(
+  SOURCE_DIRECTORY,
+  "m1-production-storage-p0r-route-listener-observer.sh",
 );
 const CURL_PATH = "/usr/bin/curl";
 const EXPECT_PATH = "/usr/bin/expect";
@@ -53,6 +74,8 @@ const RUN_ID = /^p0r-[0-9]{8}t[0-9]{6}z-[a-f0-9]{32}$/u;
 const LEASE_ID = /^p0r-lease-[0-9]{8}t[0-9]{9}z-[a-f0-9]{16}$/u;
 const SHA256 = /^[a-f0-9]{64}$/u;
 const SAFE_REASON = /^[a-z0-9_]{1,128}$/u;
+const SAFE_HOSTNAME = /^[A-Za-z0-9._-]{1,253}$/u;
+const SAFE_REQUEST_ID = /^[A-Za-z0-9-]{8,128}$/u;
 const SAFE_BRIDGE_STATUSES = new Set([
   "BLOCKED_P0R_LOCAL_TTY_BRIDGE",
   "PASS_P0R_AGE_IDENTITY_HANDOFF",
@@ -135,12 +158,33 @@ function isoDate(value, label) {
   return date;
 }
 
-export function buildTransactionLease({ egressA, egressB, now, plan, planSha256, sourceFacts }) {
+export function buildTransactionLease({
+  egressA,
+  egressB,
+  now,
+  listenerObserverScriptSha256,
+  plan,
+  planSha256,
+  routeTarget,
+  routeTargetSha256,
+  sourceFacts,
+}) {
   assert.ok(plan && typeof plan === "object" && !Array.isArray(plan), "plan_invalid");
   assert.ok(COMMIT.test(plan.sourceCommit), "plan_source_commit_invalid");
   const runId = plan.credentialGrant?.runId;
   assert.ok(RUN_ID.test(runId), "plan_run_id_invalid");
   assert.ok(SHA256.test(planSha256), "plan_sha256_invalid");
+  assert.ok(
+    SHA256.test(listenerObserverScriptSha256),
+    "listener_observer_script_sha256_invalid",
+  );
+  validateRouteTarget(routeTarget);
+  assert.ok(SHA256.test(routeTargetSha256), "route_target_sha256_invalid");
+  assert.equal(
+    routeTargetSha256,
+    routeTargetDigest(routeTarget),
+    "route_target_sha256_mismatch",
+  );
   assert.deepEqual(
     sourceFacts,
     { clean: true, head: plan.sourceCommit },
@@ -159,6 +203,7 @@ export function buildTransactionLease({ egressA, egressB, now, plan, planSha256,
     sourceCommit: plan.sourceCommit,
     runId,
     planSha256,
+    routeTargetSha256,
     phase: "PREPARED_NO_PRODUCTION_MUTATION",
     createdAt: createdAt.toISOString(),
     expiresAt: expiresAt.toISOString(),
@@ -176,16 +221,26 @@ export function buildTransactionLease({ egressA, egressB, now, plan, planSha256,
         postIssuanceReconnectRequired: false,
       },
       firewall: {
+        apiAction: routeTarget.apiAction,
+        apiEndpoint: routeTarget.apiEndpoint,
+        apiVersion: routeTarget.apiVersion,
         direction: "INGRESS",
+        instanceId: routeTarget.instanceId,
         port: FIXED_SSH_PORT,
+        provider: routeTarget.provider,
         protocol: "TCP",
+        region: routeTarget.region,
         remark: firewallRemark,
         sourceCidr: `${egressA}/32`,
       },
       listener: {
+        host: routeTarget.sshHost,
+        hostAlias: routeTarget.sshHostAlias,
+        observerScriptSha256: listenerObserverScriptSha256,
         port: FIXED_SSH_PORT,
         runtimeMaxSeconds: TRANSACTION_TTL_SECONDS,
         unit: FIXED_LISTENER_UNIT,
+        user: routeTarget.sshUser,
       },
     },
     cleanupRequired: [...CLEANUP_REQUIRED],
@@ -206,6 +261,7 @@ export function validateTransactionLease(lease) {
     "owner",
     "phase",
     "planSha256",
+    "routeTargetSha256",
     "resources",
     "runId",
     "schemaVersion",
@@ -222,6 +278,7 @@ export function validateTransactionLease(lease) {
   assert.ok(COMMIT.test(lease.sourceCommit), "lease_source_commit_invalid");
   assert.ok(RUN_ID.test(lease.runId), "lease_run_id_invalid");
   assert.ok(SHA256.test(lease.planSha256), "lease_plan_sha256_invalid");
+  assert.ok(SHA256.test(lease.routeTargetSha256), "lease_route_target_sha256_invalid");
   assert.equal(lease.phase, "PREPARED_NO_PRODUCTION_MUTATION", "lease_phase_invalid");
   assert.equal(lease.ttlSeconds, TRANSACTION_TTL_SECONDS, "lease_ttl_invalid");
   const createdAt = isoDate(lease.createdAt, "lease_created_at");
@@ -267,9 +324,15 @@ export function validateTransactionLease(lease) {
     "lease_post_issuance_reconnect_invalid",
   );
   exactKeys(lease.resources.firewall, [
+    "apiAction",
+    "apiEndpoint",
+    "apiVersion",
     "direction",
+    "instanceId",
     "port",
+    "provider",
     "protocol",
+    "region",
     "remark",
     "sourceCidr",
   ], "lease_firewall");
@@ -286,7 +349,15 @@ export function validateTransactionLease(lease) {
     `${FIXED_FIREWALL_REMARK_PREFIX}${lease.runId.slice(-12)}`,
     "lease_firewall_remark_invalid",
   );
-  exactKeys(lease.resources.listener, ["port", "runtimeMaxSeconds", "unit"], "lease_listener");
+  exactKeys(lease.resources.listener, [
+    "host",
+    "hostAlias",
+    "observerScriptSha256",
+    "port",
+    "runtimeMaxSeconds",
+    "unit",
+    "user",
+  ], "lease_listener");
   assert.equal(lease.resources.listener.port, FIXED_SSH_PORT, "lease_listener_port_invalid");
   assert.equal(
     lease.resources.listener.runtimeMaxSeconds,
@@ -294,6 +365,31 @@ export function validateTransactionLease(lease) {
     "lease_listener_runtime_invalid",
   );
   assert.equal(lease.resources.listener.unit, FIXED_LISTENER_UNIT, "lease_listener_unit_invalid");
+  assert.ok(
+    SHA256.test(lease.resources.listener.observerScriptSha256),
+    "lease_listener_observer_script_sha_invalid",
+  );
+  const routeTarget = {
+    schemaVersion: ROUTE_TARGET_SCHEMA,
+    provider: lease.resources.firewall.provider,
+    apiEndpoint: lease.resources.firewall.apiEndpoint,
+    apiAction: lease.resources.firewall.apiAction,
+    apiVersion: lease.resources.firewall.apiVersion,
+    region: lease.resources.firewall.region,
+    instanceId: lease.resources.firewall.instanceId,
+    sshHost: lease.resources.listener.host,
+    sshHostAlias: lease.resources.listener.hostAlias,
+    sshUser: lease.resources.listener.user,
+    listenerPort: lease.resources.listener.port,
+    listenerUnit: lease.resources.listener.unit,
+    containsSecret: false,
+  };
+  validateRouteTarget(routeTarget);
+  assert.equal(
+    routeTargetDigest(routeTarget),
+    lease.routeTargetSha256,
+    "lease_route_target_sha256_mismatch",
+  );
   assert.deepEqual(lease.cleanupRequired, CLEANUP_REQUIRED, "lease_cleanup_scope_invalid");
   assert.equal(lease.issuanceAllowed, false, "lease_preauthorized_forbidden");
   assert.equal(lease.containsSecret, false, "lease_contains_secret");
@@ -361,19 +457,47 @@ export function validateRouteEvidence(lease, evidence, now) {
     "containsSecret",
     "egressIpv4A",
     "egressIpv4B",
+    "firewallApiAction",
+    "firewallApiVersion",
+    "firewallCaptureSha256",
+    "firewallCapturedAt",
     "firewallDirection",
+    "firewallInstanceId",
     "firewallPort",
+    "firewallProvider",
     "firewallProtocol",
+    "firewallRegion",
     "firewallRemark",
+    "firewallRequestIds",
     "firewallRuleCount",
+    "firewallRuleAction",
+    "firewallRuleAppType",
     "firewallRuleIdentityHash",
+    "firewallRuleIpv6Cidr",
     "firewallSourceCidr",
+    "firewallTotalCount",
+    "firewallVersion",
     "leaseId",
     "listenerActive",
+    "listenerCheckedAt",
     "listenerCount",
+    "listenerHostname",
+    "listenerIdentityPublicKeySha256",
+    "listenerIpv4Count",
+    "listenerIpv6Count",
+    "listenerKnownHostsSha256",
+    "listenerLocalAddress",
+    "listenerMainPid",
+    "listenerObservationSha256",
     "listenerPort",
+    "listenerProcessName",
+    "listenerProcessPid",
+    "listenerRemoteCommandSha256",
+    "listenerRemoteObservationSha256",
+    "listenerStrictHostKeyChecking",
     "listenerUnit",
     "planSha256",
+    "routeTargetSha256",
     "runId",
     "schemaVersion",
     "sourceCommit",
@@ -384,12 +508,56 @@ export function validateRouteEvidence(lease, evidence, now) {
   assert.equal(evidence.sourceCommit, lease.sourceCommit, "route_source_mismatch");
   assert.equal(evidence.runId, lease.runId, "route_run_mismatch");
   assert.equal(evidence.planSha256, lease.planSha256, "route_plan_mismatch");
+  assert.equal(
+    evidence.routeTargetSha256,
+    lease.routeTargetSha256,
+    "route_target_mismatch",
+  );
   assert.equal(evidence.egressIpv4A, lease.egress.ipv4, "route_egress_a_mismatch");
   assert.equal(evidence.egressIpv4B, lease.egress.ipv4, "route_egress_b_mismatch");
   assert.equal(evidence.listenerActive, true, "route_listener_inactive");
   assert.equal(evidence.listenerCount, 1, "route_listener_count_invalid");
   assert.equal(evidence.listenerPort, lease.resources.listener.port, "route_listener_port_invalid");
   assert.equal(evidence.listenerUnit, lease.resources.listener.unit, "route_listener_unit_invalid");
+  assert.ok(SAFE_HOSTNAME.test(evidence.listenerHostname), "route_listener_hostname_invalid");
+  assert.ok(
+    Number.isSafeInteger(evidence.listenerMainPid) && evidence.listenerMainPid > 1,
+    "route_listener_main_pid_invalid",
+  );
+  assert.equal(evidence.listenerIpv4Count, 1, "route_listener_ipv4_count_invalid");
+  assert.equal(evidence.listenerIpv6Count, 0, "route_listener_ipv6_count_invalid");
+  assert.equal(evidence.listenerProcessName, "sshd", "route_listener_process_invalid");
+  assert.equal(
+    evidence.listenerProcessPid,
+    evidence.listenerMainPid,
+    "route_listener_process_pid_invalid",
+  );
+  assert.ok(
+    evidence.listenerLocalAddress === `0.0.0.0:${lease.resources.listener.port}`
+      || evidence.listenerLocalAddress
+        === `${lease.resources.listener.host}:${lease.resources.listener.port}`,
+    "route_listener_address_invalid",
+  );
+  assert.equal(
+    evidence.listenerStrictHostKeyChecking,
+    true,
+    "route_listener_strict_host_key_missing",
+  );
+  for (const key of [
+    "listenerIdentityPublicKeySha256",
+    "listenerKnownHostsSha256",
+    "listenerObservationSha256",
+    "listenerRemoteCommandSha256",
+    "listenerRemoteObservationSha256",
+  ]) assert.ok(SHA256.test(evidence[key]), `route_${key}_invalid`);
+  assert.equal(
+    evidence.listenerRemoteCommandSha256,
+    listenerRemoteCommandSha256(
+      lease.runId,
+      lease.resources.listener.observerScriptSha256,
+    ),
+    "route_listener_remote_command_sha_invalid",
+  );
   assert.equal(evidence.firewallRuleCount, 1, "route_firewall_count_invalid");
   assert.equal(
     evidence.firewallSourceCidr,
@@ -416,6 +584,123 @@ export function validateRouteEvidence(lease, evidence, now) {
     SHA256.test(evidence.firewallRuleIdentityHash),
     "route_firewall_identity_hash_invalid",
   );
+  assert.ok(SHA256.test(evidence.firewallCaptureSha256), "route_firewall_capture_sha_invalid");
+  assert.equal(evidence.firewallRuleAction, "ACCEPT", "route_firewall_action_invalid");
+  assert.equal(typeof evidence.firewallRuleAppType, "string", "route_firewall_app_type_invalid");
+  assert.ok(
+    evidence.firewallRuleAppType.length > 0 && evidence.firewallRuleAppType.length <= 128,
+    "route_firewall_app_type_invalid",
+  );
+  assert.equal(evidence.firewallRuleIpv6Cidr, "", "route_firewall_ipv6_rule_forbidden");
+  assert.equal(
+    evidence.firewallProvider,
+    lease.resources.firewall.provider,
+    "route_firewall_provider_invalid",
+  );
+  assert.equal(
+    evidence.firewallApiAction,
+    lease.resources.firewall.apiAction,
+    "route_firewall_api_action_invalid",
+  );
+  assert.equal(
+    evidence.firewallApiVersion,
+    lease.resources.firewall.apiVersion,
+    "route_firewall_api_version_invalid",
+  );
+  assert.equal(
+    evidence.firewallRegion,
+    lease.resources.firewall.region,
+    "route_firewall_region_invalid",
+  );
+  assert.equal(
+    evidence.firewallInstanceId,
+    lease.resources.firewall.instanceId,
+    "route_firewall_instance_invalid",
+  );
+  assert.ok(
+    Number.isSafeInteger(evidence.firewallVersion) && evidence.firewallVersion >= 0,
+    "route_firewall_version_invalid",
+  );
+  assert.ok(
+    Number.isSafeInteger(evidence.firewallTotalCount) && evidence.firewallTotalCount >= 1,
+    "route_firewall_total_count_invalid",
+  );
+  assert.ok(
+    Array.isArray(evidence.firewallRequestIds)
+      && evidence.firewallRequestIds.length >= 1
+      && evidence.firewallRequestIds.length <= 100,
+    "route_firewall_request_ids_invalid",
+  );
+  for (const requestId of evidence.firewallRequestIds) {
+    assert.ok(SAFE_REQUEST_ID.test(requestId), "route_firewall_request_id_invalid");
+  }
+
+  const routeTarget = {
+    schemaVersion: ROUTE_TARGET_SCHEMA,
+    provider: lease.resources.firewall.provider,
+    apiEndpoint: lease.resources.firewall.apiEndpoint,
+    apiAction: lease.resources.firewall.apiAction,
+    apiVersion: lease.resources.firewall.apiVersion,
+    region: lease.resources.firewall.region,
+    instanceId: lease.resources.firewall.instanceId,
+    sshHost: lease.resources.listener.host,
+    sshHostAlias: lease.resources.listener.hostAlias,
+    sshUser: lease.resources.listener.user,
+    listenerPort: lease.resources.listener.port,
+    listenerUnit: lease.resources.listener.unit,
+    containsSecret: false,
+  };
+  assert.equal(
+    firewallRuleIdentityDigest({
+      firewallVersion: evidence.firewallVersion,
+      requestIds: evidence.firewallRequestIds,
+      rule: {
+        Action: evidence.firewallRuleAction,
+        AppType: evidence.firewallRuleAppType,
+        CidrBlock: evidence.firewallSourceCidr,
+        FirewallRuleDescription: evidence.firewallRemark,
+        Ipv6CidrBlock: evidence.firewallRuleIpv6Cidr,
+        Port: String(evidence.firewallPort),
+        Protocol: evidence.firewallProtocol,
+      },
+      target: routeTarget,
+    }),
+    evidence.firewallRuleIdentityHash,
+    "route_firewall_identity_hash_mismatch",
+  );
+
+  const listenerObservation = {
+    schemaVersion: LISTENER_OBSERVATION_SCHEMA,
+    leaseId: lease.leaseId,
+    sourceCommit: lease.sourceCommit,
+    runId: lease.runId,
+    checkedAt: evidence.listenerCheckedAt,
+    sshHost: lease.resources.listener.host,
+    sshHostAlias: lease.resources.listener.hostAlias,
+    sshUser: lease.resources.listener.user,
+    listenerActive: evidence.listenerActive,
+    listenerCount: evidence.listenerCount,
+    listenerPort: evidence.listenerPort,
+    listenerUnit: evidence.listenerUnit,
+    hostname: evidence.listenerHostname,
+    mainPid: evidence.listenerMainPid,
+    listenerLocalAddress: evidence.listenerLocalAddress,
+    listenerProcessName: evidence.listenerProcessName,
+    listenerProcessPid: evidence.listenerProcessPid,
+    ipv4ListenerCount: evidence.listenerIpv4Count,
+    ipv6ListenerCount: evidence.listenerIpv6Count,
+    strictHostKeyChecking: evidence.listenerStrictHostKeyChecking,
+    knownHostsSha256: evidence.listenerKnownHostsSha256,
+    identityPublicKeySha256: evidence.listenerIdentityPublicKeySha256,
+    remoteCommandSha256: evidence.listenerRemoteCommandSha256,
+    remoteObservationSha256: evidence.listenerRemoteObservationSha256,
+    containsSecret: false,
+  };
+  assert.equal(
+    listenerObservationDigest(listenerObservation),
+    evidence.listenerObservationSha256,
+    "route_listener_observation_sha_mismatch",
+  );
   const checkedAt = isoDate(evidence.checkedAt, "route_checked_at");
   const observedAt = isoDate(now, "route_observed_at");
   assert.ok(checkedAt >= isoDate(lease.createdAt, "lease_created_at"), "route_before_lease");
@@ -425,6 +710,18 @@ export function validateRouteEvidence(lease, evidence, now) {
     observedAt.getTime() - checkedAt.getTime() <= ROUTE_EVIDENCE_MAX_AGE_SECONDS * 1000,
     "route_evidence_stale",
   );
+  for (const [label, value] of [
+    ["route_firewall_capture", evidence.firewallCapturedAt],
+    ["route_listener_source", evidence.listenerCheckedAt],
+  ]) {
+    const sourceAt = isoDate(value, `${label}_at`);
+    assert.ok(sourceAt >= isoDate(lease.createdAt, "lease_created_at"), `${label}_before_lease`);
+    assert.ok(sourceAt <= checkedAt, `${label}_from_future`);
+    assert.ok(
+      checkedAt.getTime() - sourceAt.getTime() <= ROUTE_EVIDENCE_MAX_AGE_SECONDS * 1000,
+      `${label}_stale`,
+    );
+  }
   return evidence;
 }
 
@@ -634,7 +931,7 @@ async function writeExclusiveJson(path, value) {
   assert.equal(dirname(resolved), parent, "output_parent_not_canonical");
   const handle = await open(resolved, "wx", 0o600);
   try {
-    await handle.writeFile(`${JSON.stringify(value, null, 2)}\n`, "utf8");
+    await handle.writeFile(canonicalJson(value), "utf8");
     await handle.sync();
   } finally {
     await handle.close();
@@ -695,17 +992,27 @@ function parseOptions(argv) {
 }
 
 async function createLease(options) {
-  exactKeys(options, ["output", "plan"], "create_options");
+  exactKeys(options, ["output", "plan", "route-target"], "create_options");
   const planSource = await readSecureJson(options.plan, "plan");
+  const routeTargetSource = await readSecureJson(options["route-target"], "route_target");
+  assert.equal(
+    routeTargetSource.bytes.toString("utf8"),
+    canonicalJson(routeTargetSource.value),
+    "route_target_not_canonical",
+  );
   validateP0RCosProvisioningPlan(planSource.value);
+  validateRouteTarget(routeTargetSource.value);
   const facts = await sourceFacts(planSource.value.sourceCommit);
   const [egressA, egressB] = await measureEgress();
   const lease = buildTransactionLease({
     egressA,
     egressB,
+    listenerObserverScriptSha256: sha256(await readFile(ROUTE_LISTENER_OBSERVER_PATH)),
     now: new Date().toISOString(),
     plan: planSource.value,
     planSha256: sha256(planSource.bytes),
+    routeTarget: routeTargetSource.value,
+    routeTargetSha256: routeTargetDigest(routeTargetSource.value),
     sourceFacts: {
       clean: facts.clean,
       head: facts.head,
@@ -725,6 +1032,16 @@ async function runBridgeOnce(options) {
   const leaseSource = await readSecureJson(options.lease, "lease");
   const planSource = await readSecureControlFile(options.plan, "plan");
   const routeSource = await readSecureJson(options["route-evidence"], "route_evidence");
+  assert.equal(
+    leaseSource.bytes.toString("utf8"),
+    canonicalJson(leaseSource.value),
+    "lease_not_canonical",
+  );
+  assert.equal(
+    routeSource.bytes.toString("utf8"),
+    canonicalJson(routeSource.value),
+    "route_evidence_not_canonical",
+  );
   const lease = validateTransactionLease(leaseSource.value);
   const plan = validateP0RCosProvisioningPlan(JSON.parse(planSource.bytes.toString("utf8")));
   assert.equal(sha256(planSource.bytes), lease.planSha256, "lease_plan_sha_mismatch");
@@ -875,6 +1192,9 @@ async function main() {
       egressEndpointCount: EGRESS_ENDPOINTS.length,
       egressRecheckBeforeBridgeRequired: true,
       exactRouteEvidenceRequiredBeforeBridge: true,
+      authoritativeRouteEvidenceProducerRequired: true,
+      routeEvidenceSchema: ROUTE_EVIDENCE_SCHEMA,
+      routeTargetSchema: ROUTE_TARGET_SCHEMA,
       maxSafeBridgeOutputBytes: MAX_SAFE_BRIDGE_OUTPUT_BYTES,
       maxSafeBridgeStatusCount: MAX_SAFE_BRIDGE_STATUS_COUNT,
       maxSecureControlFileBytes: MAX_SECURE_CONTROL_FILE_BYTES,
