@@ -185,7 +185,7 @@ test("duplicate open fault classes and duplicate operations are rejected", () =>
   ));
 });
 
-test("the real registry closes accepted package transport and keeps secret recovery open", async () => {
+test("the real registry closes accepted transports and keeps both active remediations open", async () => {
   const [state, registry] = await Promise.all([
     readFile(new URL("../../../../AUTONOMOUS_ENGINEERING_STATE.json", import.meta.url), "utf8")
       .then(JSON.parse),
@@ -194,13 +194,19 @@ test("the real registry closes accepted package transport and keeps secret recov
   ]);
   assert.deepEqual(validateActiveStateDeclaration(state, registry), []);
   const summary = summarizeRecurrenceRegistry(registry, ["fixed_dispatch_first_signed_acceptance"]);
-  assert.equal(summary.openIncidentCount, 1);
+  assert.equal(summary.openIncidentCount, 2);
   assert.deepEqual(
     summary.incidents.filter((incident) => incident.status !== "CLOSED_VERIFIED"),
     [
       {
         id: "REC-2026-07-28-P0R-SECRET-RECEIVER-FOCUS",
         recurrenceCount: 10,
+        status: "REMEDIATION_IN_PROGRESS",
+        workaroundLimitBreached: false,
+      },
+      {
+        id: "REC-2026-08-02-PRODUCTION-GATEWAY-PREFLIGHT-EQUIVALENCE",
+        recurrenceCount: 2,
         status: "REMEDIATION_IN_PROGRESS",
         workaroundLimitBreached: false,
       },
@@ -225,6 +231,22 @@ test("the real registry closes accepted package transport and keeps secret recov
     registry,
     ["p0r_dual_session_exact_receiver_qualification"],
   ), []);
+  assert.deepEqual(evaluateRecurrenceOperations(
+    registry,
+    ["production_evidence_gateway_runtime_identity_bound_release"],
+  ), []);
+  assert.deepEqual(evaluateRecurrenceOperations(
+    registry,
+    ["production_evidence_gateway_mock_only_preflight"],
+  ), [
+    "recurrence_operation_retired:REC-2026-08-02-PRODUCTION-GATEWAY-PREFLIGHT-EQUIVALENCE:production_evidence_gateway_mock_only_preflight",
+  ]);
+  assert.deepEqual(evaluateRecurrenceOperations(
+    registry,
+    ["production_evidence_gateway_caddy_release"],
+  ), [
+    "recurrence_root_cause_gate_open:REC-2026-08-02-PRODUCTION-GATEWAY-PREFLIGHT-EQUIVALENCE:production_evidence_gateway_caddy_release",
+  ]);
   assert.deepEqual(evaluateRecurrenceOperations(
     registry,
     ["p0r_bounded_short_command_segmented_receiver"],

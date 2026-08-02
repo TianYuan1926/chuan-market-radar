@@ -26,11 +26,14 @@ import {
   PRODUCTION_EVIDENCE_GATEWAY_OVERRIDE,
   PRODUCTION_EVIDENCE_GATEWAY_PACKAGE_ID,
   PRODUCTION_EVIDENCE_GATEWAY_RECIPIENT,
+  PRODUCTION_EVIDENCE_GATEWAY_RECURRENCE_REGISTRY,
+  PRODUCTION_EVIDENCE_GATEWAY_REMEDIATION_OPERATION,
   PRODUCTION_EVIDENCE_GATEWAY_REQUEST_SCHEMA,
   PRODUCTION_EVIDENCE_GATEWAY_RUNTIME_MAX_SECONDS,
   PRODUCTION_EVIDENCE_GATEWAY_SOURCE_FILES,
   PRODUCTION_EVIDENCE_GATEWAY_SUCCESS_MARKER,
   readBoundedProductionEvidenceGatewayFile,
+  validateProductionEvidenceGatewayRecurrenceAuthority,
   validateProductionEvidenceGatewayRequest,
 } from "./production-evidence-gateway.mjs";
 import { canonicalJson, sha256 } from "./fixed-channel/production-dispatch.mjs";
@@ -39,6 +42,7 @@ const execFileAsync = promisify(execFile);
 const SOURCE_DATE_EPOCH = 946_684_800;
 const FIXED_TIME = new Date(SOURCE_DATE_EPOCH * 1000);
 const APPROVAL_KEYS = Object.freeze([
+  "composeIdentityWrapperSha256",
   "dispatchId",
   "expiresAt",
   "expectedContainerIds",
@@ -46,6 +50,7 @@ const APPROVAL_KEYS = Object.freeze([
   "issuedAt",
   "revocationEpoch",
   "runnerUnitName",
+  "runtimeIdentityOverrideSha256",
   "sourceRef",
 ]);
 function ensure(condition, reason) {
@@ -189,6 +194,8 @@ export async function buildProductionEvidenceGatewayBundle({
       automaticRollbackRequired: true,
       caddyContainerName: policy.caddyContainerName,
       caddyMutationAllowed: true,
+      composeIdentityWrapper: policy.composeIdentityWrapper,
+      composeIdentityWrapperSha256: approval.composeIdentityWrapperSha256,
       composeProjectName: policy.composeProjectName,
       databaseMutationAllowed: false,
       dispatchId: approval.dispatchId,
@@ -223,8 +230,15 @@ export async function buildProductionEvidenceGatewayBundle({
       productionRepositoryMutationAllowed: false,
       productionWorktree: policy.productionWorktree,
       redisMutationAllowed: false,
+      recurrenceRegistrySha256: sha256(
+        sourceFiles[PRODUCTION_EVIDENCE_GATEWAY_RECURRENCE_REGISTRY],
+      ),
+      recurrenceRemediationOperation:
+        PRODUCTION_EVIDENCE_GATEWAY_REMEDIATION_OPERATION,
       revocationEpoch: approval.revocationEpoch,
       runnerUnitName: approval.runnerUnitName,
+      runtimeIdentityOverride: policy.runtimeIdentityOverride,
+      runtimeIdentityOverrideSha256: approval.runtimeIdentityOverrideSha256,
       schemaVersion: PRODUCTION_EVIDENCE_GATEWAY_REQUEST_SCHEMA,
       sessionIndependentExecutionRequired: true,
       sourceCommit,
@@ -245,6 +259,10 @@ export async function buildProductionEvidenceGatewayBundle({
       now: new Date(approval.issuedAt),
       policy,
     });
+    validateProductionEvidenceGatewayRecurrenceAuthority(
+      request,
+      sourceFiles[PRODUCTION_EVIDENCE_GATEWAY_RECURRENCE_REGISTRY],
+    );
     await mkdir(output, { mode: 0o700 });
     await writeFile(join(output, "bundle.tar.gz"), compressed, {
       flag: "wx",

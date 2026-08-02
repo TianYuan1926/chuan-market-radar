@@ -689,6 +689,117 @@
         "Tencent API Explorer returns an authenticated control-plane response but not a cryptographically signed evidence object; the producer therefore requires exact account-session capture provenance, complete pagination and independent server observation, and must never let a user hand-author the final route JSON.",
         "The 2026-08-02 old cloud firewall rule and listener state must be independently verified and cleaned before another production route is created."
       ]
+    },
+    {
+      "id": "REC-2026-08-02-PRODUCTION-GATEWAY-PREFLIGHT-EQUIVALENCE",
+      "faultClass": "production_gateway.preflight_runtime_equivalence",
+      "affectedChannel": "signed_dispatch_to_production_evidence_gateway",
+      "status": "REMEDIATION_IN_PROGRESS",
+      "recurrenceCount": 2,
+      "firstObservedDate": "2026-08-02",
+      "lastObservedDate": "2026-08-02",
+      "affectedOperations": [
+        "production_evidence_gateway_mock_only_preflight",
+        "production_evidence_gateway_unbound_caddy_release",
+        "production_evidence_gateway_caddy_release",
+        "production_evidence_gateway_runtime_identity_bound_release"
+      ],
+      "prohibitedOperations": [
+        "production_evidence_gateway_mock_only_preflight",
+        "production_evidence_gateway_unbound_caddy_release"
+      ],
+      "remediationOperations": [
+        "production_evidence_gateway_runtime_identity_bound_release",
+        "production_evidence_gateway_production_equivalent_preflight",
+        "production_evidence_gateway_failure_cleanup_verification"
+      ],
+      "fingerprint": {
+        "signature": "A locally qualified evidence-gateway package reaches production and fails before Caddy mutation because its preflight model does not materially match the current production API envelope, container file capabilities or Compose runtime identity.",
+        "stableConditions": [
+          "Local tests replace the production health response or command runtime with hand-authored mocks instead of checking the current production contract.",
+          "Caddy validation is declared isolated without reproducing the current image file capabilities after cap-drop ALL.",
+          "Compose validation bypasses the root-owned production identity wrapper and therefore omits required interpolation and runtime identity inputs.",
+          "The production runner collapses an unclassified launch error into a generic reason without a stable operation-level fingerprint."
+        ],
+        "observedEvidence": [
+          "The first 2026-08-02 dispatch passed local and four remote gates but failed at the initial health preflight because the runner expected a nested health envelope while production returns top-level {ok, health}.",
+          "The second 2026-08-02 dispatch passed the corrected health regression and four remote gates but failed before Caddy mutation with the canonical generic unexpected_error fingerprint.",
+          "Production-equivalent diagnostics reproduced Caddy validation exit 255 with exec /usr/bin/caddy: operation not permitted under cap-drop ALL.",
+          "Production-equivalent diagnostics reproduced Compose config exit 1 because direct Compose with only .env.production could not interpolate POSTGRES_USER.",
+          "Both failed attempts preserved the exact production HEAD, clean worktree, eleven-container identity, ready and fresh health, closed fake route and all non-target services."
+        ]
+      },
+      "rootCause": {
+        "boundary": "local_rehearsal_to_production_runtime_identity_and_capability_model",
+        "conclusion": "The release qualification proved internal mock behavior but did not prove material equivalence with the production health contract, the current Caddy image execution capabilities or the root-owned Compose identity chain. The gateway therefore crossed the release boundary with an incomplete runtime model. Permanent correction requires checksum-bound production runtime identities, current-image isolated validation with the minimum required capability, operation-level error fingerprints, recurrence authority embedded in the package and pre-mutation cleanup tests.",
+        "confidence": "DIRECT",
+        "evidence": [
+          "The real health route source and production response proved the top-level envelope mismatch from the first attempt.",
+          "The exact current Caddy image failed under the old capability set and passed under the same isolation plus only NET_BIND_SERVICE.",
+          "The exact production Compose wrapper passed config with the gateway override while direct Compose using the incomplete env failed.",
+          "The current wrapper is root-owned mode 700 with SHA-256 fb473dc3bf0a2968be8ad385efac3273f4057530df17cee73f2003d3a369f1f3, and the runtime identity override is root-owned mode 600 with SHA-256 1b7f8ba4c623a0025ff35ddc203c6b769d1b262a1545a16892816cdbc478bacf."
+        ]
+      },
+      "permanentFix": {
+        "status": "PARTIAL",
+        "authorityPaths": [
+          "scripts/v2/production/production-evidence-gateway.mjs",
+          "scripts/v2/production/production-evidence-gateway-bundle.mjs",
+          "scripts/v2/production/production-evidence-gateway.test.mjs",
+          "scripts/v2/production/fixed-channel/recurrence-root-cause-gate.mjs",
+          "scripts/v2/production/fixed-channel/recurrence-root-cause-gate.test.mjs",
+          "docs/governance/recurrence-root-cause-registry.v1.json"
+        ],
+        "workaroundDisposition": "RETIRED_AFTER_BOOTSTRAP",
+        "evidence": [
+          "Request schema v3 binds the exact root-owned Compose wrapper and runtime identity override paths and SHA-256 identities.",
+          "Caddy validation retains network-none, read-only, no-new-privileges and cap-drop ALL while adding only NET_BIND_SERVICE required by the current image executable.",
+          "Compose config, deploy and rollback use the exact production identity wrapper instead of reconstructing incomplete env interpolation.",
+          "The runner emits stable command-operation fingerprints with bounded stdout and stderr digests and removes only gateway state created by its own failed attempt.",
+          "The deterministic bundle carries the checksum-bound recurrence registry and gate source; both build and production runner must authorize the exact remediation operation before any gateway state creation or Caddy mutation."
+        ]
+      },
+      "regression": {
+        "status": "PARTIAL",
+        "redCase": "Mock-only health, Caddy capability or direct Compose validation can pass locally while the materially different production runtime fails before Caddy mutation.",
+        "greenCommand": "npm run test:production-evidence-gateway && npm run test:recurrence-gate && npm run ci:production",
+        "evidence": [
+          "The gateway suite includes the real top-level health envelope and rejects the obsolete nested envelope before mutation.",
+          "The gateway suite requires the minimal Caddy capability and exact Compose wrapper for config, deploy and rollback.",
+          "Failure injection proves target Compose failure is classified before mutation and removes both created gateway and empty outbox state.",
+          "Unknown pre-existing outbox state is preserved and blocks before mutation.",
+          "The recurrence tests retire mock-only and unbound release operations, block the generic Caddy release while the incident is open and allow only the registered remediation path."
+        ]
+      },
+      "runtimeGate": {
+        "status": "PARTIAL",
+        "evidence": [
+          "The exact current production Caddy image passed isolated caddy validate with network none, read-only root, no-new-privileges, cap-drop ALL and only NET_BIND_SERVICE restored.",
+          "The exact root-owned production Compose identity wrapper passed config --quiet with the gateway override and current production env chain.",
+          "The second failed dispatch stopped before Caddy mutation; rollback-scope cleanup removed its only empty outbound residue and verified zero staging, gateway root, diagnostic container and production lock residue."
+        ]
+      },
+      "realTargetAcceptance": {
+        "status": "PENDING",
+        "evidence": [
+          "The two failed dispatches are immutable historical evidence and permanently non-reusable.",
+          "A fresh exact source must pass complete local production CI and all four same-source GitHub gates before a new deterministic package can be proposed.",
+          "Closure requires one fresh production execution to pass current-image preflight, Caddy-only deployment, encrypted evidence retrieval and verification, non-target zero drift, automatic cleanup and rollback acceptance."
+        ]
+      },
+      "workaroundAccounting": {
+        "attemptCount": 2,
+        "postTriggerEmergencyWorkaroundCount": 0,
+        "durationMeasurement": "MEASURED",
+        "durationSeconds": 19,
+        "unknownReason": null
+      },
+      "remainingRisks": [
+        "The remediation bytes have not yet passed complete local production CI or same-source GitHub qualification.",
+        "The root-owned identity wrapper and override are external production authorities whose disappearance or byte drift must fail closed until a fresh exact package is approved.",
+        "Production-equivalent component diagnostics do not replace one complete fresh gateway real-target acceptance.",
+        "The evidence gateway and P0R backup, exact retrieval and isolated restore remain incomplete."
+      ]
     }
   ]
 }

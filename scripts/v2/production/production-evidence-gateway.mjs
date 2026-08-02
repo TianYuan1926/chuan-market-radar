@@ -9,6 +9,7 @@ import {
   open,
   realpath,
   rm,
+  rmdir,
   unlink,
   writeFile,
 } from "node:fs/promises";
@@ -25,13 +26,16 @@ import {
   sealProductionEvidence,
 } from "./fixed-channel/production-evidence-channel.mjs";
 import { canonicalJson, sha256 } from "./fixed-channel/production-dispatch.mjs";
+import {
+  evaluateRecurrenceOperations,
+} from "./fixed-channel/recurrence-root-cause-gate.mjs";
 
 const execFileAsync = promisify(execFile);
 
 export const PRODUCTION_EVIDENCE_GATEWAY_PACKAGE_ID =
   "V2-PRODUCTION-EVIDENCE-GATEWAY-CADDY-ONLY";
 export const PRODUCTION_EVIDENCE_GATEWAY_REQUEST_SCHEMA =
-  "market-radar-production-evidence-gateway-request.v1";
+  "market-radar-production-evidence-gateway-request.v3";
 export const PRODUCTION_EVIDENCE_GATEWAY_RESULT_SCHEMA =
   "market-radar-production-evidence-gateway-result.v1";
 export const PRODUCTION_EVIDENCE_GATEWAY_MANIFEST_SCHEMA =
@@ -48,6 +52,16 @@ export const PRODUCTION_EVIDENCE_GATEWAY_OVERRIDE =
   "scripts/v2/production/fixed-channel/production-evidence-gateway.compose.yml";
 export const PRODUCTION_EVIDENCE_GATEWAY_RECIPIENT =
   "scripts/v2/production/fixed-channel/production-evidence-recipient-public.spki";
+export const PRODUCTION_EVIDENCE_GATEWAY_RECURRENCE_GATE =
+  "scripts/v2/production/fixed-channel/recurrence-root-cause-gate.mjs";
+export const PRODUCTION_EVIDENCE_GATEWAY_RECURRENCE_REGISTRY =
+  "docs/governance/recurrence-root-cause-registry.v1.json";
+export const PRODUCTION_EVIDENCE_GATEWAY_RECURRENCE_INCIDENT_ID =
+  "REC-2026-08-02-PRODUCTION-GATEWAY-PREFLIGHT-EQUIVALENCE";
+export const PRODUCTION_EVIDENCE_GATEWAY_RECURRENCE_FAULT_CLASS =
+  "production_gateway.preflight_runtime_equivalence";
+export const PRODUCTION_EVIDENCE_GATEWAY_REMEDIATION_OPERATION =
+  "production_evidence_gateway_runtime_identity_bound_release";
 export const PRODUCTION_EVIDENCE_GATEWAY_SUCCESS_MARKER =
   "PASS_V2_PRODUCTION_EVIDENCE_GATEWAY_CADDY_ONLY";
 export const PRODUCTION_EVIDENCE_GATEWAY_RUNTIME_MAX_SECONDS = 110;
@@ -56,6 +70,8 @@ export const PRODUCTION_EVIDENCE_GATEWAY_SOURCE_FILES = Object.freeze([
   PRODUCTION_EVIDENCE_GATEWAY_ENTRYPOINT,
   PRODUCTION_EVIDENCE_GATEWAY_OVERRIDE,
   PRODUCTION_EVIDENCE_GATEWAY_RECIPIENT,
+  PRODUCTION_EVIDENCE_GATEWAY_RECURRENCE_GATE,
+  PRODUCTION_EVIDENCE_GATEWAY_RECURRENCE_REGISTRY,
   "scripts/v2/production/fixed-channel/production-dispatch.mjs",
   "scripts/v2/production/fixed-channel/production-evidence-channel.mjs",
   PRODUCTION_EVIDENCE_GATEWAY_RUNNER,
@@ -63,12 +79,16 @@ export const PRODUCTION_EVIDENCE_GATEWAY_SOURCE_FILES = Object.freeze([
 
 export const DEFAULT_PRODUCTION_EVIDENCE_GATEWAY_POLICY = Object.freeze({
   caddyContainerName: "chuan-market-radar-caddy-1",
+  composeIdentityWrapper:
+    "/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/runtime/compose-identity-safe",
   composeProjectName: "chuan-market-radar",
   dispatchStateRoot: "/var/lib/market-radar-production-dispatch",
   gatewayRoot:
     "/var/lib/market-radar-production-dispatch/evidence-gateway",
   outboxRoot: "/var/lib/market-radar-production-dispatch/outbound",
   productionWorktree: "/home/ubuntu/apps/chuan-market-radar",
+  runtimeIdentityOverride:
+    "/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/runtime/runtime-identity.override.yml",
   stagingPrefix: "production-evidence-gateway-",
   stagingRoot: "/home/ubuntu/.cache/market-radar-v2",
 });
@@ -80,6 +100,8 @@ const REQUEST_KEYS = Object.freeze([
   "automaticRollbackRequired",
   "caddyContainerName",
   "caddyMutationAllowed",
+  "composeIdentityWrapper",
+  "composeIdentityWrapperSha256",
   "composeProjectName",
   "databaseMutationAllowed",
   "dispatchId",
@@ -107,8 +129,12 @@ const REQUEST_KEYS = Object.freeze([
   "productionRepositoryMutationAllowed",
   "productionWorktree",
   "redisMutationAllowed",
+  "recurrenceRegistrySha256",
+  "recurrenceRemediationOperation",
   "revocationEpoch",
   "runnerUnitName",
+  "runtimeIdentityOverride",
+  "runtimeIdentityOverrideSha256",
   "schemaVersion",
   "sessionIndependentExecutionRequired",
   "sourceCommit",
@@ -216,15 +242,25 @@ export function validateProductionEvidenceGatewayRequest(request, {
     request.expectedBaselineComposeSha256,
     request.expectedTargetCaddyfileSha256,
     request.expectedTargetComposeOverrideSha256,
+    request.composeIdentityWrapperSha256,
+    request.runtimeIdentityOverrideSha256,
+    request.recurrenceRegistrySha256,
     request.transportBundleSha256,
   ].every((value) => SHA256.test(value)), "evidence_gateway_hash_binding_invalid");
+  ensure(
+    request.recurrenceRemediationOperation
+      === PRODUCTION_EVIDENCE_GATEWAY_REMEDIATION_OPERATION,
+    "evidence_gateway_recurrence_operation_invalid",
+  );
   ensure(
     request.dispatchStateRoot === policy.dispatchStateRoot
       && request.evidenceOutboxRoot === policy.outboxRoot
       && request.gatewayRoot === policy.gatewayRoot
       && request.productionWorktree === policy.productionWorktree
       && request.caddyContainerName === policy.caddyContainerName
-      && request.composeProjectName === policy.composeProjectName,
+      && request.composeIdentityWrapper === policy.composeIdentityWrapper
+      && request.composeProjectName === policy.composeProjectName
+      && request.runtimeIdentityOverride === policy.runtimeIdentityOverride,
     "evidence_gateway_policy_path_mismatch",
   );
   directChild(
@@ -303,6 +339,50 @@ export function validateProductionEvidenceGatewayRequest(request, {
     "evidence_gateway_container_identity_invalid",
   );
   return request;
+}
+
+export function validateProductionEvidenceGatewayRecurrenceAuthority(
+  request,
+  registryBytes,
+) {
+  ensure(
+    Buffer.isBuffer(registryBytes)
+      && sha256(registryBytes) === request.recurrenceRegistrySha256,
+    "evidence_gateway_recurrence_registry_identity_mismatch",
+  );
+  let registry;
+  try {
+    registry = JSON.parse(registryBytes.toString("utf8"));
+  } catch {
+    throw new ProductionEvidenceGatewayError(
+      "evidence_gateway_recurrence_registry_invalid",
+    );
+  }
+  const incident = Array.isArray(registry?.incidents)
+    ? registry.incidents.find(({ id }) =>
+      id === PRODUCTION_EVIDENCE_GATEWAY_RECURRENCE_INCIDENT_ID)
+    : undefined;
+  ensure(
+    incident?.faultClass === PRODUCTION_EVIDENCE_GATEWAY_RECURRENCE_FAULT_CLASS
+      && Array.isArray(incident.affectedOperations)
+      && incident.affectedOperations.includes(request.recurrenceRemediationOperation)
+      && (incident.status === "CLOSED_VERIFIED"
+        || (Array.isArray(incident.remediationOperations)
+          && incident.remediationOperations.includes(
+            request.recurrenceRemediationOperation,
+          ))),
+    "evidence_gateway_recurrence_incident_missing",
+  );
+  const violations = evaluateRecurrenceOperations(
+    registry,
+    [request.recurrenceRemediationOperation],
+  );
+  ensure(
+    violations.length === 0,
+    "evidence_gateway_recurrence_gate_open",
+    { violations: violations.slice(0, 16) },
+  );
+  return registry;
 }
 
 export async function readBoundedProductionEvidenceGatewayFile(
@@ -463,48 +543,112 @@ function parseContainerMap(raw) {
   return map;
 }
 
-async function defaultCommandRunner(command, args) {
+function commandOutputBytes(value) {
+  if (Buffer.isBuffer(value)) return value;
+  return Buffer.from(typeof value === "string" ? value : "");
+}
+
+async function execBoundCommand(path, args, options, { command, operation }) {
+  try {
+    return await execFileAsync(path, args, options);
+  } catch (error) {
+    throw new ProductionEvidenceGatewayError(
+      `evidence_gateway_command_failed:${operation}`,
+      {
+        command,
+        exitCode: Number.isInteger(error?.code) ? error.code : null,
+        stderrSha256: sha256(commandOutputBytes(error?.stderr)),
+        stdoutSha256: sha256(commandOutputBytes(error?.stdout)),
+      },
+    );
+  }
+}
+
+async function privilegedFileIdentity(path, request, operation) {
+  ensure(
+    path === request.composeIdentityWrapper
+      || path === request.runtimeIdentityOverride,
+    "evidence_gateway_privileged_file_path_invalid",
+  );
+  const run = async (commandArgs) => execBoundCommand(
+    "/usr/bin/sudo",
+    ["-n", "--", ...commandArgs],
+    { encoding: "utf8", maxBuffer: 64 * 1024, timeout: 10_000 },
+    { command: "privileged-file-identity", operation },
+  );
+  await run(["/usr/bin/test", "-f", path]);
+  await run(["/usr/bin/test", "!", "-L", path]);
+  const statArgs = ["/usr/bin/stat", "-Lc", "%d|%i|%s|%Y|%a|%u|%g|%F", path];
+  const before = (await run(statArgs)).stdout.trim();
+  const digestOutput = (await run(["/usr/bin/sha256sum", "--", path])).stdout.trim();
+  const after = (await run(statArgs)).stdout.trim();
+  ensure(before === after, "evidence_gateway_privileged_file_changed");
+  const digest = digestOutput.split(/\s+/u)[0];
+  const fields = before.split("|");
+  ensure(
+    SHA256.test(digest)
+      && fields.length === 8
+      && fields[7] === "regular file",
+    "evidence_gateway_privileged_file_identity_invalid",
+  );
+  return canonicalJson({
+    gid: Number(fields[6]),
+    mode: fields[4],
+    sha256: digest,
+    uid: Number(fields[5]),
+  });
+}
+
+async function defaultCommandRunner(command, args, request, operation = "unspecified") {
   const common = { maxBuffer: 4 * 1024 * 1024, timeout: 30_000 };
   if (command === "git") {
-    const { stdout } = await execFileAsync("/usr/bin/git", args, {
+    const { stdout } = await execBoundCommand("/usr/bin/git", args, {
       ...common,
       encoding: "utf8",
-    });
+    }, { command, operation });
     return stdout.trim();
   }
   if (command === "docker") {
-    const { stdout } = await execFileAsync(
+    const { stdout } = await execBoundCommand(
       "/usr/bin/sudo",
       ["-n", "--", "/usr/bin/docker", ...args],
       { ...common, encoding: "utf8", timeout: 75_000 },
+      { command, operation },
+    );
+    return stdout.trim();
+  }
+  if (command === "compose-wrapper") {
+    const { stdout } = await execBoundCommand(
+      "/usr/bin/sudo",
+      ["-n", "--", request.composeIdentityWrapper, ...args],
+      { ...common, encoding: "utf8", timeout: 75_000 },
+      { command, operation },
     );
     return stdout.trim();
   }
   if (command === "curl") {
-    const { stdout } = await execFileAsync("/usr/bin/curl", args, {
+    const { stdout } = await execBoundCommand("/usr/bin/curl", args, {
       ...common,
       encoding: null,
-    });
+    }, { command, operation });
     return stdout;
   }
   if (command === "systemctl") {
-    const { stdout } = await execFileAsync("/usr/bin/systemctl", args, {
+    const { stdout } = await execBoundCommand("/usr/bin/systemctl", args, {
       ...common,
       encoding: "utf8",
-    });
+    }, { command, operation });
     return stdout.trim();
+  }
+  if (command === "privileged-file-identity") {
+    ensure(args.length === 1, "evidence_gateway_privileged_file_arguments_invalid");
+    return privilegedFileIdentity(args[0], request, operation);
   }
   throw new ProductionEvidenceGatewayError("evidence_gateway_command_not_allowed");
 }
 
 function composePrefix(request, includeOverride) {
-  const args = [
-    "compose",
-    "--project-directory", request.productionWorktree,
-    "--project-name", request.composeProjectName,
-    "--env-file", join(request.productionWorktree, ".env.production"),
-    "-f", join(request.productionWorktree, "docker-compose.yml"),
-  ];
+  const args = [];
   if (includeOverride) {
     args.push("-f", join(request.gatewayRoot, "production-evidence-gateway.compose.yml"));
   }
@@ -512,34 +656,47 @@ function composePrefix(request, includeOverride) {
 }
 
 async function captureIdentity(request, commandRunner) {
-  const run = (command, args) => commandRunner(command, args, request);
+  const run = (command, args, operation) =>
+    commandRunner(command, args, request, operation);
   const productionHead = await run("git", [
     "-C", request.productionWorktree, "rev-parse", "HEAD",
-  ]);
+  ], "capture_production_head");
   const worktreeStatus = await run("git", [
     "-C", request.productionWorktree, "status", "--porcelain=v1", "--untracked-files=all",
-  ]);
+  ], "capture_production_worktree");
   const containers = parseContainerMap(await run("docker", [
     "ps", "--no-trunc", "--format", "{{.Names}}={{.ID}}",
-  ]));
+  ], "capture_container_identity"));
   const caddyImageId = await run("docker", [
     "inspect", "--format", "{{.Image}}", request.caddyContainerName,
-  ]);
+  ], "capture_caddy_image");
   ensure(IMAGE_ID.test(caddyImageId), "evidence_gateway_caddy_image_invalid");
   const health = parseHealth(await run("curl", [
     "-kfsS", "--max-time", "20", "http://127.0.0.1/api/health",
-  ]), request.expectedHealth);
+  ], "capture_health"), request.expectedHealth);
   const timerActive = await run("systemctl", [
     "is-active", "market-radar-production-dispatch.timer",
-  ]);
+  ], "capture_dispatch_timer_active");
   const timerEnabled = await run("systemctl", [
     "is-enabled", "market-radar-production-dispatch.timer",
-  ]);
+  ], "capture_dispatch_timer_enabled");
+  const composeIdentityWrapper = JSON.parse(await run(
+    "privileged-file-identity",
+    [request.composeIdentityWrapper],
+    "capture_compose_identity_wrapper",
+  ));
+  const runtimeIdentityOverride = JSON.parse(await run(
+    "privileged-file-identity",
+    [request.runtimeIdentityOverride],
+    "capture_runtime_identity_override",
+  ));
   return {
     caddyImageId,
+    composeIdentityWrapper,
     containers,
     health,
     productionHead,
+    runtimeIdentityOverride,
     timerActive,
     timerEnabled,
     worktreeClean: worktreeStatus.length === 0,
@@ -555,7 +712,15 @@ function assertBaselineIdentity(identity, request) {
       && identity.containers.size === request.expectedContainerCount
       && identity.containers.has(request.caddyContainerName)
       && identity.timerActive === "active"
-      && identity.timerEnabled === "enabled",
+      && identity.timerEnabled === "enabled"
+      && identity.composeIdentityWrapper?.sha256 === request.composeIdentityWrapperSha256
+      && identity.composeIdentityWrapper?.mode === "700"
+      && identity.composeIdentityWrapper?.uid === 0
+      && identity.composeIdentityWrapper?.gid === 0
+      && identity.runtimeIdentityOverride?.sha256 === request.runtimeIdentityOverrideSha256
+      && identity.runtimeIdentityOverride?.mode === "600"
+      && identity.runtimeIdentityOverride?.uid === 0
+      && identity.runtimeIdentityOverride?.gid === 0,
     "evidence_gateway_baseline_identity_mismatch",
   );
 }
@@ -565,6 +730,11 @@ async function installGatewayFiles(request) {
     () => { throw new ProductionEvidenceGatewayError("evidence_gateway_root_already_exists"); },
     (error) => { if (error?.code !== "ENOENT") throw error; },
   );
+  await lstat(request.evidenceOutboxRoot).then(
+    () => { throw new ProductionEvidenceGatewayError("evidence_gateway_outbox_already_exists"); },
+    (error) => { if (error?.code !== "ENOENT") throw error; },
+  );
+  let outboxCreated = false;
   await mkdir(request.gatewayRoot, { mode: 0o755 });
   try {
     const files = [
@@ -582,13 +752,30 @@ async function installGatewayFiles(request) {
       await writeFile(target, bytes, { flag: "wx", mode: 0o644 });
       await chmod(target, 0o644);
     }
-    await mkdir(request.evidenceOutboxRoot, { recursive: true, mode: 0o755 });
+    await mkdir(request.evidenceOutboxRoot, { mode: 0o755 });
+    outboxCreated = true;
     await chmod(request.evidenceOutboxRoot, 0o755);
     ensure(await realpath(request.gatewayRoot) === resolve(request.gatewayRoot),
       "evidence_gateway_root_unsafe");
+    return { outboxCreated };
   } catch (error) {
     await rm(request.gatewayRoot, { recursive: true, force: true });
+    if (outboxCreated) await rmdir(request.evidenceOutboxRoot);
     throw error;
+  }
+}
+
+async function removeFailedGatewayFiles(request, { outboxCreated }) {
+  await rm(request.gatewayRoot, { recursive: true, force: true });
+  if (outboxCreated) {
+    try {
+      await rmdir(request.evidenceOutboxRoot);
+    } catch (error) {
+      throw new ProductionEvidenceGatewayError(
+        "evidence_gateway_failure_cleanup_incomplete",
+        { code: typeof error?.code === "string" ? error.code.slice(0, 40) : null },
+      );
+    }
   }
 }
 
@@ -601,6 +788,7 @@ async function validateTargetCaddy(request, baseline, commandRunner) {
     "--name", `market-radar-evidence-gateway-validate-${suffix}`,
     "--read-only",
     "--cap-drop", "ALL",
+    "--cap-add", "NET_BIND_SERVICE",
     "--security-opt", "no-new-privileges",
     "--env", "CHUAN_PUBLIC_HOST=:80",
     "--volume", `${join(request.gatewayRoot, "Caddyfile")}:/etc/caddy/Caddyfile:ro`,
@@ -612,16 +800,16 @@ async function validateTargetCaddy(request, baseline, commandRunner) {
     "validate",
     "--config", "/etc/caddy/Caddyfile",
     "--adapter", "caddyfile",
-  ], request);
-  await commandRunner("docker", [
+  ], request, "validate_target_caddyfile");
+  await commandRunner("compose-wrapper", [
     ...composePrefix(request, true),
     "config",
     "--quiet",
-  ], request);
+  ], request, "validate_target_compose");
 }
 
 async function recreateCaddy(request, commandRunner, includeOverride) {
-  await commandRunner("docker", [
+  await commandRunner("compose-wrapper", [
     ...composePrefix(request, includeOverride),
     "up",
     "-d",
@@ -629,7 +817,9 @@ async function recreateCaddy(request, commandRunner, includeOverride) {
     "--force-recreate",
     "--pull", "never",
     "caddy",
-  ], request);
+  ], request, includeOverride
+    ? "recreate_caddy_with_evidence_gateway"
+    : "recreate_caddy_baseline");
 }
 
 async function waitForReadyHealth(request, commandRunner, sleeper) {
@@ -638,7 +828,7 @@ async function waitForReadyHealth(request, commandRunner, sleeper) {
     try {
       return parseHealth(await commandRunner("curl", [
         "-kfsS", "--max-time", "10", "http://127.0.0.1/api/health",
-      ], request), request.expectedHealth);
+      ], request, "wait_for_ready_health"), request.expectedHealth);
     } catch (error) {
       lastError = error;
       if (attempt < 12) await sleeper(2_000);
@@ -647,7 +837,7 @@ async function waitForReadyHealth(request, commandRunner, sleeper) {
   throw new ProductionEvidenceGatewayError("evidence_gateway_health_recovery_timeout", {
     lastReason: lastError instanceof ProductionEvidenceGatewayError
       ? lastError.reason
-      : "unexpected_error",
+      : "evidence_gateway_unclassified_failure",
   });
 }
 
@@ -656,6 +846,10 @@ function assertPostIdentity(before, after, request) {
     after.productionHead === before.productionHead
       && after.worktreeClean
       && after.caddyImageId === before.caddyImageId
+      && canonicalJson(after.composeIdentityWrapper)
+        === canonicalJson(before.composeIdentityWrapper)
+      && canonicalJson(after.runtimeIdentityOverride)
+        === canonicalJson(before.runtimeIdentityOverride)
       && after.containers.size === before.containers.size,
     "evidence_gateway_post_identity_mismatch",
   );
@@ -672,7 +866,7 @@ function assertPostIdentity(before, after, request) {
 async function assertGatewayMounts(request, commandRunner) {
   const raw = await commandRunner("docker", [
     "inspect", "--format", "{{json .Mounts}}", request.caddyContainerName,
-  ], request);
+  ], request, "verify_gateway_mounts");
   let mounts;
   try {
     mounts = JSON.parse(raw);
@@ -706,7 +900,7 @@ async function verifyRouteProbe(request, commandRunner) {
       "-kfsS",
       "--max-time", "10",
       `http://127.0.0.1/_market-radar/evidence/${objectName}`,
-    ], request);
+    ], request, "verify_gateway_route_probe");
     ensure(Buffer.isBuffer(received) && sha256(received) === sha256(bytes),
       "evidence_gateway_route_probe_mismatch");
     const malformedStatus = await commandRunner("curl", [
@@ -715,7 +909,7 @@ async function verifyRouteProbe(request, commandRunner) {
       "--output", "/dev/null",
       "--write-out", "%{http_code}",
       "http://127.0.0.1/_market-radar/evidence/not-allowed.mre",
-    ], request);
+    ], request, "verify_gateway_closed_namespace");
     ensure(String(malformedStatus) === "404", "evidence_gateway_namespace_not_closed");
   } finally {
     await unlink(path).catch(() => {});
@@ -818,6 +1012,10 @@ async function rollbackGateway(request, before, commandRunner, sleeper) {
     afterRollback.productionHead === before.productionHead
       && afterRollback.worktreeClean
       && afterRollback.caddyImageId === before.caddyImageId
+      && canonicalJson(afterRollback.composeIdentityWrapper)
+        === canonicalJson(before.composeIdentityWrapper)
+      && canonicalJson(afterRollback.runtimeIdentityOverride)
+        === canonicalJson(before.runtimeIdentityOverride)
       && afterRollback.containers.size === before.containers.size,
     "evidence_gateway_rollback_identity_mismatch",
   );
@@ -829,7 +1027,7 @@ async function rollbackGateway(request, before, commandRunner, sleeper) {
   }
   const mounts = await commandRunner("docker", [
     "inspect", "--format", "{{json .Mounts}}", request.caddyContainerName,
-  ], request);
+  ], request, "verify_rollback_mounts");
   ensure(
     !String(mounts).includes(request.gatewayRoot)
       && !String(mounts).includes(request.evidenceOutboxRoot),
@@ -860,6 +1058,19 @@ export async function runProductionEvidenceGateway({
     "evidence_gateway_request_identity_mismatch",
   );
   await validateGatewayBundle(request);
+  const recurrenceRegistryBytes =
+    await readBoundedProductionEvidenceGatewayFile(
+      join(
+        request.stagingDirectory,
+        PRODUCTION_EVIDENCE_GATEWAY_RECURRENCE_REGISTRY,
+      ),
+      4 * 1024 * 1024,
+      "evidence_gateway_recurrence_registry_unsafe",
+    );
+  validateProductionEvidenceGatewayRecurrenceAuthority(
+    request,
+    recurrenceRegistryBytes,
+  );
   const baseCaddyfile = await readBoundedProductionEvidenceGatewayFile(
     join(request.productionWorktree, "deploy/caddy/Caddyfile"),
     1024 * 1024,
@@ -879,8 +1090,9 @@ export async function runProductionEvidenceGateway({
   assertBaselineIdentity(before, request);
   let gatewayInstalled = false;
   let mutationStarted = false;
+  let outboxCreated = false;
   try {
-    await installGatewayFiles(request);
+    ({ outboxCreated } = await installGatewayFiles(request));
     gatewayInstalled = true;
     await validateTargetCaddy(request, before, commandRunner);
     mutationStarted = true;
@@ -919,14 +1131,16 @@ export async function runProductionEvidenceGateway({
         throw new ProductionEvidenceGatewayError("evidence_gateway_rollback_failed", {
           originalReason: error instanceof ProductionEvidenceGatewayError
             ? error.reason
-            : "unexpected_error",
+            : "evidence_gateway_unclassified_failure",
           rollbackReason: rollbackError instanceof ProductionEvidenceGatewayError
             ? rollbackError.reason
-            : "unexpected_error",
+            : "evidence_gateway_unclassified_failure",
         });
       }
     }
-    if (gatewayInstalled) await rm(request.gatewayRoot, { recursive: true, force: true });
+    if (gatewayInstalled) {
+      await removeFailedGatewayFiles(request, { outboxCreated });
+    }
     throw error;
   }
 }
@@ -967,10 +1181,15 @@ async function main() {
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   main().catch((error) => {
     process.stderr.write(canonicalJson({
-      details: error instanceof ProductionEvidenceGatewayError ? error.details : undefined,
+      details: error instanceof ProductionEvidenceGatewayError
+        ? error.details
+        : {
+          code: typeof error?.code === "string" ? error.code.slice(0, 40) : null,
+          name: typeof error?.name === "string" ? error.name.slice(0, 80) : null,
+        },
       reason: error instanceof ProductionEvidenceGatewayError
         ? error.reason
-        : "unexpected_error",
+        : "evidence_gateway_unclassified_failure",
       status: "BLOCKED",
     }));
     process.exitCode = 1;

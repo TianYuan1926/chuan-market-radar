@@ -35,12 +35,15 @@ import {
 import {
   PRODUCTION_EVIDENCE_GATEWAY_ENTRYPOINT,
   PRODUCTION_EVIDENCE_GATEWAY_PACKAGE_ID,
+  PRODUCTION_EVIDENCE_GATEWAY_RECURRENCE_REGISTRY,
+  PRODUCTION_EVIDENCE_GATEWAY_REMEDIATION_OPERATION,
   PRODUCTION_EVIDENCE_GATEWAY_RESULT_SCHEMA,
   PRODUCTION_EVIDENCE_GATEWAY_SOURCE_FILES,
   PRODUCTION_EVIDENCE_GATEWAY_SUCCESS_MARKER,
   ProductionEvidenceGatewayError,
   readBoundedProductionEvidenceGatewayFile,
   runProductionEvidenceGateway,
+  validateProductionEvidenceGatewayRecurrenceAuthority,
   validateProductionEvidenceGatewayRequest,
 } from "./production-evidence-gateway.mjs";
 import {
@@ -53,6 +56,8 @@ const SOURCE_COMMIT = "a".repeat(40);
 const SOURCE_TREE = "b".repeat(40);
 const PRODUCTION_HEAD = "c".repeat(40);
 const CADDY_IMAGE = `sha256:${"d".repeat(64)}`;
+const COMPOSE_IDENTITY_WRAPPER = "#!/bin/sh\nexec docker compose \"$@\"\n";
+const RUNTIME_IDENTITY_OVERRIDE = "services:\n  web:\n    environment:\n      DATABASE_URL: test-only\n";
 const BASELINE_CADDYFILE = `{$CHUAN_PUBLIC_HOST} {\n\treverse_proxy web:3000\n}\n`;
 const BASELINE_COMPOSE = "services:\n  caddy:\n    image: caddy:2-alpine\n";
 
@@ -109,11 +114,13 @@ async function buildFixture() {
   const stateRoot = join(root, "state");
   const policy = {
     caddyContainerName: "chuan-market-radar-caddy-1",
+    composeIdentityWrapper: join(stateRoot, "compose-identity-safe"),
     composeProjectName: "chuan-market-radar",
     dispatchStateRoot: stateRoot,
     gatewayRoot: join(stateRoot, "evidence-gateway"),
     outboxRoot: join(stateRoot, "outbound"),
     productionWorktree,
+    runtimeIdentityOverride: join(stateRoot, "runtime-identity.override.yml"),
     stagingPrefix: "production-evidence-gateway-",
     stagingRoot,
   };
@@ -153,8 +160,11 @@ async function buildFixture() {
   await writeSource(productionWorktree, ".env.production", "CHUAN_PUBLIC_HOST=:80\n", 0o600);
   await mkdir(stagingRoot, { recursive: true, mode: 0o700 });
   await mkdir(stateRoot, { recursive: true, mode: 0o700 });
+  await writeFile(policy.composeIdentityWrapper, COMPOSE_IDENTITY_WRAPPER, { mode: 0o700 });
+  await writeFile(policy.runtimeIdentityOverride, RUNTIME_IDENTITY_OVERRIDE, { mode: 0o600 });
   const containers = containerFixture();
   const approval = {
+    composeIdentityWrapperSha256: sha256(COMPOSE_IDENTITY_WRAPPER),
     dispatchId: "production-evidence-gateway-20260802t060000z-test0001",
     expiresAt: new Date(NOW.getTime() + 60 * 60_000).toISOString(),
     expectedContainerIds: [...containers.values()].sort(),
@@ -162,6 +172,7 @@ async function buildFixture() {
     issuedAt: NOW.toISOString(),
     revocationEpoch: 0,
     runnerUnitName: "market-radar-evidence-gateway-test0001",
+    runtimeIdentityOverrideSha256: sha256(RUNTIME_IDENTITY_OVERRIDE),
     sourceRef: "refs/heads/codex/market-radar-v2-implementation",
   };
   const outputA = join(root, "build-a");
@@ -224,6 +235,7 @@ function healthBody({ legacyNested = false } = {}) {
 }
 
 function simulation(fixture, {
+  failTargetComposeValidation = false,
   failAfterDeployHealth = false,
   legacyNestedHealth = false,
 } = {}) {
@@ -240,6 +252,17 @@ function simulation(fixture, {
     }
     if (command === "systemctl") {
       return args[0] === "is-active" ? "active" : "enabled";
+    }
+    if (command === "privileged-file-identity") {
+      const wrapper = args[0] === fixture.request.composeIdentityWrapper;
+      return JSON.stringify({
+        gid: 0,
+        mode: wrapper ? "700" : "600",
+        sha256: wrapper
+          ? fixture.request.composeIdentityWrapperSha256
+          : fixture.request.runtimeIdentityOverrideSha256,
+        uid: 0,
+      });
     }
     if (command === "docker") {
       if (args[0] === "ps") {
@@ -267,8 +290,23 @@ function simulation(fixture, {
         ]);
       }
       if (args[0] === "run") return "Valid configuration";
-      if (args[0] === "compose" && args.includes("config")) return "";
-      if (args[0] === "compose" && args.includes("up")) {
+    }
+    if (command === "compose-wrapper") {
+      if (args.includes("config")) {
+        if (failTargetComposeValidation) {
+          throw new ProductionEvidenceGatewayError(
+            "evidence_gateway_command_failed:validate_target_compose",
+            {
+              command: "compose-wrapper",
+              exitCode: 1,
+              stderrSha256: "e".repeat(64),
+              stdoutSha256: sha256(""),
+            },
+          );
+        }
+        return "";
+      }
+      if (args.includes("up")) {
         overrideActive = args.includes(
           join(fixture.request.gatewayRoot, "production-evidence-gateway.compose.yml"),
         );
@@ -320,6 +358,25 @@ test("gateway request freezes a Caddy-only, no-repository, auto-rollback boundar
     assert.equal(fixture.request.redisMutationAllowed, false);
     assert.equal(fixture.request.workerMutationAllowed, false);
     assert.equal(fixture.request.automaticRollbackRequired, true);
+    assert.equal(
+      fixture.request.recurrenceRemediationOperation,
+      PRODUCTION_EVIDENCE_GATEWAY_REMEDIATION_OPERATION,
+    );
+    assert.equal(
+      fixture.request.recurrenceRegistrySha256,
+      sha256(await readFile(join(
+        fixture.request.stagingDirectory,
+        PRODUCTION_EVIDENCE_GATEWAY_RECURRENCE_REGISTRY,
+      ))),
+    );
+    assert.equal(
+      fixture.request.composeIdentityWrapperSha256,
+      sha256(COMPOSE_IDENTITY_WRAPPER),
+    );
+    assert.equal(
+      fixture.request.runtimeIdentityOverrideSha256,
+      sha256(RUNTIME_IDENTITY_OVERRIDE),
+    );
     assert.match(
       fixture.request.evidenceRecipientFingerprintSha256,
       /^[a-f0-9]{64}$/u,
@@ -334,6 +391,76 @@ test("gateway request freezes a Caddy-only, no-repository, auto-rollback boundar
         workerMutationAllowed: true,
       }, { now: NOW, policy: fixture.policy }),
       gatewayReason("evidence_gateway_mutation_boundary_invalid"),
+    );
+    await assert.rejects(
+      async () => validateProductionEvidenceGatewayRequest({
+        ...fixture.request,
+        composeIdentityWrapper: `${fixture.request.composeIdentityWrapper}.other`,
+      }, { now: NOW, policy: fixture.policy }),
+      gatewayReason("evidence_gateway_policy_path_mismatch"),
+    );
+    await assert.rejects(
+      async () => validateProductionEvidenceGatewayRequest({
+        ...fixture.request,
+        runtimeIdentityOverrideSha256: "not-a-sha256",
+      }, { now: NOW, policy: fixture.policy }),
+      gatewayReason("evidence_gateway_hash_binding_invalid"),
+    );
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test("gateway recurrence authority permits only the registered remediation path", async () => {
+  const fixture = await buildFixture();
+  try {
+    const registryPath = join(
+      fixture.request.stagingDirectory,
+      PRODUCTION_EVIDENCE_GATEWAY_RECURRENCE_REGISTRY,
+    );
+    const registryBytes = await readFile(registryPath);
+    assert.doesNotThrow(() =>
+      validateProductionEvidenceGatewayRecurrenceAuthority(
+        fixture.request,
+        registryBytes,
+      ));
+
+    const registry = JSON.parse(registryBytes.toString("utf8"));
+    const incident = registry.incidents.find(({ id }) =>
+      id === "REC-2026-08-02-PRODUCTION-GATEWAY-PREFLIGHT-EQUIVALENCE");
+    incident.remediationOperations = incident.remediationOperations.filter(
+      (operation) => operation !== PRODUCTION_EVIDENCE_GATEWAY_REMEDIATION_OPERATION,
+    );
+    const blockedBytes = Buffer.from(`${JSON.stringify(registry, null, 2)}\n`);
+    assert.throws(
+      () => validateProductionEvidenceGatewayRecurrenceAuthority(
+        {
+          ...fixture.request,
+          recurrenceRegistrySha256: sha256(blockedBytes),
+        },
+        blockedBytes,
+      ),
+      gatewayReason("evidence_gateway_recurrence_incident_missing"),
+    );
+
+    const blockedRegistry = JSON.parse(registryBytes.toString("utf8"));
+    const blockedIncident = blockedRegistry.incidents.find(({ id }) =>
+      id === "REC-2026-08-02-PRODUCTION-GATEWAY-PREFLIGHT-EQUIVALENCE");
+    blockedIncident.prohibitedOperations.push(
+      PRODUCTION_EVIDENCE_GATEWAY_REMEDIATION_OPERATION,
+    );
+    const gateOpenBytes = Buffer.from(
+      `${JSON.stringify(blockedRegistry, null, 2)}\n`,
+    );
+    assert.throws(
+      () => validateProductionEvidenceGatewayRecurrenceAuthority(
+        {
+          ...fixture.request,
+          recurrenceRegistrySha256: sha256(gateOpenBytes),
+        },
+        gateOpenBytes,
+      ),
+      gatewayReason("evidence_gateway_recurrence_gate_open"),
     );
   } finally {
     await rm(fixture.root, { recursive: true, force: true });
@@ -530,7 +657,18 @@ test("gateway changes only Caddy, proves the route, and returns verifiable encry
     assert.equal(receipt.payload.nonCaddyContainerIdentityUnchanged, true);
     assert.equal(receipt.payload.productionRepositoryChanged, false);
     assert.ok(simulated.calls.some(({ args, command }) =>
-      command === "docker" && args[0] === "run" && args.includes("--network")));
+      command === "docker"
+        && args[0] === "run"
+        && args.includes("--network")
+        && args.includes("--cap-drop")
+        && args.includes("--cap-add")
+        && args.includes("NET_BIND_SERVICE")));
+    assert.ok(simulated.calls.some(({ args, command }) =>
+      command === "compose-wrapper"
+        && args.includes("config")
+        && args.some((value) => value.endsWith("production-evidence-gateway.compose.yml"))));
+    assert.ok(simulated.calls.some(({ args, command }) =>
+      command === "compose-wrapper" && args.includes("up")));
   } finally {
     await rm(fixture.root, { recursive: true, force: true });
   }
@@ -569,6 +707,61 @@ test("gateway accepts the production health envelope and rejects the obsolete ne
   }
 });
 
+test("target Compose validation failure is classified before mutation and removes all gateway state", async () => {
+  const fixture = await buildFixture();
+  try {
+    const simulated = simulation(fixture, { failTargetComposeValidation: true });
+    await assert.rejects(
+      runProductionEvidenceGateway({
+        commandRunner: simulated.commandRunner,
+        expiryScheduler: async () => {
+          throw new Error("must not schedule after failed Compose validation");
+        },
+        now: new Date(NOW.getTime() + 1_000),
+        policy: fixture.policy,
+        requestPath: join(fixture.request.stagingDirectory, "approval-request.json"),
+        sleeper: async () => {},
+      }),
+      gatewayReason("evidence_gateway_command_failed:validate_target_compose"),
+    );
+    assert.equal(simulated.mutationCount(), 0);
+    await assert.rejects(lstat(fixture.request.gatewayRoot), { code: "ENOENT" });
+    await assert.rejects(lstat(fixture.request.evidenceOutboxRoot), { code: "ENOENT" });
+    assert.equal(
+      simulated.calls.some(({ args, command }) =>
+        command === "docker" && args[0] === "compose"),
+      false,
+    );
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test("a pre-existing outbox is preserved and blocks the gateway before mutation", async () => {
+  const fixture = await buildFixture();
+  try {
+    const marker = join(fixture.request.evidenceOutboxRoot, "unknown-owner.txt");
+    await mkdir(fixture.request.evidenceOutboxRoot, { mode: 0o700 });
+    await writeFile(marker, "preserve-me\n", { mode: 0o600 });
+    const simulated = simulation(fixture);
+    await assert.rejects(
+      runProductionEvidenceGateway({
+        commandRunner: simulated.commandRunner,
+        now: new Date(NOW.getTime() + 1_000),
+        policy: fixture.policy,
+        requestPath: join(fixture.request.stagingDirectory, "approval-request.json"),
+        sleeper: async () => {},
+      }),
+      gatewayReason("evidence_gateway_outbox_already_exists"),
+    );
+    assert.equal(simulated.mutationCount(), 0);
+    assert.equal(await readFile(marker, "utf8"), "preserve-me\n");
+    await assert.rejects(lstat(fixture.request.gatewayRoot), { code: "ENOENT" });
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
 test("post-deploy health failure restores baseline Caddy and removes gateway state", async () => {
   const fixture = await buildFixture();
   try {
@@ -589,6 +782,7 @@ test("post-deploy health failure restores baseline Caddy and removes gateway sta
     assert.equal(simulated.overrideActive(), false);
     assert.equal(simulated.mutationCount(), 2);
     await assert.rejects(lstat(fixture.request.gatewayRoot), { code: "ENOENT" });
+    await assert.rejects(lstat(fixture.request.evidenceOutboxRoot), { code: "ENOENT" });
     await assert.rejects(
       lstat(join(
         fixture.request.evidenceOutboxRoot,
@@ -610,4 +804,14 @@ test("entrypoint always removes only its exact staging directory", async () => {
   assert.match(source, /STAGING_PREFIX="production-evidence-gateway-"/u);
   assert.match(source, /rm -rf -- "\$\{ACTUAL_SOURCE_ROOT\}"/u);
   assert.doesNotMatch(source, /docker compose down|docker system prune|git reset/u);
+});
+
+test("gateway process failures expose stable command or unclassified fingerprints", async () => {
+  const source = await readFile(
+    new URL("./production-evidence-gateway.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /evidence_gateway_command_failed:\$\{operation\}/u);
+  assert.match(source, /evidence_gateway_unclassified_failure/u);
+  assert.doesNotMatch(source, /:\s*"unexpected_error"/u);
 });
