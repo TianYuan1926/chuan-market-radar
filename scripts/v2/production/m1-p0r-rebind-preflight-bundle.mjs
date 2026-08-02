@@ -33,8 +33,8 @@ import {
   P0R_REBIND_MANIFEST_SCHEMA,
   P0R_REBIND_METADATA_ENDPOINT,
   P0R_REBIND_PACKAGE_ID,
+  P0R_REBIND_PACKAGE_SOURCE_FILES,
   P0R_REBIND_REQUEST_SCHEMA,
-  P0R_REBIND_RUNNER,
   P0R_REBIND_SUCCESS_MARKER,
   canonicalJson,
   sha256,
@@ -251,7 +251,7 @@ export async function buildP0RRebindBundle({
     expectedLegacyBundleSha256,
   );
   const sourceFiles = {};
-  for (const path of [P0R_REBIND_ENTRYPOINT, P0R_REBIND_RUNNER]) {
+  for (const path of P0R_REBIND_PACKAGE_SOURCE_FILES) {
     sourceFiles[path] = verifySourceBinding
       ? await committedFile(repository, sourceCommit, path)
       : await readFile(join(repository, path));
@@ -292,18 +292,14 @@ export async function buildP0RRebindBundle({
   const payload = join(temporary, "payload");
   try {
     await mkdir(payload, { recursive: true, mode: 0o700 });
-    await writePayloadFile(
-      payload,
-      P0R_REBIND_ENTRYPOINT,
-      sourceFiles[P0R_REBIND_ENTRYPOINT],
-      0o700,
-    );
-    await writePayloadFile(
-      payload,
-      P0R_REBIND_RUNNER,
-      sourceFiles[P0R_REBIND_RUNNER],
-      0o600,
-    );
+    for (const path of P0R_REBIND_PACKAGE_SOURCE_FILES) {
+      await writePayloadFile(
+        payload,
+        path,
+        sourceFiles[path],
+        path === P0R_REBIND_ENTRYPOINT ? 0o700 : 0o600,
+      );
+    }
     await writePayloadFile(
       payload,
       P0R_REBIND_MANIFEST,
@@ -313,11 +309,7 @@ export async function buildP0RRebindBundle({
     const archivePath = join(temporary, "payload.tar");
     await writeDeterministicUstar({
       archivePath,
-      entries: [
-        P0R_REBIND_ENTRYPOINT,
-        P0R_REBIND_MANIFEST,
-        P0R_REBIND_RUNNER,
-      ],
+      entries: [P0R_REBIND_MANIFEST, ...P0R_REBIND_PACKAGE_SOURCE_FILES].sort(),
       root: payload,
       sourceDateEpoch: SOURCE_DATE_EPOCH,
     });

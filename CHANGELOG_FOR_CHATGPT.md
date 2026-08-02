@@ -2,6 +2,24 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
+## 2026-08-02 / Fixed Dispatch Autonomous Evidence Return Root Remediation
+
+### 本轮目标
+
+根据 fixed dispatch 可送达 signed package、但严格脱敏结果只能滞留生产服务器的重复阻断，永久退役 Edge/API response reading、AX/browser-state、人工复制和 OrcaTerm result transport，建立可签名、加密、自动取回、独立验证和到期删除的生产证据返回通道。
+
+### 当前证据
+
+- 新 `V2-PRODUCTION-EVIDENCE-GATEWAY-CADDY-ONLY` 由生产 SSH Ed25519 host key 对 canonical statement 作 namespace 签名，再用固定本机 X25519 recipient 经 HKDF-SHA256 + AES-256-GCM 加密；Caddy 只允许既有 HTTP 端口上的高熵 exact `.mre` ciphertext path，不允许目录、redirect、plaintext、secret 或任意文件。
+- 本机固定 poller 只经 `127.0.0.1:7892` SOCKS 访问固定生产地址，校验 pinned host key/fingerprint、dispatch、schema、time 和 hash，以 mode-600、atomic、no-clobber 方式保存 payload、sealed object 和 receipt。生产每个对象由 exact transient systemd timer 在两小时租约后删除，并保留有界 prune。
+- 生产 gateway package 只允许复用当前 Caddy image 并 force-recreate Caddy；生产仓库、数据库、Redis、Worker、env、migration、Feature Flag 和其他容器均禁止改变。它在 mutation 前用当前 production Caddy image、network-none、read-only rootfs 验证目标配置；任何变更后失败都恢复 baseline Caddy，并要求非 Caddy full container IDs 保持不变。
+- 审批和 release 控制文件已统一使用 descriptor-first `O_NOFOLLOW`、mode-600、大小上限和读取前后 inode/mtime 稳定校验，并新增 broad-mode 与 symlink 红例。当前 production dispatch `37/37`、gateway `7/7`、P0R rebind `14/14`、V2 Ops `274/274`、ESLint、shell syntax、diff check 和故障注入 PASS。
+- 本机没有 Docker/Caddy CLI，因此不能把模拟测试称为真实 Caddy validation；真实语法/runtime validation 已固定为生产 mutation 前、当前 image 的隔离 preflight，尚未执行。最新完整 `ci:production`、clean exact commit、GitHub 四门、确定性 production bundle、精确生产批准、Caddy-only bootstrap、自动取回和 fresh rebind 均待完成。
+
+### 当前真值与下一步
+
+状态是 `AUTONOMOUS_EVIDENCE_RETURN_LOCAL_IMPLEMENTATION_AND_FAULT_INJECTION_PASS / LATEST_FULL_CI_CLEAN_COMMIT_REMOTE_FOUR_GATES_EXACT_APPROVAL_REAL_CADDY_VALIDATION_BOOTSTRAP_RETRIEVAL_AND_FRESH_REBIND_PENDING / PRODUCTION_INTENTIONAL_MUTATION_NONE / FRESH_PRODUCTION_ZERO_DRIFT_UNVERIFIED / P0R_BACKUP_RETRIEVAL_RESTORE_NOT_EXECUTED`。先完成权威资料同步与最新字节完整 CI，再形成唯一 V2 实施分支 clean commit 和 GitHub 四门；只有 exact production package 与批准成立后才允许 Caddy-only bootstrap。成功自动取回并验证 gateway evidence 后，使用同一通道 fresh rebind，再恢复 P0R。
+
 ## 2026-08-02 / P0R B9 R2 External Transaction and Route Authority Root Remediation
 
 ### 本轮目标
@@ -94,13 +112,13 @@
 
 状态是 `LOCAL_ROOT_REMEDIATION_P0R_100_OF_100_AND_FULL_CI_PASS / PRODUCTION_RECOVERY_BLOCKED_PRE_BACKUP / PRODUCTION_ZERO_DRIFT / TEMPORARY_ROUTE_AND_SECRET_RESIDUE_CLEAN / CLEAN_COMMIT_REMOTE_GATES_REBIND_AND_NEW_EXECUTION_PENDING`。当前不需要用户生成 STS、开放端口或操作 COS。下一步形成 clean commit、四门、fresh read-only rebind 和全新 run/plan/object key/transport-v3；只有这些全部通过后，才允许在动作时重新建立临时 8022 路线并请求新的 STS。
 
-## 2026-07-30 / P0R Fixed Local TTY Bridge and Proxy-Compatible 8022 Route
+### Archived Supporting History / 2026-07-30 Fixed Local TTY Bridge and Proxy-Compatible 8022 Route
 
-### 本轮目标
+#### 本轮目标
 
 根据第三枚真实 STS 在 browser-state recovery 中进入工具输出的直接证据，永久移除 API response 出现后的浏览器状态读取和 OrcaTerm secret entry，改为签发前预先建立的固定本机 TTY bridge。
 
-### 当前证据
+#### 当前证据
 
 - source `e3626387ee8d57ef8e4f9c11c2e098b781ac6fbe` 的本地 CI、GitHub 四门、fresh read-only rebind 和 staged transport-v2 曾真实 PASS，但 run `p0r-20260728t222552z-299113ff2921579d305df1e295e51914` 的 STS response 随后被浏览器状态读取披露。因此该 source 的资格证据仍是历史事实，该 run、plan、object key、bundle 和 staging 则全部永久失去执行权。
 - 第三枚 STS 从未进入服务器、从未编译、从未访问 COS；没有数据库 backup、retrieval 或 restore。其 exact expiry 为 `2026-07-29T06:09:17Z`，到期前状态是 `COMPROMISED_FORBIDDEN_UNTIL_EXPIRED`，到期后仍永久禁止复用。
@@ -120,10 +138,10 @@
 - 受控端口矩阵证明 8022 可经当前 SOCKS 到达、2222 不可达；当前出口为 `157.254.154.223`。生产随后只启动一个 `RuntimeMaxSec=7200`、ubuntu public-key-only、root/password/keyboard-interactive/forwarding 全禁用的独立 sshd，并只新增 `157.254.154.223/32 -> TCP 8022` 腾讯规则。严格 known_hosts、ed25519、`HostKeyAlias=43.161.202.227` 的本机握手真实返回 `ubuntu / VM-0-9-ubuntu / active`。该步骤没有签发 STS，没有 COS、数据库或业务 runtime 变更。
 - bridge schema v2 已固定 port 8022 与 HostKeyAlias，把完整 SSH 参数纳入两条伪 TTY 会话测试并禁止回退 `-p 22`。当前 bridge 6/6、P0R 88/88、recurrence 11/11、dispatch 24/24、V2 Foundation 631 PASS / 6 explicit skips、V2 Ops 210/210、Next build、Golden 16/16 和 security 的完整本地生产 CI 均 PASS；新 exact commit、四门、fresh rebind、新 run/plan/bundle 和真实 recovery 尚未完成。临时 listener 与云规则仍在受控窗口内，必须在成功、失败或超时后显式删除并验证。
 
-### 当前真值
+#### 当前真值
 
 P0R 仍是 `PRODUCTION_RECOVERY_NOT_EXECUTED / P0_BLOCKED`。现在没有可用 credential；`44e518...` 的四门、rebind 和 package 是真实历史 PASS，但 package 因 bridge schema v2 路由根治失去执行权。当前已完成 8022 预秘密通道验收和 bridge v2 本地全资格，不能冒充 backup、retrieval、restore 或 P0R PASS。旧 browser/OrcaTerm secret 路线和默认 SSH port 22 fallback 均已永久退役。
 
-### 下一步
+#### 下一步
 
 形成新的 clean exact commit 并重新取得 GitHub 四门；随后只通过高层 release 入口执行 fresh read-only rebind，再生成全新 run/object key/plan/bundle/staging。所有新 source 资格成立后，复核 8022 bootstrap gate、启动 bridge 并看到 READY，再由用户完成 MFA 和 API Explorer 原生 Copy。只有真实 backup、exact retrieval、独立 PostgreSQL 16 restore、证据封存、secret/container/volume/runtime 清理、8022 listener/云规则清理与生产零漂移全部 PASS，P0R 才能关闭。

@@ -9,13 +9,15 @@
 ```text
 当前系统等级：R1 / 可运行但不完整 / 不能支撑实战
 V2 设计状态：ACTIVE_DESIGN_AUTHORITY
-V2 实现状态：M0_ENGINEERING_EXIT_LOCAL_PASS / M0.4_EXPANDED_SCOPE_DESIGN_PASS / M0.5_MARKET_MECHANICS_MICROSTRUCTURE_PRECURSOR_ATLAS_DESIGN_PASS / A0_ENGINEERING_SUBGATES_PASS_TOTAL_GATE_INCOMPLETE_P0R_PENDING / M1.1B0_R3_LIVE_15_OF_15_ALL_GATES_PASS / M1.4A_M1.4D_LOCAL_RUNTIME_CONTRACTS_PASS_NO_AUTHORITY / M1.5C_M1.5D_LOCAL_RUNTIME_EVIDENCE_AND_EXACT_PACKAGE_PASS_LIVE_ZERO_OF_31_EACH / M2.1A_LOCAL_RESEARCH_CONTRACT_PASS_REAL_COHORT_MISSING_NO_CANDIDATE_EMISSION / M1.5-B1_EARLY_SHADOW_BUSINESS_GATE_PASS_V1_ONLY / M1.6-P0_EXECUTED_BLOCKED_CAPACITY_AND_RECOVERY / M1.6-P0R_ROUTE_AUTHORITY_PRODUCER_TRANSPORT_V4_17_MEMBER_P0R_139_OF_139_EXACT_MAIN_BRANCH_FULL_CI_AND_CURRENT_SOURCE_REMOTE_FOUR_GATE_PASS / FINAL_HEAD_QUALIFICATION_REBIND_AND_RECOVERY_PENDING / PRODUCTION_UNCHANGED / CLOUD_LISTENER_FIREWALL_SERVER_RESIDUE_AND_PRODUCTION_ZERO_DRIFT_UNVERIFIED / M2.2-B0.2-C1_FORWARD_ONLY_READY_NO_AUTHORITY / M3.0-M3.3_LOCAL_CONTRACT_PASS_TEST_ONLY_UNCALIBRATED_NO_READY_AUTHORITY / M3.3E_STRATEGY_ARCHETYPE_LABELING_DESIGN_AUTHORITY_ONLY / M3.4-R0_SCOPE_REBASE_GOVERNANCE_PASS_R1_PARTIAL_TEST_ONLY_DRAFT / EXTERNAL_RIGHTS_AND_HISTORICAL_SOURCE_BLOCKED / GATE_INSUFFICIENT / DETECTORS_DRAFT / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED
+V2 实现状态：M0_ENGINEERING_EXIT_LOCAL_PASS / M0.4_EXPANDED_SCOPE_DESIGN_PASS / M0.5_MARKET_MECHANICS_MICROSTRUCTURE_PRECURSOR_ATLAS_DESIGN_PASS / A0_ENGINEERING_SUBGATES_PASS_TOTAL_GATE_INCOMPLETE_P0R_PENDING / M1.1B0_R3_LIVE_15_OF_15_ALL_GATES_PASS / M1.4A_M1.4D_LOCAL_RUNTIME_CONTRACTS_PASS_NO_AUTHORITY / M1.5C_M1.5D_LOCAL_RUNTIME_EVIDENCE_AND_EXACT_PACKAGE_PASS_LIVE_ZERO_OF_31_EACH / M2.1A_LOCAL_RESEARCH_CONTRACT_PASS_REAL_COHORT_MISSING_NO_CANDIDATE_EMISSION / M1.5-B1_EARLY_SHADOW_BUSINESS_GATE_PASS_V1_ONLY / M1.6-P0_EXECUTED_BLOCKED_CAPACITY_AND_RECOVERY / P0R_ROUTE_AUTHORITY_UPSTREAM_QUALIFIED / PRODUCTION_EVIDENCE_GATEWAY_CADDY_ONLY_LOCAL_IMPLEMENTATION_DISPATCH_37_GATEWAY_7_P0R_REBIND_14_V2_OPS_274_PASS / LATEST_FULL_CI_CLEAN_COMMIT_REMOTE_FOUR_GATES_EXACT_APPROVAL_REAL_CADDY_VALIDATION_BOOTSTRAP_RETRIEVAL_FRESH_REBIND_AND_RECOVERY_PENDING / PRODUCTION_INTENTIONAL_MUTATION_NONE / FRESH_PRODUCTION_ZERO_DRIFT_UNVERIFIED / M2.2-B0.2-C1_FORWARD_ONLY_READY_NO_AUTHORITY / M3.0-M3.3_LOCAL_CONTRACT_PASS_TEST_ONLY_UNCALIBRATED_NO_READY_AUTHORITY / M3.3E_STRATEGY_ARCHETYPE_LABELING_DESIGN_AUTHORITY_ONLY / M3.4-R0_SCOPE_REBASE_GOVERNANCE_PASS_R1_PARTIAL_TEST_ONLY_DRAFT / EXTERNAL_RIGHTS_AND_HISTORICAL_SOURCE_BLOCKED / GATE_INSUFFICIENT / DETECTORS_DRAFT / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED
 V2 生产权限：false
 自动交易：永久禁止
 最新生产存储门禁：P0_BLOCKED_CAPACITY_AND_RECOVERY / APPLICATION_HEALTH_NOT_EVALUATED
 ```
 
-2026-08-02 最新覆盖：B8 exact target、B9 COS CAM action 和 route evidence v1 资格均只保留历史证据。两个 Bridge 窗口只预建 credential TTY，并在 native Copy 到达前分别等待 540 秒超时；后到 response 已作废且未进入 Bridge 或服务器。之后双端点 egress 一致漂移为 `156.248.15.36`，旧 exact `/32` 下的 8022 已不可达。当前仅证明本机 Bridge=0、clipboard 已覆盖；云 listener、旧规则、服务器 residue 和生产零漂移尚未复核。bridge/session v5、transaction v1 与 rebind v4/v3 已关闭双 TTY、状态机、控制文件和显式 8022/unit absence 缺口。route authority implementation `157e9a79...` 已加入 route target、Tencent firewall capture、strict listener observer、authoritative producer 和 route evidence v2。首轮远端安全资格通过 `8059edf...` 的有界脱敏 annotation 暴露真实 CodeQL `js/file-system-race`，run `30725896115` 保持 FAIL；`913bae3a...` 随后以 descriptor-first `O_NOFOLLOW` 读取根除 pre-open lstat 竞争窗口，没有 suppression。当前定向 `24/24`、P0R `139/139`、launcher `3/3`、V2 Ops `266/266`、Go helper、ESLint、Biome 和完整本地 `ci:production` PASS；候选 branch-identity FAIL 与远端 CodeQL FAIL 均保留。相同修复 source 的 Signed Dispatch `30726178696`、Full Quality `30726178679`、A0 `30726178659`、Independent Security `30726178672` 全部 PASS，CodeQL job `91438221977` 无 annotation。承载本轮权威资料的最终 HEAD 仍须同规则资格化；fresh rebind、外部清场、新 execution identity 和真实恢复仍待完成。GitHub 已推进，生产未改变。
+2026-08-02 最新覆盖：当前执行入口改为 `V2-PRODUCTION-EVIDENCE-GATEWAY-CADDY-ONLY`。route authority 的 implementation `157e9a79...`、真实 CodeQL 失败 `8059edf...` 和 descriptor-first remediation `913bae3a...` 保留为已资格化上游；所有旧 response、route、run、plan 和 staging 继续失效。新根因是 fixed dispatch 只能送达包、不能自主返回严格脱敏结果，继续依赖 Edge/API response、AX/browser-state、人工复制或 OrcaTerm 结果运输必然重复浪费。新通道用生产 SSH Ed25519 host key 对 canonical evidence 作 namespace 签名，以 X25519/HKDF-SHA256/AES-256-GCM 加密，只通过既有 Caddy 的高熵精确路径提供 ciphertext；本机固定 SOCKS poller 校验 pinned host identity、dispatch/schema/time/hash 并以 mode-600 no-clobber 保存，生产对象由 exact transient systemd timer 两小时后删除。网关包只允许复用当前 image 并重建 Caddy，失败自动恢复 baseline Caddy；仓库、数据库、Redis、Worker、env、migration、Feature Flag 和非目标容器不得改变。当前 dispatch `37/37`、gateway `7/7`、P0R rebind `14/14`、V2 Ops `274/274` 与故障注入 PASS；最新完整 CI、clean commit、GitHub 四门、精确生产批准、真实 current-image Caddy validation、bootstrap、自动取回、fresh rebind 和真实 recovery 尚未完成。生产没有本轮有意 mutation，fresh zero-drift 尚未证明。
+
+上一覆盖中的 Bridge timeout、dynamic egress、route authority producer 和 CodeQL 修复仍保留为事故与上游资格证据，但已被本段替代为当前施工入口，不再授权新的 Edge/API result extraction、8022、STS 或 recovery 动作。
 
 2026-07-21 M1.6-P0 已以 exact source 完成生产只读存储核验：PostgreSQL 16、V2 schema=`ABSENT_CLEAN`、旧/新 Fact=0、连接使用率 2%，数据库/服务/仓库 mutation 均为 0；但 120 GiB 系统盘按冻结模型预计使用率 90%，容量余量不足且 recovery evidence 缺失，因此准入结论是 `BLOCKED`。这不评价 `/api/health` 或生产业务 ready，不能扩写成全站健康或全站失败。
 
@@ -29,8 +31,8 @@ Legacy G0 的七个生产出口继续作为历史安全义务，但它们不是 
 
 | 优先级 | 文档 | 唯一职责 |
 | ---: | --- | --- |
-| 1 | [V2 受控替换工程与运行蓝图 v1.86](./MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md) | 当前唯一产品、领域、工程、研究、运行与切换设计权威 |
-| 2 | [V2 机器追踪矩阵 v1.91](./market-radar-v2-controlled-replacement-traceability.v1.json) | Scope Epoch、A0、18 个 Module、5 维状态、硬门槛和 M0-M7 的机器合同 |
+| 1 | [V2 受控替换工程与运行蓝图 v1.87](./MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md) | 当前唯一产品、领域、工程、研究、运行与切换设计权威 |
+| 2 | [V2 机器追踪矩阵 v1.92](./market-radar-v2-controlled-replacement-traceability.v1.json) | Scope Epoch、A0、18 个 Module、5 维状态、硬门槛和 M0-M7 的机器合同 |
 | 2P | [P0R 只读重绑定交付报告](./V2_M1_6_P0R_READ_ONLY_REBIND_PREFLIGHT_DELIVERY_REPORT.md) | 历史 staging 失效依据、当前源码重绑定边界、测试与生产零变更真值 |
 | 2P1 | [P0R fixed-dispatch transport staging 根因整改交付报告](./V2_M1_6_P0R_FIXED_DISPATCH_TRANSPORT_STAGING_REMEDIATION_DELIVERY_REPORT.md) | OrcaTerm 三次失败、运输退役、0755 fail-closed、0700 根治、B8 exact target acceptance 与 B9 边界 |
 | 2P2 | [P0R route authority producer 根因整改交付报告](./V2_M1_6_P0R_ROUTE_AUTHORITY_ROOT_REMEDIATION_DELIVERY_REPORT.md) | 手填 final hash 缺口、Tencent firewall/listener 权威生产链、transport v4、本地证据与未完成边界 |
@@ -132,7 +134,7 @@ Legacy G0 的七个生产出口继续作为历史安全义务，但它们不是 
 
 1. 与当前 release 身份对齐的新鲜生产只读证据。
 2. 永久安全、事实、交易、无 future leak 和无自动交易红线。
-3. V2 蓝图 v1.86 与机器追踪矩阵 v1.91。
+3. V2 蓝图 v1.87 与机器追踪矩阵 v1.92。
 4. `PROJECT_CONTEXT_FOR_CHATGPT.md` 中仍标为 current 的事实。
 5. Legacy 工程、运行和 readiness 文档中仍适用的安全与验收合同。
 6. 历史蓝图、旧请求、旧报告、旧 digest 和 Git history。

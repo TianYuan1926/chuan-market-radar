@@ -142,6 +142,7 @@ services:
       - "443:443"
     volumes:
       - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${PRODUCTION_EVIDENCE_OUTBOX_ROOT:-/var/lib/market-radar-production-dispatch/outbound}:/srv/market-radar-production-evidence:ro
       - caddy-data:/data
       - caddy-config:/config
     depends_on:

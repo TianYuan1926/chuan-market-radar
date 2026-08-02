@@ -1,0 +1,5 @@
+services:
+  caddy:
+    volumes:
+      - /var/lib/market-radar-production-dispatch/evidence-gateway/Caddyfile:/etc/caddy/Caddyfile:ro
+      - /var/lib/market-radar-production-dispatch/outbound:/srv/market-radar-production-evidence:ro

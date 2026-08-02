@@ -7,10 +7,36 @@
 		Referrer-Policy strict-origin-when-cross-origin
 	}
 
-	reverse_proxy web:3000 {
-		lb_try_duration 10s
-		lb_try_interval 250ms
-		# Docker Compose already health-checks the only web upstream.
-		# Caddy active checks can mark the whole site down during transient Docker DNS hiccups.
+	route {
+		@productionEvidence {
+			method GET HEAD
+			path_regexp productionEvidence ^/_market-radar/evidence/[a-f0-9]{64}\.mre$
+		}
+
+		handle @productionEvidence {
+			uri strip_prefix /_market-radar/evidence
+			root * /srv/market-radar-production-evidence
+			header {
+				Cache-Control "no-store, max-age=0"
+				Content-Disposition "attachment"
+				Content-Security-Policy "default-src 'none'; sandbox"
+				Content-Type "application/octet-stream"
+				X-Robots-Tag "noindex, nofollow, noarchive"
+			}
+			file_server
+		}
+
+		handle /_market-radar/evidence/* {
+			respond 404
+		}
+
+		handle {
+			reverse_proxy web:3000 {
+				lb_try_duration 10s
+				lb_try_interval 250ms
+				# Docker Compose already health-checks the only web upstream.
+				# Caddy active checks can mark the whole site down during transient Docker DNS hiccups.
+			}
+		}
 	}
 }

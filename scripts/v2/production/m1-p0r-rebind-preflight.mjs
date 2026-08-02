@@ -36,6 +36,14 @@ export const P0R_REBIND_ENTRYPOINT =
   "scripts/v2/production/m1-p0r-rebind-preflight-entrypoint.sh";
 export const P0R_REBIND_RUNNER =
   "scripts/v2/production/m1-p0r-rebind-preflight.mjs";
+export const P0R_REBIND_PACKAGE_SOURCE_FILES = Object.freeze([
+  P0R_REBIND_ENTRYPOINT,
+  "scripts/v2/production/fixed-channel/production-dispatch.mjs",
+  "scripts/v2/production/fixed-channel/production-evidence-channel.mjs",
+  "scripts/v2/production/fixed-channel/production-evidence-recipient-public.spki",
+  "scripts/v2/production/m1-p0r-rebind-evidence-export.mjs",
+  P0R_REBIND_RUNNER,
+].sort());
 export const P0R_REBIND_SUCCESS_MARKER =
   "PASS_V2_M1_6_P0R_READ_ONLY_REBIND_PREFLIGHT";
 export const P0R_REBIND_DISPATCH_RUNTIME_MAX_SECONDS = 90;
@@ -515,7 +523,7 @@ export async function validateP0RRebindManifest(stagingDirectory, request) {
   );
   exactKeys(
     manifest.files,
-    [P0R_REBIND_ENTRYPOINT, P0R_REBIND_RUNNER],
+    P0R_REBIND_PACKAGE_SOURCE_FILES,
     "p0r_rebind_manifest_files_invalid",
   );
   for (const [path, expected] of Object.entries(manifest.files)) {

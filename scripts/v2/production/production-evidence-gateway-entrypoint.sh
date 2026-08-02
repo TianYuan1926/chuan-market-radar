@@ -5,11 +5,9 @@ umask 077
 SOURCE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 REQUEST_FILE="${REQUEST_FILE:-${SOURCE_ROOT}/approval-request.json}"
 BUNDLE_MARKER="${SOURCE_ROOT}/.transport-bundle.sha256"
-RUNNER="${SOURCE_ROOT}/scripts/v2/production/m1-p0r-rebind-preflight.mjs"
-EVIDENCE_EXPORTER="${SOURCE_ROOT}/scripts/v2/production/m1-p0r-rebind-evidence-export.mjs"
-EVIDENCE_RECIPIENT="${SOURCE_ROOT}/scripts/v2/production/fixed-channel/production-evidence-recipient-public.spki"
+RUNNER="${SOURCE_ROOT}/scripts/v2/production/production-evidence-gateway.mjs"
 STAGING_ROOT="/home/ubuntu/.cache/market-radar-v2"
-STAGING_PREFIX="m1-p0r-rebind-"
+STAGING_PREFIX="production-evidence-gateway-"
 ACTUAL_SOURCE_ROOT="$(realpath "${SOURCE_ROOT}")"
 ACTUAL_REQUEST_FILE="$(realpath "${REQUEST_FILE}")"
 
@@ -21,7 +19,7 @@ cleanup_staging() {
     && "${ACTUAL_SOURCE_ROOT}" != "${STAGING_ROOT}" ]]; then
     rm -rf -- "${ACTUAL_SOURCE_ROOT}"
   else
-    echo "ERROR: P0R rebind staging cleanup boundary rejected." >&2
+    echo "ERROR: evidence gateway staging cleanup boundary rejected." >&2
     exit 1
   fi
   exit "${exit_code}"
@@ -38,29 +36,10 @@ if [[ "$(dirname "${ACTUAL_SOURCE_ROOT}")" != "${STAGING_ROOT}" \
   || ! -f "${BUNDLE_MARKER}" \
   || -L "${BUNDLE_MARKER}" \
   || ! -f "${RUNNER}" \
-  || -L "${RUNNER}" \
-  || ! -f "${EVIDENCE_EXPORTER}" \
-  || -L "${EVIDENCE_EXPORTER}" \
-  || ! -f "${EVIDENCE_RECIPIENT}" \
-  || -L "${EVIDENCE_RECIPIENT}" ]]; then
-  echo "ERROR: P0R rebind staging boundary is invalid." >&2
+  || -L "${RUNNER}" ]]; then
+  echo "ERROR: evidence gateway staging boundary is invalid." >&2
   exit 1
 fi
 
-runner_exit=0
-node "${RUNNER}" run \
-  --request "${ACTUAL_REQUEST_FILE}" \
-  --bundle-marker "${BUNDLE_MARKER}" || runner_exit=$?
-
-export_exit=0
-node "${EVIDENCE_EXPORTER}" export \
-  --request "${ACTUAL_REQUEST_FILE}" \
-  --recipient-public-key "${EVIDENCE_RECIPIENT}" || export_exit=$?
-
-if (( runner_exit != 0 )); then
-  exit "${runner_exit}"
-fi
-if (( export_exit != 0 )); then
-  exit "${export_exit}"
-fi
-echo "PASS_V2_M1_6_P0R_READ_ONLY_REBIND_PREFLIGHT"
+node "${RUNNER}" run --request "${ACTUAL_REQUEST_FILE}"
+echo "PASS_V2_PRODUCTION_EVIDENCE_GATEWAY_CADDY_ONLY"

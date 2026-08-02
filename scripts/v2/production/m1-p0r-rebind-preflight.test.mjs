@@ -25,6 +25,16 @@ import {
   validateOutbox,
 } from "./fixed-channel/production-dispatch.mjs";
 import {
+  evidenceObjectName,
+  generateEvidenceRecipientKeyPair,
+  openProductionEvidence,
+  readSealedEvidenceFile,
+} from "./fixed-channel/production-evidence-channel.mjs";
+import {
+  P0R_REBIND_EVIDENCE_RECIPIENT_RELATIVE_PATH,
+  exportP0RRebindEvidence,
+} from "./m1-p0r-rebind-evidence-export.mjs";
+import {
   buildP0RRebindBundle,
   parseP0RRebindBundleArguments,
 } from "./m1-p0r-rebind-preflight-bundle.mjs";
@@ -47,8 +57,8 @@ import {
   P0R_REBIND_MANIFEST_SCHEMA,
   P0R_REBIND_METADATA_ENDPOINT,
   P0R_REBIND_PACKAGE_ID,
+  P0R_REBIND_PACKAGE_SOURCE_FILES,
   P0R_REBIND_REQUEST_SCHEMA,
-  P0R_REBIND_RUNNER,
   P0R_REBIND_SUCCESS_MARKER,
   assertP0RRebindProductionIdentity,
   canonicalJson,
@@ -281,6 +291,22 @@ function fixtureRequest(policy, legacy) {
     transportMethod: "signed_git_bundle",
     workerMutationAllowed: false,
   };
+}
+
+async function createEvidenceTestHostKey(root) {
+  const keyPath = join(root, "evidence-host-ed25519");
+  await execFileAsync("/usr/bin/ssh-keygen", [
+    "-q",
+    "-t", "ed25519",
+    "-N", "",
+    "-f", keyPath,
+  ]);
+  const publicKey = (await readFile(`${keyPath}.pub`, "utf8"))
+    .trim()
+    .split(/\s+/u)
+    .slice(0, 2)
+    .join(" ");
+  return { keyPath, publicKey };
 }
 
 test("request freezes no-secret read-only rebinding boundaries", async () => {
@@ -788,7 +814,7 @@ test("runner produces sanitized zero-drift evidence end to end", async () => {
     });
     const request = fixtureRequest(policy, legacy);
     await mkdir(request.stagingDirectory, { recursive: true, mode: 0o700 });
-    for (const path of [P0R_REBIND_ENTRYPOINT, P0R_REBIND_RUNNER]) {
+    for (const path of P0R_REBIND_PACKAGE_SOURCE_FILES) {
       await mkdir(dirname(join(request.stagingDirectory, path)), {
         recursive: true,
         mode: 0o700,
@@ -802,14 +828,12 @@ test("runner produces sanitized zero-drift evidence end to end", async () => {
     const manifest = {
       archiveFormat: "ustar+gzip-n",
       containsSecrets: false,
-      files: {
-        [P0R_REBIND_ENTRYPOINT]: sha256(
-          await readFile(join(request.stagingDirectory, P0R_REBIND_ENTRYPOINT)),
-        ),
-        [P0R_REBIND_RUNNER]: sha256(
-          await readFile(join(request.stagingDirectory, P0R_REBIND_RUNNER)),
-        ),
-      },
+      files: Object.fromEntries(await Promise.all(
+        P0R_REBIND_PACKAGE_SOURCE_FILES.map(async (path) => [
+          path,
+          sha256(await readFile(join(request.stagingDirectory, path))),
+        ]),
+      )),
       mutationScope: request.productionMutationScope,
       packageId: request.packageId,
       schemaVersion: P0R_REBIND_MANIFEST_SCHEMA,
@@ -924,6 +948,146 @@ test("runner produces sanitized zero-drift evidence end to end", async () => {
   }
 });
 
+test("P0R rebind result is independently signed, encrypted, published and locally verified", async () => {
+  const root = await realpath(
+    await mkdtemp(join(tmpdir(), "p0r-rebind-evidence-export-")),
+  );
+  try {
+    const now = new Date();
+    const policy = testPolicy(root);
+    const legacy = await createLegacyFixture(root, {
+      stagingDirectory: join(policy.p0rStagingRoot, LEGACY_RUN_ID),
+    });
+    const request = {
+      ...fixtureRequest(policy, legacy),
+      approvalExpiresAt: new Date(now.getTime() + 30 * 60_000).toISOString(),
+      approvalIssuedAt: new Date(now.getTime() - 60_000).toISOString(),
+    };
+    await mkdir(request.stagingDirectory, { recursive: true, mode: 0o700 });
+    await mkdir(policy.evidenceRoot, { recursive: true, mode: 0o700 });
+    const requestPath = join(request.stagingDirectory, "approval-request.json");
+    await writeFile(requestPath, canonicalJson(request), { mode: 0o600 });
+
+    const identity = {
+      containerCount: CONTAINER_IDS.length,
+      containerIdsSha256: sha256(`${CONTAINER_IDS.join("\n")}\n`),
+      forbiddenListenerCount: 0,
+      forbiddenListenerUnitActiveState: "inactive",
+      forbiddenListenerUnitLoadState: "not-found",
+      health: request.expectedHealth,
+      listenerSha256: sha256("no-8022-listener\n"),
+      p0rContainerCount: 0,
+      p0rContainerNamesSha256: sha256("\n"),
+      p0rVolumeCount: 0,
+      p0rVolumeNamesSha256: sha256("\n"),
+      productionHead: request.expectedProductionHead,
+      timerActive: "active",
+      timerEnabled: "enabled",
+      worktreeClean: true,
+    };
+    const result = {
+      after: identity,
+      before: identity,
+      dispatchId: request.dispatchId,
+      ephemeralSecretBaseline: {
+        matchingEntryCount: 0,
+        matchingEntryNamesSha256: sha256("\n"),
+        status: "PASS_NO_P0R_EPHEMERAL_SECRET_RESIDUE",
+      },
+      generatedAt: now.toISOString(),
+      packageId: request.packageId,
+      productionChanged: false,
+      productionIdentityUnchangedVerified: true,
+      productionMutationAttempted: false,
+      resultPath: request.resultPath,
+      schemaVersion: "market-radar-v2-m1-p0r-rebind-result.v3",
+      secretMaterialPresent: false,
+      sourceCommit: request.sourceCommit,
+      sourceIpBinding: {
+        metadataProvider: "TENCENT_INSTANCE_METADATA",
+        sourceIpCidrMatched: true,
+        sourceIpCidrSha256: request.expectedSourceIpCidrSha256,
+      },
+      sourceTree: request.sourceTree,
+      status: "PASS_P0R_READ_ONLY_REBIND_PREFLIGHT",
+      supersededStaging: {
+        status: "REJECTED_SUPERSEDED_SECURITY_SOURCE",
+      },
+    };
+    await writeFile(request.resultPath, canonicalJson(result), { mode: 0o600 });
+
+    const recipientRoot = join(root, "recipient");
+    const recipientPrivatePath = join(recipientRoot, "private.pem");
+    const recipientPublicPath = join(recipientRoot, "public.pem");
+    const recipientIdentity = await generateEvidenceRecipientKeyPair({
+      privateKeyPath: recipientPrivatePath,
+      publicKeyPath: recipientPublicPath,
+    });
+    const recipientBytes = await readFile(recipientPublicPath);
+    const stagedRecipientPath = join(
+      request.stagingDirectory,
+      P0R_REBIND_EVIDENCE_RECIPIENT_RELATIVE_PATH,
+    );
+    await mkdir(dirname(stagedRecipientPath), { recursive: true, mode: 0o700 });
+    await writeFile(stagedRecipientPath, recipientBytes, { mode: 0o600 });
+    const host = await createEvidenceTestHostKey(root);
+    const outboxRoot = join(root, "outbound");
+    const expirySchedules = [];
+
+    const exported = await exportP0RRebindEvidence({
+      now,
+      outboxRoot,
+      policy,
+      recipientFileSha256: sha256(recipientBytes),
+      recipientKeySha256: recipientIdentity.publicKeySha256,
+      recipientPublicKeyPath: stagedRecipientPath,
+      requestPath,
+      signerOptions: {
+        keyPath: host.keyPath,
+        sshKeygenPath: "/usr/bin/ssh-keygen",
+        useSudo: false,
+      },
+      expiryScheduler: async (schedule) => {
+        expirySchedules.push(schedule);
+        return {
+          dispatchId: schedule.dispatchId,
+          objectName: evidenceObjectName(schedule.dispatchId),
+          status: "PASS_PRODUCTION_EVIDENCE_EXPIRY_SCHEDULED",
+          unitName: "market-radar-production-evidence-prune-test",
+        };
+      },
+    });
+    assert.equal(
+      exported.status,
+      "PASS_P0R_REBIND_EVIDENCE_ENCRYPTED_AND_PUBLISHED",
+    );
+    assert.equal(exported.objectName, evidenceObjectName(request.dispatchId));
+    assert.equal(expirySchedules.length, 1);
+    assert.equal(expirySchedules[0].outboxRoot, outboxRoot);
+    assert.doesNotMatch(canonicalJson(exported), /203\.0\.113\.24|restricted-test-bucket/u);
+
+    const sealed = await readSealedEvidenceFile(
+      join(outboxRoot, exported.objectName),
+    );
+    const receipt = await openProductionEvidence({
+      dispatchId: request.dispatchId,
+      expectedSchemaVersion: result.schemaVersion,
+      now: new Date(now.getTime() + 1_000),
+      recipientPrivateKey: await readFile(recipientPrivatePath, "utf8"),
+      sealed,
+      trustedSignerPublicKey: host.publicKey,
+      verifierOptions: { sshKeygenPath: "/usr/bin/ssh-keygen" },
+    });
+    assert.equal(
+      receipt.status,
+      "PASS_PRODUCTION_EVIDENCE_DECRYPTED_AND_VERIFIED",
+    );
+    assert.deepEqual(receipt.payload, result);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("entrypoint has exact staging cleanup and no fallback execution path", async () => {
   const source = await readFile(
     join(process.cwd(), P0R_REBIND_ENTRYPOINT),
@@ -932,5 +1096,8 @@ test("entrypoint has exact staging cleanup and no fallback execution path", asyn
   assert.match(source, /STAGING_PREFIX="m1-p0r-rebind-"/u);
   assert.match(source, /rm -rf -- "\$\{ACTUAL_SOURCE_ROOT\}"/u);
   assert.match(source, /node "\$\{RUNNER\}" run/u);
+  assert.match(source, /node "\$\{EVIDENCE_EXPORTER\}" export/u);
+  assert.match(source, /if \(\( runner_exit != 0 \)\)/u);
+  assert.match(source, /if \(\( export_exit != 0 \)\)/u);
   assert.doesNotMatch(source, /curl|scp|ssh|docker|credential|secret/iu);
 });
