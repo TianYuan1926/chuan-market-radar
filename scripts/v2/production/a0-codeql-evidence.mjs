@@ -10,6 +10,7 @@ const RULE_ID_PATTERN = /^[A-Za-z0-9._:/-]{1,160}$/u;
 const WINDOWS_ABSOLUTE_PATH_PATTERN = /^[A-Za-z]:\//u;
 const MAX_REPOSITORY_PATH_LENGTH = 512;
 const MAX_RESULT_LOCATIONS = 1_000;
+const MAX_GITHUB_ANNOTATIONS = 50;
 const CODEQL_REVIEW_PATH =
   "docs/governance/v2-a0-codeql-reviewed-suppressions.v3.json";
 const LEVEL_RANK = new Map([
@@ -103,6 +104,53 @@ function compareResultLocations(left, right) {
       - (right.startLine ?? Number.MAX_SAFE_INTEGER)
     || left.ruleId.localeCompare(right.ruleId)
     || left.level.localeCompare(right.level);
+}
+
+function githubWorkflowProperty(value) {
+  return String(value)
+    .replaceAll("%", "%25")
+    .replaceAll("\r", "%0D")
+    .replaceAll("\n", "%0A")
+    .replaceAll(":", "%3A")
+    .replaceAll(",", "%2C");
+}
+
+function githubWorkflowMessage(value) {
+  return String(value)
+    .replaceAll("%", "%25")
+    .replaceAll("\r", "%0D")
+    .replaceAll("\n", "%0A");
+}
+
+export function githubWorkflowAnnotations(evidence) {
+  if (
+    evidence === null
+    || typeof evidence !== "object"
+    || !Array.isArray(evidence.resultLocations)
+  ) {
+    throw new TypeError("CodeQL evidence locations are required");
+  }
+
+  return evidence.resultLocations
+    .slice(0, MAX_GITHUB_ANNOTATIONS)
+    .map((location) => {
+      const properties = [
+        `title=${githubWorkflowProperty(`Untriaged CodeQL ${location.ruleId}`)}`,
+      ];
+      if (
+        typeof location.file === "string"
+        && !location.file.startsWith("<")
+      ) {
+        properties.push(`file=${githubWorkflowProperty(location.file)}`);
+      }
+      if (Number.isSafeInteger(location.startLine) && location.startLine > 0) {
+        properties.push(`line=${location.startLine}`);
+      }
+      const message = githubWorkflowMessage(
+        `Untriaged ${location.level} CodeQL result; security severity ${location.securitySeverity ?? "unrated"}.`,
+      );
+      return `::error ${properties.join(",")}::${message}`;
+    });
 }
 
 function resultLocation(result, descriptors) {
@@ -422,6 +470,13 @@ function runCli() {
     `CodeQL untriaged results=${evidence.blockingResultCount}\n`,
   );
   if (evidence.blockingResultCount > 0) {
+    if (process.env.GITHUB_ACTIONS === "true") {
+      const annotations = githubWorkflowAnnotations(evidence);
+      process.stdout.write(`${annotations.join("\n")}\n`);
+      process.stdout.write(
+        `CodeQL sanitized annotations=${annotations.length}/${evidence.resultLocationCount}\n`,
+      );
+    }
     process.exitCode = 2;
   }
 }

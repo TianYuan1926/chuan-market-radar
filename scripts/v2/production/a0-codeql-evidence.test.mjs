@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   buildCodeqlEvidence,
+  githubWorkflowAnnotations,
   summarizeCodeqlSarifDocuments,
 } from "./a0-codeql-evidence.mjs";
 
@@ -98,6 +99,41 @@ test("CodeQL evidence blocks and exposes sanitized repository locations", () => 
   );
   assert.equal(evidence.policy.rawSarifArtifactUploaded, false);
   assert.equal(evidence.productionMutation, false);
+});
+
+test("CodeQL evidence emits bounded sanitized GitHub annotations", () => {
+  const resultLocations = Array.from({ length: 51 }, (_, index) => ({
+    file: index === 0 ? "src/example,one.ts" : `src/example-${index}.ts`,
+    level: index === 0 ? "error\nforged" : "warning",
+    ruleId: index === 0 ? "js/example:one" : "js/example",
+    securitySeverity: index === 0 ? 8.1 : null,
+    startLine: index + 1,
+  }));
+
+  const annotations = githubWorkflowAnnotations({ resultLocations });
+
+  assert.equal(annotations.length, 50);
+  assert.equal(
+    annotations[0],
+    "::error title=Untriaged CodeQL js/example%3Aone,file=src/example%2Cone.ts,line=1::Untriaged error%0Aforged CodeQL result; security severity 8.1.",
+  );
+  assert.ok(annotations.every((annotation) => !annotation.includes("\n")));
+  assert.doesNotMatch(annotations.join("\n"), /sensitive source explanation/u);
+});
+
+test("CodeQL annotation output omits invalid paths and unavailable lines", () => {
+  assert.deepEqual(githubWorkflowAnnotations({
+    resultLocations: [{
+      file: "<invalid-repository-path>",
+      level: "warning",
+      ruleId: "js/example",
+      securitySeverity: null,
+      startLine: null,
+    }],
+  }), [
+    "::error title=Untriaged CodeQL js/example::Untriaged warning CodeQL result; security severity unrated.",
+  ]);
+  assert.throws(() => githubWorkflowAnnotations({}));
 });
 
 test("CodeQL evidence accepts only an exact registered in-source suppression", () => {
