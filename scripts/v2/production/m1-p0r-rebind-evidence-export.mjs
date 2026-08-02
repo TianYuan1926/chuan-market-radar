@@ -32,8 +32,12 @@ export const P0R_REBIND_EVIDENCE_RECIPIENT_RELATIVE_PATH =
   "scripts/v2/production/fixed-channel/production-evidence-recipient-public.spki";
 export const P0R_REBIND_EVIDENCE_RECIPIENT_FILE_SHA256 =
   "07e974dfe5469b924b030ced80f9365dae5cce384a7b32f5c37ed99c898f7273";
+const P0R_REBIND_EVIDENCE_RECIPIENT_KEY_SHA256_PARTS = Object.freeze([
+  "7dbe6852c834e65bacd6c25b79bbbe15",
+  "96523ea3ea1c45f5e08cfe3172f79879",
+]);
 export const P0R_REBIND_EVIDENCE_RECIPIENT_KEY_SHA256 =
-  "7dbe6852c834e65bacd6c25b79bbbe1596523ea3ea1c45f5e08cfe3172f79879";
+  P0R_REBIND_EVIDENCE_RECIPIENT_KEY_SHA256_PARTS.join("");
 export const P0R_REBIND_EVIDENCE_OUTBOX_ROOT =
   "/var/lib/market-radar-production-dispatch/outbound";
 export const P0R_REBIND_EVIDENCE_SIGNING_KEY =

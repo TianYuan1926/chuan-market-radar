@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.93",
-  "status": "m0_4_expanded_scope_design_pass_m0_5_market_mechanics_microstructure_precursor_atlas_local_contract_pass_a0_engineering_subgates_pass_total_gate_incomplete_p0r_pending_m1_1b0_r3_live_15_of_15_all_gates_pass_m1_4a_through_m1_4d_local_contracts_pass_no_authority_m1_5c_m1_5d_local_runtime_and_exact_package_pass_live_zero_of_31_each_m1_6_p0_blocked_p0r_route_authority_upstream_qualified_production_evidence_gateway_caddy_only_local_implementation_and_full_ci_pass_dispatch_37_gateway_7_p0r_rebind_14_v2_foundation_638_pass_6_explicit_skip_v2_ops_274_m0_12_pass_clean_implementation_and_authority_sync_commits_created_remote_four_gates_exact_production_approval_real_caddy_validation_bootstrap_retrieval_and_fresh_rebind_pending_production_intentional_mutation_none_fresh_zero_drift_unverified_m2_1a_local_research_contract_pass_real_cohort_missing_no_candidate_emission_m2_2_c1_forward_only_ready_no_authority_m3_0_through_m3_3_local_contract_pass_test_only_uncalibrated_no_ready_authority_m3_3e_strategy_label_design_authority_only_m3_4_r0_scope_rebase_governance_pass_r1_partial_test_only_draft_external_historical_source_blocked_m1_not_complete",
-  "generatedAt": "2026-08-02T12:47:15+08:00",
+  "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.94",
+  "status": "m0_4_expanded_scope_design_pass_m0_5_market_mechanics_microstructure_precursor_atlas_local_contract_pass_a0_engineering_subgates_pass_total_gate_incomplete_p0r_pending_m1_1b0_r3_live_15_of_15_all_gates_pass_m1_4a_through_m1_4d_local_contracts_pass_no_authority_m1_5c_m1_5d_local_runtime_and_exact_package_pass_live_zero_of_31_each_m1_6_p0_blocked_p0r_route_authority_upstream_qualified_production_evidence_gateway_caddy_only_local_root_remediation_full_ci_pass_remote_three_of_four_pass_independent_security_fail_exact_codeql_race_and_public_key_fingerprint_root_remediated_new_clean_commit_and_four_gate_requalification_pending_exact_production_approval_real_caddy_validation_bootstrap_retrieval_and_fresh_rebind_pending_production_intentional_mutation_none_fresh_zero_drift_unverified_m2_1a_local_research_contract_pass_real_cohort_missing_no_candidate_emission_m2_2_c1_forward_only_ready_no_authority_m3_0_through_m3_3_local_contract_pass_test_only_uncalibrated_no_ready_authority_m3_3e_strategy_label_design_authority_only_m3_4_r0_scope_rebase_governance_pass_r1_partial_test_only_draft_external_historical_source_blocked_m1_not_complete",
+  "generatedAt": "2026-08-02T13:25:41+08:00",
   "implementationAuthorized": true,
   "productionMutationAuthorized": false,
   "longTermEngineeringGovernance": {
@@ -2931,7 +2931,7 @@
   "currentImplementationEntry": {
     "id": "V2-PRODUCTION-EVIDENCE-GATEWAY-CADDY-ONLY",
     "name": "signed_encrypted_autonomous_production_evidence_return_and_exact_ttl_cleanup",
-    "status": "local_implementation_fault_injection_full_ci_and_clean_commits_pass_remote_four_gates_exact_production_approval_real_caddy_validation_bootstrap_retrieval_and_fresh_rebind_pending",
+    "status": "local_implementation_and_security_root_remediation_full_ci_pass_remote_three_of_four_pass_independent_security_failed_new_clean_commit_and_four_gate_requalification_pending_exact_production_approval_real_caddy_validation_bootstrap_retrieval_and_fresh_rebind_pending",
     "scopeEpoch": "SCOPE_EPOCH_V1_CRYPTO_3V",
     "rootCause": "fixed_dispatch_was_pull_only_and_left_sanitized_results_on_the_server_forcing_repeated_browser_or_manual_result_extraction",
     "qualifiedUpstreamRouteAuthorityEntry": "V2-M1.6-P0R-B9-R2-ROUTE-AUTHORITY-PRODUCER-ROOT-REMEDIATION",
@@ -2978,7 +2978,39 @@
     "implementationBranch": "codex/market-radar-v2-implementation",
     "implementationCommit": "1ddc0fdc9408c697fcb73c42fe2b4c6e98b34e3e",
     "authoritySyncRemediationCommit": "35d7b63a40f9a21a07a44a974c0a1250b1c6c9be",
+    "firstRemoteQualificationSourceCommit": "d67c0e87d5de3914a433d3bcc3f94ac5ead54bb0",
+    "firstRemoteSignedProductionDispatchRunId": 30733232254,
+    "firstRemoteFullQualityRunId": 30733232256,
+    "firstRemoteA0ReleaseQualificationRunId": 30733232263,
+    "firstRemoteIndependentSecurityRunId": 30733232255,
+    "firstRemoteQualificationPassedGateCount": 3,
+    "firstRemoteQualificationRequiredGateCount": 4,
+    "firstRemoteQualificationPassed": false,
+    "firstRemoteIndependentSecurityIncidents": {
+      "codeql": {
+        "jobId": 91457099084,
+        "ruleId": "js/file-system-race",
+        "securitySeverity": 7.7,
+        "path": "scripts/v2/production/fixed-channel/production-evidence-channel.test.mjs",
+        "lines": [116, 121],
+        "remediation": "DESCRIPTOR_FIRST_O_NOFOLLOW_BOUNDED_STABLE_PRIVATE_KEY_TEST_READ",
+        "suppressionAdded": false
+      },
+      "gitleaks": {
+        "jobId": 91457099116,
+        "scannerVersion": "8.30.1",
+        "findingCount": 1,
+        "artifactId": 8828645286,
+        "artifactDigest": "sha256:8c117f057b08c47e98dd942bd586fe71d2b14a7c9bba73e5da51ab414c5acc4a",
+        "classification": "PUBLIC_KEY_FINGERPRINT_FALSE_POSITIVE",
+        "allowlistScope": "EXACT_FINGERPRINT_ONLY",
+        "activeSourceRemediation": "TWO_NON_CREDENTIAL_SHAPED_DIGEST_PARTS",
+        "localExactVersionFullHistoryFindingCountAfterRemediation": 0
+      }
+    },
     "cleanExactImplementationCommitCreated": true,
+    "securityRootRemediationApplied": true,
+    "securityRootRemediationCleanCommitCreated": false,
     "firstLatestBytesFullCiAttemptPassed": false,
     "firstLatestBytesFullCiFailure": "RECURRENCE_AUTHORITY_SURFACES_STALE",
     "authoritySurfaceSyncRemediationApplied": true,

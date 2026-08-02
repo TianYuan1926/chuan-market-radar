@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
+import { constants as fsConstants } from "node:fs";
 import {
   chmod,
   lstat,
   mkdir,
   mkdtemp,
+  open,
   readFile,
   realpath,
   rm,
@@ -49,6 +51,31 @@ function payloadFixture(dispatchId = DISPATCH_ID, overrides = {}) {
   };
 }
 
+async function readStableFileNoFollow(path, {
+  maximumBytes = 16 * 1024,
+  requiredMode,
+} = {}) {
+  const handle = await open(path, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
+  try {
+    const before = await handle.stat();
+    assert.equal(before.isFile(), true);
+    assert.ok(before.size > 0 && before.size <= maximumBytes);
+    if (requiredMode !== undefined) {
+      assert.equal(before.mode & 0o777, requiredMode);
+    }
+    const bytes = await handle.readFile();
+    const after = await handle.stat();
+    assert.equal(before.dev, after.dev);
+    assert.equal(before.ino, after.ino);
+    assert.equal(before.size, after.size);
+    assert.equal(before.mtimeMs, after.mtimeMs);
+    assert.equal(bytes.length, after.size);
+    return bytes.toString("utf8");
+  } finally {
+    await handle.close();
+  }
+}
+
 async function createHostKey(root, name = "host-ed25519") {
   const keyPath = join(root, name);
   await execFileAsync("/usr/bin/ssh-keygen", [
@@ -70,7 +97,7 @@ async function createRecipient(root, name = "recipient") {
   const publicKeyPath = join(root, name, "public.pem");
   await generateEvidenceRecipientKeyPair({ privateKeyPath, publicKeyPath });
   return {
-    privateKey: await readFile(privateKeyPath, "utf8"),
+    privateKey: await readStableFileNoFollow(privateKeyPath, { requiredMode: 0o600 }),
     privateKeyPath,
     publicKey: await readFile(publicKeyPath, "utf8"),
     publicKeyPath,
@@ -111,14 +138,16 @@ test("evidence recipient key generation is X25519, no-clobber and outside the wo
     const result = await generateEvidenceRecipientKeyPair({ privateKeyPath, publicKeyPath });
     assert.equal(result.status, "PASS_PRODUCTION_EVIDENCE_RECIPIENT_KEY_GENERATED");
     assert.match(result.publicKeySha256, /^[a-f0-9]{64}$/u);
-    assert.equal((await lstat(privateKeyPath)).mode & 0o777, 0o600);
+    const originalPrivate = await readStableFileNoFollow(privateKeyPath, { requiredMode: 0o600 });
     assert.equal((await lstat(publicKeyPath)).mode & 0o777, 0o644);
-    const originalPrivate = await readFile(privateKeyPath, "utf8");
     await assert.rejects(
       generateEvidenceRecipientKeyPair({ privateKeyPath, publicKeyPath }),
       evidenceReason("evidence_key_path_already_exists"),
     );
-    assert.equal(await readFile(privateKeyPath, "utf8"), originalPrivate);
+    assert.equal(
+      await readStableFileNoFollow(privateKeyPath, { requiredMode: 0o600 }),
+      originalPrivate,
+    );
     await assert.rejects(
       generateEvidenceRecipientKeyPair({
         privateKeyPath: join(process.cwd(), ".tmp", "forbidden-evidence-private.pem"),
