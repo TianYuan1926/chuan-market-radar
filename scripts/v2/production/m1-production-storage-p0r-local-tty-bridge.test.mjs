@@ -52,6 +52,10 @@ case "$(cat "\${P0R_BRIDGE_FIXTURE_ROOT}/case.txt")" in
   timeout)
     cat "\${P0R_BRIDGE_FIXTURE_ROOT}/clipboard.txt"
     ;;
+  credential-disconnect-during-copy-wait|age-disconnect-during-copy-wait)
+    touch "\${P0R_BRIDGE_FIXTURE_ROOT}/clipboard-polled"
+    cat "\${P0R_BRIDGE_FIXTURE_ROOT}/clipboard.txt"
+    ;;
   *)
     [[ -e "\${P0R_BRIDGE_FIXTURE_ROOT}/secondary-ready" ]]
     cat "\${P0R_BRIDGE_FIXTURE_ROOT}/response.json"
@@ -81,6 +85,13 @@ if [[ "$remote_command" == *"receive-credentials-and-run" ]]; then
   printf '{"status":"READY_P0R_STS_RESPONSE_INPUT_NO_ECHO"}\\n'
   if [[ "$test_case" == "prearmed-disconnect" ]]; then
     exit 49
+  fi
+  if [[ "$test_case" == "credential-disconnect-during-copy-wait" ]]; then
+    for _ in {1..80}; do
+      [[ -e "\${P0R_BRIDGE_FIXTURE_ROOT}/clipboard-polled" ]] && exit 49
+      sleep 0.05
+    done
+    exit 50
   fi
   payload="$(cat)"
   [[ "$payload" == "$(cat "\${P0R_BRIDGE_FIXTURE_ROOT}/response.json")" ]]
@@ -117,6 +128,13 @@ if [[ "$remote_command" == *"receive-age-identity" ]]; then
   [[ -e "\${P0R_BRIDGE_FIXTURE_ROOT}/primary-ready" ]]
   touch "\${P0R_BRIDGE_FIXTURE_ROOT}/secondary-ready"
   printf '{"status":"READY_P0R_AGE_IDENTITY_INPUT_NO_ECHO"}\\n'
+  if [[ "$test_case" == "age-disconnect-during-copy-wait" ]]; then
+    for _ in {1..80}; do
+      [[ -e "\${P0R_BRIDGE_FIXTURE_ROOT}/clipboard-polled" ]] && exit 49
+      sleep 0.05
+    done
+    exit 50
+  fi
   payload="$(cat)"
   [[ "$payload" == "$(cat "\${P0R_BRIDGE_FIXTURE_ROOT}/identity.txt")" ]]
   touch "\${P0R_BRIDGE_FIXTURE_ROOT}/age-done"
@@ -149,7 +167,7 @@ test("bridge plan fixes the browser-free post-response and no-output secret boun
   ));
   assert.equal(
     plan.schemaVersion,
-    "v2-m1-production-storage-p0r-local-tty-bridge.v5",
+    "v2-m1-production-storage-p0r-local-tty-bridge.v6",
   );
   assert.equal(plan.fixedSshHostAlias, "43.161.202.227");
   assert.equal(plan.fixedSshPort, 8022);
@@ -233,6 +251,11 @@ for (const [testCase, reason] of [
   ["marker-mismatch", "credential_receiver_not_ready_timeout"],
   ["ssh-failure", "credential_receiver_not_ready_eof"],
   ["prearmed-disconnect", "prearmed_credential_session_disconnected"],
+  [
+    "credential-disconnect-during-copy-wait",
+    "prearmed_credential_session_disconnected",
+  ],
+  ["age-disconnect-during-copy-wait", "prearmed_age_session_disconnected"],
 ]) {
   test(`bridge fails closed and clears clipboard for ${testCase}`, async () => {
     const root = await fixture(testCase);

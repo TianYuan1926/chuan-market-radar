@@ -1,6 +1,6 @@
 # Market Radar 权威蓝图目录
 
-更新日期：2026-08-02
+更新日期：2026-08-03
 
 本目录只回答三件事：当前真实状态是什么、V2 应该怎样建设、哪些历史材料只能作参考。任何旧报告、旧周期身份或旧蓝图都不能绕过这里重新成为当前权威。
 
@@ -9,13 +9,13 @@
 ```text
 当前系统等级：R1 / 可运行但不完整 / 不能支撑实战
 V2 设计状态：ACTIVE_DESIGN_AUTHORITY
-V2 实现状态：M0_ENGINEERING_EXIT_LOCAL_PASS / M0.4_EXPANDED_SCOPE_DESIGN_PASS / M0.5_MARKET_MECHANICS_MICROSTRUCTURE_PRECURSOR_ATLAS_DESIGN_PASS / A0_ENGINEERING_SUBGATES_PASS_TOTAL_GATE_INCOMPLETE_P0R_PENDING / M1.1B0_R3_LIVE_15_OF_15_ALL_GATES_PASS / M1.4A_M1.4D_LOCAL_RUNTIME_CONTRACTS_PASS_NO_AUTHORITY / M1.5C_M1.5D_LOCAL_RUNTIME_EVIDENCE_AND_EXACT_PACKAGE_PASS_LIVE_ZERO_OF_31_EACH / M2.1A_LOCAL_RESEARCH_CONTRACT_PASS_REAL_COHORT_MISSING_NO_CANDIDATE_EMISSION / M1.5-B1_EARLY_SHADOW_BUSINESS_GATE_PASS_V1_ONLY / M1.6-P0_EXECUTED_BLOCKED_CAPACITY_AND_RECOVERY / P0R_ROUTE_AUTHORITY_UPSTREAM_QUALIFIED / PRODUCTION_EVIDENCE_GATEWAY_THIRD_EXACT_ATTEMPT_FAILED_AFTER_TRANSIENT_CADDY_DEPLOY / AUTOMATIC_BASELINE_ROLLBACK_PASS / FIRST_HEALTH_ENVELOPE_SECOND_RUNTIME_IDENTITY_THIRD_SIGNER_IDENTITY_ROOT_CAUSES / THIRD_ATTEMPT_NON_TARGET_ZERO_DRIFT / SIGNER_IDENTITY_RECURRENCE_OCCURRENCE_THREE_STOP_THE_LINE / REQUEST_V4_GATEWAY_14_RECURRENCE_11_DISPATCH_38_AND_FINAL_BYTES_FULL_LOCAL_CI_PASS / CLEAN_COMMIT_PUSH_REPLACEMENT_SOURCE_REMOTE_FOUR_GATES_FRESH_BASELINE_NEW_PACKAGE_NEW_APPROVAL_REAL_CADDY_ACCEPTANCE_RETRIEVAL_FRESH_REBIND_AND_RECOVERY_PENDING / PRODUCTION_PERSISTENT_GATEWAY_MUTATION_NONE / M2.2-B0.2-C1_FORWARD_ONLY_READY_NO_AUTHORITY / M3.0-M3.3_LOCAL_CONTRACT_PASS_TEST_ONLY_UNCALIBRATED_NO_READY_AUTHORITY / M3.3E_STRATEGY_ARCHETYPE_LABELING_DESIGN_AUTHORITY_ONLY / M3.4-R0_SCOPE_REBASE_GOVERNANCE_PASS_R1_PARTIAL_TEST_ONLY_DRAFT / EXTERNAL_RIGHTS_AND_HISTORICAL_SOURCE_BLOCKED / GATE_INSUFFICIENT / DETECTORS_DRAFT / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED
+V2 实现状态：M0_ENGINEERING_EXIT_LOCAL_PASS / M0.4_EXPANDED_SCOPE_DESIGN_PASS / M0.5_MARKET_MECHANICS_MICROSTRUCTURE_PRECURSOR_ATLAS_DESIGN_PASS / A0_ENGINEERING_SUBGATES_PASS_TOTAL_GATE_INCOMPLETE_P0R_PENDING / M1.1B0_R3_LIVE_15_OF_15_ALL_GATES_PASS / M1.4A_M1.4D_LOCAL_RUNTIME_CONTRACTS_PASS_NO_AUTHORITY / M1.5C_M1.5D_LOCAL_RUNTIME_EVIDENCE_AND_EXACT_PACKAGE_PASS_LIVE_ZERO_OF_31_EACH / M2.1A_LOCAL_RESEARCH_CONTRACT_PASS_REAL_COHORT_MISSING_NO_CANDIDATE_EMISSION / M1.5-B1_EARLY_SHADOW_BUSINESS_GATE_PASS_V1_ONLY / M1.6-P0_EXECUTED_BLOCKED_CAPACITY_AND_RECOVERY / P0R_ROUTE_AUTHORITY_UPSTREAM_QUALIFIED / PRODUCTION_EVIDENCE_GATEWAY_THIRD_EXACT_ATTEMPT_FAILED_AFTER_TRANSIENT_CADDY_DEPLOY / AUTOMATIC_BASELINE_ROLLBACK_PASS / FIRST_HEALTH_ENVELOPE_SECOND_RUNTIME_IDENTITY_THIRD_SIGNER_IDENTITY_ROOT_CAUSES / THIRD_ATTEMPT_NON_TARGET_ZERO_DRIFT / SIGNER_IDENTITY_RECURRENCE_OCCURRENCE_THREE_STOP_THE_LINE / REQUEST_V4_COMMIT_4D104261_PUSHED_REMOTE_3_OF_4_FULL_QUALITY_BRIDGE_RACE_FAIL / BRIDGE_V6_LOCAL_P0R_142_AND_FINAL_BYTES_FULL_CI_PASS_NEW_COMMIT_AND_REMOTE_FOUR_GATES_PENDING / FRESH_BASELINE_NEW_PACKAGE_NEW_APPROVAL_REAL_CADDY_ACCEPTANCE_RETRIEVAL_FRESH_REBIND_AND_RECOVERY_PENDING / PRODUCTION_PERSISTENT_GATEWAY_MUTATION_NONE / M2.2-B0.2-C1_FORWARD_ONLY_READY_NO_AUTHORITY / M3.0-M3.3_LOCAL_CONTRACT_PASS_TEST_ONLY_UNCALIBRATED_NO_READY_AUTHORITY / M3.3E_STRATEGY_ARCHETYPE_LABELING_DESIGN_AUTHORITY_ONLY / M3.4-R0_SCOPE_REBASE_GOVERNANCE_PASS_R1_PARTIAL_TEST_ONLY_DRAFT / EXTERNAL_RIGHTS_AND_HISTORICAL_SOURCE_BLOCKED / GATE_INSUFFICIENT / DETECTORS_DRAFT / M1_NOT_COMPLETE / M2_RUNTIME_BLOCKED
 V2 生产权限：false
 自动交易：永久禁止
 最新生产存储门禁：P0_BLOCKED_CAPACITY_AND_RECOVERY / APPLICATION_HEALTH_NOT_EVALUATED
 ```
 
-2026-08-02 最新覆盖：当前执行入口仍为 `V2-PRODUCTION-EVIDENCE-GATEWAY-CADDY-ONLY`。第三次 exact source `ad9aeb9842f6b57d934e7729e5e8a5cf2680a3b7` 已通过同源四门，并真实完成 current-image validate、exact Compose validation、target Caddy recreate、ready/fresh health、mount 与 route probe；final evidence seal 随后以 `evidence_gateway_seal_failed:evidence_signing_key_path_invalid` 失败。自动 baseline rollback 已恢复原 Caddy config/image；十个非 Caddy full IDs、production HEAD `cec0b657...`、clean worktree、健康与全部非目标面不变，exact staging/gateway/outbound/diagnostic state 均 absent。本轮发生受权的临时 Caddy mutation，不能写成 pre-mutation failure；同时没有保留目标网关，也没有数据库、Redis、Worker、env、migration、Feature Flag、生产仓库或其他服务变更。生产隔离诊断证明 current Caddy route 和 mode-600 host key sign/verify 正常，直接根因是 request v3 未绑定 signing key path/fingerprint，且本地 happy test 手工注入 `signerOptions` 掩盖差异。`REC-2026-08-02-PRODUCTION-GATEWAY-PREFLIGHT-EQUIVALENCE` occurrence 3 继续 STOP-THE-LINE，旧 runtime-identity-only operation 已退役。request v4 现于任何 Caddy mutation 前执行真实 sign、独立 verify 和指纹比对；gateway `14/14`、recurrence `11/11`、dispatch `38/38` 与冻结 Node `22.23.1` / npm `10.9.8` 的最终字节完整 CI 均 PASS，完整分母为 market `965/969`（4 explicit skips）、workers `23/23`、historical `4/4`、Foundation `638/644`（6 explicit skips）、Ops `281/281`、M0 `12/12`、Golden `16/16`，生产构建与安全检查也通过。clean commit/push、新同源四门、fresh baseline、双构建、新批准、真实 signer-bound acceptance、自动取回、fresh rebind 和 P0R recovery 尚未完成。
+2026-08-03 最新覆盖：当前执行入口仍为 `V2-PRODUCTION-EVIDENCE-GATEWAY-CADDY-ONLY`，但旧批准和前三个 dispatch 均已消费且不可复用。第三次 exact source `ad9aeb9842f6b57d934e7729e5e8a5cf2680a3b7` 已通过同源四门，并真实完成 current-image validate、exact Compose validation、target Caddy recreate、ready/fresh health、mount 与 route probe；final evidence seal 随后以 `evidence_gateway_seal_failed:evidence_signing_key_path_invalid` 失败。自动 baseline rollback 已恢复原 Caddy config/image；十个非 Caddy full IDs、production HEAD `cec0b657...`、clean worktree、健康与全部非目标面不变，exact staging/gateway/outbound/diagnostic state 均 absent。本轮发生受权的临时 Caddy mutation，不能写成 pre-mutation failure；同时没有保留目标网关，也没有数据库、Redis、Worker、env、migration、Feature Flag、生产仓库或其他服务变更。request v4 signer 根治已以 source `4d1042618eff24d39f6ecceb93d5715e2e798b5a`、tree `c28fa60f1236e8b80a7185de4bcfdc4c084d34e0` 提交并推送；Signed Dispatch `30755615525`、A0 `30755615545`、Independent Security `30755615533` PASS，但 Full Quality `30755615546` 的 job `91517146516` 因 bridge v5 将 credential/age 两条会话在 clipboard wait 中统一重标为 generic secret session 而 FAIL，远端资格严格保持 `3/4`。bridge v6 已把每条会话的稳定 failure code 贯穿等待循环，并用三个独立断线时序锁定；本地 bridge `13/13`、P0R `142/142`、Go helper 与最终字节完整 CI PASS。完整 CI 为 recurrence `11/11`、dispatch `38/38`、market `965/969`（4 explicit skips）、workers `23/23`、historical `4/4`、Foundation `638/644`（6 explicit skips）、Ops `283/283`、M0 `12/12`、Next build、Golden `16/16` 和 security。当前只剩 bridge-v6 clean commit/push 与同源四门资格；其通过前 fresh baseline、双构建、新批准、真实 signer-bound acceptance、自动取回、fresh rebind 和 P0R recovery 全部继续关闭。
 
 上一覆盖中的 Bridge timeout、dynamic egress、route authority producer 和 CodeQL 修复仍保留为事故与上游资格证据，但已被本段替代为当前施工入口，不再授权新的 Edge/API result extraction、8022、STS 或 recovery 动作。
 
@@ -31,8 +31,8 @@ Legacy G0 的七个生产出口继续作为历史安全义务，但它们不是 
 
 | 优先级 | 文档 | 唯一职责 |
 | ---: | --- | --- |
-| 1 | [V2 受控替换工程与运行蓝图 v1.96](./MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md) | 当前唯一产品、领域、工程、研究、运行与切换设计权威 |
-| 2 | [V2 机器追踪矩阵 v1.101](./market-radar-v2-controlled-replacement-traceability.v1.json) | Scope Epoch、A0、18 个 Module、5 维状态、硬门槛和 M0-M7 的机器合同 |
+| 1 | [V2 受控替换工程与运行蓝图 v1.98](./MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md) | 当前唯一产品、领域、工程、研究、运行与切换设计权威 |
+| 2 | [V2 机器追踪矩阵 v1.103](./market-radar-v2-controlled-replacement-traceability.v1.json) | Scope Epoch、A0、18 个 Module、5 维状态、硬门槛和 M0-M7 的机器合同 |
 | 2P | [P0R 只读重绑定交付报告](./V2_M1_6_P0R_READ_ONLY_REBIND_PREFLIGHT_DELIVERY_REPORT.md) | 历史 staging 失效依据、当前源码重绑定边界、测试与生产零变更真值 |
 | 2P0 | [Evidence Gateway signer identity 根因整改报告](./V2_PRODUCTION_EVIDENCE_GATEWAY_SIGNER_IDENTITY_REMEDIATION_REPORT.md) | 第三次真实 Caddy mutation、自动回滚、签名身份直接根因、request v4 门禁与未完成资格边界 |
 | 2P1 | [P0R fixed-dispatch transport staging 根因整改交付报告](./V2_M1_6_P0R_FIXED_DISPATCH_TRANSPORT_STAGING_REMEDIATION_DELIVERY_REPORT.md) | OrcaTerm 三次失败、运输退役、0755 fail-closed、0700 根治、B8 exact target acceptance 与 B9 边界 |
@@ -135,7 +135,7 @@ Legacy G0 的七个生产出口继续作为历史安全义务，但它们不是 
 
 1. 与当前 release 身份对齐的新鲜生产只读证据。
 2. 永久安全、事实、交易、无 future leak 和无自动交易红线。
-3. V2 蓝图 v1.87 与机器追踪矩阵 v1.92。
+3. V2 蓝图 v1.98 与机器追踪矩阵 v1.103。
 4. `PROJECT_CONTEXT_FOR_CHATGPT.md` 中仍标为 current 的事实。
 5. Legacy 工程、运行和 readiness 文档中仍适用的安全与验收合同。
 6. 历史蓝图、旧请求、旧报告、旧 digest 和 Git history。
@@ -184,7 +184,7 @@ M0.0-M0.5、M1.1-M1.6、M2.0-M2.2 已列本地包、C1、M3.0-M3.3 已通过各�
 V2-PRODUCTION-EVIDENCE-GATEWAY-CADDY-ONLY
 ```
 
-route target、Tencent firewall capture、route evidence 与 descriptor-first 安全修复只保留为已资格化上游。前三个 gateway dispatch 均已 claim 且永久不可复用；第三次 source `ad9aeb9842f6b57d934e7729e5e8a5cf2680a3b7` 通过同源四门后真实完成 Caddy-only deploy、健康、mount 和 route probe，随后因 `evidence_signing_key_path_invalid` 在 evidence seal 失败。自动 rollback 恢复 baseline Caddy，十个非 Caddy IDs、生产 HEAD、clean worktree、健康和非目标面零漂移；该事实不能被旧“两次 pre-mutation failure”覆盖。生产诊断已排除 Caddy route 与 host key 故障，直接缺口是 request v3/default signer 没有绑定并传递 signing key path，而本地测试手工 options 造成假等价。occurrence 3 已退役 runtime-identity-only operation；request v4 绑定 key path/fingerprint，并在 mutation 前真实 sign+verify。gateway `14/14`、recurrence `11/11`、dispatch `38/38` 与最终字节完整 exact-toolchain CI 均 PASS。必须继续完成 clean commit/push、同源四门、fresh baseline、双构建、新批准、signer-bound execution/自动回滚、自动取回、fresh rebind 与真实 P0R recovery。只有 gateway real-target acceptance、P0R 与 fresh P0 均 PASS 才能请求 P1，并严格按 `P1 schema -> P2 identities -> P3 partitions+dormant Worker -> P4 isolated-write Shadow -> M1.7 24h` 推进。
+route target、Tencent firewall capture、route evidence 与 descriptor-first 安全修复只保留为已资格化上游。前三个 gateway dispatch 均已 claim 且永久不可复用；第三次 source `ad9aeb9842f6b57d934e7729e5e8a5cf2680a3b7` 通过同源四门后真实完成 Caddy-only deploy、健康、mount 和 route probe，随后因 `evidence_signing_key_path_invalid` 在 evidence seal 失败。自动 rollback 恢复 baseline Caddy，十个非 Caddy IDs、生产 HEAD、clean worktree、健康和非目标面零漂移；该事实不能被旧“两次 pre-mutation failure”覆盖。该故障类保持 occurrence 3 和 STOP-THE-LINE，旧 runtime-identity-only operation 永久退役。request v4 signer 根治 source `4d104261...` 已提交推送，但远端仅 `3/4`：Full Quality `30755615546` 暴露 bridge v5 在 clipboard wait 中丢失 credential/age 会话分类的调度竞态。bridge v6 已以三种断线时序根治，bridge `13/13`、P0R `142/142`、Go helper 和最终字节完整 CI PASS，V2 Ops 为 `283/283`；它仍需 clean commit/push 和四门全量复验。之后才允许 fresh baseline、双构建、新批准、signer-bound execution/自动回滚、自动取回、fresh rebind 与真实 P0R recovery。只有 gateway real-target acceptance、P0R 与 fresh P0 均 PASS 才能请求 P1，并严格按 `P1 schema -> P2 identities -> P3 partitions+dormant Worker -> P4 isolated-write Shadow -> M1.7 24h` 推进。
 
 ## 7. Legacy 参考材料
 

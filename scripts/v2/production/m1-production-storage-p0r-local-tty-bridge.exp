@@ -1,6 +1,6 @@
 #!/usr/bin/expect -f
 
-set BRIDGE_SCHEMA_VERSION "v2-m1-production-storage-p0r-local-tty-bridge.v5"
+set BRIDGE_SCHEMA_VERSION "v2-m1-production-storage-p0r-local-tty-bridge.v6"
 set CLIPBOARD_CLEAR_VALUE "MARKET_RADAR_P0R_CLIPBOARD_CLEAR"
 set KEYCHAIN_ACCOUNT "market-radar-v2-p0r-recovery"
 set KEYCHAIN_SERVICE "com.chuan.market-radar.v2.p0r.age"
@@ -320,12 +320,13 @@ proc arm_clipboard {} {
   }
 }
 
-proc wait_for_normalized_sts_response {session_ids} {
+proc wait_for_normalized_sts_response {sessions} {
   set deadline [expr {[clock milliseconds] + ($::clipboard_wait_seconds * 1000)}]
   set next_heartbeat [expr {[clock milliseconds] + ($::heartbeat_seconds * 1000)}]
   while {[clock milliseconds] < $deadline} {
-    foreach id $session_ids {
-      require_spawn_alive $id "prearmed_secret_session"
+    foreach session $sessions {
+      lassign $session id failure_code
+      require_spawn_alive $id $failure_code
     }
     if {[catch {set raw [exec $::pbpaste_binary 2> /dev/null]}]} {
       bridge_fail "clipboard_read_failed"
@@ -407,7 +408,9 @@ proc run_bridge {} {
   emit_status "PASS_P0R_BOTH_TTY_SESSIONS_PREARMED"
   emit_status "READY_P0R_API_NATIVE_COPY_TO_LOCAL_TTY_BRIDGE"
 
-  set sts_response [wait_for_normalized_sts_response [list $primary $secondary]]
+  set sts_response [wait_for_normalized_sts_response [list \
+    [list $primary "prearmed_credential_session"] \
+    [list $secondary "prearmed_age_session"]]]
   send_secret_and_eof $primary $sts_response
   set sts_response ""
   wait_for_marker \

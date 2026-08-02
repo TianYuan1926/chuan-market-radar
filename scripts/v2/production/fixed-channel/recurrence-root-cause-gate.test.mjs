@@ -372,11 +372,26 @@ test("the real registry closes accepted transports and keeps both active remedia
   assert.ok(
     openIncident.permanentFix.evidence.some(
       (item) =>
-        item.includes("Bridge schema v5") &&
+        item.includes("Bridge schema v6") &&
         item.includes("port 8022") &&
         item.includes("HostKeyAlias") &&
         item.includes("port 22") &&
         item.includes("reason codes"),
+    ),
+  );
+  assert.ok(
+    openIncident.permanentFix.evidence.some(
+      (item) =>
+        item.includes("credential-specific and age-specific disconnect classifications") &&
+        item.includes("prearm and clipboard-wait"),
+    ),
+  );
+  assert.ok(
+    openIncident.regression.evidence.some(
+      (item) =>
+        item.includes("immediate credential disconnect") &&
+        item.includes("credential disconnect during clipboard wait") &&
+        item.includes("age disconnect during clipboard wait"),
     ),
   );
   assert.ok(
@@ -542,7 +557,7 @@ test("all active authority surfaces identify the evidence gateway and retain rou
   assert.equal(matrix.currentImplementationEntry.localProductionDispatchTestsPassed, 38);
   assert.equal(matrix.currentImplementationEntry.localGatewayTestsPassed, 14);
   assert.equal(matrix.currentImplementationEntry.localP0RRebindTestsPassed, 14);
-  assert.equal(matrix.currentImplementationEntry.localV2OpsTestsPassed, 281);
+  assert.equal(matrix.currentImplementationEntry.localV2OpsTestsPassed, 283);
   assert.equal(matrix.currentImplementationEntry.localFaultInjectionPassed, true);
   assert.equal(matrix.currentImplementationEntry.localDockerOrCaddyCliAvailable, false);
   assert.equal(matrix.currentImplementationEntry.realCaddyValidationRequiredBeforeMutation, true);
@@ -735,7 +750,7 @@ test("all active authority surfaces identify the evidence gateway and retain rou
   });
   assert.deepEqual(matrix.currentImplementationEntry.signerIdentityRootRemediation, {
     status:
-      "FINAL_BYTES_FULL_LOCAL_CI_PASS_CLEAN_COMMIT_REMOTE_GATES_AND_REAL_TARGET_ACCEPTANCE_PENDING",
+      "CLEAN_COMMIT_4D104_PUSH_PASS_REMOTE_THREE_OF_FOUR_FULL_QUALITY_P0R_BRIDGE_CLASSIFICATION_RACE_DETECTED_BRIDGE_V6_P0R_142_AND_FINAL_BYTES_FULL_LOCAL_CI_PASS_CLEAN_COMMIT_REMOTE_REQUALIFICATION_AND_REAL_TARGET_ACCEPTANCE_PENDING",
     requestSchema: "market-radar-production-evidence-gateway-request.v4",
     evidenceSignerKeyPath: "/etc/ssh/ssh_host_ed25519_key",
     evidenceSignerPublicKeyFingerprint:
@@ -774,7 +789,64 @@ test("all active authority surfaces identify the evidence gateway and retain rou
     fullLocalCiNextProductionBuildPassed: true,
     fullLocalCiGoldenTestsPassed: 16,
     fullLocalCiSecurityPassed: true,
-    cleanRemediationCommitCreated: false,
+    cleanRemediationCommitCreated: true,
+    cleanRemediationCommit: "4d1042618eff24d39f6ecceb93d5715e2e798b5a",
+    cleanRemediationTree: "c28fa60f1236e8b80a7185de4bcfdc4c084d34e0",
+    cleanRemediationCommitPushed: true,
+    replacementSourceRemoteQualification: {
+      signedProductionDispatchRunId: 30755615525,
+      signedProductionDispatchPassed: true,
+      fullQualityRunId: 30755615546,
+      fullQualityJobId: 91517146516,
+      fullQualityPassed: false,
+      a0ReleaseQualificationRunId: 30755615545,
+      a0ReleaseQualificationPassed: true,
+      independentSecurityRunId: 30755615533,
+      independentSecurityPassed: true,
+      passedGateCount: 3,
+      requiredGateCount: 4,
+      qualificationPassed: false,
+      failedSuite: "V2_OPS",
+      failedTest: "bridge_fails_closed_and_clears_clipboard_for_prearmed_disconnect",
+      expectedFailureReason: "prearmed_credential_session_disconnected",
+      observedFailureReason: "prearmed_secret_session_disconnected",
+    },
+    bridgeFailureClassificationRootRemediation: {
+      status:
+        "BRIDGE_V6_P0R_142_AND_FINAL_BYTES_FULL_LOCAL_CI_PASS_CLEAN_COMMIT_AND_SAME_SOURCE_REMOTE_GATES_PENDING",
+      supersededBridgeSchema: "v2-m1-production-storage-p0r-local-tty-bridge.v5",
+      replacementBridgeSchema: "v2-m1-production-storage-p0r-local-tty-bridge.v6",
+      rootCause:
+        "the_initial_prearm_check_used_session_specific_failure_codes_but_the_clipboard_wait_loop_reclassified_the_same_sessions_with_one_generic_prearmed_secret_session_code",
+      credentialSessionClassificationStableAcrossPrearmAndClipboardWait: true,
+      ageSessionClassificationStableAcrossPrearmAndClipboardWait: true,
+      immediateDisconnectFaultInjectionPassed: true,
+      credentialDisconnectDuringClipboardWaitFaultInjectionPassed: true,
+      ageDisconnectDuringClipboardWaitFaultInjectionPassed: true,
+      directedBridgeTestsPassed: 13,
+      exactP0RTestsPassed: 142,
+      goHelperTestsPassed: true,
+      currentFinalBytesFullLocalCiPending: false,
+      currentFinalBytesFullLocalCiPassed: true,
+      currentFinalBytesFullLocalCiExactNodeVersion: "22.23.1",
+      currentFinalBytesFullLocalCiExactNpmVersion: "10.9.8",
+      currentFinalBytesFullLocalCiRecurrenceTestsPassed: 11,
+      currentFinalBytesFullLocalCiProductionDispatchTestsPassed: 38,
+      currentFinalBytesFullLocalCiMarketTotal: 969,
+      currentFinalBytesFullLocalCiMarketPassed: 965,
+      currentFinalBytesFullLocalCiMarketExplicitSkipped: 4,
+      currentFinalBytesFullLocalCiWorkersPassed: 23,
+      currentFinalBytesFullLocalCiHistoricalPassed: 4,
+      currentFinalBytesFullLocalCiV2FoundationTotal: 644,
+      currentFinalBytesFullLocalCiV2FoundationPassed: 638,
+      currentFinalBytesFullLocalCiV2FoundationExplicitSkipped: 6,
+      currentFinalBytesFullLocalCiV2OpsPassed: 283,
+      currentFinalBytesFullLocalCiM0ChecksPassed: 12,
+      currentFinalBytesFullLocalCiNextProductionBuildPassed: true,
+      currentFinalBytesFullLocalCiGoldenTestsPassed: 16,
+      currentFinalBytesFullLocalCiSecurityPassed: true,
+      currentSourceRemoteFourGatesPassed: false,
+    },
     replacementSourceRemoteFourGatesPassed: false,
     realTargetAcceptancePassed: false,
     productionMutationPerformed: false,
@@ -794,7 +866,7 @@ test("all active authority surfaces identify the evidence gateway and retain rou
     matrix.currentImplementationEntry.latestRemediationFullLocalCiV2FoundationPassed,
     638,
   );
-  assert.equal(matrix.currentImplementationEntry.latestRemediationFullLocalCiV2OpsPassed, 281);
+  assert.equal(matrix.currentImplementationEntry.latestRemediationFullLocalCiV2OpsPassed, 283);
   assert.equal(matrix.currentImplementationEntry.latestRemediationFullLocalCiM0ChecksPassed, 12);
   assert.equal(matrix.currentImplementationEntry.lastQualifiedFullLocalCiPassed, true);
   assert.equal(matrix.currentImplementationEntry.lastQualifiedFullLocalCiV2FoundationTotal, 644);
@@ -945,6 +1017,10 @@ test("all active authority surfaces identify the evidence gateway and retain rou
   );
   assert.equal(
     matrix.currentP0RB9ExternalTransactionRemediation.replacementBridgeSchema,
+    "v2-m1-production-storage-p0r-local-tty-bridge.v6",
+  );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.lastQualifiedBridgeSchema,
     "v2-m1-production-storage-p0r-local-tty-bridge.v5",
   );
   assert.equal(
@@ -1038,8 +1114,13 @@ test("all active authority surfaces identify the evidence gateway and retain rou
   );
   assert.equal(
     matrix.currentP0RB9ExternalTransactionRemediation.targetedP0RTestsPassed,
-    139,
+    142,
   );
+  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.bridgeV6DirectedTestsPassed, 13);
+  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.bridgeV6FullLocalCiPending, false);
+  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.bridgeV6FullLocalCiPassed, true);
+  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.bridgeV6FullLocalCiV2OpsPassed, 283);
+  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.bridgeV6RemoteFourGatesPassed, false);
   assert.equal(
     matrix.currentP0RB9ExternalTransactionRemediation.freshRebindRequestSchema,
     "market-radar-v2-m1-p0r-rebind-request.v4",
@@ -1251,10 +1332,16 @@ test("all active authority surfaces identify the evidence gateway and retain rou
   );
   assert.match(sequence, new RegExp(`Current execution entry: ${expectedEntry}`, "u"));
   assert.match(sequence, /signer-identity root remediation/u);
-  assert.match(sequence, /gateway 14\/14/u);
+  assert.match(sequence, /4d1042618eff24d39f6ecceb93d5715e2e798b5a/u);
+  assert.match(sequence, /Remote qualification is therefore 3\/4/u);
+  assert.match(sequence, /Bridge v6/u);
+  assert.match(sequence, /P0R suite 142\/142/u);
   assert.match(sequence, /ad9aeb9842f6b57d934e7729e5e8a5cf2680a3b7/u);
   assert.ok(blueprint.includes(`**当前执行入口**：\`${expectedEntry}\``));
-  assert.match(blueprint, /v1\.96 登记第三次 exact gateway 生产尝试/u);
+  assert.match(blueprint, /v1\.98 登记 bridge-v6 最终权威字节/u);
+  assert.match(blueprint, /Full Quality `30755615546` \/ job `91517146516` FAIL/u);
+  assert.match(blueprint, /bridge v6/u);
+  assert.match(blueprint, /P0R `142\/142`/u);
   assert.match(blueprint, /evidence_gateway_seal_failed:evidence_signing_key_path_invalid/u);
   assert.equal(
     matrix.authority.m1ProductionEvidenceGatewayHealthContractRemediationReport,
