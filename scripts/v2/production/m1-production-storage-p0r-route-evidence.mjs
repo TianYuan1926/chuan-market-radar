@@ -98,21 +98,28 @@ function assertStableFileIdentity(expected, actual, label) {
 
 export async function readStableOwnedPublicFile(path, label) {
   const resolved = resolve(path);
-  assert.equal(await realpath(resolved), resolved, `${label}_path_not_canonical`);
-  const pathBefore = await lstat(resolved, { bigint: true });
-  assert.equal(pathBefore.isSymbolicLink(), false, `${label}_symlink_forbidden`);
-  assert.equal(pathBefore.isFile(), true, `${label}_not_regular`);
-  assert.ok(
-    pathBefore.size > 0n && pathBefore.size <= BigInt(MAX_PUBLIC_FILE_BYTES),
-    `${label}_size_invalid`,
-  );
-  if (typeof process.getuid === "function") {
-    assert.equal(pathBefore.uid, BigInt(process.getuid()), `${label}_owner_invalid`);
+  let handle;
+  try {
+    handle = await open(resolved, constants.O_RDONLY | constants.O_NOFOLLOW);
+  } catch (error) {
+    if (error?.code === "ELOOP") {
+      assert.fail(`${label}_symlink_forbidden`);
+    }
+    throw error;
   }
-  const handle = await open(resolved, constants.O_RDONLY | constants.O_NOFOLLOW);
   try {
     const before = await handle.stat({ bigint: true });
-    assertStableFileIdentity(pathBefore, before, label);
+    assert.equal(before.isFile(), true, `${label}_not_regular`);
+    assert.ok(
+      before.size > 0n && before.size <= BigInt(MAX_PUBLIC_FILE_BYTES),
+      `${label}_size_invalid`,
+    );
+    if (typeof process.getuid === "function") {
+      assert.equal(before.uid, BigInt(process.getuid()), `${label}_owner_invalid`);
+    }
+    assert.equal(await realpath(resolved), resolved, `${label}_path_not_canonical`);
+    const pathBefore = await lstat(resolved, { bigint: true });
+    assertStableFileIdentity(before, pathBefore, label);
     const expectedSize = Number(before.size);
     const buffer = Buffer.alloc(expectedSize + 1);
     let length = 0;

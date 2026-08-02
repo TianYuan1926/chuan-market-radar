@@ -206,3 +206,28 @@ test("public identity evidence uses a bounded stable no-follow read", async () =
     await rm(root, { force: true, recursive: true });
   }
 });
+
+test("public identity opens no-follow before path identity checks", async () => {
+  const source = await readFile(
+    "scripts/v2/production/m1-production-storage-p0r-route-evidence.mjs",
+    "utf8",
+  );
+  const functionStart = source.indexOf(
+    "export async function readStableOwnedPublicFile",
+  );
+  const functionEnd = source.indexOf(
+    "\nasync function assertSecureIdentityFile",
+    functionStart,
+  );
+  const implementation = source.slice(functionStart, functionEnd);
+  const openIndex = implementation.indexOf(
+    "await open(resolved, constants.O_RDONLY | constants.O_NOFOLLOW)",
+  );
+  const lstatIndex = implementation.indexOf(
+    "await lstat(resolved, { bigint: true })",
+  );
+
+  assert.ok(functionStart >= 0 && functionEnd > functionStart);
+  assert.ok(openIndex >= 0 && lstatIndex > openIndex);
+  assert.doesNotMatch(implementation.slice(0, openIndex), /\blstat\s*\(/u);
+});
