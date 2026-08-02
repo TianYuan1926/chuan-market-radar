@@ -2,7 +2,7 @@
 
 Date: 2026-08-02
 
-Status: `LOCAL_RUNTIME_PASS / CLEAN_REMEDIATION_COMMIT_CREATED / AUTHORITY_SYNC_FULL_CI_PASS / REMOTE_GATES_PENDING / PRODUCTION_UNCHANGED`
+Status: `HEALTH_CONTRACT_REMEDIATION_COMMITTED / AUTHORITY_SYNC_SOURCE_REMOTE_3_OF_4 / INDEPENDENT_SECURITY_FAIL / PUBLIC_KEY_FINGERPRINT_ARTIFACT_ROOT_REMEDIATION_COMMIT_8742828 / AUTHORITY_SYNC_FINAL_BYTES_FULL_LOCAL_CI_PASS / AUTHORITY_SYNC_COMMIT_PUSH_AND_REPLACEMENT_FOUR_GATES_PENDING / PRODUCTION_UNCHANGED`
 
 ## Scope
 
@@ -61,14 +61,31 @@ This is a fresh zero-drift result for the failed gateway attempt only. It is not
 - A red regression feeds the obsolete nested envelope, requires `evidence_gateway_health_not_ready`, and proves zero mutation plus no gateway-root creation.
 - The regression statically binds the fixture expectation to the production route source so the two surfaces cannot silently drift again.
 
-Current evidence is gateway `8/8` plus exact Node `22.23.1` / npm `10.9.8` full `ci:production` PASS: recurrence `11/11`, dispatch `37/37`, V2 Foundation `644 total / 638 PASS / 6 explicit skips`, V2 Ops `275/275`, M0 `12/12`, Next production build, Golden `16/16`, and security. Push and all four GitHub gates have not yet run for the authority-sync source.
+The health-contract authority-sync source `d1c3d987cf55105e94e815992dbb989ea1045629` was pushed after gateway `8/8` plus exact Node `22.23.1` / npm `10.9.8` full `ci:production` PASS: recurrence `11/11`, dispatch `37/37`, V2 Foundation `644 total / 638 PASS / 6 explicit skips`, V2 Ops `275/275`, M0 `12/12`, Next production build, Golden `16/16`, and security.
 
 The clean remediation implementation commit is `51886b038b6dfa5e1bf0169abc518810de7eb2d5`. Authority-sync final bytes were rechecked with the same complete CI before their commit; only the final authority-sync source may proceed to remote qualification. Production remained unchanged.
 
+## Exact-Source Requalification And Second Root Remediation
+
+The authority-sync source did not pass all four remote gates. Signed Production Dispatch `30739919674`, Full Quality and Materials `30739919649`, and A0 Release Qualification `30739919664` passed. Independent Security `30739919662` failed, so the exact-source qualification truth is `3/4` and no production package or approval may be derived from it.
+
+Inside Independent Security, CodeQL job `91475363037` and image scan job `91475363053` passed. Full-history secret scan job `91475363046` failed with one finding. Sanitized artifact `8830917655`, digest `sha256:a094742eb7396c2cb757f4290d620593c29d7badce77d17dc7d76373afb161db`, records Gitleaks `8.30.1`, finding count `1`, and report digest `sha256:64519dfe390929e7fa434c40c388e4ad7f7a362151bf9c2ff8be188b31a3d265`. The only finding is `approval-request.json:1`, rule `generic-api-key`, in historical signed-dispatch commit parts `a52aa6acfbe2f4f5d26c + b15a82701195ca2f32df`.
+
+The value is the SHA-256 fingerprint of the fixed X25519 evidence recipient public key. It is not a credential, private key, provider token, or session secret. The scanner correctly failed closed because the historical generated request named the high-entropy public fingerprint `evidenceRecipientKeySha256`, which is secret-shaped. This is a recurrence of the previously identified public-key-fingerprint artifact class, not a reason to disable or weaken Gitleaks.
+
+Permanent remediation now:
+
+- emits `evidenceRecipientFingerprintSha256` in every new gateway request and rejects the obsolete field through strict request keys;
+- rejects ambiguous non-public `*KeySha256` 64-hex fields before any signed dispatch publication;
+- preserves only the exact immutable historical finding in `.gitleaksignore`, with structured `PUBLIC_KEY_FINGERPRINT` review entry 17; and
+- adds a red dispatch regression proving the obsolete generated shape fails before outbox publication while the deterministic new gateway bundle remains accepted.
+
+Current targeted Node evidence is recurrence `11/11`, production dispatch `38/38`, and gateway `8/8`, totaling `57/57` PASS. Clean implementation commit `8742828086041da1db51a5abeeef01ba7656e5fd` contains the permanent code and security remediation. The final authority-sync bytes then passed complete exact-toolchain `ci:production` from zero under Node `22.23.1` and npm `10.9.8`: recurrence `11/11`, dispatch `38/38`, V2 Foundation `644 total / 638 PASS / 6 explicit skips`, V2 Ops `275/275`, M0 `12/12`, Next production build, Golden `16/16`, and security. The authority-sync commit/push and all four remote gates for that replacement exact source remain pending. Production remains unchanged.
+
 ## Mandatory Next Sequence
 
-1. Commit and push the authority-sync final source.
-2. Obtain all four GitHub gates for that exact source.
+1. Commit and push the authority-sync exact source whose final bytes passed complete local CI.
+2. Obtain all four GitHub gates from zero for that same replacement source; the authority-sync `3/4` result cannot be combined with any other run.
 3. Rebind a fresh production read-only baseline and build a new deterministic package.
 4. Obtain a new exact current production approval; the expired approval cannot be reused.
 5. Run current-image isolated validation, deploy Caddy only or automatically restore the baseline, and autonomously retrieve and verify the encrypted evidence.

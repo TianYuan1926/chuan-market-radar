@@ -523,6 +523,81 @@ test("all active authority surfaces identify the evidence gateway and retain rou
   );
   assert.equal(matrix.currentImplementationEntry.healthContractRemediationCleanCommitCreated, true);
   assert.equal(matrix.currentImplementationEntry.authoritySyncFinalBytesFullLocalCiPassed, true);
+  assert.deepEqual(
+    matrix.currentImplementationEntry.latestAuthoritySyncSourceCommitParts,
+    ["d1c3d987cf55105e94e8", "15992dbb989ea1045629"],
+  );
+  assert.deepEqual(
+    matrix.currentImplementationEntry.latestAuthoritySyncRemoteQualification,
+    {
+      signedProductionDispatchRunId: 30739919674,
+      signedProductionDispatchPassed: true,
+      fullQualityRunId: 30739919649,
+      fullQualityPassed: true,
+      a0ReleaseQualificationRunId: 30739919664,
+      a0ReleaseQualificationPassed: true,
+      independentSecurityRunId: 30739919662,
+      independentSecurityPassed: false,
+      passedGateCount: 3,
+      requiredGateCount: 4,
+      qualificationPassed: false,
+      codeqlJobId: 91475363037,
+      codeqlPassed: true,
+      fullHistorySecretScanJobId: 91475363046,
+      fullHistorySecretScanPassed: false,
+      imageScanJobId: 91475363053,
+      imageScanPassed: true,
+      sanitizedArtifactId: 8830917655,
+      sanitizedArtifactDigest:
+        "sha256:a094742eb7396c2cb757f4290d620593c29d7badce77d17dc7d76373afb161db",
+      scannerVersion: "8.30.1",
+      findingCount: 1,
+      findingPath: "approval-request.json",
+      findingLine: 1,
+      findingRuleId: "generic-api-key",
+      findingCommitParts: ["a52aa6acfbe2f4f5d26c", "b15a82701195ca2f32df"],
+      findingReportDigest:
+        "sha256:64519dfe390929e7fa434c40c388e4ad7f7a362151bf9c2ff8be188b31a3d265",
+      classification: "PUBLIC_KEY_FINGERPRINT",
+      credentialMaterialPresent: false,
+    },
+  );
+  assert.deepEqual(
+    matrix.currentImplementationEntry.publicKeyFingerprintArtifactRootRemediation,
+    {
+      status:
+        "CLEAN_IMPLEMENTATION_COMMIT_AND_AUTHORITY_SYNC_FINAL_BYTES_FULL_LOCAL_CI_PASS_REMOTE_FOUR_GATES_PENDING",
+      activeField: "evidenceRecipientFingerprintSha256",
+      supersededField: "evidenceRecipientKeySha256",
+      supersededFieldAcceptedByNewGatewayRequest: false,
+      ambiguousNonPublicKeySha256RejectedBeforeSignedDispatchPublication: true,
+      historicalAllowlistScope: "EXACT_COMMIT_PATH_RULE_LINE_ONLY",
+      structuredReviewEntry: 17,
+      targetedTestsPassed: 57,
+      fullLocalCiPending: false,
+      fullLocalCiPassed: true,
+      fullLocalCiExactNodeVersion: "22.23.1",
+      fullLocalCiExactNpmVersion: "10.9.8",
+      fullLocalCiRecurrenceTestsPassed: 11,
+      fullLocalCiProductionDispatchTestsPassed: 38,
+      fullLocalCiV2FoundationTotal: 644,
+      fullLocalCiV2FoundationPassed: 638,
+      fullLocalCiV2FoundationExplicitSkipped: 6,
+      fullLocalCiV2OpsPassed: 275,
+      fullLocalCiM0ChecksPassed: 12,
+      fullLocalCiNextProductionBuildPassed: true,
+      fullLocalCiGoldenTestsPassed: 16,
+      fullLocalCiSecurityPassed: true,
+      cleanRemediationCommitCreated: true,
+      cleanRemediationCommitParts: [
+        "8742828086041da1db51",
+        "a5abeeef01ba7656e5fd",
+      ],
+      authoritySyncFinalBytesFullLocalCiPassed: true,
+      replacementExactSourceRemoteFourGatesPassed: false,
+      productionMutationPerformed: false,
+    },
+  );
   assert.equal(matrix.currentImplementationEntry.latestFullLocalCiPassed, true);
   assert.equal(matrix.currentImplementationEntry.latestRemediationDirectedGatewayTestsPassed, 8);
   assert.equal(matrix.currentImplementationEntry.latestRemediationTargetedEslintPassed, true);
@@ -913,22 +988,32 @@ test("all active authority surfaces identify the evidence gateway and retain rou
   const indexCurrentEntry = index.split("## 6. 当前实施入口")[1]
     ?.split("## 7.")[0];
   assert.match(contextCurrentEntry ?? "", new RegExp(expectedEntry, "u"));
+  assert.match(contextCurrentEntry ?? "", /远端资格为 `3\/4`/u);
+  assert.match(contextCurrentEntry ?? "", /evidenceRecipientFingerprintSha256/u);
   assert.doesNotMatch(
     contextCurrentEntry ?? "",
     new RegExp(`^${routeAuthorityEntry}$`, "mu"),
   );
   assert.match(indexCurrentEntry ?? "", new RegExp(expectedEntry, "u"));
+  assert.match(indexCurrentEntry ?? "", /Independent Security.*FAIL/u);
+  assert.match(indexCurrentEntry ?? "", /evidenceRecipientFingerprintSha256/u);
   assert.doesNotMatch(
     indexCurrentEntry ?? "",
     new RegExp(`^${routeAuthorityEntry}$`, "mu"),
   );
   assert.match(sequence, new RegExp(`Current execution entry: ${expectedEntry}`, "u"));
+  assert.match(sequence, /remote 3\/4/u);
+  assert.match(sequence, /evidenceRecipientFingerprintSha256/u);
   assert.ok(blueprint.includes(`**当前执行入口**：\`${expectedEntry}\``));
+  assert.match(blueprint, /v1\.94 登记 public-key-fingerprint artifact 永久根治/u);
+  assert.match(blueprint, /8742828086041da1db51a5abeeef01ba7656e5fd/u);
   assert.equal(
     matrix.authority.m1ProductionEvidenceGatewayHealthContractRemediationReport,
     "docs/blueprints/V2_PRODUCTION_EVIDENCE_GATEWAY_HEALTH_CONTRACT_REMEDIATION_REPORT.md",
   );
   assert.match(healthContractReport, /dd67d81910f5696049d4271d527c264f2e42115f/u);
   assert.match(healthContractReport, /evidence_gateway_health_not_ready/u);
-  assert.match(healthContractReport, /FULL_CI_PASS/u);
+  assert.match(healthContractReport, /Independent Security `30739919662` failed/u);
+  assert.match(healthContractReport, /evidenceRecipientFingerprintSha256/u);
+  assert.match(healthContractReport, /totaling `57\/57` PASS/u);
 });
