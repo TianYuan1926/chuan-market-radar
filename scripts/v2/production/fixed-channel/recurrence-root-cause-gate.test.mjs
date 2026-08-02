@@ -451,8 +451,8 @@ test("all active authority surfaces identify the B9 R2 route authority remediati
   ]);
 
   assert.equal(matrix.currentImplementationEntry.id, expectedEntry);
-  assert.equal(matrix.currentImplementationEntry.routeAuthorityProducerTransactionTestsPassed, 23);
-  assert.equal(matrix.currentImplementationEntry.localP0RTestsPassed, 138);
+  assert.equal(matrix.currentImplementationEntry.routeAuthorityProducerTransactionTestsPassed, 24);
+  assert.equal(matrix.currentImplementationEntry.localP0RTestsPassed, 139);
   assert.equal(matrix.currentImplementationEntry.localP0RTestsFailed, 0);
   assert.equal(matrix.currentImplementationEntry.fullLocalCiPassed, true);
   assert.equal(matrix.currentImplementationEntry.fullLocalCiPending, false);
@@ -462,7 +462,7 @@ test("all active authority surfaces identify the B9 R2 route authority remediati
   );
   assert.equal(matrix.currentImplementationEntry.exactToolchainAutoDispatchRequired, true);
   assert.equal(matrix.currentImplementationEntry.exactToolchainLauncherTestsPassed, 3);
-  assert.equal(matrix.currentImplementationEntry.isolatedV2OpsTestsPassed, 263);
+  assert.equal(matrix.currentImplementationEntry.isolatedV2OpsTestsPassed, 266);
   assert.equal(matrix.currentImplementationEntry.wrongDefaultToolchainAttemptCount, 1);
   assert.equal(matrix.currentImplementationEntry.wrongDefaultToolchainAttemptCountedAsPass, false);
   assert.equal(
@@ -472,12 +472,29 @@ test("all active authority surfaces identify the B9 R2 route authority remediati
   assert.equal(matrix.currentImplementationEntry.fullLocalCiV2FoundationTotal, 643);
   assert.equal(matrix.currentImplementationEntry.fullLocalCiV2FoundationPassed, 637);
   assert.equal(matrix.currentImplementationEntry.fullLocalCiV2FoundationExplicitSkipped, 6);
-  assert.equal(matrix.currentImplementationEntry.fullLocalCiV2OpsPassed, 263);
+  assert.equal(matrix.currentImplementationEntry.fullLocalCiV2OpsPassed, 266);
   assert.equal(matrix.currentImplementationEntry.fullLocalCiM0ChecksPassed, 12);
   assert.equal(
     matrix.currentImplementationEntry.routeAuthorityImplementationCommit,
     "157e9a79a635d8f31857481fbd6a51d10df51160",
   );
+  assert.equal(
+    matrix.currentImplementationEntry.codeqlDiagnosticCommit,
+    "8059edf37fd0076b36cb7c57f233525c0d3056f3",
+  );
+  assert.equal(matrix.currentImplementationEntry.codeqlDiagnosticFailedSecurityRunId, 30725896115);
+  assert.equal(matrix.currentImplementationEntry.codeqlDiagnosticRuleId, "js/file-system-race");
+  assert.equal(matrix.currentImplementationEntry.codeqlSuppressionAdded, false);
+  assert.equal(
+    matrix.currentImplementationEntry.routeIdentityRaceRemediationCommit,
+    "913bae3a2db4d8f172d0de9be87305ad21b53884",
+  );
+  assert.equal(matrix.currentImplementationEntry.remoteFourGatesPassed, true);
+  assert.equal(matrix.currentImplementationEntry.remoteSignedProductionDispatchRunId, 30726178696);
+  assert.equal(matrix.currentImplementationEntry.remoteFullQualityAndMaterialsRunId, 30726178679);
+  assert.equal(matrix.currentImplementationEntry.remoteA0ReleaseQualificationRunId, 30726178659);
+  assert.equal(matrix.currentImplementationEntry.remoteIndependentSecurityRunId, 30726178672);
+  assert.equal(matrix.currentImplementationEntry.remoteCodeqlPassJobId, 91438221977);
   assert.equal(matrix.currentImplementationEntry.cleanExactSourcePassed, true);
   assert.equal(
     matrix.currentP0RTransportStagingRemediation.id,
@@ -614,7 +631,7 @@ test("all active authority surfaces identify the B9 R2 route authority remediati
   );
   assert.equal(
     matrix.currentP0RB9ExternalTransactionRemediation.targetedP0RTestsPassed,
-    138,
+    139,
   );
   assert.equal(
     matrix.currentP0RB9ExternalTransactionRemediation.freshRebindRequestSchema,
@@ -667,13 +684,13 @@ test("all active authority surfaces identify the B9 R2 route authority remediati
     true,
   );
   assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.exactToolchainLauncherTestsPassed, 3);
-  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.isolatedV2OpsTestsPassed, 263);
+  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.isolatedV2OpsTestsPassed, 266);
   assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.wrongDefaultToolchainAttemptCount, 1);
   assert.equal(
     matrix.currentP0RB9ExternalTransactionRemediation.wrongDefaultToolchainAttemptCountedAsPass,
     false,
   );
-  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.routeAuthorityProducerTransactionTestsPassed, 23);
+  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.routeAuthorityProducerTransactionTestsPassed, 24);
   assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.fullLocalCiPassed, true);
   assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.fullLocalCiPending, false);
   assert.equal(
@@ -688,13 +705,19 @@ test("all active authority surfaces identify the B9 R2 route authority remediati
     matrix.currentP0RB9ExternalTransactionRemediation.fullLocalCiV2FoundationPassed,
     637,
   );
-  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.fullLocalCiV2OpsPassed, 263);
+  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.fullLocalCiV2OpsPassed, 266);
   assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.fullLocalCiM0ChecksPassed, 12);
   assert.equal(
     matrix.currentP0RB9ExternalTransactionRemediation.routeAuthorityImplementationCommit,
     "157e9a79a635d8f31857481fbd6a51d10df51160",
   );
   assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.cleanExactSourcePassed, true);
+  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.fourRemoteGatesPending, false);
+  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.fourRemoteGatesPassed, true);
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.routeIdentityRaceRemediationCommit,
+    "913bae3a2db4d8f172d0de9be87305ad21b53884",
+  );
   assert.equal(
     matrix.currentP0RB9ExternalTransactionRemediation.externalCloudCleanupPending,
     true,
@@ -710,11 +733,11 @@ test("all active authority surfaces identify the B9 R2 route authority remediati
   );
   assert.equal(matrix.currentP0RRouteAuthorityRemediation.transportMemberCount, 17);
   assert.equal(matrix.currentP0RRouteAuthorityRemediation.currentRuntimeSourceFileCount, 9);
-  assert.equal(matrix.currentP0RRouteAuthorityRemediation.routeAuthorityProducerTransactionTestsPassed, 23);
-  assert.equal(matrix.currentP0RRouteAuthorityRemediation.targetedP0RTestsPassed, 138);
+  assert.equal(matrix.currentP0RRouteAuthorityRemediation.routeAuthorityProducerTransactionTestsPassed, 24);
+  assert.equal(matrix.currentP0RRouteAuthorityRemediation.targetedP0RTestsPassed, 139);
   assert.equal(matrix.currentP0RRouteAuthorityRemediation.exactToolchainAutoDispatchRequired, true);
   assert.equal(matrix.currentP0RRouteAuthorityRemediation.exactToolchainLauncherTestsPassed, 3);
-  assert.equal(matrix.currentP0RRouteAuthorityRemediation.isolatedV2OpsTestsPassed, 263);
+  assert.equal(matrix.currentP0RRouteAuthorityRemediation.isolatedV2OpsTestsPassed, 266);
   assert.equal(matrix.currentP0RRouteAuthorityRemediation.fullLocalCiPassed, true);
   assert.equal(matrix.currentP0RRouteAuthorityRemediation.fullLocalCiPending, false);
   assert.equal(
@@ -726,13 +749,19 @@ test("all active authority surfaces identify the B9 R2 route authority remediati
     "REQUIRED_UNIQUE_V2_IMPLEMENTATION_BRANCH_IDENTITY",
   );
   assert.equal(matrix.currentP0RRouteAuthorityRemediation.fullLocalCiV2FoundationPassed, 637);
-  assert.equal(matrix.currentP0RRouteAuthorityRemediation.fullLocalCiV2OpsPassed, 263);
+  assert.equal(matrix.currentP0RRouteAuthorityRemediation.fullLocalCiV2OpsPassed, 266);
   assert.equal(matrix.currentP0RRouteAuthorityRemediation.fullLocalCiM0ChecksPassed, 12);
   assert.equal(
     matrix.currentP0RRouteAuthorityRemediation.routeAuthorityImplementationCommit,
     "157e9a79a635d8f31857481fbd6a51d10df51160",
   );
   assert.equal(matrix.currentP0RRouteAuthorityRemediation.cleanCommitPassed, true);
+  assert.equal(matrix.currentP0RRouteAuthorityRemediation.fourRemoteGatesPending, false);
+  assert.equal(matrix.currentP0RRouteAuthorityRemediation.fourRemoteGatesPassed, true);
+  assert.equal(
+    matrix.currentP0RRouteAuthorityRemediation.routeIdentityRaceRemediationCommit,
+    "913bae3a2db4d8f172d0de9be87305ad21b53884",
+  );
   assert.equal(matrix.currentP0RRouteAuthorityRemediation.executionAuthority, false);
   assert.equal(matrix.currentP0RTransportStagingRemediation.targetProductionStagingTestsPassed, 11);
   assert.equal(matrix.currentP0RTransportStagingRemediation.p0rTestsPassed, 111);
