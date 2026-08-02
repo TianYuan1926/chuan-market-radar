@@ -504,6 +504,24 @@ test("all active authority surfaces identify the evidence gateway and retain rou
     "RECURRENCE_AUTHORITY_SURFACES_STALE",
   );
   assert.equal(matrix.currentImplementationEntry.authoritySurfaceSyncRemediationApplied, true);
+  assert.equal(matrix.currentImplementationEntry.cleanExactImplementationCommitCreated, true);
+  assert.equal(
+    matrix.currentImplementationEntry.implementationCommit,
+    "1ddc0fdc9408c697fcb73c42fe2b4c6e98b34e3e",
+  );
+  assert.equal(
+    matrix.currentImplementationEntry.authoritySyncRemediationCommit,
+    "35d7b63a40f9a21a07a44a974c0a1250b1c6c9be",
+  );
+  assert.equal(matrix.currentImplementationEntry.latestFullLocalCiPassed, true);
+  assert.equal(matrix.currentImplementationEntry.latestFullLocalCiV2FoundationTotal, 644);
+  assert.equal(matrix.currentImplementationEntry.latestFullLocalCiV2FoundationPassed, 638);
+  assert.equal(
+    matrix.currentImplementationEntry.latestFullLocalCiV2FoundationExplicitSkipped,
+    6,
+  );
+  assert.equal(matrix.currentImplementationEntry.latestFullLocalCiV2OpsPassed, 274);
+  assert.equal(matrix.currentImplementationEntry.latestFullLocalCiM0ChecksPassed, 12);
   assert.equal(matrix.currentImplementationEntry.productionMutationAuthorized, false);
   assert.equal(matrix.currentImplementationEntry.productionIntentionalMutationPerformed, false);
   assert.equal(matrix.currentImplementationEntry.freshProductionZeroDriftPassed, false);
