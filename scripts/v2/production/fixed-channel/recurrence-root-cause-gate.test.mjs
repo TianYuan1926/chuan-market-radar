@@ -206,7 +206,7 @@ test("the real registry closes accepted transports and keeps both active remedia
       },
       {
         id: "REC-2026-08-02-PRODUCTION-GATEWAY-PREFLIGHT-EQUIVALENCE",
-        recurrenceCount: 2,
+        recurrenceCount: 3,
         status: "REMEDIATION_IN_PROGRESS",
         workaroundLimitBreached: false,
       },
@@ -234,6 +234,12 @@ test("the real registry closes accepted transports and keeps both active remedia
   assert.deepEqual(evaluateRecurrenceOperations(
     registry,
     ["production_evidence_gateway_runtime_identity_bound_release"],
+  ), [
+    "recurrence_operation_retired:REC-2026-08-02-PRODUCTION-GATEWAY-PREFLIGHT-EQUIVALENCE:production_evidence_gateway_runtime_identity_bound_release",
+  ]);
+  assert.deepEqual(evaluateRecurrenceOperations(
+    registry,
+    ["production_evidence_gateway_signing_identity_bound_release"],
   ), []);
   assert.deepEqual(evaluateRecurrenceOperations(
     registry,
@@ -467,6 +473,7 @@ test("all active authority surfaces identify the evidence gateway and retain rou
     blueprint,
     healthContractReport,
     runtimePreflightReport,
+    signerIdentityReport,
   ] = await Promise.all([
     readFile(new URL(
       "../../../../docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json",
@@ -485,6 +492,10 @@ test("all active authority surfaces identify the evidence gateway and retain rou
     ), "utf8"),
     readFile(new URL(
       "../../../../docs/blueprints/V2_PRODUCTION_EVIDENCE_GATEWAY_RUNTIME_PREFLIGHT_REMEDIATION_REPORT.md",
+      import.meta.url,
+    ), "utf8"),
+    readFile(new URL(
+      "../../../../docs/blueprints/V2_PRODUCTION_EVIDENCE_GATEWAY_SIGNER_IDENTITY_REMEDIATION_REPORT.md",
       import.meta.url,
     ), "utf8"),
   ]);
@@ -529,9 +540,9 @@ test("all active authority surfaces identify the evidence gateway and retain rou
   assert.equal(matrix.currentImplementationEntry.otherContainerMutationAllowed, false);
   assert.equal(matrix.currentImplementationEntry.controlFileNoFollowMode600StableDescriptorRequired, true);
   assert.equal(matrix.currentImplementationEntry.localProductionDispatchTestsPassed, 38);
-  assert.equal(matrix.currentImplementationEntry.localGatewayTestsPassed, 12);
+  assert.equal(matrix.currentImplementationEntry.localGatewayTestsPassed, 14);
   assert.equal(matrix.currentImplementationEntry.localP0RRebindTestsPassed, 14);
-  assert.equal(matrix.currentImplementationEntry.localV2OpsTestsPassed, 279);
+  assert.equal(matrix.currentImplementationEntry.localV2OpsTestsPassed, 281);
   assert.equal(matrix.currentImplementationEntry.localFaultInjectionPassed, true);
   assert.equal(matrix.currentImplementationEntry.localDockerOrCaddyCliAvailable, false);
   assert.equal(matrix.currentImplementationEntry.realCaddyValidationRequiredBeforeMutation, true);
@@ -662,17 +673,28 @@ test("all active authority surfaces identify the evidence gateway and retain rou
     requiredGateCount: 4,
     qualificationPassed: true,
   });
+  assert.deepEqual(matrix.currentImplementationEntry.thirdAttemptRemoteQualification, {
+    sourceCommit: "ad9aeb9842f6b57d934e7729e5e8a5cf2680a3b7",
+    sourceTree: "82c89ca03c635ae6c77ceb4de8a8f96ba9630f41",
+    signedProductionDispatchRunId: 30749690584,
+    fullQualityRunId: 30749690577,
+    a0ReleaseQualificationRunId: 30749690576,
+    independentSecurityRunId: 30749690593,
+    passedGateCount: 4,
+    requiredGateCount: 4,
+    qualificationPassed: true,
+  });
   assert.deepEqual(matrix.currentImplementationEntry.runtimePreflightRootRemediation, {
-    status:
-      "LOCAL_REMEDIATION_CHECKPOINT_FULL_LOCAL_CI_PASS_REMOTE_GATES_AND_REAL_TARGET_ACCEPTANCE_PENDING",
+    status: "SUPERSEDED_AFTER_THIRD_ATTEMPT_SIGNER_IDENTITY_FAILURE",
     requestSchema: "market-radar-production-evidence-gateway-request.v3",
     recurrenceGateEmbeddedInBundle: true,
     recurrenceGateRevalidatedBeforeGatewayStateCreation: true,
     mockOnlyPreflightRetired: true,
     unboundCaddyReleaseRetired: true,
     genericCaddyReleaseBlockedWhileIncidentOpen: true,
-    allowedRemediationOperation:
+    historicalRemediationOperation:
       "production_evidence_gateway_runtime_identity_bound_release",
+    remediationOperationRetired: true,
     composeIdentityWrapperSha256:
       "fb473dc3bf0a2968be8ad385efac3273f4057530df17cee73f2003d3a369f1f3",
     runtimeIdentityOverrideSha256:
@@ -711,10 +733,56 @@ test("all active authority surfaces identify the evidence gateway and retain rou
     realTargetAcceptancePassed: false,
     productionMutationPerformed: false,
   });
+  assert.deepEqual(matrix.currentImplementationEntry.signerIdentityRootRemediation, {
+    status:
+      "FINAL_BYTES_FULL_LOCAL_CI_PASS_CLEAN_COMMIT_REMOTE_GATES_AND_REAL_TARGET_ACCEPTANCE_PENDING",
+    requestSchema: "market-radar-production-evidence-gateway-request.v4",
+    evidenceSignerKeyPath: "/etc/ssh/ssh_host_ed25519_key",
+    evidenceSignerPublicKeyFingerprint:
+      "SHA256:wxHx/NcT7wmgM6aOJnjgYKK4gOQGGeN44XkHYARbpbc",
+    requestAndPolicyIdentityBound: true,
+    defaultSignerReceivesRequestBoundKeyPath: true,
+    conflictingCallerKeyPathRejected: true,
+    preMutationRealSignAndVerifyRequired: true,
+    preMutationObservedFingerprintMatchRequired: true,
+    runtimeIdentityOnlyOperationRetired: true,
+    allowedRemediationOperation:
+      "production_evidence_gateway_signing_identity_bound_release",
+    happyPathCallerSignerOptionsOmitted: true,
+    missingKeyPathFaultInjectionZeroCaddyMutation: true,
+    wrongSignerIdentityFaultInjectionZeroCaddyMutation: true,
+    failedAttemptOwnedStateCleanupRequired: true,
+    directedGatewayTestsPassed: 14,
+    recurrenceTestsPassed: 11,
+    productionDispatchTestsPassed: 38,
+    fullLocalCiPending: false,
+    fullLocalCiPassed: true,
+    fullLocalCiExactNodeVersion: "22.23.1",
+    fullLocalCiExactNpmVersion: "10.9.8",
+    fullLocalCiRecurrenceTestsPassed: 11,
+    fullLocalCiProductionDispatchTestsPassed: 38,
+    fullLocalCiMarketTotal: 969,
+    fullLocalCiMarketPassed: 965,
+    fullLocalCiMarketExplicitSkipped: 4,
+    fullLocalCiWorkersPassed: 23,
+    fullLocalCiHistoricalPassed: 4,
+    fullLocalCiV2FoundationTotal: 644,
+    fullLocalCiV2FoundationPassed: 638,
+    fullLocalCiV2FoundationExplicitSkipped: 6,
+    fullLocalCiV2OpsPassed: 281,
+    fullLocalCiM0ChecksPassed: 12,
+    fullLocalCiNextProductionBuildPassed: true,
+    fullLocalCiGoldenTestsPassed: 16,
+    fullLocalCiSecurityPassed: true,
+    cleanRemediationCommitCreated: false,
+    replacementSourceRemoteFourGatesPassed: false,
+    realTargetAcceptancePassed: false,
+    productionMutationPerformed: false,
+  });
   assert.equal(matrix.currentImplementationEntry.latestFullLocalCiPassed, true);
   assert.equal(matrix.currentImplementationEntry.latestFullLocalCiExactNodeVersion, "22.23.1");
   assert.equal(matrix.currentImplementationEntry.latestFullLocalCiExactNpmVersion, "10.9.8");
-  assert.equal(matrix.currentImplementationEntry.latestRemediationDirectedGatewayTestsPassed, 12);
+  assert.equal(matrix.currentImplementationEntry.latestRemediationDirectedGatewayTestsPassed, 14);
   assert.equal(matrix.currentImplementationEntry.latestRemediationTargetedEslintPassed, true);
   assert.equal(matrix.currentImplementationEntry.latestRemediationFullLocalCiPending, false);
   assert.equal(matrix.currentImplementationEntry.latestRemediationFullLocalCiPassed, true);
@@ -726,7 +794,7 @@ test("all active authority surfaces identify the evidence gateway and retain rou
     matrix.currentImplementationEntry.latestRemediationFullLocalCiV2FoundationPassed,
     638,
   );
-  assert.equal(matrix.currentImplementationEntry.latestRemediationFullLocalCiV2OpsPassed, 279);
+  assert.equal(matrix.currentImplementationEntry.latestRemediationFullLocalCiV2OpsPassed, 281);
   assert.equal(matrix.currentImplementationEntry.latestRemediationFullLocalCiM0ChecksPassed, 12);
   assert.equal(matrix.currentImplementationEntry.lastQualifiedFullLocalCiPassed, true);
   assert.equal(matrix.currentImplementationEntry.lastQualifiedFullLocalCiV2FoundationTotal, 644);
@@ -741,32 +809,38 @@ test("all active authority surfaces identify the evidence gateway and retain rou
   assert.equal(matrix.currentImplementationEntry.lastQualifiedRemoteFourGatesPassed, true);
   assert.equal(
     matrix.currentImplementationEntry.lastQualifiedSourceCommit,
-    "d9a1e5fedf481f00e3cc88705c7e2b884add3ebe",
+    "ad9aeb9842f6b57d934e7729e5e8a5cf2680a3b7",
   );
   assert.equal(
     matrix.currentImplementationEntry.lastQualifiedRemoteSignedProductionDispatchRunId,
-    30743899298,
+    30749690584,
   );
   assert.equal(
     matrix.currentImplementationEntry.lastQualifiedRemoteFullQualityRunId,
-    30743899329,
+    30749690577,
   );
   assert.equal(
     matrix.currentImplementationEntry.lastQualifiedRemoteA0ReleaseQualificationRunId,
-    30743899304,
+    30749690576,
   );
   assert.equal(
     matrix.currentImplementationEntry.lastQualifiedRemoteIndependentSecurityRunId,
-    30743899295,
+    30749690593,
   );
   assert.equal(matrix.currentImplementationEntry.lastAttemptExactProductionApprovalGranted, true);
+  assert.equal(
+    matrix.currentImplementationEntry.lastAttemptApprovalConsumedAndForbiddenForReuse,
+    true,
+  );
   assert.equal(matrix.currentImplementationEntry.lastAttemptApprovalExpiredAndForbiddenForReuse, true);
   assert.equal(matrix.currentImplementationEntry.productionMutationAuthorized, false);
-  assert.equal(matrix.currentImplementationEntry.productionIntentionalMutationPerformed, false);
+  assert.equal(matrix.currentImplementationEntry.productionIntentionalMutationPerformed, true);
+  assert.equal(matrix.currentImplementationEntry.productionTransientCaddyMutationPerformed, true);
+  assert.equal(matrix.currentImplementationEntry.productionPersistentGatewayMutationRetained, false);
   assert.equal(matrix.currentImplementationEntry.freshProductionZeroDriftPassed, true);
   assert.equal(
     matrix.currentImplementationEntry.freshProductionZeroDriftScope,
-    "TWO_FAILED_GATEWAY_ATTEMPTS_ONLY",
+    "THIRD_ATTEMPT_POST_ROLLBACK_NON_TARGET_RUNTIME_AND_OWNED_STATE_CLEANUP",
   );
   assert.equal(matrix.currentImplementationEntry.p0rFreshProductionZeroDriftPassed, false);
   assert.equal(matrix.currentImplementationEntry.sensitiveEdgeResponseTabMustNotBeInspected, true);
@@ -780,23 +854,52 @@ test("all active authority surfaces identify the evidence gateway and retain rou
     "evidence_gateway_health_not_ready",
   );
   assert.equal(
-    matrix.currentImplementationEntry.lastExactProductionAttempt.signedDispatchCommit,
+    matrix.currentImplementationEntry.secondExactProductionAttempt.signedDispatchCommit,
     "39732e2e943e7b32648d1f0ca43c477900133acb",
   );
   assert.equal(
-    matrix.currentImplementationEntry.lastExactProductionAttempt.decodedFailureReason,
+    matrix.currentImplementationEntry.secondExactProductionAttempt.decodedFailureReason,
     "unexpected_error",
   );
   assert.equal(
-    matrix.currentImplementationEntry.lastExactProductionAttempt.postmortemClassification,
+    matrix.currentImplementationEntry.secondExactProductionAttempt.postmortemClassification,
     "evidence_gateway_unclassified_failure",
   );
   assert.equal(
-    matrix.currentImplementationEntry.lastExactProductionAttempt.stderrSha256,
+    matrix.currentImplementationEntry.secondExactProductionAttempt.stderrSha256,
     "67269043cc7fb87238ed8eb995d48bd6c92384b3f11ce821d376e7c1d158229a",
   );
   assert.equal(
-    matrix.currentImplementationEntry.lastExactProductionAttempt.productionMutationPerformed,
+    matrix.currentImplementationEntry.secondExactProductionAttempt.productionMutationPerformed,
+    false,
+  );
+  assert.equal(
+    matrix.currentImplementationEntry.lastExactProductionAttempt.signedDispatchCommit,
+    "700b994066309aa242484d978f712f6e2b3f0775",
+  );
+  assert.equal(
+    matrix.currentImplementationEntry.lastExactProductionAttempt.decodedFailureReason,
+    "evidence_gateway_seal_failed:evidence_signing_key_path_invalid",
+  );
+  assert.equal(
+    matrix.currentImplementationEntry.lastExactProductionAttempt.stderrSha256,
+    "7dd54690755c93d874684587be3cacaf2ff9124ea3acc0d5619a7d1c8faa2abf",
+  );
+  assert.equal(
+    matrix.currentImplementationEntry.lastExactProductionAttempt.requestSchema,
+    "market-radar-production-evidence-gateway-request.v3",
+  );
+  assert.equal(matrix.currentImplementationEntry.lastExactProductionAttempt.targetCaddyDeployPerformed, true);
+  assert.equal(
+    matrix.currentImplementationEntry.lastExactProductionAttempt.automaticBaselineCaddyRollbackPassed,
+    true,
+  );
+  assert.equal(
+    matrix.currentImplementationEntry.lastExactProductionAttempt.productionTransientCaddyMutationPerformed,
+    true,
+  );
+  assert.equal(
+    matrix.currentImplementationEntry.lastExactProductionAttempt.productionPersistentGatewayMutationRetained,
     false,
   );
   assert.equal(matrix.currentImplementationEntry.lastExactProductionAttempt.reusable, false);
@@ -1131,27 +1234,28 @@ test("all active authority surfaces identify the evidence gateway and retain rou
   const indexCurrentEntry = index.split("## 6. 当前实施入口")[1]
     ?.split("## 7.")[0];
   assert.match(contextCurrentEntry ?? "", new RegExp(expectedEntry, "u"));
-  assert.match(contextCurrentEntry ?? "", /d9a1e5fedf481f00e3cc88705c7e2b884add3ebe/u);
+  assert.match(contextCurrentEntry ?? "", /ad9aeb9842f6b57d934e7729e5e8a5cf2680a3b7/u);
   assert.match(contextCurrentEntry ?? "", /REC-2026-08-02-PRODUCTION-GATEWAY-PREFLIGHT-EQUIVALENCE/u);
-  assert.match(contextCurrentEntry ?? "", /bb9abe5cf0404ca7ce9af55f6ed99a6e3f646d76/u);
+  assert.match(contextCurrentEntry ?? "", /occurrence 3/u);
+  assert.match(contextCurrentEntry ?? "", /request v4/u);
   assert.doesNotMatch(
     contextCurrentEntry ?? "",
     new RegExp(`^${routeAuthorityEntry}$`, "mu"),
   );
   assert.match(indexCurrentEntry ?? "", new RegExp(expectedEntry, "u"));
-  assert.match(indexCurrentEntry ?? "", /occurrence 2/u);
-  assert.match(indexCurrentEntry ?? "", /bb9abe5cf0404ca7ce9af55f6ed99a6e3f646d76/u);
+  assert.match(indexCurrentEntry ?? "", /occurrence 3/u);
+  assert.match(indexCurrentEntry ?? "", /evidence_signing_key_path_invalid/u);
   assert.doesNotMatch(
     indexCurrentEntry ?? "",
     new RegExp(`^${routeAuthorityEntry}$`, "mu"),
   );
   assert.match(sequence, new RegExp(`Current execution entry: ${expectedEntry}`, "u"));
-  assert.match(sequence, /production-runtime preflight root remediation/u);
-  assert.match(sequence, /gateway 12\/12/u);
-  assert.match(sequence, /bb9abe5cf0404ca7ce9af55f6ed99a6e3f646d76/u);
+  assert.match(sequence, /signer-identity root remediation/u);
+  assert.match(sequence, /gateway 14\/14/u);
+  assert.match(sequence, /ad9aeb9842f6b57d934e7729e5e8a5cf2680a3b7/u);
   assert.ok(blueprint.includes(`**当前执行入口**：\`${expectedEntry}\``));
-  assert.match(blueprint, /v1\.95 登记第二次 exact gateway 生产尝试/u);
-  assert.match(blueprint, /bb9abe5cf0404ca7ce9af55f6ed99a6e3f646d76/u);
+  assert.match(blueprint, /v1\.96 登记第三次 exact gateway 生产尝试/u);
+  assert.match(blueprint, /evidence_gateway_seal_failed:evidence_signing_key_path_invalid/u);
   assert.equal(
     matrix.authority.m1ProductionEvidenceGatewayHealthContractRemediationReport,
     "docs/blueprints/V2_PRODUCTION_EVIDENCE_GATEWAY_HEALTH_CONTRACT_REMEDIATION_REPORT.md",
@@ -1170,4 +1274,13 @@ test("all active authority surfaces identify the evidence gateway and retain rou
   assert.match(runtimePreflightReport, /NET_BIND_SERVICE/u);
   assert.match(runtimePreflightReport, /bb9abe5cf0404ca7ce9af55f6ed99a6e3f646d76/u);
   assert.match(runtimePreflightReport, /gateway `12\/12`/u);
+  assert.equal(
+    matrix.authority.m1ProductionEvidenceGatewaySignerIdentityRemediationReport,
+    "docs/blueprints/V2_PRODUCTION_EVIDENCE_GATEWAY_SIGNER_IDENTITY_REMEDIATION_REPORT.md",
+  );
+  assert.match(signerIdentityReport, /ad9aeb9842f6b57d934e7729e5e8a5cf2680a3b7/u);
+  assert.match(signerIdentityReport, /700b994066309aa242484d978f712f6e2b3f0775/u);
+  assert.match(signerIdentityReport, /evidence_signing_key_path_invalid/u);
+  assert.match(signerIdentityReport, /request\.v4/u);
+  assert.match(signerIdentityReport, /Gateway directed tests: `14\/14 PASS`/u);
 });

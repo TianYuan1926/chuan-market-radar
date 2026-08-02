@@ -2,11 +2,11 @@
 
 用途：只保留最近最多 5 个重要变化，帮助下一轮快速接手。更早细节从 Git history、脱敏交付报告和历史证据读取。本文件不包含 secret。
 
-## 2026-08-02 / Autonomous Evidence Return And Runtime Preflight Root Remediation
+## 2026-08-02 / Autonomous Evidence Return, Runtime Preflight And Signer Identity Root Remediation
 
 ### 本轮目标
 
-根据 fixed dispatch 可送达 signed package、但严格脱敏结果只能滞留生产服务器的重复阻断，永久退役 Edge/API response reading、AX/browser-state、人工复制和 OrcaTerm result transport，建立可签名、加密、自动取回、独立验证和到期删除的生产证据返回通道；同时根据两次生产 preflight 偏离真实 runtime 的证据触发 STOP-THE-LINE，根治 health、Caddy capability 与 Compose identity 的模拟自洽问题。
+根据 fixed dispatch 可送达 signed package、但严格脱敏结果只能滞留生产服务器的重复阻断，永久退役 Edge/API response reading、AX/browser-state、人工复制和 OrcaTerm result transport，建立可签名、加密、自动取回、独立验证和到期删除的生产证据返回通道；同时根据三次生产尝试暴露的真实差异触发 STOP-THE-LINE，依次根治 health envelope、Caddy capability、Compose identity 和 evidence signer identity 的模拟自洽问题。
 
 ### 当前证据
 
@@ -25,10 +25,14 @@
 - 生产等价无 mutation A/B 直接复现 current Caddy image 在 `cap-drop ALL` 下以 RC 255 `operation not permitted` 失败，以及 direct Compose 绕过 root-owned production identity wrapper 后因缺 `POSTGRES_USER` 以 RC 1 失败。相同 isolation 仅加 `NET_BIND_SERVICE` 后 Caddy validate PASS；exact wrapper 携 gateway override 后 `config --quiet` PASS。wrapper 为 root/root mode `0700`、SHA `fb473dc3...`，runtime override 为 root/root mode `0600`、SHA `1b7f8ba4...`。
 - 第二次生产复核仍为 HEAD `cec0b657...`、clean worktree、11-container exact identity、health ready/fresh、404 route 与全部非目标面零漂移。唯一空 outbound residue 已在批准的自动清理边界内删除，gateway/staging/lock/diagnostic container 均 absent；数据库、Redis、Worker、env、migration、Feature Flag 和生产仓库未改变。
 - 该问题与首次 health-envelope 偏差共同登记为 `REC-2026-08-02-PRODUCTION-GATEWAY-PREFLIGHT-EQUIVALENCE` occurrence 2，generic gateway release STOP-THE-LINE。local remediation commit `bb9abe5cf0404ca7ce9af55f6ed99a6e3f646d76` 使用 request v3 绑定 exact wrapper/override identity、最小 Caddy capability、稳定 command digest、owned-state cleanup，并让 checksum-bound recurrence registry 在构包和生产 gateway state 创建前各验证一次。gateway `12/12`、recurrence `11/11`、dispatch `38/38` 与完整 exact-toolchain CI PASS；完整 CI 精确结果为 market `965/969`（4 explicit skips）、workers `23/23`、historical `4/4`、Foundation `638/644`（6 explicit skips）、Ops `279/279`、M0 `12/12`、Next build、Golden `16/16` 和 security。final authority commit/push、新同源四门、fresh baseline、新 deterministic package 和新批准尚未完成。
+- 第三次 exact source `ad9aeb9842f6b57d934e7729e5e8a5cf2680a3b7` 随后从零通过 Signed Dispatch `30749690584`、A0 `30749690576`、Full Quality `30749690577`、Independent Security `30749690593` 四门。signed dispatch `700b994066309aa242484d978f712f6e2b3f0775` 真实通过 current-image Caddy validate、exact Compose validation、Caddy-only recreate、ready/fresh health、mount 和 route probe，随后在 final evidence seal 以 `evidence_gateway_seal_failed:evidence_signing_key_path_invalid` 失败。
+- 第三次尝试发生受权的临时 Caddy mutation；自动 baseline rollback 已恢复原 config/image。十个非 Caddy full IDs、production HEAD `cec0b657...`、clean worktree、健康和全部非目标面保持不变，target gateway 未保留，exact staging/gateway/outbound 与隔离诊断目录均已清理。数据库、Redis、Worker、env、migration、Feature Flag、生产仓库和其他服务 mutation 为 0。
+- 独立生产诊断证明 current Caddy route 与 `/etc/ssh/ssh_host_ed25519_key` 的真实 sign/verify 均 PASS。直接根因是 request v3 没有绑定 signer key path/fingerprint、默认 signer 未收到 `keyPath`，而本地 happy test 手工传入 `signerOptions`，测试了与生产不同的调用。该故障类累计 occurrence 3，runtime-identity-only operation 永久退役。
+- request v4 现将 signing key path 和 SSH SHA-256 public-key fingerprint 写入 canonical request/policy/bundle，拒绝漂移与 caller 冲突，并在任何 Caddy mutation 前执行 sanitized real sign、独立 verify 和 observed fingerprint 比对。无 caller options happy path、missing-key 与 wrong-identity 故障注入已使 gateway `14/14`、recurrence `11/11`、dispatch `38/38` PASS；冻结 Node `22.23.1` / npm `10.9.8` 的最终字节完整 CI 也已从头通过 market `965/969`（4 explicit skips）、workers `23/23`、historical `4/4`、Foundation `638/644`（6 explicit skips）、Ops `281/281`、M0 `12/12`、Next build、Golden `16/16` 和 security。clean commit/push、新同源四门、fresh baseline、双构建、新批准和 real-target acceptance 尚未完成。
 
 ### 当前真值与下一步
 
-状态是 `TWO_EXACT_GATEWAY_ATTEMPTS_FAILED_PRE_CADDY_MUTATION / FIRST_HEALTH_ENVELOPE_SECOND_CADDY_CAPABILITY_AND_COMPOSE_IDENTITY / BOTH_DISPATCHES_NOT_REUSABLE / BOTH_APPROVALS_EXPIRED / TWO_ATTEMPT_ZERO_DRIFT / RUNTIME_PREFLIGHT_RECURRENCE_STOP_THE_LINE / LOCAL_REMEDIATION_COMMIT_BB9ABE5_FULL_LOCAL_CI_PASS / FINAL_COMMIT_PUSH_REMOTE_FOUR_GATES_NEW_PACKAGE_AND_NEW_APPROVAL_PENDING / P0R_BACKUP_RETRIEVAL_RESTORE_NOT_EXECUTED`。下一步提交推送 final exact source、从零取得同源四门、重采生产基线并双构建 deterministic package；只有新 request/bundle/source/baseline/窗口全部绑定的新批准成立后，才允许执行登记过的 remediation path。成功自动取回并验证 gateway evidence 后，使用同一通道 fresh rebind，再恢复 P0R。
+状态是 `THIRD_EXACT_GATEWAY_ATTEMPT_FAILED_AFTER_TRANSIENT_CADDY_DEPLOY / AUTOMATIC_BASELINE_ROLLBACK_PASS / FIRST_HEALTH_ENVELOPE_SECOND_RUNTIME_IDENTITY_THIRD_SIGNER_IDENTITY_ROOT_CAUSES / ALL_DISPATCHES_NOT_REUSABLE / ALL_APPROVALS_CONSUMED_AND_EXPIRED / THIRD_ATTEMPT_NON_TARGET_ZERO_DRIFT / SIGNER_IDENTITY_RECURRENCE_OCCURRENCE_THREE_STOP_THE_LINE / REQUEST_V4_GATEWAY_14_RECURRENCE_11_DISPATCH_38_AND_FINAL_BYTES_FULL_LOCAL_CI_PASS / CLEAN_COMMIT_PUSH_REMOTE_FOUR_GATES_NEW_PACKAGE_AND_NEW_APPROVAL_PENDING / P0R_BACKUP_RETRIEVAL_RESTORE_NOT_EXECUTED`。下一步提交推送 clean exact source、从零取得同源四门、重采生产基线并双构建 deterministic package；只有新 request/bundle/source/baseline/窗口全部绑定的新批准成立后，才允许执行 signer-identity-bound path。成功自动取回并验证 gateway evidence 后，使用同一通道 fresh rebind，再恢复 P0R。
 
 ## 2026-08-02 / P0R B9 R2 External Transaction and Route Authority Root Remediation
 

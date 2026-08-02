@@ -18,16 +18,19 @@ import test from "node:test";
 import { promisify } from "node:util";
 
 import {
+  canonicalJson,
   generateSigningKeyPair,
   prepareDispatch,
   sha256,
   validateOutbox,
 } from "./fixed-channel/production-dispatch.mjs";
 import {
+  ProductionEvidenceError,
   evidenceObjectName,
   generateEvidenceRecipientKeyPair,
   openProductionEvidence,
   readSealedEvidenceFile,
+  signEvidenceStatementWithSshKey,
 } from "./fixed-channel/production-evidence-channel.mjs";
 import {
   buildProductionEvidenceGatewayBundle,
@@ -103,11 +106,23 @@ async function createHostKey(root) {
     .split(/\s+/u)
     .slice(0, 2)
     .join(" ");
-  return { keyPath, publicKey };
+  const { stdout } = await execFileAsync("/usr/bin/ssh-keygen", [
+    "-lf", `${keyPath}.pub`, "-E", "sha256",
+  ]);
+  const fingerprint = stdout.trim().split(/\s+/u)[1];
+  return { fingerprint, keyPath, publicKey };
+}
+
+function localHostSigner(statementBytes, options) {
+  return signEvidenceStatementWithSshKey(statementBytes, {
+    ...options,
+    useSudo: false,
+  });
 }
 
 async function buildFixture() {
   const root = await realpath(await mkdtemp(join(tmpdir(), "production-evidence-gateway-")));
+  const host = await createHostKey(root);
   const sourceRoot = join(root, "source");
   const productionWorktree = join(root, "production");
   const stagingRoot = join(root, "staging");
@@ -117,6 +132,8 @@ async function buildFixture() {
     composeIdentityWrapper: join(stateRoot, "compose-identity-safe"),
     composeProjectName: "chuan-market-radar",
     dispatchStateRoot: stateRoot,
+    evidenceSignerKeyPath: host.keyPath,
+    evidenceSignerPublicKeyFingerprint: host.fingerprint,
     gatewayRoot: join(stateRoot, "evidence-gateway"),
     outboxRoot: join(stateRoot, "outbound"),
     productionWorktree,
@@ -212,6 +229,7 @@ async function buildFixture() {
     approval,
     containers,
     first,
+    host,
     outputA,
     outputB,
     policy,
@@ -382,6 +400,14 @@ test("gateway request freezes a Caddy-only, no-repository, auto-rollback boundar
       /^[a-f0-9]{64}$/u,
     );
     assert.equal(
+      fixture.request.evidenceSignerKeyPath,
+      fixture.host.keyPath,
+    );
+    assert.equal(
+      fixture.request.evidenceSignerPublicKeyFingerprint,
+      fixture.host.fingerprint,
+    );
+    assert.equal(
       Object.hasOwn(fixture.request, "evidenceRecipientKeySha256"),
       false,
     );
@@ -396,6 +422,20 @@ test("gateway request freezes a Caddy-only, no-repository, auto-rollback boundar
       async () => validateProductionEvidenceGatewayRequest({
         ...fixture.request,
         composeIdentityWrapper: `${fixture.request.composeIdentityWrapper}.other`,
+      }, { now: NOW, policy: fixture.policy }),
+      gatewayReason("evidence_gateway_policy_path_mismatch"),
+    );
+    await assert.rejects(
+      async () => validateProductionEvidenceGatewayRequest({
+        ...fixture.request,
+        evidenceSignerKeyPath: `${fixture.request.evidenceSignerKeyPath}.other`,
+      }, { now: NOW, policy: fixture.policy }),
+      gatewayReason("evidence_gateway_policy_path_mismatch"),
+    );
+    await assert.rejects(
+      async () => validateProductionEvidenceGatewayRequest({
+        ...fixture.request,
+        evidenceSignerPublicKeyFingerprint: "SHA256:not-a-fingerprint",
       }, { now: NOW, policy: fixture.policy }),
       gatewayReason("evidence_gateway_policy_path_mismatch"),
     );
@@ -612,8 +652,8 @@ test("gateway changes only Caddy, proves the route, and returns verifiable encry
   const fixture = await buildFixture();
   try {
     const simulated = simulation(fixture);
-    const host = await createHostKey(fixture.root);
     const schedules = [];
+    const signerKeyPaths = [];
     const result = await runProductionEvidenceGateway({
       commandRunner: simulated.commandRunner,
       expiryScheduler: async (schedule) => {
@@ -628,10 +668,9 @@ test("gateway changes only Caddy, proves the route, and returns verifiable encry
       now: new Date(NOW.getTime() + 1_000),
       policy: fixture.policy,
       requestPath: join(fixture.request.stagingDirectory, "approval-request.json"),
-      signerOptions: {
-        keyPath: host.keyPath,
-        sshKeygenPath: "/usr/bin/ssh-keygen",
-        useSudo: false,
+      signer: async (statementBytes, options) => {
+        signerKeyPaths.push(options.keyPath);
+        return localHostSigner(statementBytes, options);
       },
       sleeper: async () => {},
     });
@@ -639,6 +678,10 @@ test("gateway changes only Caddy, proves the route, and returns verifiable encry
     assert.equal(simulated.overrideActive(), true);
     assert.equal(simulated.mutationCount(), 1);
     assert.equal(schedules.length, 1);
+    assert.deepEqual(signerKeyPaths, [
+      fixture.request.evidenceSignerKeyPath,
+      fixture.request.evidenceSignerKeyPath,
+    ]);
     const sealed = await readSealedEvidenceFile(join(
       fixture.request.evidenceOutboxRoot,
       evidenceObjectName(fixture.request.dispatchId),
@@ -649,7 +692,7 @@ test("gateway changes only Caddy, proves the route, and returns verifiable encry
       now: new Date(NOW.getTime() + 2_000),
       recipientPrivateKey: await readFile(fixture.recipientPrivatePath, "utf8"),
       sealed,
-      trustedSignerPublicKey: host.publicKey,
+      trustedSignerPublicKey: fixture.host.publicKey,
       verifierOptions: { sshKeygenPath: "/usr/bin/ssh-keygen" },
     });
     assert.equal(receipt.payload.status,
@@ -696,6 +739,7 @@ test("gateway accepts the production health envelope and rejects the obsolete ne
         now: new Date(NOW.getTime() + 1_000),
         policy: fixture.policy,
         requestPath: join(fixture.request.stagingDirectory, "approval-request.json"),
+        signer: localHostSigner,
         sleeper: async () => {},
       }),
       gatewayReason("evidence_gateway_health_not_ready"),
@@ -720,6 +764,7 @@ test("target Compose validation failure is classified before mutation and remove
         now: new Date(NOW.getTime() + 1_000),
         policy: fixture.policy,
         requestPath: join(fixture.request.stagingDirectory, "approval-request.json"),
+        signer: localHostSigner,
         sleeper: async () => {},
       }),
       gatewayReason("evidence_gateway_command_failed:validate_target_compose"),
@@ -762,6 +807,81 @@ test("a pre-existing outbox is preserved and blocks the gateway before mutation"
   }
 });
 
+test("signer preflight failure is classified and removes owned state before Caddy mutation", async () => {
+  const fixture = await buildFixture();
+  try {
+    const simulated = simulation(fixture);
+    let observedKeyPath;
+    await assert.rejects(
+      runProductionEvidenceGateway({
+        commandRunner: simulated.commandRunner,
+        expiryScheduler: async () => {
+          throw new Error("must not schedule after failed signer preflight");
+        },
+        now: new Date(NOW.getTime() + 1_000),
+        policy: fixture.policy,
+        requestPath: join(fixture.request.stagingDirectory, "approval-request.json"),
+        signer: async (_statementBytes, options) => {
+          observedKeyPath = options.keyPath;
+          throw new ProductionEvidenceError("evidence_signing_key_path_invalid");
+        },
+        sleeper: async () => {},
+      }),
+      gatewayReason(
+        "evidence_gateway_signer_preflight_failed:evidence_signing_key_path_invalid",
+      ),
+    );
+    assert.equal(observedKeyPath, fixture.request.evidenceSignerKeyPath);
+    assert.equal(simulated.mutationCount(), 0);
+    assert.equal(simulated.overrideActive(), false);
+    await assert.rejects(lstat(fixture.request.gatewayRoot), { code: "ENOENT" });
+    await assert.rejects(lstat(fixture.request.evidenceOutboxRoot), { code: "ENOENT" });
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test("signer identity mismatch fails closed before Caddy mutation", async () => {
+  const fixture = await buildFixture();
+  try {
+    const wrongFingerprint = `SHA256:${"A".repeat(43)}`;
+    const request = {
+      ...fixture.request,
+      evidenceSignerPublicKeyFingerprint: wrongFingerprint,
+    };
+    const policy = {
+      ...fixture.policy,
+      evidenceSignerPublicKeyFingerprint: wrongFingerprint,
+    };
+    await writeFile(
+      join(request.stagingDirectory, "approval-request.json"),
+      canonicalJson(request),
+      { mode: 0o600 },
+    );
+    const simulated = simulation(fixture);
+    await assert.rejects(
+      runProductionEvidenceGateway({
+        commandRunner: simulated.commandRunner,
+        expiryScheduler: async () => {
+          throw new Error("must not schedule with a mismatched signer identity");
+        },
+        now: new Date(NOW.getTime() + 1_000),
+        policy,
+        requestPath: join(request.stagingDirectory, "approval-request.json"),
+        signer: localHostSigner,
+        sleeper: async () => {},
+      }),
+      gatewayReason("evidence_gateway_signer_identity_mismatch"),
+    );
+    assert.equal(simulated.mutationCount(), 0);
+    assert.equal(simulated.overrideActive(), false);
+    await assert.rejects(lstat(request.gatewayRoot), { code: "ENOENT" });
+    await assert.rejects(lstat(request.evidenceOutboxRoot), { code: "ENOENT" });
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
 test("post-deploy health failure restores baseline Caddy and removes gateway state", async () => {
   const fixture = await buildFixture();
   try {
@@ -775,6 +895,7 @@ test("post-deploy health failure restores baseline Caddy and removes gateway sta
         now: new Date(NOW.getTime() + 1_000),
         policy: fixture.policy,
         requestPath: join(fixture.request.stagingDirectory, "approval-request.json"),
+        signer: localHostSigner,
         sleeper: async () => {},
       }),
       gatewayReason("evidence_gateway_health_recovery_timeout"),

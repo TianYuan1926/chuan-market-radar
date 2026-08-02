@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { constants as fsConstants } from "node:fs";
 import {
   chmod,
@@ -24,6 +25,8 @@ import {
   publishSealedEvidence,
   scheduleProductionEvidenceExpiry,
   sealProductionEvidence,
+  signEvidenceStatementWithSshKey,
+  verifyEvidenceSshSignature,
 } from "./fixed-channel/production-evidence-channel.mjs";
 import { canonicalJson, sha256 } from "./fixed-channel/production-dispatch.mjs";
 import {
@@ -35,7 +38,7 @@ const execFileAsync = promisify(execFile);
 export const PRODUCTION_EVIDENCE_GATEWAY_PACKAGE_ID =
   "V2-PRODUCTION-EVIDENCE-GATEWAY-CADDY-ONLY";
 export const PRODUCTION_EVIDENCE_GATEWAY_REQUEST_SCHEMA =
-  "market-radar-production-evidence-gateway-request.v3";
+  "market-radar-production-evidence-gateway-request.v4";
 export const PRODUCTION_EVIDENCE_GATEWAY_RESULT_SCHEMA =
   "market-radar-production-evidence-gateway-result.v1";
 export const PRODUCTION_EVIDENCE_GATEWAY_MANIFEST_SCHEMA =
@@ -61,7 +64,7 @@ export const PRODUCTION_EVIDENCE_GATEWAY_RECURRENCE_INCIDENT_ID =
 export const PRODUCTION_EVIDENCE_GATEWAY_RECURRENCE_FAULT_CLASS =
   "production_gateway.preflight_runtime_equivalence";
 export const PRODUCTION_EVIDENCE_GATEWAY_REMEDIATION_OPERATION =
-  "production_evidence_gateway_runtime_identity_bound_release";
+  "production_evidence_gateway_signing_identity_bound_release";
 export const PRODUCTION_EVIDENCE_GATEWAY_SUCCESS_MARKER =
   "PASS_V2_PRODUCTION_EVIDENCE_GATEWAY_CADDY_ONLY";
 export const PRODUCTION_EVIDENCE_GATEWAY_RUNTIME_MAX_SECONDS = 110;
@@ -83,6 +86,9 @@ export const DEFAULT_PRODUCTION_EVIDENCE_GATEWAY_POLICY = Object.freeze({
     "/var/lib/market-radar-ops/wp-g0-2-identity-runner-20260711T034847Z/runtime/compose-identity-safe",
   composeProjectName: "chuan-market-radar",
   dispatchStateRoot: "/var/lib/market-radar-production-dispatch",
+  evidenceSignerKeyPath: "/etc/ssh/ssh_host_ed25519_key",
+  evidenceSignerPublicKeyFingerprint:
+    "SHA256:wxHx/NcT7wmgM6aOJnjgYKK4gOQGGeN44XkHYARbpbc",
   gatewayRoot:
     "/var/lib/market-radar-production-dispatch/evidence-gateway",
   outboxRoot: "/var/lib/market-radar-production-dispatch/outbound",
@@ -111,6 +117,8 @@ const REQUEST_KEYS = Object.freeze([
   "evidenceOutboxRoot",
   "evidenceRecipientFileSha256",
   "evidenceRecipientFingerprintSha256",
+  "evidenceSignerKeyPath",
+  "evidenceSignerPublicKeyFingerprint",
   "expectedBaselineCaddyfileSha256",
   "expectedBaselineComposeSha256",
   "expectedContainerCount",
@@ -174,6 +182,8 @@ const SOURCE_REF =
 const RUNNER_UNIT = /^market-radar-evidence-gateway-[a-z0-9][a-z0-9-]{7,24}$/u;
 const CONTAINER_ID = /^[a-f0-9]{64}$/u;
 const IMAGE_ID = /^sha256:[a-f0-9]{64}$/u;
+const OPENSSH_ED25519 = /^ssh-ed25519 ([A-Za-z0-9+/]+={0,3})$/u;
+const SSH_SHA256_FINGERPRINT = /^SHA256:[A-Za-z0-9+/]{43}$/u;
 
 export class ProductionEvidenceGatewayError extends Error {
   constructor(reason, details = undefined) {
@@ -260,8 +270,18 @@ export function validateProductionEvidenceGatewayRequest(request, {
       && request.caddyContainerName === policy.caddyContainerName
       && request.composeIdentityWrapper === policy.composeIdentityWrapper
       && request.composeProjectName === policy.composeProjectName
+      && request.evidenceSignerKeyPath === policy.evidenceSignerKeyPath
+      && request.evidenceSignerPublicKeyFingerprint
+        === policy.evidenceSignerPublicKeyFingerprint
       && request.runtimeIdentityOverride === policy.runtimeIdentityOverride,
     "evidence_gateway_policy_path_mismatch",
+  );
+  ensure(
+    isAbsolute(request.evidenceSignerKeyPath)
+      && SSH_SHA256_FINGERPRINT.test(
+        request.evidenceSignerPublicKeyFingerprint,
+      ),
+    "evidence_gateway_signer_identity_invalid",
   );
   directChild(
     request.stagingDirectory,
@@ -541,6 +561,61 @@ function parseContainerMap(raw) {
     map.set(name, id);
   }
   return map;
+}
+
+function evidenceSignerFingerprint(publicKey) {
+  const match = OPENSSH_ED25519.exec(String(publicKey).trim());
+  ensure(match, "evidence_gateway_signer_public_key_invalid");
+  const blob = Buffer.from(match[1], "base64");
+  ensure(
+    blob.length > 0 && blob.toString("base64") === match[1],
+    "evidence_gateway_signer_public_key_invalid",
+  );
+  return `SHA256:${createHash("sha256")
+    .update(blob)
+    .digest("base64")
+    .replace(/=+$/u, "")}`;
+}
+
+async function preflightEvidenceSigner({
+  request,
+  signer,
+  signerOptions,
+}) {
+  const statement = Buffer.from(canonicalJson({
+    dispatchId: request.dispatchId,
+    purpose: "SANITIZED_PRE_MUTATION_SIGNER_PREFLIGHT",
+    sourceCommit: request.sourceCommit,
+  }));
+  let signed;
+  try {
+    signed = await signer(statement, signerOptions);
+    ensure(
+      signed
+        && (Buffer.isBuffer(signed.signature)
+          || typeof signed.signature === "string")
+        && typeof signed.signerPublicKey === "string",
+      "evidence_gateway_signer_result_invalid",
+    );
+    await verifyEvidenceSshSignature(
+      statement,
+      Buffer.from(signed.signature),
+      { signerPublicKey: signed.signerPublicKey },
+    );
+  } catch (error) {
+    if (error instanceof ProductionEvidenceError) {
+      throw new ProductionEvidenceGatewayError(
+        `evidence_gateway_signer_preflight_failed:${error.reason}`,
+        error.details,
+      );
+    }
+    throw error;
+  }
+  ensure(
+    evidenceSignerFingerprint(signed.signerPublicKey)
+      === request.evidenceSignerPublicKeyFingerprint,
+    "evidence_gateway_signer_identity_mismatch",
+  );
 }
 
 function commandOutputBytes(value) {
@@ -1054,6 +1129,16 @@ export async function runProductionEvidenceGateway({
   );
   validateProductionEvidenceGatewayRequest(request, { now, policy });
   ensure(
+    signerOptions?.keyPath === undefined
+      || signerOptions.keyPath === request.evidenceSignerKeyPath,
+    "evidence_gateway_signer_key_path_mismatch",
+  );
+  const effectiveSigner = signer ?? signEvidenceStatementWithSshKey;
+  const effectiveSignerOptions = {
+    ...(signerOptions ?? {}),
+    keyPath: request.evidenceSignerKeyPath,
+  };
+  ensure(
     await realpath(requestPath) === join(request.stagingDirectory, "approval-request.json"),
     "evidence_gateway_request_identity_mismatch",
   );
@@ -1095,6 +1180,11 @@ export async function runProductionEvidenceGateway({
     ({ outboxCreated } = await installGatewayFiles(request));
     gatewayInstalled = true;
     await validateTargetCaddy(request, before, commandRunner);
+    await preflightEvidenceSigner({
+      request,
+      signer: effectiveSigner,
+      signerOptions: effectiveSignerOptions,
+    });
     mutationStarted = true;
     await recreateCaddy(request, commandRunner, true);
     await waitForReadyHealth(request, commandRunner, sleeper);
@@ -1108,8 +1198,8 @@ export async function runProductionEvidenceGateway({
       expiryScheduler,
       now,
       request,
-      signer,
-      signerOptions,
+      signer: effectiveSigner,
+      signerOptions: effectiveSignerOptions,
     });
     return {
       caddyImageId: after.caddyImageId,

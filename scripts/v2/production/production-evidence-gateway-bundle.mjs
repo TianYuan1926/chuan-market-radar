@@ -205,6 +205,9 @@ export async function buildProductionEvidenceGatewayBundle({
       evidenceOutboxRoot: policy.outboxRoot,
       evidenceRecipientFileSha256: sha256(recipientBytes),
       evidenceRecipientFingerprintSha256: recipientKeySha256(recipientBytes),
+      evidenceSignerKeyPath: policy.evidenceSignerKeyPath,
+      evidenceSignerPublicKeyFingerprint:
+        policy.evidenceSignerPublicKeyFingerprint,
       expectedBaselineCaddyfileSha256: sha256(baselineCaddyfile),
       expectedBaselineComposeSha256: sha256(baselineCompose),
       expectedContainerCount: approval.expectedContainerIds.length,
