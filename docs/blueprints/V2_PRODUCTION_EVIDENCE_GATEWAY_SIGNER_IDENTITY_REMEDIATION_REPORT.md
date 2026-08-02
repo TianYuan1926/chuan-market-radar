@@ -1,12 +1,12 @@
 # V2 Production Evidence Gateway Signer Identity Remediation Report
 
-Date: 2026-08-02
+Date: 2026-08-03
 
-Status: `THIRD_EXACT_ATTEMPT_FAILED_AFTER_CADDY_DEPLOY / AUTOMATIC_BASELINE_ROLLBACK_PASS / NON_TARGET_ZERO_DRIFT / SIGNER_ROOT_CAUSE_DIRECT / REQUEST_V4_COMMIT_4D104261_PUSHED / REMOTE_3_OF_4_FULL_QUALITY_BRIDGE_RACE_FAIL / BRIDGE_V6_LOCAL_P0R_142_AND_FINAL_BYTES_FULL_CI_PASS / NEW_CLEAN_COMMIT_REMOTE_FOUR_GATES_AND_REAL_TARGET_ACCEPTANCE_PENDING`
+Status: `THREE_HISTORICAL_FAILURES_PRESERVED / BRIDGE_V6_SOURCE_DF85_SAME_SOURCE_FOUR_GATES_PASS / SIGNER_BOUND_CADDY_ONLY_REAL_TARGET_ACCEPTANCE_PASS / ENCRYPTED_EVIDENCE_RETRIEVED_DECRYPTED_AND_SIGNATURE_VERIFIED / NON_TARGET_ZERO_DRIFT / RECURRENCE_CLOSED_VERIFIED / P0R_RECOVERY_PENDING`
 
 ## Scope
 
-This report records the third exact production execution of `V2-PRODUCTION-EVIDENCE-GATEWAY-CADDY-ONLY`, the successful automatic baseline rollback, the direct evidence-signer root cause, and the permanent remediation under qualification. Request v4 source `4d1042618eff24d39f6ecceb93d5715e2e798b5a` is committed and pushed, but its remote qualification is only `3/4`: Full Quality exposed a deterministic-diagnostics race in the P0R local TTY bridge. Bridge v6 fixes that adjacent release-gate defect and passes final-byte local CI; it still requires a new clean commit and four same-source gates. This report does not claim that the evidence gateway is deployed, that the current bridge-v6 bytes are remotely qualified, or that P0R backup, exact retrieval and isolated restore are complete.
+This report preserves the third failed production execution and its automatic rollback, then records the fourth exact execution that closed the gateway recurrence. Bridge-v6 source `df85b485b6d2c0ede8cdd2b656978ba2fdc372ab` passed all four same-source remote gates, the signer-bound Caddy-only release completed on the real Tencent target, and the fixed local retriever independently decrypted and verified the production-host signature. This closes only the production evidence-return fault class. P0R encrypted database backup, COS exact-version retrieval, isolated PostgreSQL 16 restore, cleanup and fresh P0 remain incomplete.
 
 ## Exact Third Attempt
 
@@ -87,7 +87,7 @@ The request-v4 signer remediation was committed and pushed as source `4d1042618e
 
 Full Quality expected `prearmed_credential_session_disconnected` but observed `prearmed_secret_session_disconnected` in the prearmed-disconnect fault case. The initial liveness checks used session-specific classifications, while the clipboard wait loop relabelled both credential and age sessions with the generic `prearmed_secret_session` prefix. Process scheduling therefore selected the visible reason code. This did not invalidate the request-v4 signer root cure, but it made release diagnostics nondeterministic and correctly prevented qualification.
 
-Bridge schema v6 now carries explicit `{id, failure_code}` bindings through the clipboard wait loop, preserving credential-versus-age classification at every observation point. Fault injection separately covers immediate credential disconnect, credential disconnect during clipboard wait and age disconnect during clipboard wait. Directed bridge tests pass `13/13`; the complete P0R suite passes `142/142` plus the Go helper. Final-byte exact-toolchain CI also passes locally; these results still have no remote or production authority until all four new same-source GitHub gates pass.
+Bridge schema v6 carries explicit `{id, failure_code}` bindings through the clipboard wait loop, preserving credential-versus-age classification at every observation point. Fault injection separately covers immediate credential disconnect, credential disconnect during clipboard wait and age disconnect during clipboard wait. Directed bridge tests pass `13/13`; the complete P0R suite passes `142/142` plus the Go helper. At that historical checkpoint these results had no remote authority; source `df85b485b6d2c0ede8cdd2b656978ba2fdc372ab` subsequently obtained all four same-source gates and real-target gateway acceptance.
 
 ## Qualification Truth
 
@@ -108,21 +108,46 @@ Bridge schema v6 now carries explicit `{id, failure_code}` bindings through the 
 - Bridge-v6 complete P0R suite: `142/142 PASS`, plus Go helper
 - Bridge-v6 final-byte exact-toolchain CI: `PASS` under Node `22.23.1` and npm `10.9.8`
 - Bridge-v6 final-byte CI exact totals: recurrence `11/11`, production dispatch `38/38`, market `965/969` with `4` explicit skips, workers `23/23`, historical `4/4`, V2 Foundation `638/644` with `6` explicit skips, V2 Ops `283/283`, M0 `12/12`, Next production build, Golden `16/16`, and security `PASS`
-- Bridge-v6 clean commit, push and four same-source GitHub gates: `PENDING`
-- New deterministic double build: `PENDING`
-- New exact production approval: `PENDING`
-- Signer-bound real-target acceptance and independent ciphertext retrieval: `PENDING`
+- Bridge-v6 clean commit, push and four same-source GitHub gates: `PASS`, source `df85b485b6d2c0ede8cdd2b656978ba2fdc372ab`
+- New deterministic package and bound baseline: `PASS`
+- New exact production approval: `PASS_CONSUMED_NOT_REUSABLE`
+- Signer-bound real-target acceptance and independent ciphertext retrieval: `PASS`
 
-Neither the previous source's PASS evidence nor the three passing request-v4 remote gates can be combined to qualify the new bridge-v6 bytes.
+Neither the previous source's PASS evidence nor the three passing request-v4 remote gates was combined to qualify the new bridge-v6 bytes. Source `df85b485b6d2c0ede8cdd2b656978ba2fdc372ab` obtained all four gates independently.
+
+## Fourth Exact Real-Target Acceptance
+
+- Source commit: `df85b485b6d2c0ede8cdd2b656978ba2fdc372ab`
+- Source tree: `f32cc5aa70f7f1c46e772b3b7ba2abbbd7aaf2a5`
+- Same-source remote gates: Signed Dispatch `30758244706`, Full Quality `30758244710`, Independent Security `30758244707`, A0 `30758244715`; all `PASS`
+- Production HEAD: `cec0b6572bb09ae91ff9e013f8bb160f73c045e2`
+- Dispatch: `production-evidence-gateway-20260802t172525z-df85b485`
+- Approval request SHA-256: `1daeb3a6a1eef848065fbcbda7ce80d967409a08d11deee2878f385355f9a9bd`
+- Bundle SHA-256: `e70e6388ccebf7a0d00eb9465349b6bb707af1fbbfade83fd1b9118b0afd00e0`
+- Artifact manifest SHA-256: `4c8bba4f24c8696b8a3d7186ca3ee277b8b6ca6a452a38c9e41985226d637119`
+- Baseline evidence SHA-256: `f5bde72e3acb373ad630ebbf34c78846428ec796ef887239d05b4fafd5625b3c`
+- Baseline container-set SHA-256: `f871741f6a8d249db728ac49b5e7e6f109a6b60ba1052581f7de483ba01976be`
+- Signed dispatch commit: `3cca64f63ea160e0b772c513c9c6624bc76a28ec`
+- Runner: `market-radar-evidence-gateway-df85b485`
+- Production result: `PASS_PRODUCTION_EVIDENCE_GATEWAY_CADDY_ONLY`
+- Evidence object: `22ebecfad6dd9d83b8e40203889f2f36d7c22fa7237fcf3bf63142acafe14acf.mre`
+- Payload SHA-256: `d33c62ec5978940b691774b6716d7b3f5f9d898314c46335135783efc563eed1`
+- Sealed SHA-256: `2f0ab691bda06cfa02b54e8d0d43c58e3cc2074c23780eaa8e583fd4432520d7`
+- Local retrieval: `PASS_PRODUCTION_EVIDENCE_DECRYPTED_AND_VERIFIED`
+
+The fourth execution passed current-image validation, exact Compose identity validation, real host-key sign-and-verify preflight, Caddy-only recreation, route probe and ready/fresh health. The local retriever pinned the production host identity, rejected redirects, decrypted the exact ciphertext, checked its payload and sealed hashes, and persisted payload, receipt and sealed evidence as three mode-`0600` files.
+
+Independent read-only production checks confirmed the signed dispatch claim and cursor, successful one-shot unit result, clean production worktree, unchanged production HEAD, all ten non-Caddy full container identities unchanged, exact staging and global lease absent, and the per-dispatch expiry timer active. The exact evidence object returned `200`; a malformed namespace returned `404`. Database, Redis, Worker, env, migration, Feature Flag, production repository and other services were unchanged.
+
+The recurrence `REC-2026-08-02-PRODUCTION-GATEWAY-PREFLIGHT-EQUIVALENCE` is therefore `CLOSED_VERIFIED` with recurrence count `3`. The three failed dispatches remain immutable and non-reusable. This acceptance does not close `REC-2026-07-28-P0R-SECRET-RECEIVER-FOCUS` and does not prove P0R recovery.
 
 ## Required Next Sequence
 
-1. Create and push one clean bridge-v6 remediation commit.
-2. Obtain all four GitHub gates from that exact source; no prior gate may be combined with it.
-3. Capture a fresh read-only production baseline and rebind the exact signer, wrapper, override, Caddy image and container identities.
-4. Build the new bundle twice and prove byte-for-byte determinism.
-5. Obtain a new exact approval bound to the new source, tree, request, bundle, baseline and time window.
-6. Execute only the signing-identity-bound operation; automatically roll back and clean on any failure.
-7. Retrieve, decrypt and independently verify the production evidence before closing the recurrence or resuming P0R.
+1. Commit and qualify the authority-sync bytes without reusing the consumed gateway approval.
+2. Perform a fresh P0R read-only rebind and zero-residue baseline through the accepted evidence channel.
+3. Generate new source-bound route, lease, run, object key, v4 plan and transport identities; stage the no-secret target through fixed dispatch.
+4. Prearm both exact no-echo TTY sessions and prove the authoritative Tencent `/32 -> 8022` route before STS issuance.
+5. Use one fresh exact-plan STS and age handoff, then run read-only encrypted backup, exact COS version retrieval and isolated PostgreSQL 16 restore.
+6. Prove integrity, complete lease-bound cleanup, production zero drift, fresh health/topology/capacity and fresh P0.
 
-Until all seven steps pass, the gateway status is `可运行但不完整`, P0R remains unexecuted, and Market Radar V2 remains `不能支撑实战`.
+The gateway is production-accepted, but Market Radar V2 remains `可运行但不完整 / 不能支撑实战` until P0R and the later decision-chain gates pass.

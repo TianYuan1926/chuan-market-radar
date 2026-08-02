@@ -696,7 +696,7 @@
       "id": "REC-2026-08-02-PRODUCTION-GATEWAY-PREFLIGHT-EQUIVALENCE",
       "faultClass": "production_gateway.preflight_runtime_equivalence",
       "affectedChannel": "signed_dispatch_to_production_evidence_gateway",
-      "status": "REMEDIATION_IN_PROGRESS",
+      "status": "CLOSED_VERIFIED",
       "recurrenceCount": 3,
       "firstObservedDate": "2026-08-02",
       "lastObservedDate": "2026-08-02",
@@ -733,7 +733,11 @@
           "Production-equivalent diagnostics reproduced Compose config exit 1 because direct Compose with only .env.production could not interpolate POSTGRES_USER.",
           "The third 2026-08-02 dispatch 700b994066309aa242484d978f712f6e2b3f0775 passed Caddy validation, Compose validation, deployment, health and route checks, then failed while sealing evidence with canonical reason evidence_gateway_seal_failed:evidence_signing_key_path_invalid; its outer stderr digest was 7dd54690755c93d874684587be3cacaf2ff9124ea3acc0d5619a7d1c8faa2abf.",
           "The third attempt automatically restored baseline Caddy, preserved production HEAD cec0b6572bb09ae91ff9e013f8bb160f73c045e2, preserved the exact ten non-Caddy container identities, returned ready and fresh health and removed exact staging, gateway and outbound state.",
-          "An isolated current-image route diagnostic passed, and the production host key /etc/ssh/ssh_host_ed25519_key independently signed and verified with fingerprint SHA256:wxHx/NcT7wmgM6aOJnjgYKK4gOQGGeN44XkHYARbpbc."
+          "An isolated current-image route diagnostic passed, and the production host key /etc/ssh/ssh_host_ed25519_key independently signed and verified with fingerprint SHA256:wxHx/NcT7wmgM6aOJnjgYKK4gOQGGeN44XkHYARbpbc.",
+          "The replacement source df85b485b6d2c0ede8cdd2b656978ba2fdc372ab, tree f32cc5aa70f7f1c46e772b3b7ba2abbbd7aaf2a5, passed complete local CI and all four same-source GitHub gates before deterministic packaging.",
+          "Signed dispatch 3cca64f63ea160e0b772c513c9c6624bc76a28ec executed the signing-identity-bound release and returned PASS_PRODUCTION_EVIDENCE_GATEWAY_CADDY_ONLY for dispatch production-evidence-gateway-20260802t172525z-df85b485.",
+          "The local fixed retriever independently decrypted and verified sealed object 22ebecfad6dd9d83b8e40203889f2f36d7c22fa7237fcf3bf63142acafe14acf.mre with payload SHA-256 d33c62ec5978940b691774b6716d7b3f5f9d898314c46335135783efc563eed1 and sealed SHA-256 2f0ab691bda06cfa02b54e8d0d43c58e3cc2074c23780eaa8e583fd4432520d7.",
+          "Independent production checks confirmed production HEAD cec0b6572bb09ae91ff9e013f8bb160f73c045e2, a clean worktree, all ten non-Caddy container identities, ready/fresh health, absent exact staging and lease state, and an active exact-expiry prune timer."
         ]
       },
       "rootCause": {
@@ -751,7 +755,7 @@
         ]
       },
       "permanentFix": {
-        "status": "PARTIAL",
+        "status": "PASS",
         "authorityPaths": [
           "scripts/v2/production/production-evidence-gateway.mjs",
           "scripts/v2/production/production-evidence-gateway-bundle.mjs",
@@ -767,11 +771,13 @@
           "Compose config, deploy and rollback use the exact production identity wrapper instead of reconstructing incomplete env interpolation.",
           "The runner supplies the request-bound key path to the default signer and performs a sanitized real sign-and-verify preflight with public-key fingerprint comparison before any Caddy mutation.",
           "The runner emits stable command and signer fingerprints with bounded stdout and stderr digests and removes only gateway state created by its own failed attempt.",
-          "The deterministic bundle carries the checksum-bound recurrence registry and gate source; both build and production runner must authorize the exact remediation operation before any gateway state creation or Caddy mutation."
+          "The deterministic bundle carries the checksum-bound recurrence registry and gate source; both build and production runner must authorize the exact remediation operation before any gateway state creation or Caddy mutation.",
+          "Source df85b485b6d2c0ede8cdd2b656978ba2fdc372ab passed the full local production CI and the four same-source remote gates: Signed Dispatch 30758244706, Full Quality 30758244710, Independent Security 30758244707 and A0 30758244715.",
+          "The exact production signer-bound path completed without fallback, and the fixed local retriever independently decrypted, hashed and verified the production-host signature."
         ]
       },
       "regression": {
-        "status": "PARTIAL",
+        "status": "PASS",
         "redCase": "Mock-only health, Caddy capability, direct Compose validation or a happy path with manually injected signer options can pass locally while the materially different production runtime fails.",
         "greenCommand": "npm run test:production-evidence-gateway && npm run test:recurrence-gate && npm run ci:production",
         "evidence": [
@@ -782,24 +788,30 @@
           "The signer happy path omits caller signerOptions and asserts that both preflight and final sealing receive the request-bound key path.",
           "Signer preflight failure injection must prove a stable reason, zero Caddy mutation and removal of all runner-owned gateway and outbox state.",
           "The recurrence tests retire mock-only, unbound and runtime-identity-only release operations, block the generic Caddy release while the incident is open and allow only the signing-identity-bound remediation path.",
-          "The previous exact-toolchain CI remains historical evidence for the superseded source; the signer-bound source requires a fresh complete local CI and four same-source GitHub gates."
+          "The previous exact-toolchain CI remains historical evidence for the superseded source; the signer-bound source requires a fresh complete local CI and four same-source GitHub gates.",
+          "The bridge-v6 replacement source passed all four same-source GitHub gates before packaging; no gate from a superseded source was combined.",
+          "The real production result proved the no-caller-signer-options path, signer fingerprint preflight, Caddy-only mutation, encrypted evidence return and independent verification together."
         ]
       },
       "runtimeGate": {
-        "status": "PARTIAL",
+        "status": "PASS",
         "evidence": [
           "The exact current production Caddy image passed isolated caddy validate with network none, read-only root, no-new-privileges, cap-drop ALL and only NET_BIND_SERVICE restored.",
           "The exact root-owned production Compose identity wrapper passed config --quiet with the gateway override and current production env chain.",
           "The production host signing key passed independent sign and verify with the exact public-key fingerprint bound by request schema v4.",
-          "The third failed dispatch mutated only Caddy, then automatic rollback restored the baseline and verified zero staging, gateway root, outbound, diagnostic container and non-target drift."
+          "The third failed dispatch mutated only Caddy, then automatic rollback restored the baseline and verified zero staging, gateway root, outbound, diagnostic container and non-target drift.",
+          "The fourth exact dispatch recreated only Caddy with the current image, passed the route and ready/fresh health checks, preserved every non-Caddy container identity and left the production repository clean at the bound HEAD.",
+          "The exact sealed object was available only at its high-entropy route with no-store and download headers, while a malformed namespace returned 404; the per-dispatch prune timer was active for expiry plus grace."
         ]
       },
       "realTargetAcceptance": {
-        "status": "PENDING",
+        "status": "PASS",
         "evidence": [
           "The three failed dispatches are immutable historical evidence and permanently non-reusable.",
-          "A fresh exact source must pass complete local production CI and all four same-source GitHub gates before a new deterministic package can be proposed.",
-          "Closure requires one fresh production execution to pass current-image preflight, Caddy-only deployment, encrypted evidence retrieval and verification, non-target zero drift, automatic cleanup and rollback acceptance."
+          "Source df85b485b6d2c0ede8cdd2b656978ba2fdc372ab and tree f32cc5aa70f7f1c46e772b3b7ba2abbbd7aaf2a5 passed complete local production CI and four same-source GitHub gates before packaging.",
+          "Dispatch production-evidence-gateway-20260802t172525z-df85b485 passed current-image preflight, signing-identity preflight, Caddy-only deployment, route probe and evidence sealing.",
+          "Local retrieval returned PASS_PRODUCTION_EVIDENCE_DECRYPTED_AND_VERIFIED, with three independent mode-0600 artifacts and a pinned production signer identity.",
+          "Independent post-run checks confirmed non-target zero drift, clean production HEAD, ready/fresh health, exact staging and lease absence, and active expiry cleanup."
         ]
       },
       "workaroundAccounting": {
@@ -810,10 +822,9 @@
         "unknownReason": null
       },
       "remainingRisks": [
-        "The signing-identity-bound remediation bytes have not yet passed fresh complete local production CI or same-source GitHub qualification.",
         "The root-owned identity wrapper and override are external production authorities whose disappearance or byte drift must fail closed until a fresh exact package is approved.",
-        "Production-equivalent component diagnostics do not replace one complete fresh gateway real-target acceptance.",
-        "The evidence gateway and P0R backup, exact retrieval and isolated restore remain incomplete."
+        "The gateway acceptance proves the production evidence return channel only; it does not prove P0R database recoverability, application authority or practical trading readiness.",
+        "P0R encrypted database backup, COS exact-version retrieval, isolated PostgreSQL 16 restore, complete cleanup, fresh P0 and subsequent admission remain incomplete."
       ]
     }
   ]

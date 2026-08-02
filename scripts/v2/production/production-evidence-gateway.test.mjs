@@ -451,7 +451,7 @@ test("gateway request freezes a Caddy-only, no-repository, auto-rollback boundar
   }
 });
 
-test("gateway recurrence authority permits only the registered remediation path", async () => {
+test("gateway recurrence authority honors verified closure and still rejects missing or prohibited bindings", async () => {
   const fixture = await buildFixture();
   try {
     const registryPath = join(
@@ -468,7 +468,7 @@ test("gateway recurrence authority permits only the registered remediation path"
     const registry = JSON.parse(registryBytes.toString("utf8"));
     const incident = registry.incidents.find(({ id }) =>
       id === "REC-2026-08-02-PRODUCTION-GATEWAY-PREFLIGHT-EQUIVALENCE");
-    incident.remediationOperations = incident.remediationOperations.filter(
+    incident.affectedOperations = incident.affectedOperations.filter(
       (operation) => operation !== PRODUCTION_EVIDENCE_GATEWAY_REMEDIATION_OPERATION,
     );
     const blockedBytes = Buffer.from(`${JSON.stringify(registry, null, 2)}\n`);

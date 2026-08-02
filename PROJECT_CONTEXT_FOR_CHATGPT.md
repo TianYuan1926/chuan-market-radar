@@ -51,8 +51,8 @@ Runtime / Security / Release Control 贯穿全链。
 ## 4. 当前权威
 当前唯一设计权威：
 
-- `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`，内容版本 v1.98。
-- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.103。
+- `docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md`，内容版本 v1.99。
+- `docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json`，机器合同 v1.104。
 - `docs/blueprints/README.md`，权威解析入口。
 - `market-radar-v2-build-sequence.md`，当前正确施工依赖与减数规则。
 
@@ -77,7 +77,7 @@ M1.5B1B3_EARLY_SHADOW_BUSINESS_GATE_PASS
 M1.5B1_COMPLETE
 M1.6_PARTITIONED_FACT_STORAGE_LOCAL_POSTGRES16_PASS
 M1.6P0_PRODUCTION_STORAGE_READ_ONLY_PREFLIGHT_EXECUTED_BLOCKED
-M1.6P0R_ROUTE_AUTHORITY_UPSTREAM_QUALIFIED / PRODUCTION_EVIDENCE_GATEWAY_TWO_EXACT_ATTEMPTS_FAILED_PRE_CADDY_MUTATION / FIRST_HEALTH_ENVELOPE_SECOND_RUNTIME_CAPABILITY_AND_COMPOSE_IDENTITY / TWO_ATTEMPT_PRODUCTION_ZERO_DRIFT / RUNTIME_PREFLIGHT_RECURRENCE_STOP_THE_LINE / ROOT_REMEDIATION_COMMIT_BB9ABE5_FULL_LOCAL_CI_PASS / FINAL_AUTHORITY_COMMIT_PUSH_REPLACEMENT_SOURCE_REMOTE_FOUR_GATES_FRESH_BASELINE_NEW_PACKAGE_NEW_APPROVAL_REAL_CADDY_ACCEPTANCE_RETRIEVAL_FRESH_REBIND_AND_REAL_RECOVERY_PENDING / PRODUCTION_INTENTIONAL_MUTATION_NONE
+M1.6P0R_ROUTE_AUTHORITY_UPSTREAM_QUALIFIED / PRODUCTION_EVIDENCE_GATEWAY_DF85_SAME_SOURCE_FOUR_GATES_SIGNER_BOUND_REAL_TARGET_ACCEPTANCE_AND_ENCRYPTED_EVIDENCE_VERIFICATION_PASS / GATEWAY_RECURRENCE_CLOSED_VERIFIED_COUNT_3 / P0R_FRESH_REBIND_BACKUP_EXACT_RETRIEVAL_ISOLATED_RESTORE_CLEANUP_AND_FRESH_P0_PENDING
 M1.6_FRESH_P0_CAPACITY_ADMISSION_LOCAL_ENGINEERING_PASS_PRODUCTION_EVIDENCE_PENDING
 M2.0_DISCOVERY_CONTRACTS_LOCAL_PASS
 M2.1_DRAFT_REPLAY_KERNELS_LOCAL_PASS
@@ -138,7 +138,7 @@ automaticTradingAllowed=false
 - M1.5C/M1.5D 已完成本地 31 周期/60 秒 runtime、point-in-time 确定性 research/control 选择、独立 evidence verifier、隔离 PostgreSQL 16 与同一 exact release 的无 secret Bundle/Runner；Base Fact 23/23、Expanded Shadow 70/70、生产包 12/12、V2 Ops 192/192、typecheck、lint、forbidden-files 和 secret-pattern 均 PASS。Binance JSON subscribe 已修正为 routed `/public/stream` 与 `/market/stream`。失败结果只有在 container/network/volume/staging 和 topology 精确恢复时才允许声明 `productionChanged=false`。真实 M1.5C 与 M1.5D live cycle 均为 0；A0/P0R 和 fresh same-commit M1.4B/conformance upstream 未满足，不能生成当前生产 Bundle，股票 tradable Fact、持续 Fact/Candidate/Strategy/READY authority 全部仍为 false。
 - M1.5-A 已建立独立 additive checkpoint migration、artifact 引用与 digest 防线、精确 release/config/sequence/schedule 恢复、固定节拍 skip-missed Worker、优雅停止、强制 telemetry sink、分离 reader/writer 身份的 NO_AUTHORITY 进程入口和三态 SLO evaluator。隔离 PG16 已证明关闭连接后的精确增量恢复、append-only、幂等、越权拒绝和 checkpoint 不领先 artifact。
 - M1.5-B0 已补齐显式 reader/writer role assumption 与会话身份核验、两个 secret-file database URL、完整 strict observation JSONL、固定 30 分钟/24 小时有限 Shadow profile，以及无 Legacy secret、非 root、只读 filesystem、无端口的专用容器边界。定向 41/41、全 V2 136 pass / 0 fail / 4 explicit external-dependency skips、三项隔离 PG16 回归与完整 `ci:production` 均通过；B1-A 已随后补齐 exact image build、三 Venue egress 与隔离 Docker Runner 证明。
-- M1.6 v1 日分区迁移 checksum 保持不可变；additive v2 六小时分区、无扩容 59%/67% 模型、Object Lock `COMPLIANCE` 31 天、Keychain age 身份和 private `/dev/shm` runner boundary 均已形成。Evidence Gateway 前两次 pre-mutation 失败只保留历史证据；第三次 exact source `ad9aeb9842f6b57d934e7729e5e8a5cf2680a3b7` 真实完成 Caddy-only recreate、健康、mount 与 route probe后，因 request v3 未绑定 signing key path 在 evidence seal 失败并自动恢复 baseline。request v4 signer 根治已以 source `4d1042618eff24d39f6ecceb93d5715e2e798b5a`、tree `c28fa60f1236e8b80a7185de4bcfdc4c084d34e0` 提交推送；Signed Dispatch、A0、Independent Security PASS，Full Quality `30755615546` / job `91517146516` 因 bridge v5 非确定性会话分类而 FAIL，远端严格为 `3/4`。bridge v6 现贯穿 session-specific failure code；三种断线时序 `13/13`、完整 P0R `142/142`、Go helper 与最终字节完整 CI 本地 PASS，CI 包含 Ops `283/283`。新 clean commit/push、同源四门、package、批准、真实验收、自动取回、fresh rebind 和 P0R recovery 尚未完成。
+- M1.6 v1 日分区迁移 checksum 保持不可变；additive v2 六小时分区、无扩容 59%/67% 模型、Object Lock `COMPLIANCE` 31 天、Keychain age 身份和 private `/dev/shm` runner boundary 均已形成。Evidence Gateway 的三个失败 dispatch 继续作为不可复用历史证据；bridge-v6 source `df85b485b6d2c0ede8cdd2b656978ba2fdc372ab` 已独立通过四门，signed dispatch `3cca64f63ea160e0b772c513c9c6624bc76a28ec` 真实完成 signer-bound Caddy-only recreate、route 与 ready/fresh health。本机 fixed retriever 自动取得 `22ebec...mre` 并完成 pinned host identity 解密验签；payload `d33c62e...`、sealed `2f0ab69...` 一致。独立只读复核确认生产 HEAD、clean worktree、十个非 Caddy IDs、staging/lease absence 与 expiry timer，非目标面零漂移。gateway recurrence count=3，现为 `CLOSED_VERIFIED`。fresh P0R rebind、加密 backup、COS exact-version retrieval、isolated PG16 restore、全清理与 fresh P0 尚未完成。
 - fresh rebind request v4/result v3 已把历史 transport v1 三文件替代比较与当前 transport v4 九文件运行资格分离，并增加精确 8022 listener/unit absence 合同；九文件集包含 runner、atomic session helper、runtime capsule helper 和 route listener observer，缺任一摘要 fail closed。旧 request v3/result v2、transport v2/v3、七/八文件合同和所有 16-member package 只保留历史证据；修复 source 已取得本地与远端资格，但最终资料 HEAD、fresh rebind 和生产执行权仍未完成。
 - M2.0 已冻结六个机会族、十四种模式、family-specific direction、Detector event/knowledge 双 cutoff、Candidate/Episode/Thesis strict v2 schema、Detector emission authority、UTC Episode 去重、生命周期、三层运行漏斗和 19 个 test-only point-in-time fixture；fixture 递归拒绝 Outcome/MFE/MAE 等未来材料。该结论只证明本地合同，不证明 Detector、Deep Validation、真实市场发现率或生产能力。
 - M2.1 已建立三个 Pre-Move 与两个 Breakout/Retest 独立 DRAFT 纯回放内核。M2.1A 又建立八族各自 LONG/SHORT/UNKNOWN 共 24 个 DRAFT/UNCALIBRATED 假设、三 Outcome、point-in-time 板块传播、逐 family-direction 的 Venue/regime/liquidity 分层，以及 matched control、消融、sealed holdout、forward Shadow、rights 和独立审计 Gate；定向 13/13 PASS。它只能返回 research blocker 或进入 replay validation 的无发射状态，Candidate emission=false；没有真实 cohort、真实指标或生命周期升级证据。
@@ -292,11 +292,11 @@ npm run security:check
 系统等级：R1
 工程描述：可运行但不完整
 实战描述：不能支撑实战
-V2：M0.5 已把 Market Mechanics、Microstructure、双向前兆、板块传播、补充来源、缓存和 Evidence Overlay 融入权威设计；M1.4C、M1.4D、M1.5C/M1.5D 本地包与 M2.1A 均通过各自本地出口，但真实 live、cohort/holdout、校准和 authority 仍未完成。当前关键路径是 Evidence Gateway signer identity 根治后恢复 P0R；M1 未完成，Detector=DRAFT、Candidate 禁发，无 Signal Grade/Strategy/Feasibility/持续 runtime/READY authority
-A0：精确版本、SBOM、固定 CI/Action/runner/base-image、双重 lint、Next build、可重复制品与安全门均有历史 PASS。request-v4 signer source `4d104261...` 已提交推送，远端 Signed Dispatch `30755615525`、A0 `30755615545`、Independent Security `30755615533` PASS，Full Quality `30755615546` FAIL，严格为 `3/4`。bridge v6 本地 directed `13/13`、P0R `142/142`、Go helper 和最终字节完整 CI PASS；完整分母为 market `965/969`、workers `23/23`、historical `4/4`、Foundation `638/644`、Ops `283/283`、M0 `12/12`、Golden `16/16`。新 clean commit 和同源四门仍待完成；A0 总门禁继续缺 P0R 真实加密备份、精确版本取回和独立 PostgreSQL 16 恢复
-本轮第三次 gateway 生产尝试发生过受权的 Caddy 临时重建，并在 evidence seal 失败后自动恢复 baseline config/image；目标网关未保留。生产 HEAD `cec0b657...`、clean worktree、十个非 Caddy IDs、健康和非目标面不变；exact staging、gateway、outbound 和诊断目录均已清理。数据库、Redis、Worker、env、migration、Feature Flag、生产仓库和业务 authority 变更为 0
-当前生产存储门禁：P0_BLOCKED_CAPACITY_AND_RECOVERY；前三个 gateway dispatch 及批准均已消费、过期且不可复用。第三次 signer-key-path 根因已取得生产直接证据；request v4 已提交推送但远端仅 `3/4`，bridge v6 当前为本地 P0R 与最终字节完整 CI PASS、远端四门待重新取得；没有可用 STS、backup、exact retrieval、isolated restore 或 fresh P0
-固定生产执行通道：PRODUCTION_FIXED_DISPATCH_TIMEOUT_LOCK_RECOVERY_PASS / EVIDENCE_GATEWAY_SIGNER_IDENTITY_REMEDIATION_STOP_THE_LINE。旧 runtime-identity-only operation、bridge v5 current authority、旧 package、旧 approval、Edge/API result extraction、browser-state recovery、OrcaTerm result transport 和手工签名参数注入均禁止复用；bridge v6 已完成最终字节完整 CI，只有形成 clean commit、通过同源四门、fresh baseline 与双构建后才能生成新批准
+V2：M0.5 已把 Market Mechanics、Microstructure、双向前兆、板块传播、补充来源、缓存和 Evidence Overlay 融入权威设计；M1.4C、M1.4D、M1.5C/M1.5D 本地包与 M2.1A 均通过各自本地出口，但真实 live、cohort/holdout、校准和 authority 仍未完成。production evidence gateway 已通过真实目标验收；当前关键路径是 fresh P0R rebind 与真实恢复。M1 未完成，Detector=DRAFT、Candidate 禁发，无 Signal Grade/Strategy/Feasibility/持续 runtime/READY authority
+A0：精确版本、SBOM、固定 CI/Action/runner/base-image、双重 lint、Next build、可重复制品与安全门均有历史 PASS。bridge-v6 source `df85b485...` 已取得同源四门和 production evidence gateway real-target acceptance；证据已自动取回、解密和验签。A0 总门禁继续缺 P0R 真实加密备份、COS 精确版本取回和独立 PostgreSQL 16 恢复
+本轮第四次 gateway 生产尝试只重建 Caddy，并保留生产 HEAD `cec0b657...`、clean worktree、十个非 Caddy IDs、ready/fresh health 和全部非目标面；exact staging/lease 均 absent，expiry timer active。数据库、Redis、Worker、env、migration、Feature Flag、生产仓库和业务 authority 变更为 0。三个失败 dispatch 不可复用且继续保留
+当前生产存储门禁：P0_BLOCKED_CAPACITY_AND_RECOVERY；gateway approval/dispatch 已消费不可复用。没有可用 STS、backup、exact retrieval、isolated restore 或 fresh P0
+固定生产执行通道：PRODUCTION_FIXED_DISPATCH_TIMEOUT_LOCK_RECOVERY_PASS / PRODUCTION_EVIDENCE_GATEWAY_REAL_TARGET_ACCEPTANCE_PASS。旧 runtime-identity-only operation、bridge v5 current authority、旧 package、旧 approval、Edge/API result extraction、browser-state recovery、OrcaTerm result transport 和手工签名参数注入均禁止复用；下一 source 必须经过权威同步资格和 fresh P0R rebind 后才能生成新恢复执行身份
 ```
 
 2026-07-21 P0 通过只读事务取得数据库/容量事实，Docker/Git before/after 一致，证据 `sha256:344ae4e05ec78e74ca97c92728fc06576f744e795bf4919d6eb3b76ee145769e`。它只判定存储准入，不包含 `/api/health`、Redis 或业务 ready，因此不得扩写为全站健康或全站失败。
@@ -385,13 +385,12 @@ Cycle final
 - 污染清理分三类：确定无引用且已有 replacement 的删除；用途不明的隔离；仍有消费者的登记到 Legacy Capability Atlas 后受控替换。
 ## 18. 当前执行入口与关键外部门
 ```text
-V2-PRODUCTION-EVIDENCE-GATEWAY-CADDY-ONLY
+V2-M1.6-P0R-FRESH-REBIND-AND-RECOVERY
 ```
 P0 已执行并因容量与 recovery evidence BLOCKED；Object Lock 31 天和 age Keychain 身份仍有效。B8 target、COS CAM 修复、route authority implementation `157e9a79...`、真实 CodeQL 失败 `8059edf...` 与 descriptor-first 修复 `913bae3a...` 只保留为已资格化上游；所有旧 response、route、lease、run、plan、object key 和 staging 均无当前执行权。旧 Edge/API response、AX/browser-state、人工复制和 OrcaTerm result transport 已退出当前结果回传路线，旧敏感页关闭前仍禁止读取其状态或内容。
-网关架构继续使用生产 SSH Ed25519 host key namespace 签名、固定 X25519 recipient、HKDF-SHA256 + AES-256-GCM、既有 Caddy 高熵 exact ciphertext 路由、本机 SOCKS poller、mode-600 no-clobber receipt 和两小时 exact systemd TTL。生产包仍只允许复用当前 Caddy image 并重建 Caddy；失败必须自动恢复 baseline Caddy，生产仓库、数据库、Redis、Worker、env、migration、Feature Flag 和非目标容器 identity 全部禁止改变。
+网关架构使用生产 SSH Ed25519 host key namespace 签名、固定 X25519 recipient、HKDF-SHA256 + AES-256-GCM、既有 Caddy 高熵 exact ciphertext 路由、本机 SOCKS poller、mode-600 no-clobber receipt 和两小时 exact systemd TTL。source `df85b485...` 已通过四门和真实 signer-bound Caddy-only acceptance，本机固定通道也已完成自动取回、解密和验签。前三个失败 dispatch 永久保留且不可复用；复发 occurrence=3，状态 `CLOSED_VERIFIED`。
 
-三个 gateway exact dispatch 均已 claim、失败且永久不可复用。第三次 source `ad9aeb9842f6b57d934e7729e5e8a5cf2680a3b7` 已通过 Signed Dispatch `30749690584`、A0 `30749690576`、Full Quality `30749690577`、Independent Security `30749690593` 同源四门，并真实通过 Caddy validation、exact Compose validation、target recreate、健康、mount 和 route probe；随后 final evidence seal 因 `evidence_signing_key_path_invalid` 失败。自动 baseline rollback 恢复原 Caddy config/image，十个非 Caddy IDs、生产 HEAD、clean worktree、健康和全部非目标面不变，临时状态清零。本轮发生过临时 Caddy mutation，不能继续写成“两个 pre-mutation failure”；第三次批准也已消费并过期。
-该问题以 occurrence 3 登记为 `REC-2026-08-02-PRODUCTION-GATEWAY-PREFLIGHT-EQUIVALENCE / REMEDIATION_IN_PROGRESS`，generic Caddy release STOP-THE-LINE。request v4 将 signer identity 写入 canonical request/bundle，并在任何 Caddy mutation 前真实 sign、独立 verify 和比对 observed fingerprint；source `4d104261...` 已提交推送。其远端资格为 Signed Dispatch、A0、Independent Security PASS，Full Quality `30755615546` / job `91517146516` FAIL；失败不是 signer 回归，而是 bridge v5 在 clipboard wait 中把两条预建会话覆盖为 generic `prearmed_secret_session`，使调度决定错误码。bridge v6 使用显式 `{id,failure_code}` 保留 credential/age 分类，三种断线故障注入 `13/13`、P0R `142/142`、Go helper 与最终字节完整 CI 本地 PASS。固定顺序为 `clean commit/push -> 同源四门从零 PASS -> fresh production baseline -> 双构建 deterministic package -> 新 exact approval -> signer-identity-bound execution/自动 rollback -> 自动取回/解密/验签 -> fresh rebind -> 新 P0R identity/package -> backup/exact retrieval/isolated restore/cleanup -> fresh health/topology/calibration/P0`。gateway real-target acceptance、P0R 与 fresh P0 未 PASS 前，P1、M2 runtime、页面交易计划和任何 READY authority 继续关闭。
+当前固定顺序为 `权威同步 source 资格 -> fresh P0R read-only rebind/零残留基线 -> 新 route/lease/run/object key/v4 plan/transport -> fixed-dispatch no-secret target acceptance -> 双 TTY PREARMED + 腾讯权威 /32 route -> 一次 fresh STS native Copy + age handoff -> encrypted backup -> COS exact-version retrieval -> isolated PG16 restore/integrity -> lease-bound cleanup -> fresh health/topology/capacity/calibration/P0`。gateway PASS、P0R 与 fresh P0 不得混算；P0R 与 fresh P0 未 PASS 前，P1、M2 runtime、页面交易计划和任何 READY authority继续关闭。
 ## 19. 活跃记忆维护规则
 - 本文件最多 400 行，只保留当前事实。
 - 易变生产事实没有 fresh evidence 就写 UNKNOWN，不沿用旧状态。
