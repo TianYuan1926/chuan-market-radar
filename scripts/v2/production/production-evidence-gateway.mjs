@@ -430,7 +430,7 @@ function parseHealth(raw, expected) {
   } catch {
     throw new ProductionEvidenceGatewayError("evidence_gateway_health_invalid");
   }
-  const health = body?.data?.health;
+  const health = body?.health;
   ensure(
     body?.ok === true
       && health?.level === expected.level

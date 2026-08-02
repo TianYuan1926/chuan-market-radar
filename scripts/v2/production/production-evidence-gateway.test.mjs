@@ -212,20 +212,21 @@ async function buildFixture() {
   };
 }
 
-function healthBody() {
-  return Buffer.from(JSON.stringify({
-    data: {
-      health: {
-        level: "ready",
-        persistence: { databaseStatus: "ready" },
-        scan: { freshness: "fresh", status: "ready" },
-      },
-    },
-    ok: true,
-  }));
+function healthBody({ legacyNested = false } = {}) {
+  const health = {
+    level: "ready",
+    persistence: { databaseStatus: "ready" },
+    scan: { freshness: "fresh", status: "ready" },
+  };
+  return Buffer.from(JSON.stringify(legacyNested
+    ? { data: { health }, ok: true }
+    : { health, ok: true }));
 }
 
-function simulation(fixture, { failAfterDeployHealth = false } = {}) {
+function simulation(fixture, {
+  failAfterDeployHealth = false,
+  legacyNestedHealth = false,
+} = {}) {
   const containers = new Map(fixture.containers);
   let caddyGeneration = 20;
   let overrideActive = false;
@@ -286,7 +287,7 @@ function simulation(fixture, { failAfterDeployHealth = false } = {}) {
         if (overrideActive && failAfterDeployHealth) {
           return Buffer.from(JSON.stringify({ ok: false }));
         }
-        return healthBody();
+        return healthBody({ legacyNested: legacyNestedHealth });
       }
       if (url.endsWith("/not-allowed.mre")) return Buffer.from("404");
       if (url.includes("/_market-radar/evidence/") && overrideActive) {
@@ -522,6 +523,39 @@ test("gateway changes only Caddy, proves the route, and returns verifiable encry
     assert.equal(receipt.payload.productionRepositoryChanged, false);
     assert.ok(simulated.calls.some(({ args, command }) =>
       command === "docker" && args[0] === "run" && args.includes("--network")));
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test("gateway accepts the production health envelope and rejects the obsolete nested fixture before mutation", async () => {
+  const healthRouteSource = await readFile(
+    new URL("../../../src/app/api/health/route.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(
+    healthRouteSource,
+    /NextResponse\.json\(\{\s*ok:\s*true,\s*health,\s*\}/u,
+  );
+
+  const fixture = await buildFixture();
+  try {
+    const simulated = simulation(fixture, { legacyNestedHealth: true });
+    await assert.rejects(
+      runProductionEvidenceGateway({
+        commandRunner: simulated.commandRunner,
+        expiryScheduler: async () => {
+          throw new Error("must not schedule for an invalid health envelope");
+        },
+        now: new Date(NOW.getTime() + 1_000),
+        policy: fixture.policy,
+        requestPath: join(fixture.request.stagingDirectory, "approval-request.json"),
+        sleeper: async () => {},
+      }),
+      gatewayReason("evidence_gateway_health_not_ready"),
+    );
+    assert.equal(simulated.mutationCount(), 0);
+    await assert.rejects(lstat(fixture.request.gatewayRoot), { code: "ENOENT" });
   } finally {
     await rm(fixture.root, { recursive: true, force: true });
   }

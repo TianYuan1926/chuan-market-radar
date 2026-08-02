@@ -437,7 +437,7 @@ test("all active authority surfaces identify the evidence gateway and retain rou
     "V2-M1.6-P0R-B8-FIXED-DISPATCH-TRANSPORT-STAGING-ROOT-REMEDIATION";
   const runtimeNamespaceEntry =
     "V2-M1.6-P0R-B7-SOURCE-BOUND-NODE-RUNTIME-CAPSULE-ROOT-REMEDIATION";
-  const [matrix, context, index, sequence, blueprint] = await Promise.all([
+  const [matrix, context, index, sequence, blueprint, healthContractReport] = await Promise.all([
     readFile(new URL(
       "../../../../docs/blueprints/market-radar-v2-controlled-replacement-traceability.v1.json",
       import.meta.url,
@@ -447,6 +447,10 @@ test("all active authority surfaces identify the evidence gateway and retain rou
     readFile(new URL("../../../../market-radar-v2-build-sequence.md", import.meta.url), "utf8"),
     readFile(new URL(
       "../../../../docs/blueprints/MARKET_RADAR_V2_CONTROLLED_REPLACEMENT_BLUEPRINT_V1.md",
+      import.meta.url,
+    ), "utf8"),
+    readFile(new URL(
+      "../../../../docs/blueprints/V2_PRODUCTION_EVIDENCE_GATEWAY_HEALTH_CONTRACT_REMEDIATION_REPORT.md",
       import.meta.url,
     ), "utf8"),
   ]);
@@ -491,9 +495,9 @@ test("all active authority surfaces identify the evidence gateway and retain rou
   assert.equal(matrix.currentImplementationEntry.otherContainerMutationAllowed, false);
   assert.equal(matrix.currentImplementationEntry.controlFileNoFollowMode600StableDescriptorRequired, true);
   assert.equal(matrix.currentImplementationEntry.localProductionDispatchTestsPassed, 37);
-  assert.equal(matrix.currentImplementationEntry.localGatewayTestsPassed, 7);
+  assert.equal(matrix.currentImplementationEntry.localGatewayTestsPassed, 8);
   assert.equal(matrix.currentImplementationEntry.localP0RRebindTestsPassed, 14);
-  assert.equal(matrix.currentImplementationEntry.localV2OpsTestsPassed, 274);
+  assert.equal(matrix.currentImplementationEntry.localV2OpsTestsPassed, 275);
   assert.equal(matrix.currentImplementationEntry.localFaultInjectionPassed, true);
   assert.equal(matrix.currentImplementationEntry.localDockerOrCaddyCliAvailable, false);
   assert.equal(matrix.currentImplementationEntry.realCaddyValidationRequiredBeforeMutation, true);
@@ -514,19 +518,64 @@ test("all active authority surfaces identify the evidence gateway and retain rou
     "35d7b63a40f9a21a07a44a974c0a1250b1c6c9be",
   );
   assert.equal(matrix.currentImplementationEntry.latestFullLocalCiPassed, true);
-  assert.equal(matrix.currentImplementationEntry.latestFullLocalCiV2FoundationTotal, 644);
-  assert.equal(matrix.currentImplementationEntry.latestFullLocalCiV2FoundationPassed, 638);
+  assert.equal(matrix.currentImplementationEntry.latestRemediationDirectedGatewayTestsPassed, 8);
+  assert.equal(matrix.currentImplementationEntry.latestRemediationTargetedEslintPassed, true);
+  assert.equal(matrix.currentImplementationEntry.latestRemediationFullLocalCiPending, false);
+  assert.equal(matrix.currentImplementationEntry.latestRemediationFullLocalCiPassed, true);
   assert.equal(
-    matrix.currentImplementationEntry.latestFullLocalCiV2FoundationExplicitSkipped,
+    matrix.currentImplementationEntry.latestRemediationFullLocalCiRecurrenceTestsPassed,
+    11,
+  );
+  assert.equal(
+    matrix.currentImplementationEntry.latestRemediationFullLocalCiV2FoundationPassed,
+    638,
+  );
+  assert.equal(matrix.currentImplementationEntry.latestRemediationFullLocalCiV2OpsPassed, 275);
+  assert.equal(matrix.currentImplementationEntry.latestRemediationFullLocalCiM0ChecksPassed, 12);
+  assert.equal(matrix.currentImplementationEntry.lastQualifiedFullLocalCiPassed, true);
+  assert.equal(matrix.currentImplementationEntry.lastQualifiedFullLocalCiV2FoundationTotal, 644);
+  assert.equal(matrix.currentImplementationEntry.lastQualifiedFullLocalCiV2FoundationPassed, 638);
+  assert.equal(
+    matrix.currentImplementationEntry.lastQualifiedFullLocalCiV2FoundationExplicitSkipped,
     6,
   );
-  assert.equal(matrix.currentImplementationEntry.latestFullLocalCiV2OpsPassed, 274);
-  assert.equal(matrix.currentImplementationEntry.latestFullLocalCiM0ChecksPassed, 12);
+  assert.equal(matrix.currentImplementationEntry.lastQualifiedFullLocalCiV2OpsPassed, 274);
+  assert.equal(matrix.currentImplementationEntry.lastQualifiedFullLocalCiM0ChecksPassed, 12);
+  assert.equal(matrix.currentImplementationEntry.latestRemoteFourGatesPassed, false);
+  assert.equal(matrix.currentImplementationEntry.lastQualifiedRemoteFourGatesPassed, true);
+  assert.equal(
+    matrix.currentImplementationEntry.lastQualifiedSourceCommit,
+    "dd67d81910f5696049d4271d527c264f2e42115f",
+  );
+  assert.equal(matrix.currentImplementationEntry.lastAttemptExactProductionApprovalGranted, true);
+  assert.equal(matrix.currentImplementationEntry.lastAttemptApprovalExpiredAndForbiddenForReuse, true);
   assert.equal(matrix.currentImplementationEntry.productionMutationAuthorized, false);
   assert.equal(matrix.currentImplementationEntry.productionIntentionalMutationPerformed, false);
-  assert.equal(matrix.currentImplementationEntry.freshProductionZeroDriftPassed, false);
+  assert.equal(matrix.currentImplementationEntry.freshProductionZeroDriftPassed, true);
+  assert.equal(
+    matrix.currentImplementationEntry.freshProductionZeroDriftScope,
+    "FAILED_GATEWAY_ATTEMPT_ONLY",
+  );
+  assert.equal(matrix.currentImplementationEntry.p0rFreshProductionZeroDriftPassed, false);
   assert.equal(matrix.currentImplementationEntry.sensitiveEdgeResponseTabMustNotBeInspected, true);
-  assert.equal(matrix.currentImplementationEntry.sensitiveEdgeResponseTabClosureConfirmed, false);
+  assert.equal(matrix.currentImplementationEntry.sensitiveEdgeResponseTabClosureConfirmed, true);
+  assert.equal(
+    matrix.currentImplementationEntry.lastExactProductionAttempt.signedDispatchCommit,
+    "a52aa6acfbe2f4f5d26cb15a82701195ca2f32df",
+  );
+  assert.equal(
+    matrix.currentImplementationEntry.lastExactProductionAttempt.decodedFailureReason,
+    "evidence_gateway_health_not_ready",
+  );
+  assert.equal(
+    matrix.currentImplementationEntry.lastExactProductionAttempt.stderrSha256,
+    "d41cd1e0993f4f20b1024ac7e1c9ba17ea70cd9a1f0f5ec61fd96523bde9701f",
+  );
+  assert.equal(
+    matrix.currentImplementationEntry.lastExactProductionAttempt.productionMutationPerformed,
+    false,
+  );
+  assert.equal(matrix.currentImplementationEntry.lastExactProductionAttempt.reusable, false);
   assert.equal(
     matrix.currentP0RTransportStagingRemediation.id,
     remediationEntry,
@@ -869,4 +918,11 @@ test("all active authority surfaces identify the evidence gateway and retain rou
   );
   assert.match(sequence, new RegExp(`Current execution entry: ${expectedEntry}`, "u"));
   assert.ok(blueprint.includes(`**当前执行入口**：\`${expectedEntry}\``));
+  assert.equal(
+    matrix.authority.m1ProductionEvidenceGatewayHealthContractRemediationReport,
+    "docs/blueprints/V2_PRODUCTION_EVIDENCE_GATEWAY_HEALTH_CONTRACT_REMEDIATION_REPORT.md",
+  );
+  assert.match(healthContractReport, /dd67d81910f5696049d4271d527c264f2e42115f/u);
+  assert.match(healthContractReport, /evidence_gateway_health_not_ready/u);
+  assert.match(healthContractReport, /FULL_CI_PASS/u);
 });
