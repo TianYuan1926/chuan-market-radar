@@ -2,7 +2,7 @@
 
 日期：2026-08-02
 
-状态：`LOCAL_IMPLEMENTATION_AND_TARGETED_ACCEPTANCE_PASS / ISOLATED_BRANCH_ONLY / CANDIDATE_CI_EXPECTED_BRANCH_IDENTITY_BLOCKER_ONLY / FINAL_MAIN_CI_AND_REMOTE_QUALIFICATION_PENDING / PRODUCTION_UNCHANGED / P0R_BLOCKED`
+状态：`LOCAL_EXACT_MAIN_BRANCH_FULL_CI_PASS / CLEAN_IMPLEMENTATION_COMMIT / REMOTE_QUALIFICATION_PENDING / PRODUCTION_UNCHANGED / P0R_BLOCKED`
 
 ## 1. 根因
 
@@ -26,16 +26,18 @@ transaction v1 会验证 `market-radar-v2-m1-p0r-external-route-evidence.v1`，�
 - 全 V2 Ops：`263/263 PASS`。新增 exact-toolchain launcher `3/3 PASS`；本机默认 Node `24.15.0` / npm `11.12.1` 的一次运行按设计失败，不计 PASS。固定入口现自动选择已安装的 Node `22.23.1` / npm `10.9.8`，若不存在则在任何长门禁前失败，不再依赖操作员记忆或要求用户切版本。
 - M0 exact CI binding：`6/6 PASS`。外层只允许固定 launcher 指向 `ci:production:exact`，内层精确锁定 14 项有序生产门禁、self-building verifier 和 compiled authority；删除、重排、绕过或 target 漂移均 fail closed。
 - 隔离候选完整 `ci:production` 再次自动选择锁定工具链并通过分支身份前的全部门。V2 Foundation=`643 total / 636 pass / 6 explicit skip / 1 expected fail`；唯一失败检查为 `clean_v2_branch_identity`，因此不计 full CI PASS，必须在唯一 V2 实施分支从头复验。
+- 候选通过污染、安全和 diff 审计后形成 exact implementation commit `157e9a79a635d8f31857481fbd6a51d10df51160`，并以同一 commit identity 精确合入 `codex/market-radar-v2-implementation`。
+- 官方 V2 实施分支最终字节完整 `ci:production` 已从头 PASS：recurrence=`11/11`、production dispatch=`25/25`、market=`965 PASS / 4 explicit skip`、workers=`23/23`、historical=`4/4`、V2 Foundation=`643 total / 637 PASS / 6 explicit skip`、V2 Ops=`263/263`、M0=`12/12`、Next production build、Golden=`16/16` 和 security 均通过。候选身份门失败继续作为历史证据保留。
 - ESLint 与 Biome：PASS。
 - Node：`22.23.1`；npm：`10.9.8`；Go 使用本机 `/opt/homebrew/bin/go`。
 
 ## 4. 未改变范围
 
-本包仅在隔离 worktree `codex/p0r-route-evidence-producer` 开发。已资格化主工作树、GitHub、production-dispatch、腾讯 firewall/listener、STS、COS、数据库、Redis、容器、env、migration、Feature Flag、业务服务和流量均未改变。Edge 敏感响应页未读取、未截图、未 OCR、未做 browser-state 或 computer-use。
+本包先在隔离 worktree `codex/p0r-route-evidence-producer` 开发和审计，再以 exact commit 身份精确合入本地唯一 V2 实施分支。GitHub、production-dispatch、腾讯 firewall/listener、STS、COS、数据库、Redis、容器、env、migration、Feature Flag、业务服务和流量均未改变。Edge 敏感响应页未读取、未截图、未 OCR、未做 browser-state 或 computer-use。
 
 ## 5. 仍未完成
 
-- 当前只是本地隔离分支证据。隔离候选完整 `ci:production` 已证明唯一失败检查是 M0 强制的 V2 实施分支身份；该门不得绕过，也不能把 `636 PASS` 扩写成 full CI PASS。尚需精确合入 `codex/market-radar-v2-implementation` 后完成最终字节 `ci:production`、clean commit、GitHub 四门和 fresh production rebind。
+- 当前只取得本地官方分支资格；尚未取得本轮 exact source 的 GitHub 四门、fresh production rebind 或真实目标验收。候选 `636 PASS + 1 branch-identity failure` 不能替代当前官方分支 PASS，当前官方分支 PASS 也不能替代远端和生产资格。
 - 腾讯 API Explorer response 是经过账户认证的控制面观察，但不是腾讯签名证明；生产证据必须由代理从原生 response 自动保存，用户不得手工拼装 final route JSON。
 - 旧云 listener/firewall/server residue 与 production zero drift 仍未 fresh 复核；在安全页面关闭和旧外部状态清场前不得创建新 route 或 STS。
 - 新 transport v4 会使旧 v3 package、run、lease 和 route evidence 全部失去执行权；必须生成全新 run/plan/object key/package/staging。
@@ -43,9 +45,8 @@ transaction v1 会验证 `market-radar-v2-m1-p0r-external-route-evidence.v1`，�
 
 ## 6. 下一步
 
-1. 完成隔离候选污染、安全、diff 和文档/追踪矩阵一致性校验，形成候选 clean commit。
-2. 精确合入唯一 V2 实施分支并完成最终字节 full CI，再形成 clean exact source 并重新取得 GitHub 四门。
-3. 取得 fresh signed read-only rebind 并清理旧 external residue。
-4. 生成全新 route target、lease、run、plan、transport v4 和 fixed-dispatch staging。
-5. 由代理自动保存 authenticated Tencent firewall capture、生成 listener observation 和 route evidence v2；只有全部 PASS 后才允许 Bridge PREARMED 和一次本人 MFA/native Copy。
-6. 完成真实 P0R recovery、零残留 closure、fresh health/topology/calibration 和 fresh P0。
+1. 完成本轮权威证据同步，在干净最终提交上从头复跑 full CI，并取得同一 exact source 的 GitHub 四门。
+2. 取得 fresh signed read-only rebind 并清理旧 external residue。
+3. 生成全新 route target、lease、run、plan、transport v4 和 fixed-dispatch staging。
+4. 由代理自动保存 authenticated Tencent firewall capture、生成 listener observation 和 route evidence v2；只有全部 PASS 后才允许 Bridge PREARMED 和一次本人 MFA/native Copy。
+5. 完成真实 P0R recovery、零残留 closure、fresh health/topology/calibration 和 fresh P0。

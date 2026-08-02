@@ -454,19 +454,31 @@ test("all active authority surfaces identify the B9 R2 route authority remediati
   assert.equal(matrix.currentImplementationEntry.routeAuthorityProducerTransactionTestsPassed, 23);
   assert.equal(matrix.currentImplementationEntry.localP0RTestsPassed, 138);
   assert.equal(matrix.currentImplementationEntry.localP0RTestsFailed, 0);
-  assert.equal(matrix.currentImplementationEntry.fullLocalCiPassed, false);
-  assert.equal(matrix.currentImplementationEntry.fullLocalCiPending, true);
-  assert.equal(matrix.currentImplementationEntry.fullLocalCiAttemptedOnCandidateBranch, true);
+  assert.equal(matrix.currentImplementationEntry.fullLocalCiPassed, true);
+  assert.equal(matrix.currentImplementationEntry.fullLocalCiPending, false);
+  assert.equal(
+    matrix.currentImplementationEntry.fullLocalCiBranch,
+    "codex/market-radar-v2-implementation",
+  );
   assert.equal(matrix.currentImplementationEntry.exactToolchainAutoDispatchRequired, true);
   assert.equal(matrix.currentImplementationEntry.exactToolchainLauncherTestsPassed, 3);
   assert.equal(matrix.currentImplementationEntry.isolatedV2OpsTestsPassed, 263);
   assert.equal(matrix.currentImplementationEntry.wrongDefaultToolchainAttemptCount, 1);
   assert.equal(matrix.currentImplementationEntry.wrongDefaultToolchainAttemptCountedAsPass, false);
   assert.equal(
-    matrix.currentImplementationEntry.fullLocalCiCandidateBlocker,
+    matrix.currentImplementationEntry.historicalCandidateCiBlocker,
     "REQUIRED_UNIQUE_V2_IMPLEMENTATION_BRANCH_IDENTITY",
   );
-  assert.equal(matrix.currentImplementationEntry.fullLocalCiPending, true);
+  assert.equal(matrix.currentImplementationEntry.fullLocalCiV2FoundationTotal, 643);
+  assert.equal(matrix.currentImplementationEntry.fullLocalCiV2FoundationPassed, 637);
+  assert.equal(matrix.currentImplementationEntry.fullLocalCiV2FoundationExplicitSkipped, 6);
+  assert.equal(matrix.currentImplementationEntry.fullLocalCiV2OpsPassed, 263);
+  assert.equal(matrix.currentImplementationEntry.fullLocalCiM0ChecksPassed, 12);
+  assert.equal(
+    matrix.currentImplementationEntry.routeAuthorityImplementationCommit,
+    "157e9a79a635d8f31857481fbd6a51d10df51160",
+  );
+  assert.equal(matrix.currentImplementationEntry.cleanExactSourcePassed, true);
   assert.equal(
     matrix.currentP0RTransportStagingRemediation.id,
     remediationEntry,
@@ -662,16 +674,27 @@ test("all active authority surfaces identify the B9 R2 route authority remediati
     false,
   );
   assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.routeAuthorityProducerTransactionTestsPassed, 23);
-  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.fullLocalCiPassed, false);
-  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.fullLocalCiPending, true);
+  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.fullLocalCiPassed, true);
+  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.fullLocalCiPending, false);
   assert.equal(
-    matrix.currentP0RB9ExternalTransactionRemediation.fullLocalCiAttemptedOnCandidateBranch,
-    true,
+    matrix.currentP0RB9ExternalTransactionRemediation.fullLocalCiBranch,
+    "codex/market-radar-v2-implementation",
   );
   assert.equal(
-    matrix.currentP0RB9ExternalTransactionRemediation.fullLocalCiCandidateBlocker,
+    matrix.currentP0RB9ExternalTransactionRemediation.historicalCandidateCiBlocker,
     "REQUIRED_UNIQUE_V2_IMPLEMENTATION_BRANCH_IDENTITY",
   );
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.fullLocalCiV2FoundationPassed,
+    637,
+  );
+  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.fullLocalCiV2OpsPassed, 263);
+  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.fullLocalCiM0ChecksPassed, 12);
+  assert.equal(
+    matrix.currentP0RB9ExternalTransactionRemediation.routeAuthorityImplementationCommit,
+    "157e9a79a635d8f31857481fbd6a51d10df51160",
+  );
+  assert.equal(matrix.currentP0RB9ExternalTransactionRemediation.cleanExactSourcePassed, true);
   assert.equal(
     matrix.currentP0RB9ExternalTransactionRemediation.externalCloudCleanupPending,
     true,
@@ -692,12 +715,24 @@ test("all active authority surfaces identify the B9 R2 route authority remediati
   assert.equal(matrix.currentP0RRouteAuthorityRemediation.exactToolchainAutoDispatchRequired, true);
   assert.equal(matrix.currentP0RRouteAuthorityRemediation.exactToolchainLauncherTestsPassed, 3);
   assert.equal(matrix.currentP0RRouteAuthorityRemediation.isolatedV2OpsTestsPassed, 263);
-  assert.equal(matrix.currentP0RRouteAuthorityRemediation.fullLocalCiPending, true);
-  assert.equal(matrix.currentP0RRouteAuthorityRemediation.fullLocalCiAttemptedOnCandidateBranch, true);
+  assert.equal(matrix.currentP0RRouteAuthorityRemediation.fullLocalCiPassed, true);
+  assert.equal(matrix.currentP0RRouteAuthorityRemediation.fullLocalCiPending, false);
   assert.equal(
-    matrix.currentP0RRouteAuthorityRemediation.fullLocalCiCandidateBlocker,
+    matrix.currentP0RRouteAuthorityRemediation.fullLocalCiBranch,
+    "codex/market-radar-v2-implementation",
+  );
+  assert.equal(
+    matrix.currentP0RRouteAuthorityRemediation.historicalCandidateCiBlocker,
     "REQUIRED_UNIQUE_V2_IMPLEMENTATION_BRANCH_IDENTITY",
   );
+  assert.equal(matrix.currentP0RRouteAuthorityRemediation.fullLocalCiV2FoundationPassed, 637);
+  assert.equal(matrix.currentP0RRouteAuthorityRemediation.fullLocalCiV2OpsPassed, 263);
+  assert.equal(matrix.currentP0RRouteAuthorityRemediation.fullLocalCiM0ChecksPassed, 12);
+  assert.equal(
+    matrix.currentP0RRouteAuthorityRemediation.routeAuthorityImplementationCommit,
+    "157e9a79a635d8f31857481fbd6a51d10df51160",
+  );
+  assert.equal(matrix.currentP0RRouteAuthorityRemediation.cleanCommitPassed, true);
   assert.equal(matrix.currentP0RRouteAuthorityRemediation.executionAuthority, false);
   assert.equal(matrix.currentP0RTransportStagingRemediation.targetProductionStagingTestsPassed, 11);
   assert.equal(matrix.currentP0RTransportStagingRemediation.p0rTestsPassed, 111);
