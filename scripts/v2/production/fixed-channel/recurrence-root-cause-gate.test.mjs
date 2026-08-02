@@ -429,8 +429,9 @@ test("the P0R runbook retires post-response browser recovery and OrcaTerm secret
   assert.doesNotMatch(runbook, /以下两条是唯一允许的 secret session 入口/u);
 });
 
-test("all active authority surfaces identify the B9 R2 route authority remediation", async () => {
-  const expectedEntry =
+test("all active authority surfaces identify the evidence gateway and retain route authority only as qualified upstream", async () => {
+  const expectedEntry = "V2-PRODUCTION-EVIDENCE-GATEWAY-CADDY-ONLY";
+  const routeAuthorityEntry =
     "V2-M1.6-P0R-B9-R2-ROUTE-AUTHORITY-PRODUCER-ROOT-REMEDIATION";
   const remediationEntry =
     "V2-M1.6-P0R-B8-FIXED-DISPATCH-TRANSPORT-STAGING-ROOT-REMEDIATION";
@@ -451,51 +452,63 @@ test("all active authority surfaces identify the B9 R2 route authority remediati
   ]);
 
   assert.equal(matrix.currentImplementationEntry.id, expectedEntry);
-  assert.equal(matrix.currentImplementationEntry.routeAuthorityProducerTransactionTestsPassed, 24);
-  assert.equal(matrix.currentImplementationEntry.localP0RTestsPassed, 139);
-  assert.equal(matrix.currentImplementationEntry.localP0RTestsFailed, 0);
-  assert.equal(matrix.currentImplementationEntry.fullLocalCiPassed, true);
-  assert.equal(matrix.currentImplementationEntry.fullLocalCiPending, false);
   assert.equal(
-    matrix.currentImplementationEntry.fullLocalCiBranch,
-    "codex/market-radar-v2-implementation",
-  );
-  assert.equal(matrix.currentImplementationEntry.exactToolchainAutoDispatchRequired, true);
-  assert.equal(matrix.currentImplementationEntry.exactToolchainLauncherTestsPassed, 3);
-  assert.equal(matrix.currentImplementationEntry.isolatedV2OpsTestsPassed, 266);
-  assert.equal(matrix.currentImplementationEntry.wrongDefaultToolchainAttemptCount, 1);
-  assert.equal(matrix.currentImplementationEntry.wrongDefaultToolchainAttemptCountedAsPass, false);
-  assert.equal(
-    matrix.currentImplementationEntry.historicalCandidateCiBlocker,
-    "REQUIRED_UNIQUE_V2_IMPLEMENTATION_BRANCH_IDENTITY",
-  );
-  assert.equal(matrix.currentImplementationEntry.fullLocalCiV2FoundationTotal, 643);
-  assert.equal(matrix.currentImplementationEntry.fullLocalCiV2FoundationPassed, 637);
-  assert.equal(matrix.currentImplementationEntry.fullLocalCiV2FoundationExplicitSkipped, 6);
-  assert.equal(matrix.currentImplementationEntry.fullLocalCiV2OpsPassed, 266);
-  assert.equal(matrix.currentImplementationEntry.fullLocalCiM0ChecksPassed, 12);
-  assert.equal(
-    matrix.currentImplementationEntry.routeAuthorityImplementationCommit,
-    "157e9a79a635d8f31857481fbd6a51d10df51160",
+    matrix.currentImplementationEntry.rootCause,
+    "fixed_dispatch_was_pull_only_and_left_sanitized_results_on_the_server_forcing_repeated_browser_or_manual_result_extraction",
   );
   assert.equal(
-    matrix.currentImplementationEntry.codeqlDiagnosticCommit,
-    "8059edf37fd0076b36cb7c57f233525c0d3056f3",
+    matrix.currentImplementationEntry.qualifiedUpstreamRouteAuthorityEntry,
+    routeAuthorityEntry,
   );
-  assert.equal(matrix.currentImplementationEntry.codeqlDiagnosticFailedSecurityRunId, 30725896115);
-  assert.equal(matrix.currentImplementationEntry.codeqlDiagnosticRuleId, "js/file-system-race");
-  assert.equal(matrix.currentImplementationEntry.codeqlSuppressionAdded, false);
+  assert.deepEqual(matrix.currentImplementationEntry.supersededResultPaths, [
+    "EDGE_API_EXPLORER_RESPONSE_READING",
+    "AX_OR_BROWSER_STATE_RECOVERY",
+    "ORCATERM_RESULT_UPLOAD_OR_DOWNLOAD",
+    "MANUAL_PLAINTEXT_COPY",
+  ]);
+  assert.deepEqual(matrix.currentImplementationEntry.architecture, {
+    productionSigner: "PINNED_PRODUCTION_SSH_ED25519_HOST_KEY_NAMESPACE_SIGNATURE",
+    recipient: "LOCAL_X25519_PUBLIC_RECIPIENT",
+    encryption: "X25519_HKDF_SHA256_AES_256_GCM",
+    transport: "EXISTING_CADDY_HTTP_HIGH_ENTROPY_EXACT_CIPHERTEXT_ROUTE",
+    retrieval: "LOCAL_FIXED_SOCKS_POLLER_STRICT_NO_REDIRECT",
+    persistence: "MODE_0600_ATOMIC_NO_CLOBBER_PAYLOAD_SEALED_AND_RECEIPT",
+    retentionSeconds: 7_200,
+    cleanup: "PER_DISPATCH_HARDENED_TRANSIENT_SYSTEMD_TIMER_PLUS_PRUNE",
+  });
   assert.equal(
-    matrix.currentImplementationEntry.routeIdentityRaceRemediationCommit,
-    "913bae3a2db4d8f172d0de9be87305ad21b53884",
+    matrix.currentImplementationEntry.productionMutationScope,
+    "CADDY_ONLY_FORCE_RECREATE_WITH_CURRENT_IMAGE",
   );
-  assert.equal(matrix.currentImplementationEntry.remoteFourGatesPassed, true);
-  assert.equal(matrix.currentImplementationEntry.remoteSignedProductionDispatchRunId, 30726178696);
-  assert.equal(matrix.currentImplementationEntry.remoteFullQualityAndMaterialsRunId, 30726178679);
-  assert.equal(matrix.currentImplementationEntry.remoteA0ReleaseQualificationRunId, 30726178659);
-  assert.equal(matrix.currentImplementationEntry.remoteIndependentSecurityRunId, 30726178672);
-  assert.equal(matrix.currentImplementationEntry.remoteCodeqlPassJobId, 91438221977);
-  assert.equal(matrix.currentImplementationEntry.cleanExactSourcePassed, true);
+  assert.equal(matrix.currentImplementationEntry.automaticBaselineCaddyRollbackRequired, true);
+  assert.equal(matrix.currentImplementationEntry.productionRepositoryMutationAllowed, false);
+  assert.equal(matrix.currentImplementationEntry.databaseMutationAllowed, false);
+  assert.equal(matrix.currentImplementationEntry.redisMutationAllowed, false);
+  assert.equal(matrix.currentImplementationEntry.workerMutationAllowed, false);
+  assert.equal(matrix.currentImplementationEntry.envMutationAllowed, false);
+  assert.equal(matrix.currentImplementationEntry.migrationAllowed, false);
+  assert.equal(matrix.currentImplementationEntry.featureFlagMutationAllowed, false);
+  assert.equal(matrix.currentImplementationEntry.otherContainerMutationAllowed, false);
+  assert.equal(matrix.currentImplementationEntry.controlFileNoFollowMode600StableDescriptorRequired, true);
+  assert.equal(matrix.currentImplementationEntry.localProductionDispatchTestsPassed, 37);
+  assert.equal(matrix.currentImplementationEntry.localGatewayTestsPassed, 7);
+  assert.equal(matrix.currentImplementationEntry.localP0RRebindTestsPassed, 14);
+  assert.equal(matrix.currentImplementationEntry.localV2OpsTestsPassed, 274);
+  assert.equal(matrix.currentImplementationEntry.localFaultInjectionPassed, true);
+  assert.equal(matrix.currentImplementationEntry.localDockerOrCaddyCliAvailable, false);
+  assert.equal(matrix.currentImplementationEntry.realCaddyValidationRequiredBeforeMutation, true);
+  assert.equal(matrix.currentImplementationEntry.realCaddyValidationPassed, false);
+  assert.equal(matrix.currentImplementationEntry.firstLatestBytesFullCiAttemptPassed, false);
+  assert.equal(
+    matrix.currentImplementationEntry.firstLatestBytesFullCiFailure,
+    "RECURRENCE_AUTHORITY_SURFACES_STALE",
+  );
+  assert.equal(matrix.currentImplementationEntry.authoritySurfaceSyncRemediationApplied, true);
+  assert.equal(matrix.currentImplementationEntry.productionMutationAuthorized, false);
+  assert.equal(matrix.currentImplementationEntry.productionIntentionalMutationPerformed, false);
+  assert.equal(matrix.currentImplementationEntry.freshProductionZeroDriftPassed, false);
+  assert.equal(matrix.currentImplementationEntry.sensitiveEdgeResponseTabMustNotBeInspected, true);
+  assert.equal(matrix.currentImplementationEntry.sensitiveEdgeResponseTabClosureConfirmed, false);
   assert.equal(
     matrix.currentP0RTransportStagingRemediation.id,
     remediationEntry,
@@ -503,7 +516,7 @@ test("all active authority surfaces identify the B9 R2 route authority remediati
   assert.equal(matrix.currentP0RRuntimeNamespaceRemediation.id, runtimeNamespaceEntry);
   assert.equal(
     matrix.currentP0RB9ExternalTransactionRemediation.id,
-    expectedEntry,
+    routeAuthorityEntry,
   );
   assert.equal(
     matrix.currentP0RB9CosAuthorizationRemediation.id,
@@ -726,7 +739,7 @@ test("all active authority surfaces identify the B9 R2 route authority remediati
     matrix.currentP0RB9ExternalTransactionRemediation.productionZeroDriftPassed,
     false,
   );
-  assert.equal(matrix.currentP0RRouteAuthorityRemediation.id, expectedEntry);
+  assert.equal(matrix.currentP0RRouteAuthorityRemediation.id, routeAuthorityEntry);
   assert.equal(
     matrix.currentP0RRouteAuthorityRemediation.routeEvidenceSchema,
     "market-radar-v2-m1-p0r-external-route-evidence.v2",
@@ -822,8 +835,20 @@ test("all active authority surfaces identify the B9 R2 route authority remediati
     true,
   );
   assert.equal(matrix.currentP0RLocalTtyBridgeRemediation.currentRecurrenceTestsPassed, 11);
-  assert.match(context, new RegExp(`## 18[\\s\\S]*${expectedEntry}`, "u"));
-  assert.match(index, new RegExp(`## 6[\\s\\S]*${expectedEntry}`, "u"));
+  const contextCurrentEntry = context.split("## 18. 当前执行入口与关键外部门")[1]
+    ?.split("## 19.")[0];
+  const indexCurrentEntry = index.split("## 6. 当前实施入口")[1]
+    ?.split("## 7.")[0];
+  assert.match(contextCurrentEntry ?? "", new RegExp(expectedEntry, "u"));
+  assert.doesNotMatch(
+    contextCurrentEntry ?? "",
+    new RegExp(`^${routeAuthorityEntry}$`, "mu"),
+  );
+  assert.match(indexCurrentEntry ?? "", new RegExp(expectedEntry, "u"));
+  assert.doesNotMatch(
+    indexCurrentEntry ?? "",
+    new RegExp(`^${routeAuthorityEntry}$`, "mu"),
+  );
   assert.match(sequence, new RegExp(`Current execution entry: ${expectedEntry}`, "u"));
   assert.ok(blueprint.includes(`**当前执行入口**：\`${expectedEntry}\``));
 });

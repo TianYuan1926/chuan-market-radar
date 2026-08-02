@@ -2,7 +2,23 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
-import { buildM0ExitReport } from "./m0-exit-validator";
+import {
+  buildM0ExitReport,
+  isValidV2ExecutionEntryId,
+} from "./m0-exit-validator";
+
+test("execution entry ids admit only milestone ids and reviewed production controls", () => {
+  assert.equal(isValidV2ExecutionEntryId("V2-M1.6-P0R"), true);
+  assert.equal(isValidV2ExecutionEntryId("V2-A0-ENGINEERING-FOUNDATION"), true);
+  assert.equal(
+    isValidV2ExecutionEntryId("V2-PRODUCTION-EVIDENCE-GATEWAY-CADDY-ONLY"),
+    true,
+  );
+  assert.equal(isValidV2ExecutionEntryId("V2-PRODUCTION-UNREVIEWED-CONTROL"), false);
+  assert.equal(isValidV2ExecutionEntryId("V2-LEGACY-G0"), false);
+  assert.equal(isValidV2ExecutionEntryId("V2-M1.6-P0R\nV2-M2.1"), false);
+  assert.equal(isValidV2ExecutionEntryId("V2-PRODUCTION-EVIDENCE-GATEWAY-CADDY-ONLY\nV2-M1"), false);
+});
 
 test("M0 engineering exit remains closed unless every required proof passes", () => {
   const report = buildM0ExitReport(process.cwd());

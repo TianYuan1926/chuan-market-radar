@@ -14,11 +14,12 @@
 - 本机固定 poller 只经 `127.0.0.1:7892` SOCKS 访问固定生产地址，校验 pinned host key/fingerprint、dispatch、schema、time 和 hash，以 mode-600、atomic、no-clobber 方式保存 payload、sealed object 和 receipt。生产每个对象由 exact transient systemd timer 在两小时租约后删除，并保留有界 prune。
 - 生产 gateway package 只允许复用当前 Caddy image 并 force-recreate Caddy；生产仓库、数据库、Redis、Worker、env、migration、Feature Flag 和其他容器均禁止改变。它在 mutation 前用当前 production Caddy image、network-none、read-only rootfs 验证目标配置；任何变更后失败都恢复 baseline Caddy，并要求非 Caddy full container IDs 保持不变。
 - 审批和 release 控制文件已统一使用 descriptor-first `O_NOFOLLOW`、mode-600、大小上限和读取前后 inode/mtime 稳定校验，并新增 broad-mode 与 symlink 红例。当前 production dispatch `37/37`、gateway `7/7`、P0R rebind `14/14`、V2 Ops `274/274`、ESLint、shell syntax、diff check 和故障注入 PASS。
-- 本机没有 Docker/Caddy CLI，因此不能把模拟测试称为真实 Caddy validation；真实语法/runtime validation 已固定为生产 mutation 前、当前 image 的隔离 preflight，尚未执行。最新完整 `ci:production`、clean exact commit、GitHub 四门、确定性 production bundle、精确生产批准、Caddy-only bootstrap、自动取回和 fresh rebind 均待完成。
+- 第一次最新字节完整 CI 在 recurrence authority `10/11` 真实失败，进一步暴露 PROJECT_CONTEXT、蓝图索引和旧防复发测试仍把 B9 R2 route authority 标为当前入口。治理修复把新 gateway 锁为唯一当前入口，旧 route authority 只保留为已资格化上游；M0 对生产控制 ID 改为精确白名单并加入任意 ID、Legacy ID 和换行注入红例。Caddyfile 变更同时触发 Legacy consumer map 和 reviewed commit fail closed；重新审查后的 22 capabilities、539 source files、273 runtime edges 全部不变，仅受影响 capability digest 更新。
+- 修复后最终字节完整 `ci:production` 已从头 PASS：recurrence `11/11`、dispatch `37/37`、V2 Foundation `644 total / 638 PASS / 6 explicit skips`、V2 Ops `274/274`、M0 `12/12`、Next production build、Golden `16/16` 和 security 全部通过。本机没有 Docker/Caddy CLI，因此不能把模拟测试称为真实 Caddy validation；真实语法/runtime validation 已固定为生产 mutation 前、当前 image 的隔离 preflight，尚未执行。clean exact commit、GitHub 四门、确定性 production bundle、精确生产批准、Caddy-only bootstrap、自动取回和 fresh rebind 仍待完成。
 
 ### 当前真值与下一步
 
-状态是 `AUTONOMOUS_EVIDENCE_RETURN_LOCAL_IMPLEMENTATION_AND_FAULT_INJECTION_PASS / LATEST_FULL_CI_CLEAN_COMMIT_REMOTE_FOUR_GATES_EXACT_APPROVAL_REAL_CADDY_VALIDATION_BOOTSTRAP_RETRIEVAL_AND_FRESH_REBIND_PENDING / PRODUCTION_INTENTIONAL_MUTATION_NONE / FRESH_PRODUCTION_ZERO_DRIFT_UNVERIFIED / P0R_BACKUP_RETRIEVAL_RESTORE_NOT_EXECUTED`。先完成权威资料同步与最新字节完整 CI，再形成唯一 V2 实施分支 clean commit 和 GitHub 四门；只有 exact production package 与批准成立后才允许 Caddy-only bootstrap。成功自动取回并验证 gateway evidence 后，使用同一通道 fresh rebind，再恢复 P0R。
+状态是 `AUTONOMOUS_EVIDENCE_RETURN_LOCAL_IMPLEMENTATION_FAULT_INJECTION_AND_FULL_CI_PASS / CLEAN_EXACT_COMMIT_REMOTE_FOUR_GATES_EXACT_APPROVAL_REAL_CADDY_VALIDATION_BOOTSTRAP_RETRIEVAL_AND_FRESH_REBIND_PENDING / PRODUCTION_INTENTIONAL_MUTATION_NONE / FRESH_PRODUCTION_ZERO_DRIFT_UNVERIFIED / P0R_BACKUP_RETRIEVAL_RESTORE_NOT_EXECUTED`。先形成唯一 V2 实施分支 clean commit并同步最终证据，再对最终字节复验和取得 GitHub 四门；只有 exact production package 与批准成立后才允许 Caddy-only bootstrap。成功自动取回并验证 gateway evidence 后，使用同一通道 fresh rebind，再恢复 P0R。
 
 ## 2026-08-02 / P0R B9 R2 External Transaction and Route Authority Root Remediation
 

@@ -48,6 +48,12 @@ const EXACT_M0_VERIFIER =
 const EXACT_M0_COMPILED_VERIFIER =
   "node .tmp/market-tests/v2/governance/m0-exit-validator.js";
 
+const NAMED_PRODUCTION_CONTROL_ENTRY_IDS = new Set([
+  "V2-PRODUCTION-EVIDENCE-GATEWAY-CADDY-ONLY",
+]);
+const MILESTONE_EXECUTION_ENTRY_ID =
+  /^V2-(?:A0|M[0-9](?:\.[0-9]+[A-Z0-9]*)?)(?:-[A-Z0-9]+(?:\.[A-Z0-9]+)*)+$/u;
+
 export type M0ExitCheck = Readonly<{
   id: string;
   passed: boolean;
@@ -69,6 +75,11 @@ export type M0ExitReport = Readonly<{
 }>;
 
 type CheckRunner = () => string;
+
+export function isValidV2ExecutionEntryId(id: string): boolean {
+  return MILESTONE_EXECUTION_ENTRY_ID.test(id)
+    || NAMED_PRODUCTION_CONTROL_ENTRY_IDS.has(id);
+}
 
 export function validateM0ProductionCiBinding(
   scripts: Readonly<Record<string, string>>,
@@ -575,7 +586,7 @@ export function buildM0ExitReport(repositoryRoot: string): M0ExitReport {
       executionMatrix.nextScopeV2ImplementationEntry.id,
       executionMatrix.pendingHistoricalDataGate.id,
     ];
-    if (ids.some((id) => !/^V2-(?:A0|M[0-9])/u.test(id))) {
+    if (ids.some((id) => !isValidV2ExecutionEntryId(id))) {
       throw new Error("machine matrix contains an invalid implementation entry id");
     }
     if (new Set(ids).size !== ids.length) {

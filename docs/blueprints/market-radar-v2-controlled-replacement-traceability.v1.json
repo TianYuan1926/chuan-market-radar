@@ -1,7 +1,7 @@
 {
   "schemaVersion": "market-radar-v2-controlled-replacement-traceability.v1.92",
   "status": "m0_4_expanded_scope_design_pass_m0_5_market_mechanics_microstructure_precursor_atlas_local_contract_pass_a0_engineering_subgates_pass_total_gate_incomplete_p0r_pending_m1_1b0_r3_live_15_of_15_all_gates_pass_m1_4a_through_m1_4d_local_contracts_pass_no_authority_m1_5c_m1_5d_local_runtime_and_exact_package_pass_live_zero_of_31_each_m1_6_p0_blocked_p0r_route_authority_upstream_qualified_production_evidence_gateway_caddy_only_local_implementation_dispatch_37_gateway_7_p0r_rebind_14_v2_ops_274_pass_latest_full_ci_clean_commit_remote_four_gates_exact_production_approval_real_caddy_validation_bootstrap_retrieval_and_fresh_rebind_pending_production_intentional_mutation_none_fresh_zero_drift_unverified_m2_1a_local_research_contract_pass_real_cohort_missing_no_candidate_emission_m2_2_c1_forward_only_ready_no_authority_m3_0_through_m3_3_local_contract_pass_test_only_uncalibrated_no_ready_authority_m3_3e_strategy_label_design_authority_only_m3_4_r0_scope_rebase_governance_pass_r1_partial_test_only_draft_external_historical_source_blocked_m1_not_complete",
-  "generatedAt": "2026-08-02T12:27:17+08:00",
+  "generatedAt": "2026-08-02T12:33:27+08:00",
   "implementationAuthorized": true,
   "productionMutationAuthorized": false,
   "longTermEngineeringGovernance": {
@@ -2934,6 +2934,7 @@
     "status": "local_implementation_and_fault_injection_pass_latest_full_ci_clean_commit_remote_four_gates_exact_production_approval_real_caddy_validation_bootstrap_retrieval_and_fresh_rebind_pending",
     "scopeEpoch": "SCOPE_EPOCH_V1_CRYPTO_3V",
     "rootCause": "fixed_dispatch_was_pull_only_and_left_sanitized_results_on_the_server_forcing_repeated_browser_or_manual_result_extraction",
+    "qualifiedUpstreamRouteAuthorityEntry": "V2-M1.6-P0R-B9-R2-ROUTE-AUTHORITY-PRODUCER-ROOT-REMEDIATION",
     "supersededResultPaths": [
       "EDGE_API_EXPLORER_RESPONSE_READING",
       "AX_OR_BROWSER_STATE_RECOVERY",
@@ -2951,6 +2952,7 @@
       "cleanup": "PER_DISPATCH_HARDENED_TRANSIENT_SYSTEMD_TIMER_PLUS_PRUNE"
     },
     "productionMutationScope": "CADDY_ONLY_FORCE_RECREATE_WITH_CURRENT_IMAGE",
+    "productionMutationAllowed": false,
     "automaticBaselineCaddyRollbackRequired": true,
     "productionRepositoryMutationAllowed": false,
     "databaseMutationAllowed": false,
@@ -2975,6 +2977,9 @@
     "baseSourceCommit": "302b4478b2c2be5d0cf89cefea89312915d29603",
     "implementationBranch": "codex/v2-fixed-dispatch-evidence-return",
     "cleanExactImplementationCommitCreated": false,
+    "firstLatestBytesFullCiAttemptPassed": false,
+    "firstLatestBytesFullCiFailure": "RECURRENCE_AUTHORITY_SURFACES_STALE",
+    "authoritySurfaceSyncRemediationApplied": true,
     "latestFullLocalCiPassed": false,
     "latestRemoteFourGatesPassed": false,
     "exactProductionApprovalGranted": false,
@@ -2989,8 +2994,7 @@
     "sensitiveEdgeResponseTabMustNotBeInspected": true,
     "sensitiveEdgeResponseTabClosureConfirmed": false,
     "nextMandatorySequence": [
-      "SYNC_AUTHORITY_DOCUMENTS",
-      "LATEST_BYTES_FULL_LOCAL_CI",
+      "RERUN_LATEST_BYTES_FULL_LOCAL_CI_AFTER_AUTHORITY_SYNC",
       "CLEAN_EXACT_COMMIT_ON_UNIQUE_V2_IMPLEMENTATION_BRANCH",
       "EXACT_SOURCE_GITHUB_FOUR_GATES",
       "BUILD_DETERMINISTIC_CADDY_ONLY_GATEWAY_PACKAGE",
